@@ -80,18 +80,22 @@ exception family for parity.
 
 ## Subscribe lifecycle
 
+`subscribe` is a plain `def` returning an async generator directly;
+context-construct + `ctx.monitor` registration both run on the
+generator's first `__anext__`.
 `Context.monitor(name, callback, notify_disconnect=True)` is
 SYNCHRONOUS and returns a `Subscription` immediately. The callback
-fires from p4p's internal thread; p4p detects async-def callbacks and
-schedules them on the running loop, so we pass an inline async
+fires from p4p's internal thread; p4p detects async-def callbacks
+and schedules them on the running loop, so we pass an inline async
 function that puts onto an `asyncio.Queue`. The adapter wraps the
 queue in an async generator so cancellation runs `sub.close() +
 sub.wait_closed()` via the generator's `finally` (matching the
-CaprotoControlPort + EpicsCaControlPort + InMemoryControlPort cleanup
-discipline).
+CaprotoControlPort + EpicsCaControlPort + InMemoryControlPort
+cleanup discipline).
 
-`Disconnected` arriving on the queue raises `ControlNotConnectedError`
-through the iterator so the consumer can decide to re-subscribe.
+`Disconnected` arriving on the queue raises
+`ControlNotConnectedError` through the iterator so the consumer can
+decide to re-subscribe.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
@@ -298,11 +302,13 @@ class EpicsPvaControlPort:
                 address, raw_type=type(value).__name__, target_kind="pva put"
             ) from exc
 
-    async def subscribe(self, address: str) -> AsyncGenerator[Reading]:
+    def subscribe(self, address: str) -> AsyncGenerator[Reading]:
         """Return type narrows the Protocol's `AsyncIterator` to `AsyncGenerator`.
 
         Covariant return lets tests close subscriptions via the
         iterator's `aclose()`; same pattern as the other adapters.
+        Setup (`_ensure_context` + `ctx.monitor`) runs on the
+        generator's first `__anext__`.
         """
         return self._drain(address)
 

@@ -68,30 +68,35 @@ discriminated by ECA code:
 
   - `ECA_TIMEOUT` -> `ControlTimeoutError`
   - `ECA_DISCONN` -> `ControlNotConnectedError`
+  - `ECA_NORDACCESS` / `ECA_NOWTACCESS` (Access Security read / write
+    denial) -> `ControlAccessDeniedError`. These constants are not
+    re-exported by `epicscorelibs.ca.cadef`; the encoded values come
+    from EPICS Base `caerr.h`: `(msg_no << 3) | severity` with
+    `CA_K_WARNING == 0`, giving NORDACCESS=232 and NOWTACCESS=240.
   - caput-callback failure -> `CANothing` with a non-success
     errorcode -> `ControlWriteRejectedError`
-  - other ECA codes -> `ControlWriteRejectedError` on the write path
-    and `ControlTimeoutError` on the read path; the raw errorcode +
-    name fold into the exception detail so the decider's event payload
-    captures it per [[project_non_determinism_principle]]
+  - other ECA codes -> `ControlWriteRejectedError`; the raw
+    errorcode folds into the exception detail so the decider's event
+    payload captures it per [[project_non_determinism_principle]]
 
-`ControlAccessDeniedError` and `ControlValueCoercionError` aren't
-triggered against the softIOC test fixture (no Access Security; closed
-ReadingKind set covers every type the .db exposes). Both stay in the
-exception family for parity with the port + production deployments
-where CA Access Security WILL eventually trip them.
+`ControlValueCoercionError` isn't triggered against the softIOC test
+fixture (the closed ReadingKind set covers every type the .db
+exposes). Retained in the exception family for parity with the port
++ EpicsPva, where p4p's client-side type coercion can raise it.
 
 ## Subscribe lifecycle
 
-`camonitor(pv, callback, ...)` is synchronous (returns a `Subscription`
-object). The callback runs on the event loop; we pass
-`asyncio.Queue.put` directly so each update enqueues without an
-intermediate Python frame. `notify_disconnect=True` ensures disconnect
-arrives as a `CANothing(.ok=False)` callback rather than a silent
-stream pause. The adapter wraps the queue in an async generator so
-cancellation runs `sub.close()` via the generator's `finally`
-(matching the `CaprotoControlPort` + `InMemoryControlPort` cleanup
-discipline).
+`subscribe` is a plain `def` returning an async generator directly;
+`_assert_connected` + `camonitor` registration both run on the
+generator's first `__anext__`. `camonitor(pv, callback, ...)` is
+synchronous (returns a `Subscription` object). The callback runs on
+the event loop; we pass `asyncio.Queue.put` directly so each update
+enqueues without an intermediate Python frame.
+`notify_disconnect=True` ensures disconnect arrives as a
+`CANothing(.ok=False)` callback rather than a silent stream pause.
+The adapter wraps the queue in an async generator so cancellation
+runs `sub.close()` via the generator's `finally` (matching the
+`CaprotoControlPort` + `InMemoryControlPort` cleanup discipline).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
@@ -116,6 +121,7 @@ from aioca import (
 from epicscorelibs.ca import cadef
 
 from cora.operation.ports.control_port import (
+    ControlAccessDeniedError,
     ControlNotConnectedError,
     ControlTimeoutError,
     ControlWriteRejectedError,
@@ -133,6 +139,17 @@ _DEFAULT_TIMEOUT_S = 5.0
 inherit it for production deployments. Tests override with a tighter
 value (`default_timeout_s=0.3`) on negative-path tests so a missing
 PV fails the test quickly instead of stalling the suite for 5s."""
+
+
+_ECA_NORDACCESS = 232
+_ECA_NOWTACCESS = 240
+"""CA Access Security denial errorcodes. `epicscorelibs.ca.cadef`
+only re-exports `ECA_TIMEOUT`, `ECA_DISCONN`, `ECA_NORMAL`; the
+denial codes come from EPICS Base `caerr.h`:
+`(msg_no << CA_K_NCHAR_SHIFT) | severity` with shift=3 and
+`CA_K_WARNING == 0`. NORDACCESS uses msg_no=29; NOWTACCESS uses
+msg_no=30. Pinned as named constants so `_map_ca_error` reads
+declaratively instead of with magic numbers."""
 
 
 _SEVERITY_TO_QUALITY: dict[int, Quality] = {
@@ -226,6 +243,8 @@ def _map_ca_error(address: str, exc: CANothing, *, timeout_s: float) -> Exceptio
         return ControlTimeoutError(address, timeout_s)
     if errorcode == cadef.ECA_DISCONN:
         return ControlNotConnectedError(address)
+    if errorcode in (_ECA_NORDACCESS, _ECA_NOWTACCESS):
+        return ControlAccessDeniedError(address)
     return ControlWriteRejectedError(address, f"CA errorcode={errorcode}")
 
 
@@ -291,17 +310,18 @@ class EpicsCaControlPort:
         except CANothing as exc:
             raise _map_ca_error(address, exc, timeout_s=timeout_s) from exc
 
-    async def subscribe(self, address: str) -> AsyncGenerator[Reading]:
+    def subscribe(self, address: str) -> AsyncGenerator[Reading]:
         """Return type narrows the Protocol's `AsyncIterator` to `AsyncGenerator`.
 
         Covariant return lets tests close subscriptions via the
         iterator's `aclose()`; same pattern as the InMemory + Caproto
-        ports.
+        ports. Setup (`_assert_connected` + `camonitor`) runs on the
+        generator's first `__anext__`.
         """
-        await self._assert_connected(address)
         return self._drain(address)
 
     async def _drain(self, address: str) -> AsyncGenerator[Reading]:
+        await self._assert_connected(address)
         queue: asyncio.Queue[Any] = asyncio.Queue()
         sub = camonitor(
             address,

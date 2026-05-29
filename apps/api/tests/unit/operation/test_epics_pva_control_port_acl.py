@@ -18,6 +18,10 @@ Coverage:
   - `Disconnected` on read -> `ControlNotConnectedError`
   - `RemoteError` on write -> `ControlWriteRejectedError`
   - `ValueError` on write -> `ControlValueCoercionError`
+  - mid-stream `Disconnected` on subscribe (after first value) ->
+    NotConnected through the iterator (the `seen_value=True` branch
+    in `_drain`; softIOC's monitor stays open silently so this can't
+    be reached at the integration tier)
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
@@ -154,3 +158,83 @@ async def test_aclose_closes_context_idempotently() -> None:
     assert fake.closed is True
     await port.aclose()  # idempotent
     assert port._closed is True  # pyright: ignore[reportPrivateUsage]
+
+
+class _FakeValue(float):
+    """Stand-in for an augmented `ntfloat` carrying alarm + timestamp metadata.
+
+    Subclassing `float` mimics p4p's `NTScalar(float)` augmented type;
+    the `raw` attribute returns None so `_classify_kind` lands on
+    `"Scalar"` and `_unpack_value` returns the float verbatim. Enough
+    surface for `_to_reading` to produce a valid Reading without a
+    live PVA channel.
+    """
+
+    raw = None
+    severity = 0
+    status = 0
+    timestamp = 0.0
+
+
+class _MonitorContext:
+    """Fake p4p Context whose `monitor` invokes its callback synchronously."""
+
+    def __init__(self, *updates: Any) -> None:
+        self._updates = updates
+        self._closed = False
+        self._pending: list[asyncio.Future[Any]] = []
+
+    def monitor(self, _address: str, callback: Any, **_kwargs: Any) -> Any:
+        for update in self._updates:
+            self._pending.append(asyncio.ensure_future(callback(update)))
+        return _FakeSubscription()
+
+    def close(self) -> None:
+        self._closed = True
+
+
+class _FakeSubscription:
+    def close(self) -> None:  # pragma: no cover - finally suppress only
+        pass
+
+    async def wait_closed(self) -> None:  # pragma: no cover - finally suppress only
+        return None
+
+
+@pytest.mark.unit
+async def test_subscribe_mid_stream_disconnect_raises_through_iterator() -> None:
+    """After at least one value, a `Disconnected` update raises NotConnected.
+
+    Pins the `seen_value=True` branch in `_drain` that the integration
+    fixture cannot exercise: the softIOC's monitor stays open silently
+    on a disconnect, so there is no live `Disconnected` event to feed
+    back through. Monkey-patches `Context.monitor` to invoke its
+    callback with a value followed by a `Disconnected`, both scheduled
+    on the loop so the adapter's `await queue.get()` resolves.
+    """
+    port = EpicsPvaControlPort()
+    _hijack_context(port, _MonitorContext(_FakeValue(1.0), Disconnected()))
+    iterator = port.subscribe("test_pv")
+    first = await anext(iterator)
+    assert first.value == 1.0
+    with pytest.raises(ControlNotConnectedError) as exc_info:
+        await anext(iterator)
+    assert exc_info.value.address == "test_pv"
+    await iterator.aclose()
+
+
+@pytest.mark.unit
+async def test_subscribe_initial_disconnect_is_ignored_then_value_yields() -> None:
+    """Pre-value `Disconnected` is silently consumed; the first value still arrives.
+
+    Initial-state-Disconnected fires before p4p completes channel
+    discovery; the adapter swallows it (the `seen_value=False` branch)
+    and waits for the first real value. The integration fixture would
+    skip this branch if monitor always opens cleanly.
+    """
+    port = EpicsPvaControlPort()
+    _hijack_context(port, _MonitorContext(Disconnected(), _FakeValue(2.5)))
+    iterator = port.subscribe("test_pv")
+    got = await anext(iterator)
+    assert got.value == 2.5
+    await iterator.aclose()

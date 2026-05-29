@@ -43,13 +43,26 @@ accepts and ignores the asyncpg `conn` parameter.
 
 ## Subscribe semantics
 
-`subscribe` returns an async iterator that yields each `Reading`
-pushed to the address after the subscription is established. Each
-subscriber gets its own queue; pushing to an address fans out to
-every subscriber's queue (no coalescing in this adapter; production
-adapters layer their substrate-specific policy on top). The
-iterator cleans up its queue on `aclose()` or on
-`ControlNotConnectedError` propagation.
+`subscribe` is a plain `def` that synchronously registers a
+subscriber queue and returns an async iterator. The queue is
+registered eagerly so a `set_reading` that lands between
+`subscribe()` and the first `__anext__` still fans out (Subscriber
+pattern in real CA / PVA brokers behaves the same: the listener is
+hot before the first event arrives). The connect-state check fires
+on the iterator's first `__anext__`, so a `subscribe()` against an
+unconnected address raises `ControlNotConnectedError` through
+`anext`, not at `subscribe()` time. Each subscriber gets its own
+queue; pushing to an address fans out to every subscriber's queue
+(no coalescing in this adapter; production adapters layer their
+substrate-specific policy on top). The iterator cleans up its queue
+on `aclose()` or on `ControlNotConnectedError` propagation.
+
+## aclose
+
+`aclose()` is a no-op for the in-memory adapter: there is no
+substrate context to release. Provided so production code paths can
+call `aclose()` polymorphically against any `ControlPort`
+implementation without branching on type.
 """
 
 from __future__ import annotations
@@ -96,6 +109,7 @@ class InMemoryControlPort:
         self._connected: set[str] = set()
         self._subscribers: dict[str, list[asyncio.Queue[Reading | _DisconnectSentinel]]] = {}
         self._now: Callable[[], datetime] = now or (lambda: datetime.now(tz=UTC))
+        self._closed = False
 
     def set_reading(self, address: str, reading: Reading) -> None:
         """Install `reading` as the current value of `address` and fan out.
@@ -158,15 +172,19 @@ class InMemoryControlPort:
         for queue in self._subscribers.get(address, []):
             queue.put_nowait(reading)
 
-    async def subscribe(self, address: str) -> AsyncGenerator[Reading]:
+    def subscribe(self, address: str) -> AsyncGenerator[Reading]:
         """Return type narrows the Protocol's `AsyncIterator` to `AsyncGenerator`.
 
         Covariant return type lets tests close subscriptions via the
         iterator's `aclose()` while production callers still see the
         `AsyncIterator` contract through the Protocol surface.
+
+        Queue registration happens synchronously here so a
+        `set_reading` landing between `subscribe()` and the first
+        `await anext(iterator)` still fans out. The connect-state
+        check fires on the iterator's first iteration via `_drain`,
+        matching the Protocol's lazy-setup contract.
         """
-        if address not in self._connected:
-            raise ControlNotConnectedError(address)
         queue: asyncio.Queue[Reading | _DisconnectSentinel] = asyncio.Queue()
         self._subscribers.setdefault(address, []).append(queue)
         return self._drain(address, queue)
@@ -177,6 +195,8 @@ class InMemoryControlPort:
         queue: asyncio.Queue[Reading | _DisconnectSentinel],
     ) -> AsyncGenerator[Reading]:
         try:
+            if address not in self._connected:
+                raise ControlNotConnectedError(address)
             while True:
                 item = await queue.get()
                 if isinstance(item, _DisconnectSentinel):
@@ -186,6 +206,15 @@ class InMemoryControlPort:
             subs = self._subscribers.get(address)
             if subs is not None and queue in subs:
                 subs.remove(queue)
+
+    async def aclose(self) -> None:
+        """No-op for the in-memory adapter; idempotent.
+
+        Provided so production code paths can call `aclose()` on any
+        `ControlPort` without type-checking. The dict-backed state is
+        not a substrate resource; it does not need explicit release.
+        """
+        self._closed = True
 
 
 __all__ = ["InMemoryControlPort"]

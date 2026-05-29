@@ -44,8 +44,10 @@ carrying `data` (numpy array, shape `(count,)` even for scalars),
       NO_ALARM -> "Good"
       MINOR_ALARM -> "Uncertain"
       MAJOR_ALARM / INVALID_ALARM -> "Bad"
-  - `quality_detail` from `metadata.status.name.lower()` when severity
-    is non-NO_ALARM (forensic breadcrumb; closed Quality enum stays tight)
+  - `quality_detail` as `f"alarm_status={int(status)}"` when severity
+    is non-NO_ALARM (forensic breadcrumb; matches EpicsCa + EpicsPva
+    format so consumers can parse one shape across CA / PVA / future
+    substrates without per-adapter casing)
   - `sampled_at` from `metadata.stamp.as_datetime()`, UTC-coerced
 
 ## Error mapping
@@ -65,11 +67,14 @@ where they DO fire (Stage-1c / Stage-1d).
 
 ## Subscribe lifecycle
 
-`pv.subscribe(...)` returns a `Subscription` whose `async for` yields
-`SubscriptionData` carrying the same fields as a read response. The
-adapter wraps this in an async generator so cancellation runs
-`sub.clear()` via the generator's `finally` (matching the
-`InMemoryControlPort` cleanup discipline).
+`subscribe` is a plain `def` returning an async generator directly;
+connect + PV-resolve + `pv.subscribe(...)` all run on the
+generator's first `__anext__`. `pv.subscribe(...)` returns a
+`Subscription` whose `async for` yields `SubscriptionData` carrying
+the same fields as a read response. The adapter wraps this in an
+async generator so cancellation runs `sub.clear()` via the
+generator's `finally` (matching the `InMemoryControlPort` cleanup
+discipline).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
@@ -172,7 +177,7 @@ def _to_reading(response: Any) -> Reading:
     if severity != AlarmSeverity.NO_ALARM:
         status = getattr(metadata, "status", None)
         if status is not None:
-            quality_detail = status.name.lower() if hasattr(status, "name") else str(status)
+            quality_detail = f"alarm_status={int(status)}"
 
     stamp = getattr(metadata, "stamp", None)
     if stamp is not None and hasattr(stamp, "as_datetime"):
@@ -249,19 +254,20 @@ class CaprotoControlPort:
         except ErrorResponseReceived as exc:
             raise ControlWriteRejectedError(address, str(exc)) from exc
 
-    async def subscribe(self, address: str) -> AsyncGenerator[Reading]:
+    def subscribe(self, address: str) -> AsyncGenerator[Reading]:
         """Return type narrows the Protocol's `AsyncIterator` to `AsyncGenerator`.
 
         Covariant return lets tests close subscriptions via the
         iterator's `aclose()` while production callers still see the
         `AsyncIterator` contract through the Protocol surface; same
-        pattern as `InMemoryControlPort.subscribe`.
+        pattern as `InMemoryControlPort.subscribe`. Setup (PV resolve
+        + connect + `pv.subscribe`) runs on the generator's first
+        `__anext__`.
         """
-        pv = await self._connected_pv(address)
-        return self._drain(address, pv)
+        return self._drain(address)
 
-    async def _drain(self, address: str, pv: Any) -> AsyncGenerator[Reading]:
-        _ = address
+    async def _drain(self, address: str) -> AsyncGenerator[Reading]:
+        pv = await self._connected_pv(address)
         sub = pv.subscribe(data_type="time")
         try:
             async for response in sub:

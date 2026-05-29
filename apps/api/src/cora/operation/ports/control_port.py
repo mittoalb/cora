@@ -61,13 +61,15 @@ event-payload metadata per [[project_non_determinism_principle]].
 
 ## Subscribe shape
 
-`subscribe` returns an `AsyncIterator[Reading]` after async setup
-(connect-and-register-as-subscriber). Caller iterates with
-`async for reading in await port.subscribe(address):`. Adapters may
-coalesce intermediate values on subscriber lag (p4p Qt keep-last;
-OPC UA MonitoredItem queue semantics). Mid-stream disconnect raises
-`ControlNotConnectedError` through the iterator so silent stream
-pause is impossible.
+`subscribe` is a plain `def` returning `AsyncIterator[Reading]` directly
+(no surrounding coroutine). Caller iterates with
+`async for reading in port.subscribe(address):`. Connect setup may
+happen lazily on the first `__anext__`; the adapter still raises
+`ControlNotConnectedError` through the iterator if the address is
+never reachable. Adapters may coalesce intermediate values on
+subscriber lag (p4p Qt keep-last; OPC UA MonitoredItem queue
+semantics). Mid-stream disconnect raises `ControlNotConnectedError`
+through the iterator so silent stream pause is impossible.
 """
 
 from collections.abc import AsyncIterator
@@ -310,14 +312,16 @@ class ControlPort(Protocol):
         """
         ...
 
-    async def subscribe(self, address: str) -> AsyncIterator[Reading]:
+    def subscribe(self, address: str) -> AsyncIterator[Reading]:
         """Subscribe to value changes on `address`. Caller iterates the result.
 
-        Returned `AsyncIterator` yields one `Reading` per update.
-        Caller pattern is
-        `async for reading in await port.subscribe(address):`
-        (the outer `await` runs connect-and-register-as-subscriber
-        setup, then the `async for` drains updates).
+        Plain `def`, no surrounding coroutine: caller pattern is
+        `async for reading in port.subscribe(address):`. Adapters may
+        defer connect-and-register-as-subscriber to the first
+        `__anext__`; a `ControlNotConnectedError` raised through the
+        iterator (rather than from `subscribe()` itself) is the
+        expected shape when the address never reaches a connected
+        state.
 
         On mid-stream disconnect the iterator raises
         `ControlNotConnectedError` so silent stream pause is

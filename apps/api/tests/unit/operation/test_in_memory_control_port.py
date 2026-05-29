@@ -114,7 +114,7 @@ async def test_write_ignores_wait_and_timeout_kwargs() -> None:
 async def test_subscribe_yields_values_pushed_after_subscription() -> None:
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
-    iterator = await port.subscribe("2bm:rot:rbv")
+    iterator = port.subscribe("2bm:rot:rbv")
     port.set_reading("2bm:rot:rbv", _reading(1.0))
     port.set_reading("2bm:rot:rbv", _reading(2.0))
 
@@ -127,7 +127,7 @@ async def test_subscribe_yields_values_pushed_after_subscription() -> None:
 async def test_subscribe_raises_not_connected_on_simulated_disconnect() -> None:
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
-    iterator = await port.subscribe("2bm:rot:rbv")
+    iterator = port.subscribe("2bm:rot:rbv")
     port.simulate_disconnect("2bm:rot:rbv")
     with pytest.raises(ControlNotConnectedError) as exc_info:
         await anext(iterator)
@@ -136,9 +136,14 @@ async def test_subscribe_raises_not_connected_on_simulated_disconnect() -> None:
 
 @pytest.mark.unit
 async def test_subscribe_on_never_connected_address_raises_not_connected() -> None:
+    """`subscribe()` returns the iterator synchronously; the connect-state
+    check fires on first `anext` per the Protocol's lazy-setup contract.
+    """
     port = _port()
-    with pytest.raises(ControlNotConnectedError):
-        await port.subscribe("2bm:rot:rbv")
+    iterator = port.subscribe("2bm:rot:rbv")
+    with pytest.raises(ControlNotConnectedError) as exc_info:
+        await anext(iterator)
+    assert exc_info.value.address == "2bm:rot:rbv"
 
 
 @pytest.mark.unit
@@ -146,7 +151,7 @@ async def test_subscribe_isolated_between_addresses() -> None:
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
     port.set_reading("2bm:cam:frame", _reading(0.0))
-    rot_iter = await port.subscribe("2bm:rot:rbv")
+    rot_iter = port.subscribe("2bm:rot:rbv")
     port.set_reading("2bm:cam:frame", _reading(99.0))
     port.set_reading("2bm:rot:rbv", _reading(1.0))
     got = await anext(rot_iter)
@@ -158,8 +163,8 @@ async def test_subscribe_isolated_between_addresses() -> None:
 async def test_subscribe_fans_out_to_multiple_subscribers() -> None:
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
-    iter_a = await port.subscribe("2bm:rot:rbv")
-    iter_b = await port.subscribe("2bm:rot:rbv")
+    iter_a = port.subscribe("2bm:rot:rbv")
+    iter_b = port.subscribe("2bm:rot:rbv")
     port.set_reading("2bm:rot:rbv", _reading(7.0))
     assert (await anext(iter_a)).value == 7.0
     assert (await anext(iter_b)).value == 7.0
@@ -171,7 +176,7 @@ async def test_subscribe_fans_out_to_multiple_subscribers() -> None:
 async def test_subscribe_yields_written_values_to_active_subscribers() -> None:
     port = _port()
     port.simulate_connect("2bm:rot:val")
-    iterator = await port.subscribe("2bm:rot:val")
+    iterator = port.subscribe("2bm:rot:val")
     await port.write("2bm:rot:val", 9.5)
     got = await anext(iterator)
     assert got.value == 9.5
@@ -189,7 +194,7 @@ async def test_subscribe_cleanup_removes_queue_after_iteration_and_close() -> No
     """
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
-    iterator = await port.subscribe("2bm:rot:rbv")
+    iterator = port.subscribe("2bm:rot:rbv")
     assert len(port._subscribers["2bm:rot:rbv"]) == 1  # pyright: ignore[reportPrivateUsage]
     port.set_reading("2bm:rot:rbv", _reading(1.0))
     await anext(iterator)
@@ -206,7 +211,7 @@ async def test_consumer_cancellation_removes_subscriber_queue() -> None:
     """
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
-    iterator = await port.subscribe("2bm:rot:rbv")
+    iterator = port.subscribe("2bm:rot:rbv")
     with pytest.raises(asyncio.TimeoutError):
         await asyncio.wait_for(anext(iterator), timeout=0.05)
     assert port._subscribers["2bm:rot:rbv"] == []  # pyright: ignore[reportPrivateUsage]
@@ -301,7 +306,7 @@ async def test_image_reading_round_trips_through_port() -> None:
             sampled_at=_FIXED_NOW,
         ),
     )
-    iterator = await port.subscribe("2bm:cam:image")
+    iterator = port.subscribe("2bm:cam:image")
     got = await port.read("2bm:cam:image")
     assert got.kind == "Image"
     assert got.value == image

@@ -143,13 +143,22 @@ async def test_read_enum_returns_categorical_kind(softioc: str) -> None:
 
 @pytest.mark.integration
 async def test_read_major_alarm_pv_returns_bad_quality(softioc: str) -> None:
-    """MAJOR_ALARM severity (HIHI threshold tripped) translates to Quality='Bad'."""
+    """MAJOR_ALARM severity (HIHI threshold tripped) translates to Quality='Bad'.
+
+    Pins the full Reading shape for a non-Good reading: value + kind +
+    quality + the cross-adapter `alarm_status=<int>` quality_detail
+    format + tz-aware UTC sampled_at. Mirrors the same set of
+    assertions on EpicsCa + EpicsPva so the three adapters present
+    the same Reading shape end-to-end for the same softIOC PV.
+    """
     port = CaprotoControlPort()
     try:
         reading = await port.read(f"{softioc}bad_quality_value")
-        assert reading.quality == "Bad"
+        assert reading.kind == "Scalar"
         assert reading.value == 99.9
-        assert reading.quality_detail != ""
+        assert reading.quality == "Bad"
+        assert reading.quality_detail.startswith("alarm_status=")
+        assert reading.sampled_at.tzinfo is not None
     finally:
         await port.aclose()
 
@@ -184,7 +193,7 @@ async def test_subscribe_yields_initial_value_then_writes(softioc: str) -> None:
     port = CaprotoControlPort()
     try:
         await port.write(f"{softioc}double_value", 0.0, wait=True)
-        iterator = await port.subscribe(f"{softioc}double_value")
+        iterator = port.subscribe(f"{softioc}double_value")
         first = await asyncio.wait_for(anext(iterator), timeout=2.0)
         assert first.value == 0.0
 
@@ -202,7 +211,7 @@ async def test_consumer_cancellation_runs_generator_finally(softioc: str) -> Non
     """Cancellation mid-`anext` runs the generator's `finally` and unregisters."""
     port = CaprotoControlPort()
     try:
-        iterator = await port.subscribe(f"{softioc}double_value")
+        iterator = port.subscribe(f"{softioc}double_value")
         await asyncio.wait_for(anext(iterator), timeout=2.0)
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(anext(iterator), timeout=0.05)
@@ -236,11 +245,20 @@ async def test_write_on_nonexistent_pv_raises_not_connected(softioc: str) -> Non
 
 @pytest.mark.integration
 async def test_subscribe_on_nonexistent_pv_raises_not_connected(softioc: str) -> None:
-    """Subscribe path mirrors read path: never-connect surfaces as ControlNotConnectedError."""
+    """Subscribe path mirrors read path: never-connect surfaces as ControlNotConnectedError.
+
+    Setup is lazy per the Protocol's subscribe contract: `port.subscribe()`
+    returns the iterator synchronously, and PV-resolve + `wait_for_connection`
+    fire on the first `anext`. So the exception emerges from `anext`, not
+    from `subscribe()` itself.
+    """
     port = CaprotoControlPort(default_timeout_s=0.3)
     try:
-        with pytest.raises(ControlNotConnectedError):
-            await port.subscribe(f"{softioc}nonexistent")
+        iterator = port.subscribe(f"{softioc}nonexistent")
+        with pytest.raises(ControlNotConnectedError) as exc_info:
+            await anext(iterator)
+        assert exc_info.value.address == f"{softioc}nonexistent"
+        await iterator.aclose()
     finally:
         await port.aclose()
 
