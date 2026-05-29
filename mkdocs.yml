@@ -99,7 +99,7 @@ nav:
     - 2-BM:
       - deployments/2-bm/index.md
       - Assets: deployments/2-bm/assets.md
-      - MCTOptics composition: deployments/2-bm/mctoptics.md
+      - Calibrations: deployments/2-bm/calibrations.md
       - Actors: deployments/2-bm/actors.md
       - Procedures: deployments/2-bm/procedures.md
       - Subjects: deployments/2-bm/subjects.md
