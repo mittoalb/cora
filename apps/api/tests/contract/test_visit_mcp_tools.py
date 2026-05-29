@@ -1,10 +1,12 @@
-"""MCP tool contract tests for the 9 Visit lifecycle tools.
+"""MCP tool contract tests for the 13 Visit tools.
 
 Consolidated coverage file: covers `register_visit`, `arrive_visit`,
 `start_visit`, `hold_visit`, `resume_visit`, `complete_visit`,
-`cancel_visit`, `abort_visit`, `void_visit` per the arch-fitness
-substring-match rule. Pins the MCP-tool surface: registration,
-structured output shape, isError on not-found.
+`cancel_visit`, `abort_visit`, `void_visit`, `check_in_to_visit`,
+`check_out_from_visit`, `take_control_of_surface`,
+`release_control_of_surface` per the arch-fitness substring-match
+rule. Pins the MCP-tool surface: registration, structured output
+shape, isError on not-found.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -50,6 +52,9 @@ _EXPECTED_TOOL_NAMES = {
     # Phase gamma presence tools.
     "check_in_to_visit",
     "check_out_from_visit",
+    # Phase delta Surface-control tools.
+    "take_control_of_surface",
+    "release_control_of_surface",
 }
 
 
@@ -114,6 +119,9 @@ def test_mcp_lifecycle_tool_returns_iserror_when_visit_not_found(tool_name: str)
         arguments["actor_id"] = str(uuid4())
     if tool_name == "check_in_to_visit":
         arguments["mode"] = "physical"
+    # Phase delta Surface-control tools carry surface_id.
+    if tool_name in {"take_control_of_surface", "release_control_of_surface"}:
+        arguments["surface_id"] = str(uuid4())
 
     with TestClient(create_app()) as client:
         session_headers = open_session(client)

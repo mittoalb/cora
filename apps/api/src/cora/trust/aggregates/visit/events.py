@@ -181,8 +181,44 @@ class VisitCheckedOut:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class VisitTookControlOfSurface:
+    """The Visit took operational control of the Surface.
+
+    SINGLE-stream Visit write -- Surface aggregate state is NOT mutated
+    (Surface remains infrastructure-stable per Stage-0 finding). The
+    `proj_surface_active_visit` projection materializes "who drives
+    now": this event triggers a 2-statement transaction that marks the
+    prior holder's row released_at + INSERTs a new holder row.
+
+    Does NOT change Visit.status -- control is orthogonal to lifecycle
+    (a Visit may hold/release the Surface multiple times within one
+    InProgress). Parent-stays-in-progress lock: a child Visit
+    (commissioning) taking control of the Surface from its part_of
+    parent leaves the parent's status untouched.
+    """
+
+    visit_id: UUID
+    surface_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class VisitReleasedControlOfSurface:
+    """The Visit released operational control of the Surface.
+
+    Projection marks the row's released_at = occurred_at. No auto-flip
+    to the parent Visit (if any) -- the parent must explicitly call
+    take_control_of_surface again to reclaim, per V6 explicit-gesture
+    lock.
+    """
+
+    visit_id: UUID
+    surface_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Visit aggregate emits today.
-# Phase delta adds control event arms.
 VisitEvent = (
     VisitRegistered
     | VisitArrived
@@ -195,6 +231,8 @@ VisitEvent = (
     | VisitVoided
     | VisitCheckedIn
     | VisitCheckedOut
+    | VisitTookControlOfSurface
+    | VisitReleasedControlOfSurface
 )
 
 
@@ -300,6 +338,22 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
             return {
                 "visit_id": str(visit_id),
                 "actor_id": str(actor_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case VisitTookControlOfSurface(
+            visit_id=visit_id, surface_id=surface_id, occurred_at=occurred_at
+        ):
+            return {
+                "visit_id": str(visit_id),
+                "surface_id": str(surface_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case VisitReleasedControlOfSurface(
+            visit_id=visit_id, surface_id=surface_id, occurred_at=occurred_at
+        ):
+            return {
+                "visit_id": str(visit_id),
+                "surface_id": str(surface_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -424,6 +478,26 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed VisitCheckedOut payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
+        case "VisitTookControlOfSurface":
+            try:
+                return VisitTookControlOfSurface(
+                    visit_id=UUID(payload["visit_id"]),
+                    surface_id=UUID(payload["surface_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed VisitTookControlOfSurface payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
+        case "VisitReleasedControlOfSurface":
+            try:
+                return VisitReleasedControlOfSurface(
+                    visit_id=UUID(payload["visit_id"]),
+                    surface_id=UUID(payload["surface_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+            except (KeyError, TypeError, AttributeError) as exc:
+                msg = f"Malformed VisitReleasedControlOfSurface payload {payload!r}: {exc}"
+                raise ValueError(msg) from exc
         case _:
             msg = f"Unknown VisitEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -439,8 +513,10 @@ __all__ = [
     "VisitEvent",
     "VisitHeld",
     "VisitRegistered",
+    "VisitReleasedControlOfSurface",
     "VisitResumed",
     "VisitStarted",
+    "VisitTookControlOfSurface",
     "VisitVoided",
     "event_type_name",
     "from_stored",

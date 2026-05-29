@@ -28,8 +28,10 @@ from cora.trust.features.list_permissions import tool as list_permissions_tool
 from cora.trust.features.list_policies import tool as list_policies_tool
 from cora.trust.features.list_zones import tool as list_zones_tool
 from cora.trust.features.register_visit import tool as register_visit_tool
+from cora.trust.features.release_control_of_surface import tool as release_control_of_surface_tool
 from cora.trust.features.resume_visit import tool as resume_visit_tool
 from cora.trust.features.start_visit import tool as start_visit_tool
+from cora.trust.features.take_control_of_surface import tool as take_control_of_surface_tool
 from cora.trust.features.void_visit import tool as void_visit_tool
 from cora.trust.wire import TrustHandlers
 
@@ -63,3 +65,10 @@ def register_trust_tools(
     # Visit presence tools (Phase gamma).
     check_in_to_visit_tool.register(mcp, get_handler=lambda: get_handlers().check_in_to_visit)
     check_out_from_visit_tool.register(mcp, get_handler=lambda: get_handlers().check_out_from_visit)
+    # Visit Surface-control tools.
+    take_control_of_surface_tool.register(
+        mcp, get_handler=lambda: get_handlers().take_control_of_surface
+    )
+    release_control_of_surface_tool.register(
+        mcp, get_handler=lambda: get_handlers().release_control_of_surface
+    )

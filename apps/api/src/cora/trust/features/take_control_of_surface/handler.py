@@ -1,17 +1,8 @@
-"""Application handler for the `register_visit` slice.
+"""Application handler for the `take_control_of_surface` slice.
 
-Genesis-style handler (longhand). Mirrors `define_policy.handler`
-shape exactly: bare `Handler` Protocol, idempotency-wrapped
-`IdempotentHandler` Protocol, `bind(deps)` factory.
-
-Caller-supplied `visit_id` means the handler does NOT call
-`deps.id_generator.new_id()` for the visit's id. It still uses the
-generator for the per-event `event_id`.
-
-`expected_version=0` per genesis pattern: the stream MUST be empty;
-optimistic-concurrency guarantee surfaces collision as
-`VisitAlreadyExistsError` (decider) OR `ConcurrencyError` (event-
-store).
+Longhand because the decider takes a `TakeControlOfSurfaceContext`
+preloaded from the projection pool. Mirrors `mount_subject` for the
+context-preload shape.
 """
 
 from typing import Protocol
@@ -22,62 +13,57 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.trust.aggregates.visit import event_type_name, load_visit, to_payload
+from cora.trust.aggregates.visit import (
+    VisitEvent,
+    event_type_name,
+    fold,
+    from_stored,
+    to_payload,
+)
 from cora.trust.errors import UnauthorizedError
-from cora.trust.features.register_visit.command import RegisterVisit
-from cora.trust.features.register_visit.context import RegisterVisitContext
-from cora.trust.features.register_visit.decider import decide
+from cora.trust.features.take_control_of_surface.command import TakeControlOfSurface
+from cora.trust.features.take_control_of_surface.context import TakeControlOfSurfaceContext
+from cora.trust.features.take_control_of_surface.decider import decide
+from cora.trust.projections.surface_active_visit import load_surface_active_visit
 
 _STREAM_TYPE = "Visit"
-_COMMAND_NAME = "RegisterVisit"
+_COMMAND_NAME = "TakeControlOfSurface"
+_LOG_PREFIX = "take_control_of_surface"
 
-_log = get_logger(__name__)
+_log = get_logger(_LOG_PREFIX)
 
 
 class Handler(Protocol):
-    """Bare register_visit handler -- what `bind()` returns."""
+    """Callable interface every take_control_of_surface handler implements."""
 
     async def __call__(
         self,
-        command: RegisterVisit,
+        command: TakeControlOfSurface,
         *,
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> UUID: ...
-
-
-class IdempotentHandler(Protocol):
-    """register_visit handler with Idempotency-Key support."""
-
-    async def __call__(
-        self,
-        command: RegisterVisit,
-        *,
-        principal_id: UUID,
-        correlation_id: UUID,
-        causation_id: UUID | None = None,
-        surface_id: UUID = NIL_SENTINEL_ID,
-        idempotency_key: str | None = None,
-    ) -> UUID: ...
+    ) -> None: ...
 
 
 def bind(deps: Kernel) -> Handler:
-    """Build a register_visit handler closed over the shared deps."""
+    """Build a take_control_of_surface handler closed over the shared deps."""
 
     async def handler(
-        command: RegisterVisit,
+        command: TakeControlOfSurface,
         *,
         principal_id: UUID,
         correlation_id: UUID,
         causation_id: UUID | None = None,
         surface_id: UUID = NIL_SENTINEL_ID,
-    ) -> UUID:
+    ) -> None:
+        visit_id = command.visit_id
         _log.info(
-            "register_visit.start",
+            f"{_LOG_PREFIX}.start",
             command_name=_COMMAND_NAME,
-            visit_id=str(command.visit_id),
+            visit_id=str(visit_id),
+            surface_id=str(command.surface_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -87,13 +73,14 @@ def bind(deps: Kernel) -> Handler:
             principal_id=principal_id,
             command_name=_COMMAND_NAME,
             conduit_id=NIL_SENTINEL_ID,
-            surface_id=surface_id,
+            surface_id=command.surface_id,
         )
         if isinstance(decision, Deny):
             _log.info(
-                "register_visit.denied",
+                f"{_LOG_PREFIX}.denied",
                 command_name=_COMMAND_NAME,
-                visit_id=str(command.visit_id),
+                visit_id=str(visit_id),
+                surface_id=str(command.surface_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,
@@ -103,23 +90,21 @@ def bind(deps: Kernel) -> Handler:
 
         now = deps.clock.now()
 
-        parent_requested = command.part_of_visit_id is not None
-        parent_visit = (
-            await load_visit(deps.event_store, command.part_of_visit_id)
-            if parent_requested and command.part_of_visit_id is not None
+        stored, current_version = await deps.event_store.load(
+            stream_type=_STREAM_TYPE,
+            stream_id=visit_id,
+        )
+        history: list[VisitEvent] = [from_stored(s) for s in stored]
+        state = fold(history)
+
+        active_holder = (
+            await load_surface_active_visit(deps.pool, command.surface_id)
+            if deps.pool is not None
             else None
         )
-        context = RegisterVisitContext(
-            parent_visit=parent_visit,
-            parent_requested=parent_requested,
-        )
+        context = TakeControlOfSurfaceContext(active_holder=active_holder)
 
-        domain_events = decide(
-            state=None,
-            command=command,
-            context=context,
-            now=now,
-        )
+        domain_events = decide(state=state, command=command, context=context, now=now)
 
         new_events = [
             to_new_event(
@@ -136,20 +121,21 @@ def bind(deps: Kernel) -> Handler:
         ]
         await deps.event_store.append(
             stream_type=_STREAM_TYPE,
-            stream_id=command.visit_id,
-            expected_version=0,
+            stream_id=visit_id,
+            expected_version=current_version,
             events=new_events,
         )
 
         _log.info(
-            "register_visit.success",
+            f"{_LOG_PREFIX}.success",
             command_name=_COMMAND_NAME,
-            visit_id=str(command.visit_id),
+            visit_id=str(visit_id),
+            surface_id=str(command.surface_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
             event_count=len(new_events),
+            new_version=current_version + len(new_events),
         )
-        return command.visit_id
 
     return handler

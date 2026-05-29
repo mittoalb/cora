@@ -13,6 +13,7 @@ from cora.infrastructure.projection import ProjectionRegistry
 from cora.trust.projections import (
     ConduitSummaryProjection,
     PolicySummaryProjection,
+    SurfaceActiveVisitProjection,
     VisitPresenceProjection,
     VisitSummaryProjection,
     ZoneSummaryProjection,
@@ -30,6 +31,7 @@ def register_trust_projections(
     registry.register(PolicySummaryProjection())
     registry.register(VisitSummaryProjection())
     registry.register(VisitPresenceProjection())
+    registry.register(SurfaceActiveVisitProjection())
 
 
 __all__ = ["register_trust_projections"]

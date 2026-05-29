@@ -1,4 +1,4 @@
-"""Pin the 9 Visit slice command-name strings against the design memo.
+"""Pin the 13 Visit slice command-name strings against the design memo.
 
 The design memo `project_visit_aggregate_design.md` AuthZ matrix lists
 the command-name strings that production Policy grants must reference.
@@ -23,9 +23,8 @@ import pytest
 
 from tests.architecture.conftest import CORA_ROOT
 
-# 11 Visit command names locked by the Stage-1 AuthZ matrix (9
-# lifecycle + 2 presence). Phase delta adds TakeControlOfSurface +
-# ReleaseControlOfSurface. Extend this set when delta ships.
+# 13 Visit command names locked by the Stage-1 AuthZ matrix (9
+# lifecycle + 2 presence + 2 Surface-control).
 _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
     {
         "RegisterVisit",
@@ -40,6 +39,9 @@ _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
         # Phase gamma (presence)
         "CheckInToVisit",
         "CheckOutFromVisit",
+        # Phase delta (Surface control)
+        "TakeControlOfSurface",
+        "ReleaseControlOfSurface",
     }
 )
 

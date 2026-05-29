@@ -42,8 +42,10 @@ from cora.trust.features import (
     list_policies,
     list_zones,
     register_visit,
+    release_control_of_surface,
     resume_visit,
     start_visit,
+    take_control_of_surface,
     void_visit,
 )
 
@@ -79,6 +81,8 @@ class TrustHandlers:
     void_visit: void_visit.Handler
     check_in_to_visit: check_in_to_visit.Handler
     check_out_from_visit: check_out_from_visit.Handler
+    take_control_of_surface: take_control_of_surface.Handler
+    release_control_of_surface: release_control_of_surface.Handler
     evaluate_policy: evaluate_policy.Handler
     get_surface: get_surface.Handler
     list_zones: list_zones.Handler
@@ -198,6 +202,16 @@ def wire_trust(deps: Kernel) -> TrustHandlers:
         check_out_from_visit=with_tracing(
             check_out_from_visit.bind(deps),
             command_name="CheckOutFromVisit",
+            bc=_BC,
+        ),
+        take_control_of_surface=with_tracing(
+            take_control_of_surface.bind(deps),
+            command_name="TakeControlOfSurface",
+            bc=_BC,
+        ),
+        release_control_of_surface=with_tracing(
+            release_control_of_surface.bind(deps),
+            command_name="ReleaseControlOfSurface",
             bc=_BC,
         ),
         evaluate_policy=with_tracing(

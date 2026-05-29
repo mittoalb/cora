@@ -52,8 +52,12 @@ from cora.trust.aggregates.visit import (
     VisitActorNotCheckedInError,
     VisitAlreadyCheckedInError,
     VisitAlreadyExistsError,
+    VisitCannotReleaseControlError,
+    VisitCannotTakeControlError,
     VisitCannotTransitionError,
     VisitNotFoundError,
+    VisitPartOfMismatchedSurfaceError,
+    VisitPartOfNotFoundError,
 )
 from cora.trust.aggregates.zone import InvalidZoneNameError, ZoneAlreadyExistsError
 from cora.trust.errors import UnauthorizedError
@@ -76,8 +80,10 @@ from cora.trust.features import (
     list_policies,
     list_zones,
     register_visit,
+    release_control_of_surface,
     resume_visit,
     start_visit,
+    take_control_of_surface,
     void_visit,
 )
 
@@ -88,8 +94,8 @@ async def _handle_invalid_name(request: Request, exc: Exception) -> JSONResponse
     All three Trust aggregate name VOs raise the same shape of error
     (whitespace-only / empty / too-long), and all three map to the
     same HTTP 400 + `{"detail": str}` body. One handler registered
-    against three exception classes — adding a fourth aggregate
-    just appends to the loop in `register_trust_routes`.
+    against three exception classes; adding a fourth aggregate just
+    appends to the loop in `register_trust_routes`.
     """
     _ = request
     return JSONResponse(
@@ -155,8 +161,8 @@ async def _handle_invalid_400(request: Request, exc: Exception) -> JSONResponse:
     )
 
 
-async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONResponse:
-    """Shared 409 handler for Visit lifecycle-transition guards."""
+async def _handle_visit_conflict_409(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 409 handler for Visit transition / partOf / control guards."""
     _ = request
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -189,6 +195,9 @@ def register_trust_routes(app: FastAPI) -> None:
     # Visit presence slices (Phase gamma).
     app.include_router(check_in_to_visit.router)
     app.include_router(check_out_from_visit.router)
+    # Visit Surface-control slices.
+    app.include_router(take_control_of_surface.router)
+    app.include_router(release_control_of_surface.router)
     for invalid_name_cls in (
         InvalidZoneNameError,
         InvalidConduitNameError,
@@ -211,14 +220,25 @@ def register_trust_routes(app: FastAPI) -> None:
         ConduitLogbookNotOpenError,
     ):
         app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
-    # Visit 404 + 400 + 409 (lifecycle) handlers.
+    # Visit 404 + 400 + 409 (lifecycle + control) handlers.
     # VisitActorNotCheckedInError reuses 404 (semantically a not-found condition).
-    for not_found_cls in (VisitNotFoundError, VisitActorNotCheckedInError):
+    # VisitPartOfNotFoundError reuses 404 (missing parent stream).
+    for not_found_cls in (
+        VisitNotFoundError,
+        VisitActorNotCheckedInError,
+        VisitPartOfNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for invalid_400_cls in (
         InvalidVisitPlannedPeriodError,
         InvalidVisitReasonError,
     ):
         app.add_exception_handler(invalid_400_cls, _handle_invalid_400)
-    app.add_exception_handler(VisitCannotTransitionError, _handle_cannot_transition)
+    for cannot_409_cls in (
+        VisitCannotTransitionError,
+        VisitPartOfMismatchedSurfaceError,
+        VisitCannotTakeControlError,
+        VisitCannotReleaseControlError,
+    ):
+        app.add_exception_handler(cannot_409_cls, _handle_visit_conflict_409)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

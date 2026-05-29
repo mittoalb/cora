@@ -1,12 +1,14 @@
-"""Application-handler unit tests for the 9 Visit lifecycle slices.
+"""Application-handler unit tests for the 13 Visit slices.
 
 Consolidated coverage file: covers `register_visit`, `arrive_visit`,
 `start_visit`, `hold_visit`, `resume_visit`, `complete_visit`,
-`cancel_visit`, `abort_visit`, `void_visit` per the arch-fitness
-substring-match rule. Pure-decider behavior is exercised in the per-
-slice files under `tests/unit/trust/visit/`; here we pin the handler-
-level concerns: idempotency wrapping, authz invocation, event-store
-append, envelope shape, factory wiring for the 8 lifecycle slices.
+`cancel_visit`, `abort_visit`, `void_visit`, `check_in_to_visit`,
+`check_out_from_visit`, `take_control_of_surface`,
+`release_control_of_surface` per the arch-fitness substring-match
+rule. Pure-decider behavior is exercised in the per-slice files under
+`tests/unit/trust/visit/`; here we pin the handler-level concerns:
+idempotency wrapping, authz invocation, event-store append, envelope
+shape, factory wiring.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -40,8 +42,10 @@ from cora.trust.features import (
     complete_visit,
     hold_visit,
     register_visit,
+    release_control_of_surface,
     resume_visit,
     start_visit,
+    take_control_of_surface,
     void_visit,
 )
 from tests.unit._helpers import build_deps
@@ -417,3 +421,247 @@ async def test_check_out_from_visit_handler_raises_when_actor_not_checked_in() -
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
+
+
+# Pool-less unit kernel returns active_holder=None (Surface presumed free).
+# That covers the free-surface path. Tests further down inject a stub pool
+# to exercise the preload-then-reject + preload-then-allow paths without
+# requiring a live Postgres.
+
+
+@pytest.mark.unit
+async def test_take_control_of_surface_handler_appends_event_on_free_surface() -> None:
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = take_control_of_surface.bind(deps)
+    await handler(
+        take_control_of_surface.TakeControlOfSurface(visit_id=_VISIT_ID, surface_id=_SURFACE_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Visit", _VISIT_ID)
+    assert events[-1].event_type == "VisitTookControlOfSurface"
+    assert events[-1].payload["surface_id"] == str(_SURFACE_ID)
+    assert events[-1].payload["visit_id"] == str(_VISIT_ID)
+
+
+@pytest.mark.unit
+async def test_take_control_of_surface_handler_raises_not_found_when_visit_absent() -> None:
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = take_control_of_surface.bind(deps)
+    with pytest.raises(VisitNotFoundError):
+        await handler(
+            take_control_of_surface.TakeControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_take_control_of_surface_handler_denies_when_unauthorized() -> None:
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store, deny=True)
+    handler = take_control_of_surface.bind(deps)
+    with pytest.raises(UnauthorizedError):
+        await handler(
+            take_control_of_surface.TakeControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_release_control_of_surface_handler_raises_when_pool_says_free() -> None:
+    """Pool-less unit kernel returns active_holder=None; release on a 'free'
+    Surface must raise because the requesting Visit cannot be the holder.
+    """
+    from cora.trust.aggregates.visit import VisitCannotReleaseControlError
+
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = release_control_of_surface.bind(deps)
+    with pytest.raises(VisitCannotReleaseControlError):
+        await handler(
+            release_control_of_surface.ReleaseControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_release_control_of_surface_handler_raises_not_found_when_visit_absent() -> None:
+    store = InMemoryEventStore()
+    deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
+    handler = release_control_of_surface.bind(deps)
+    with pytest.raises(VisitNotFoundError):
+        await handler(
+            release_control_of_surface.ReleaseControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+class _StubPool:
+    """asyncpg.Pool stand-in returning one fixed row from `fetchrow`."""
+
+    def __init__(self, row: dict[str, object] | None) -> None:
+        self._row = row
+
+    async def fetchrow(self, _sql: str, *_args: object) -> dict[str, object] | None:
+        return self._row
+
+
+@pytest.mark.unit
+async def test_take_control_handler_rejects_when_pool_reports_unrelated_holder() -> None:
+    from dataclasses import replace
+
+    from cora.trust.aggregates.visit import VisitCannotTakeControlError
+
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    pool = _StubPool({"visit_id": uuid4(), "since_at": _NOW})
+    deps = replace(
+        build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store),
+        pool=pool,  # type: ignore[arg-type]
+    )
+    handler = take_control_of_surface.bind(deps)
+    with pytest.raises(VisitCannotTakeControlError) as exc:
+        await handler(
+            take_control_of_surface.TakeControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc.value.reason == "not_descendant"
+    events, _ = await store.load("Visit", _VISIT_ID)
+    assert not any(e.event_type == "VisitTookControlOfSurface" for e in events)
+
+
+@pytest.mark.unit
+async def test_take_control_handler_allows_when_pool_reports_partof_parent_holder() -> None:
+    from dataclasses import replace
+
+    from cora.trust.aggregates.visit import VisitArrived, VisitEvent, VisitStarted
+
+    parent_visit_id = UUID("01900000-0000-7000-8000-00000000e201")
+    child_visit_id = UUID("01900000-0000-7000-8000-00000000e202")
+    child_genesis_id = UUID("01900000-0000-7000-8000-00000000e203")
+    child_arrived_id = UUID("01900000-0000-7000-8000-00000000e204")
+    child_started_id = UUID("01900000-0000-7000-8000-00000000e205")
+    child_took_id = UUID("01900000-0000-7000-8000-00000000e206")
+
+    store = InMemoryEventStore()
+    child_events: list[VisitEvent] = [
+        VisitRegistered(
+            visit_id=child_visit_id,
+            policy_id=_POLICY_ID,
+            surface_id=_SURFACE_ID,
+            type=VisitType.COMMISSIONING.value,
+            planned_start_at=_PLANNED_START,
+            planned_end_at=_PLANNED_END,
+            part_of_visit_id=parent_visit_id,
+            occurred_at=_NOW,
+        ),
+        VisitArrived(visit_id=child_visit_id, occurred_at=_NOW),
+        VisitStarted(visit_id=child_visit_id, occurred_at=_NOW),
+    ]
+    for offset, ev in enumerate(child_events):
+        await store.append(
+            stream_type="Visit",
+            stream_id=child_visit_id,
+            expected_version=offset,
+            events=[
+                to_new_event(
+                    event_type=event_type_name(ev),
+                    payload=to_payload(ev),
+                    occurred_at=ev.occurred_at,
+                    event_id=[child_genesis_id, child_arrived_id, child_started_id][offset],
+                    command_name="SeedCommand",
+                    correlation_id=_CORRELATION_ID,
+                    causation_id=None,
+                    principal_id=_PRINCIPAL_ID,
+                )
+            ],
+        )
+    pool = _StubPool({"visit_id": parent_visit_id, "since_at": _NOW})
+    deps = replace(
+        build_deps(ids=[child_took_id], now=_NOW, event_store=store),
+        pool=pool,  # type: ignore[arg-type]
+    )
+    handler = take_control_of_surface.bind(deps)
+    await handler(
+        take_control_of_surface.TakeControlOfSurface(
+            visit_id=child_visit_id, surface_id=_SURFACE_ID
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Visit", child_visit_id)
+    assert events[-1].event_type == "VisitTookControlOfSurface"
+    assert events[-1].payload["visit_id"] == str(child_visit_id)
+
+
+@pytest.mark.unit
+async def test_release_control_handler_appends_event_when_pool_reports_self_as_holder() -> None:
+    """Pool returns this Visit as the current holder; release succeeds."""
+    from dataclasses import replace
+
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    pool = _StubPool({"visit_id": _VISIT_ID, "since_at": _NOW})
+    deps = replace(
+        build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store),
+        pool=pool,  # type: ignore[arg-type]
+    )
+    handler = release_control_of_surface.bind(deps)
+    await handler(
+        release_control_of_surface.ReleaseControlOfSurface(
+            visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Visit", _VISIT_ID)
+    assert events[-1].event_type == "VisitReleasedControlOfSurface"
+    assert events[-1].payload["visit_id"] == str(_VISIT_ID)
+    assert events[-1].payload["surface_id"] == str(_SURFACE_ID)
+
+
+@pytest.mark.unit
+async def test_release_control_handler_rejects_when_pool_reports_other_holder() -> None:
+    """Pool returns a DIFFERENT Visit as holder; release must reject."""
+    from dataclasses import replace
+
+    from cora.trust.aggregates.visit import VisitCannotReleaseControlError
+
+    store = InMemoryEventStore()
+    await _seed_to(store, VisitStatus.IN_PROGRESS)
+    pool = _StubPool({"visit_id": uuid4(), "since_at": _NOW})
+    deps = replace(
+        build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store),
+        pool=pool,  # type: ignore[arg-type]
+    )
+    handler = release_control_of_surface.bind(deps)
+    with pytest.raises(VisitCannotReleaseControlError):
+        await handler(
+            release_control_of_surface.ReleaseControlOfSurface(
+                visit_id=_VISIT_ID, surface_id=_SURFACE_ID
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    events, _ = await store.load("Visit", _VISIT_ID)
+    assert not any(e.event_type == "VisitReleasedControlOfSurface" for e in events)

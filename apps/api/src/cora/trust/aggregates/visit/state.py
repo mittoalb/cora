@@ -299,6 +299,98 @@ class VisitCannotTransitionError(Exception):
         self.permitted_sources = permitted_sources
 
 
+class VisitPartOfNotFoundError(Exception):
+    """register_visit with part_of_visit_id set, but parent stream is empty."""
+
+    def __init__(self, visit_id: UUID, part_of_visit_id: UUID) -> None:
+        super().__init__(
+            f"Visit {visit_id}: part_of_visit_id={part_of_visit_id} references a "
+            f"parent visit whose stream has no events"
+        )
+        self.visit_id = visit_id
+        self.part_of_visit_id = part_of_visit_id
+
+
+class VisitPartOfMismatchedSurfaceError(Exception):
+    """Child Visit's surface_id differs from its part_of parent's surface_id.
+
+    partOf cohesion lock: nested commissioning Visit (child) must operate
+    on the SAME Surface as its parent user Visit. Cross-Surface partOf
+    nesting would let a low-privilege operator inherit takeover rights
+    on an arbitrary Surface they don't have authz for.
+    """
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        child_surface_id: UUID,
+        part_of_visit_id: UUID,
+        parent_surface_id: UUID,
+    ) -> None:
+        super().__init__(
+            f"Visit {visit_id}: surface_id={child_surface_id} does not match parent "
+            f"visit {part_of_visit_id}'s surface_id={parent_surface_id}; partOf "
+            f"nesting requires same-Surface cohesion"
+        )
+        self.visit_id = visit_id
+        self.child_surface_id = child_surface_id
+        self.part_of_visit_id = part_of_visit_id
+        self.parent_surface_id = parent_surface_id
+
+
+class VisitCannotTakeControlError(Exception):
+    """take_control_of_surface guard failed.
+
+    Two causes (single class per Visit's `VisitCannot<Verb>Error`
+    convention, matching `VisitCannotTransitionError`):
+
+      - Visit's status is not in {Arrived, InProgress, OnHold}; or
+      - Surface already has an active controller AND requesting Visit
+        is not a part_of descendant of the current holder.
+
+    The exception's `reason` discriminator distinguishes the two for
+    log search + diagnostic messages.
+    """
+
+    def __init__(self, visit_id: UUID, surface_id: UUID, reason: str) -> None:
+        super().__init__(f"Visit {visit_id} cannot take control of surface {surface_id}: {reason}")
+        self.visit_id = visit_id
+        self.surface_id = surface_id
+        self.reason = reason
+
+
+class VisitCannotReleaseControlError(Exception):
+    """release_control_of_surface guard failed.
+
+    Two causes (single class per Visit's `VisitCannot<Verb>Error`
+    convention, matching `VisitCannotTakeControlError`):
+
+      - Visit's surface_id does not match the command's surface_id; or
+      - Visit is not the current holder per the projection snapshot.
+
+    `reason` discriminates the two for log search. The current
+    holder's id is captured on the instance (for structured logging)
+    but kept OUT of the message text so the 409 response body does
+    not leak the holder's identity to callers that lack read
+    permission on the Surface.
+    """
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        surface_id: UUID,
+        reason: str,
+        current_holder_id: UUID | None = None,
+    ) -> None:
+        super().__init__(
+            f"Visit {visit_id} cannot release control of surface {surface_id}: {reason}"
+        )
+        self.visit_id = visit_id
+        self.surface_id = surface_id
+        self.reason = reason
+        self.current_holder_id = current_holder_id
+
+
 # ---------------------------------------------------------------------------
 # Visit aggregate state
 # ---------------------------------------------------------------------------
