@@ -21,8 +21,11 @@ Stage 2b lands the five Permit lifecycle slices: `register_permit`
 lifecycle slices: `register_credential` (create-style;
 idempotency-wrapped) plus the four transitions
 (`start_credential_rotation`, `complete_credential_rotation`,
-`abort_credential_rotation`, `revoke_credential`). Seal slices land
-in Stage 2c-seal.
+`abort_credential_rotation`, `revoke_credential`). Stage 2c-seal
+lands the five Seal lifecycle slices: `initialize_seal` (genesis;
+idempotency-wrapped; cross-BC) plus the four transitions
+(`sign_seal_pointer`, `rotate_seal_online_key`,
+`start_seal_republishing`, `complete_seal_republishing`).
 """
 
 from dataclasses import dataclass
@@ -32,12 +35,17 @@ from cora.federation.features import (
     abort_credential_rotation,
     activate_permit,
     complete_credential_rotation,
+    complete_seal_republishing,
+    initialize_seal,
     register_credential,
     register_permit,
     resume_permit,
     revoke_credential,
     revoke_permit,
+    rotate_seal_online_key,
+    sign_seal_pointer,
     start_credential_rotation,
+    start_seal_republishing,
     suspend_permit,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -53,8 +61,8 @@ class FederationHandlers:
 
     Stage 2b: five Permit lifecycle slices (register + four
     transitions). Stage 2c-credential: five Credential lifecycle
-    slices (register + four transitions). Seal slices land in
-    Stage 2c-seal.
+    slices (register + four transitions). Stage 2c-seal: five Seal
+    lifecycle slices (initialize + four transitions).
     """
 
     register_permit: register_permit.IdempotentHandler
@@ -67,6 +75,11 @@ class FederationHandlers:
     complete_credential_rotation: complete_credential_rotation.Handler
     abort_credential_rotation: abort_credential_rotation.Handler
     revoke_credential: revoke_credential.Handler
+    initialize_seal: initialize_seal.IdempotentHandler
+    sign_seal_pointer: sign_seal_pointer.Handler
+    rotate_seal_online_key: rotate_seal_online_key.Handler
+    start_seal_republishing: start_seal_republishing.Handler
+    complete_seal_republishing: complete_seal_republishing.Handler
 
 
 def wire_federation(deps: Kernel) -> FederationHandlers:
@@ -134,6 +147,38 @@ def wire_federation(deps: Kernel) -> FederationHandlers:
         revoke_credential=with_tracing(
             revoke_credential.bind(deps),
             command_name="RevokeCredential",
+            bc=_BC,
+        ),
+        initialize_seal=with_tracing(
+            with_idempotency(
+                initialize_seal.bind(deps),
+                deps.idempotency_store,
+                command_name="InitializeSeal",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="InitializeSeal",
+            bc=_BC,
+        ),
+        sign_seal_pointer=with_tracing(
+            sign_seal_pointer.bind(deps),
+            command_name="SignSealPointer",
+            bc=_BC,
+        ),
+        rotate_seal_online_key=with_tracing(
+            rotate_seal_online_key.bind(deps),
+            command_name="RotateSealOnlineKey",
+            bc=_BC,
+        ),
+        start_seal_republishing=with_tracing(
+            start_seal_republishing.bind(deps),
+            command_name="StartSealRepublishing",
+            bc=_BC,
+        ),
+        complete_seal_republishing=with_tracing(
+            complete_seal_republishing.bind(deps),
+            command_name="CompleteSealRepublishing",
             bc=_BC,
         ),
     )

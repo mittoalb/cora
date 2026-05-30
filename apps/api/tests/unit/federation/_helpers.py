@@ -35,8 +35,21 @@ from cora.federation.aggregates.permit import (
     event_type_name,
     to_payload,
 )
+from cora.federation.aggregates.seal import (
+    SealInitialized,
+    SealRepublishingStarted,
+)
+from cora.federation.aggregates.seal import (
+    event_type_name as seal_event_type_name,
+)
+from cora.federation.aggregates.seal import (
+    to_payload as seal_to_payload,
+)
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+
+_DEFAULT_SEAL_ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
+_DEFAULT_SEAL_OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
 
 
 def _default_terms() -> OutboundTerms:
@@ -328,10 +341,97 @@ async def seed_revoked_credential(
     )
 
 
+async def seed_live_seal(
+    store: InMemoryEventStore,
+    *,
+    stream_id: UUID,
+    genesis_event_id: UUID,
+    correlation_id: UUID,
+    principal_id: UUID,
+    initialized_at: datetime,
+    facility_id: str = "aps-2bm",
+    online_key_ref: UUID = _DEFAULT_SEAL_ONLINE_KEY_REF,
+    offline_key_ref: UUID = _DEFAULT_SEAL_OFFLINE_KEY_REF,
+) -> None:
+    """Append a single `SealInitialized` event so the Seal lands in `Live`."""
+    genesis = SealInitialized(
+        facility_id=facility_id,
+        online_key_ref=online_key_ref,
+        offline_key_ref=offline_key_ref,
+        initialized_by_actor_id=principal_id,
+        occurred_at=initialized_at,
+    )
+    await store.append(
+        stream_type="Seal",
+        stream_id=stream_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=seal_event_type_name(genesis),
+                payload=seal_to_payload(genesis),
+                occurred_at=genesis.occurred_at,
+                event_id=genesis_event_id,
+                command_name="InitializeSeal",
+                correlation_id=correlation_id,
+                causation_id=None,
+                principal_id=principal_id,
+            )
+        ],
+    )
+
+
+async def seed_republishing_seal(
+    store: InMemoryEventStore,
+    *,
+    stream_id: UUID,
+    genesis_event_id: UUID,
+    start_event_id: UUID,
+    correlation_id: UUID,
+    principal_id: UUID,
+    initialized_at: datetime,
+    republishing_started_at: datetime,
+    facility_id: str = "aps-2bm",
+) -> None:
+    """Seed Initialized (Live) then RepublishingStarted; stream version ends at 2."""
+    await seed_live_seal(
+        store,
+        stream_id=stream_id,
+        genesis_event_id=genesis_event_id,
+        correlation_id=correlation_id,
+        principal_id=principal_id,
+        initialized_at=initialized_at,
+        facility_id=facility_id,
+    )
+    started = SealRepublishingStarted(
+        facility_id=facility_id,
+        started_by_actor_id=principal_id,
+        occurred_at=republishing_started_at,
+    )
+    await store.append(
+        stream_type="Seal",
+        stream_id=stream_id,
+        expected_version=1,
+        events=[
+            to_new_event(
+                event_type=seal_event_type_name(started),
+                payload=seal_to_payload(started),
+                occurred_at=started.occurred_at,
+                event_id=start_event_id,
+                command_name="StartSealRepublishing",
+                correlation_id=correlation_id,
+                causation_id=None,
+                principal_id=principal_id,
+            )
+        ],
+    )
+
+
 __all__ = [
     "seed_active_credential",
     "seed_active_permit",
     "seed_defined_permit",
+    "seed_live_seal",
+    "seed_republishing_seal",
     "seed_revoked_credential",
     "seed_rotating_credential",
     "seed_suspended_permit",

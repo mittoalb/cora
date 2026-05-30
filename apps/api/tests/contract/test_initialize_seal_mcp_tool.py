@@ -1,0 +1,142 @@
+"""Contract tests for the `initialize_seal` MCP tool.
+
+Pins tool registration, happy-path structured output (seal_stream_id
++ facility_id), and error-path bubbling (isError true on missing
+args, on malformed UUID args, and on decider-layer key-collision
+rejection).
+"""
+
+from typing import Any
+from uuid import UUID, uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+
+from cora.api.main import create_app
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
+from tests.contract._mcp_helpers import open_session, parse_sse_data
+
+_ONLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0a1"
+_OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
+
+
+def _args(**overrides: object) -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
+        "online_key_ref": _ONLINE_KEY_REF,
+        "offline_key_ref": _OFFLINE_KEY_REF,
+    }
+    base.update(overrides)
+    return base
+
+
+@pytest.mark.contract
+def test_mcp_lists_initialize_seal_tool() -> None:
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    tool_names = [t["name"] for t in body["result"]["tools"]]
+    assert "initialize_seal" in tool_names
+
+
+@pytest.mark.contract
+def test_mcp_initialize_seal_tool_returns_structured_stream_id_and_facility_id() -> None:
+    args = _args()
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {"name": "initialize_seal", "arguments": args},
+            },
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    result = body["result"]
+    assert result["isError"] is False, result
+    structured = result["structuredContent"]
+    assert structured["facility_id"] == args["facility_id"]
+    assert UUID(structured["seal_stream_id"]) == seal_stream_id(args["facility_id"])
+
+
+@pytest.mark.contract
+def test_mcp_initialize_seal_tool_returns_iserror_on_key_collision() -> None:
+    """Decider-layer SealKeyCollisionError surfaces through FastMCP as isError: true."""
+    shared = "01900000-0000-7000-8000-00000000ccc1"
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                    "name": "initialize_seal",
+                    "arguments": _args(online_key_ref=shared, offline_key_ref=shared),
+                },
+            },
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+
+
+@pytest.mark.contract
+def test_mcp_initialize_seal_tool_rejects_missing_required_argument() -> None:
+    """Pydantic-layer rejection (facility_id missing) bubbles as isError: true."""
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        args = _args()
+        del args["facility_id"]
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "initialize_seal",
+                    "arguments": args,
+                },
+            },
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+
+
+@pytest.mark.contract
+def test_mcp_initialize_seal_tool_rejects_malformed_uuid_argument() -> None:
+    """Pydantic rejects an online_key_ref that does not parse as UUID;
+    surfaces as isError: true."""
+    with TestClient(create_app()) as client:
+        session_headers = open_session(client)
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "tools/call",
+                "params": {
+                    "name": "initialize_seal",
+                    "arguments": _args(online_key_ref="not-a-uuid"),
+                },
+            },
+            headers=session_headers,
+        )
+    assert response.status_code == 200
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True

@@ -13,10 +13,13 @@ Stage 2b attaches the five Permit lifecycle slice routers
 `resume_permit` + `revoke_permit`). Stage 2c-credential attaches
 the five Credential lifecycle slice routers (`register_credential`
 + `start_credential_rotation` + `complete_credential_rotation` +
-`abort_credential_rotation` + `revoke_credential`). Seal slice
-routers attach in Stage 2c-seal; their domain-error handlers are
-wired now so the arch-fitness
-`test_every_domain_error_registered_as_http_handler` passes
+`abort_credential_rotation` + `revoke_credential`). Stage 2c-seal
+attaches the five Seal lifecycle slice routers (`initialize_seal`
++ `sign_seal_pointer` + `rotate_seal_online_key` +
+`start_seal_republishing` + `complete_seal_republishing`). The
+Seal domain-error handlers were wired alongside the Credential
+slices, so the arch-fitness
+`test_every_domain_error_registered_as_http_handler` passed
 day-one.
 """
 
@@ -58,12 +61,17 @@ from cora.federation.features import (
     abort_credential_rotation,
     activate_permit,
     complete_credential_rotation,
+    complete_seal_republishing,
+    initialize_seal,
     register_credential,
     register_permit,
     resume_permit,
     revoke_credential,
     revoke_permit,
+    rotate_seal_online_key,
+    sign_seal_pointer,
     start_credential_rotation,
+    start_seal_republishing,
     suspend_permit,
 )
 
@@ -140,6 +148,11 @@ def register_federation_routes(app: FastAPI) -> None:
     app.include_router(complete_credential_rotation.router)
     app.include_router(abort_credential_rotation.router)
     app.include_router(revoke_credential.router)
+    app.include_router(initialize_seal.router)
+    app.include_router(sign_seal_pointer.router)
+    app.include_router(rotate_seal_online_key.router)
+    app.include_router(start_seal_republishing.router)
+    app.include_router(complete_seal_republishing.router)
     for validation_cls in (
         InvalidPermitScopeError,
         InvalidCredentialSecretRefError,

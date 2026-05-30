@@ -8,7 +8,8 @@ is always used.
 
 Stage 2b registers the five Permit lifecycle slice tools.
 Stage 2c-credential registers the five Credential lifecycle slice
-tools. Seal slice tools attach in Stage 2c-seal.
+tools. Stage 2c-seal registers the five Seal lifecycle slice
+tools.
 """
 
 from collections.abc import Callable
@@ -22,6 +23,10 @@ from cora.federation.features.activate_permit import tool as activate_permit_too
 from cora.federation.features.complete_credential_rotation import (
     tool as complete_credential_rotation_tool,
 )
+from cora.federation.features.complete_seal_republishing import (
+    tool as complete_seal_republishing_tool,
+)
+from cora.federation.features.initialize_seal import tool as initialize_seal_tool
 from cora.federation.features.register_credential import (
     tool as register_credential_tool,
 )
@@ -29,8 +34,15 @@ from cora.federation.features.register_permit import tool as register_permit_too
 from cora.federation.features.resume_permit import tool as resume_permit_tool
 from cora.federation.features.revoke_credential import tool as revoke_credential_tool
 from cora.federation.features.revoke_permit import tool as revoke_permit_tool
+from cora.federation.features.rotate_seal_online_key import (
+    tool as rotate_seal_online_key_tool,
+)
+from cora.federation.features.sign_seal_pointer import tool as sign_seal_pointer_tool
 from cora.federation.features.start_credential_rotation import (
     tool as start_credential_rotation_tool,
+)
+from cora.federation.features.start_seal_republishing import (
+    tool as start_seal_republishing_tool,
 )
 from cora.federation.features.suspend_permit import tool as suspend_permit_tool
 from cora.federation.wire import FederationHandlers
@@ -83,6 +95,26 @@ def register_federation_tools(
     revoke_credential_tool.register(
         mcp,
         get_handler=lambda: get_handlers().revoke_credential,
+    )
+    initialize_seal_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().initialize_seal,
+    )
+    sign_seal_pointer_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().sign_seal_pointer,
+    )
+    rotate_seal_online_key_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().rotate_seal_online_key,
+    )
+    start_seal_republishing_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().start_seal_republishing,
+    )
+    complete_seal_republishing_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().complete_seal_republishing,
     )
 
 
