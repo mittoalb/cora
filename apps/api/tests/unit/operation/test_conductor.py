@@ -704,6 +704,40 @@ async def test_execute_check_non_good_quality_halts() -> None:
 
 
 @pytest.mark.unit
+async def test_execute_check_uncertain_quality_halts_with_quality_reason() -> None:
+    """An Uncertain-quality reading halts the check; tests the non-Bad non-Good arm.
+
+    Pins that the implementation treats `quality != "Good"` not
+    `quality == "Bad"`. A regression to the latter would silently
+    let MINOR_ALARM readings through.
+    """
+    port = InMemoryControlPort()
+    port.set_reading(
+        "2bma:rot:rbv",
+        Reading(
+            value=45.0,
+            kind="Scalar",
+            quality="Uncertain",
+            sampled_at=_FIXED_NOW,
+            quality_detail="alarm_status=1",
+        ),
+    )
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "CheckFailedError"
+    assert "quality=Uncertain" in result.failure.message
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["reading"]["quality"] == "Uncertain"
+
+
+@pytest.mark.unit
 async def test_execute_check_read_raises_control_error_halts_with_substrate_class() -> None:
     """When read raises Control*Error, the failure carries the substrate error_class."""
     port = InMemoryControlPort()  # nothing connected -> NotConnected on read
@@ -1226,3 +1260,169 @@ async def test_conduct_complete_failure_overrides_success_with_lifecycle_failure
     assert result.failure.error_class == "RuntimeError"
     assert result.completed_count == 1  # the step DID succeed
     assert abort.calls == []  # complete failure doesn't trigger abort
+
+
+@pytest.mark.unit
+async def test_conduct_check_failure_after_setpoint_triggers_abort_with_check_target() -> None:
+    """A check failing AFTER a setpoint succeeded aborts the procedure with check-targeted reason.
+
+    Pins the multi-step abort flow: prior steps succeeded + recorded;
+    the failing step is also recorded; abort fires with a reason
+    derived from the check failure (not the prior setpoint).
+    """
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    port.set_reading(
+        "2bma:rot:rbv",
+        Reading(value=12.5, kind="Scalar", quality="Good", sampled_at=_FIXED_NOW),
+    )
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=complete,
+        abort=abort,
+        ids=[uuid4(), uuid4()],
+    )
+    procedure_id = uuid4()
+    result = await conductor.conduct(
+        procedure_id=procedure_id,
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            SetpointStep(address="2bma:rot:val", value=45.0),
+            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
+        ),
+    )
+    assert result.succeeded is False
+    assert result.completed_count == 1  # setpoint succeeded
+    assert result.failure is not None
+    assert result.failure.step_index == 1
+    assert result.failure.step_kind == "check"
+    assert result.failure.target == "2bma:rot:rbv"
+    assert result.failure.error_class == "CheckFailedError"
+    # abort was invoked with a reason pointing at the failing check.
+    assert len(abort.calls) == 1
+    reason = abort.calls[0].command.reason
+    assert "check[1]" in reason
+    assert "CheckFailedError" in reason
+
+
+@pytest.mark.unit
+async def test_conduct_reraises_unauthorized_error_from_start_procedure() -> None:
+    """UnauthorizedError from start_procedure propagates so the route maps it to 403.
+
+    The conduct() lifecycle catch is narrowed (Stage-2 cleanup) so
+    authz / not-found / concurrency errors surface as exceptions
+    rather than as 200-OK structured failures. The route layer's
+    existing exception handlers (`cora/operation/routes.py`) map them
+    to the right HTTP status codes.
+    """
+    from cora.operation.errors import UnauthorizedError
+
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler(raises=UnauthorizedError("denied"))
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    conductor = _conductor_full_lifecycle(
+        port, appender, start=start, complete=complete, abort=abort, ids=[]
+    )
+    with pytest.raises(UnauthorizedError, match="denied"):
+        await conductor.conduct(
+            procedure_id=uuid4(),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(),
+        )
+
+
+@pytest.mark.unit
+async def test_conduct_reraises_procedure_not_found_error_from_start_procedure() -> None:
+    """ProcedureNotFoundError propagates so the route maps it to 404."""
+    from cora.operation.aggregates.procedure import ProcedureNotFoundError
+
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    procedure_id = uuid4()
+    start = _FakeLifecycleHandler(raises=ProcedureNotFoundError(procedure_id))
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=_FakeLifecycleHandler(),
+        abort=_FakeLifecycleHandler(),
+        ids=[],
+    )
+    with pytest.raises(ProcedureNotFoundError):
+        await conductor.conduct(
+            procedure_id=procedure_id,
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(),
+        )
+
+
+@pytest.mark.unit
+async def test_conduct_reraises_concurrency_error_from_complete_procedure() -> None:
+    """ConcurrencyError on complete propagates so the route doesn't mask it as 200-OK."""
+    from cora.infrastructure.ports.event_store import ConcurrencyError
+
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    complete = _FakeLifecycleHandler(
+        raises=ConcurrencyError(
+            stream_type="Procedure",
+            stream_id=uuid4(),
+            expected=2,
+            actual=3,
+        )
+    )
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=_FakeLifecycleHandler(),
+        complete=complete,
+        abort=_FakeLifecycleHandler(),
+        ids=[],
+    )
+    with pytest.raises(ConcurrencyError):
+        await conductor.conduct(
+            procedure_id=uuid4(),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(),
+        )
+
+
+@pytest.mark.unit
+async def test_execute_setpoint_via_registry_with_unrouted_address_records_failure() -> None:
+    """NoAdapterForAddressError now lives in _CONTROL_ERRORS; records + halts cleanly."""
+    from cora.operation.adapters.control_port_registry import ControlPortRegistry
+
+    registry = ControlPortRegistry()
+    registry.register("known:", InMemoryControlPort())
+    appender = _FakeAppendStep()
+    conductor = Conductor(
+        control_port=registry,
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator([uuid4()]),
+    )
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="unknown:rot:val", value=1.0),),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.error_class == "NoAdapterForAddressError"
+    assert result.failure.step_kind == "setpoint"
+    # Recorded in logbook, not propagated as a 500.
+    assert len(appender.calls) == 1
+    assert appender.calls[0].command.entries[0].payload["result"] == "failed"

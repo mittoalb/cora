@@ -28,6 +28,7 @@ Observability stack:
   an active span.
 """
 
+import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -466,6 +467,20 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 # Without this, any spans buffered by
                 # BatchSpanProcessor would be lost.
                 try:
+                    # Release Operation BC ControlPort resources before
+                    # the kernel pool closes. Registry-routed deployments
+                    # hold aioca broadcaster + p4p Context state that
+                    # must be released on shutdown; in-memory deployments
+                    # see a no-op aclose. Suppressed so a flaky adapter
+                    # cannot strand the rest of teardown. ControlPort
+                    # Protocol does not declare aclose (it's adapter-
+                    # optional); use getattr the same way the registry's
+                    # own aclose fan-out does.
+                    _port = app.state.operation.control_port
+                    _aclose = getattr(_port, "aclose", None)
+                    if _aclose is not None:
+                        with contextlib.suppress(Exception):
+                            await _aclose()
                     await teardown()
                 finally:
                     # Flush pending OTel spans before the process exits

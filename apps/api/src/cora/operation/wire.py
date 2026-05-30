@@ -74,6 +74,7 @@ from cora.operation.features import (
     start_procedure,
     truncate_procedure,
 )
+from cora.operation.ports.control_port import ControlPort
 
 _BC = "operation"
 
@@ -97,6 +98,12 @@ class OperationHandlers:
     get_procedure: get_procedure.Handler
     list_procedures: list_procedures.Handler
     run_procedure: run_procedure.Handler
+    control_port: ControlPort
+    """The ControlPort the Conductor talks to. Surfaced on the bundle
+    so the FastAPI lifespan's teardown can call `aclose()` on it
+    before the kernel pool closes - registry-routed deployments hold
+    OS-level resources (aioca broadcaster, p4p Context) that must be
+    released on hot-reload + test-process restart."""
 
 
 def wire_operation(deps: Kernel) -> OperationHandlers:
@@ -139,8 +146,9 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         command_name="AppendProcedureStep",
         bc=_BC,
     )
+    control_port = build_control_port(deps.settings.control_port_routes)
     conductor = Conductor(
-        control_port=build_control_port(deps.settings.control_port_routes),
+        control_port=control_port,
         append_step=append_step_handler,
         clock=deps.clock,
         id_generator=deps.id_generator,
@@ -189,4 +197,5 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             command_name="RunProcedure",
             bc=_BC,
         ),
+        control_port=control_port,
     )

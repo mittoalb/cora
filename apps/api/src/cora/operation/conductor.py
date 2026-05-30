@@ -95,9 +95,14 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from cora.infrastructure.ports.clock import Clock
+from cora.infrastructure.ports.event_store import ConcurrencyError
 from cora.infrastructure.ports.id_generator import IdGenerator
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.operation.errors import CheckFailedError, UnknownActionError
+from cora.operation.aggregates.procedure import (
+    PROCEDURE_ABORT_REASON_MAX_LENGTH,
+    ProcedureNotFoundError,
+)
+from cora.operation.errors import CheckFailedError, UnauthorizedError, UnknownActionError
 from cora.operation.features.abort_procedure.command import AbortProcedure
 from cora.operation.features.abort_procedure.handler import Handler as AbortProcedureHandler
 from cora.operation.features.append_procedure_step.command import (
@@ -120,6 +125,7 @@ from cora.operation.ports.control_port import (
     ControlTimeoutError,
     ControlValueCoercionError,
     ControlWriteRejectedError,
+    NoAdapterForAddressError,
     Reading,
 )
 
@@ -129,17 +135,50 @@ _CONTROL_ERRORS: tuple[type[Exception], ...] = (
     ControlWriteRejectedError,
     ControlValueCoercionError,
     ControlAccessDeniedError,
+    NoAdapterForAddressError,
 )
 """The closed set of `Control*Error` classes the Conductor maps to
 `ConductorFailure`. Tuple shape lets the `except` clause stay
 declarative; new exception classes in `cora.operation.ports.control_port`
 must be added here explicitly (no `Exception` catch-all so non-port
-exceptions still propagate to the caller's task)."""
+exceptions still propagate to the caller's task).
+
+`NoAdapterForAddressError` is included so a misconfigured
+`ControlPortRegistry` (an address with no matching prefix) records
+a structured step-failure rather than letting an opaque exception
+propagate to the route layer and strand the Procedure in `Running`."""
+
+
+_LIFECYCLE_RERAISE: tuple[type[Exception], ...] = (
+    UnauthorizedError,
+    ProcedureNotFoundError,
+    ConcurrencyError,
+)
+"""Exceptions from the lifecycle handlers (start / complete /
+abort) that `conduct()` re-raises rather than recording as a
+ConductorFailure. These already have HTTP exception mappers
+registered on the BC's FastAPI routes (403 / 404 / 409) so
+re-raising lets the route layer return the right status code +
+preserves authz-deny + not-found telemetry. Anything else from
+the lifecycle handlers (Procedure*CannotStart/Complete/Abort,
+ProcedureAssetDecommissioned, supply-gate errors) is a legitimate
+"this Procedure cannot transition right now" outcome that lands
+in the result body as a structured lifecycle failure."""
 
 
 _STEP_KIND_SETPOINT = "setpoint"
 _STEP_KIND_ACTION = "action"
 _STEP_KIND_CHECK = "check"
+"""Closed-set discriminator from [[project_operation_design]]
+(`setpoint | action | check`). Source of truth for these values is
+`STEP_KIND_VALUES` on the Procedure aggregate (re-imported above);
+the architecture fitness `test_conductor_step_kinds_match_procedure`
+pins that the union arms here stay in sync with the aggregate set.
+
+`_STEP_KIND_LIFECYCLE` below is a Conductor-local pseudo-kind used
+only on `ConductorFailure` (lifecycle failures do not record a step
+entry), so it is intentionally NOT a member of `STEP_KIND_VALUES`."""
+
 _STEP_KIND_LIFECYCLE = "lifecycle"
 """Pseudo-`step_kind` used on `ConductorFailure` when the failure
 came from the surrounding lifecycle handlers (start_procedure /
@@ -153,19 +192,12 @@ _LIFECYCLE_TARGET_ABORT = "abort"
 
 _RESULT_OK = "ok"
 _RESULT_FAILED = "failed"
-_QUALITY_GOOD = "Good"
-
-_ABORT_REASON_MAX_LENGTH = 500
-"""Mirror of the Procedure aggregate's `PROCEDURE_ABORT_REASON_MAX_LENGTH`.
-Conduct derives the abort reason from the failed step's message;
-truncates to this limit so the AbortProcedure handler doesn't reject
-the cleanup attempt."""
-"""Payload constants. `step_kind` is the closed-set discriminator from
-[[project_operation_design]] (`setpoint | action | check`). `result`
-is a Conductor-local convention inside the step payload body; today's
+"""Conductor-local convention inside the step payload body; today's
 projections do not split on it, but the field is pinned so future
 read-side filters can separate successful vs failed steps without
 parsing the message string."""
+
+_QUALITY_GOOD = "Good"
 
 
 @dataclass(frozen=True)
@@ -423,7 +455,8 @@ class Conductor:
     ) -> ConductorResult:
         """Walk `steps` in order; dispatch per kind + record outcome.
 
-        Halts on the first `Control*Error` or `UnknownActionError`.
+        Halts on the first `Control*Error`, `UnknownActionError`, or
+        `CheckFailedError` (criterion mismatch or non-Good quality).
         The failing step is recorded in the logbook (`result="failed"`)
         BEFORE this returns; subsequent steps are NOT attempted. The
         Procedure's FSM is unchanged.
@@ -510,6 +543,8 @@ class Conductor:
             await self._start_procedure(
                 StartProcedure(procedure_id=procedure_id), **envelope_kwargs
             )
+        except _LIFECYCLE_RERAISE:
+            raise
         except Exception as exc:
             return ConductorResult(
                 procedure_id=procedure_id,
@@ -551,6 +586,8 @@ class Conductor:
                 await self._complete_procedure(
                     CompleteProcedure(procedure_id=procedure_id), **envelope_kwargs
                 )
+            except _LIFECYCLE_RERAISE:
+                raise
             except Exception as exc:
                 return ConductorResult(
                     procedure_id=procedure_id,
@@ -869,7 +906,7 @@ def _mismatch_reason(criterion: CheckCriterion, value: Any) -> str:
 def _derive_abort_reason(failure: ConductorFailure) -> str:
     """Build a Procedure-aggregate-compliant abort reason from a step failure.
 
-    Truncates to `_ABORT_REASON_MAX_LENGTH` so the AbortProcedure
+    Truncates to `PROCEDURE_ABORT_REASON_MAX_LENGTH` so the AbortProcedure
     handler does not reject the cleanup call. The format leads with
     the step pointer (kind + index + target) so an operator scanning
     the abort reason knows immediately which step in the conducted
@@ -880,7 +917,7 @@ def _derive_abort_reason(failure: ConductorFailure) -> str:
     else:
         prefix = f"{failure.step_kind}[{failure.step_index}] {failure.target}"
     reason = f"{prefix} failed: {failure.error_class}: {failure.message}"
-    return reason[:_ABORT_REASON_MAX_LENGTH]
+    return reason[:PROCEDURE_ABORT_REASON_MAX_LENGTH]
 
 
 def _reading_to_dict(reading: Reading) -> dict[str, Any]:

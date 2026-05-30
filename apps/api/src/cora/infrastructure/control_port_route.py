@@ -3,7 +3,7 @@
 The actual `ControlPort` adapter classes live in
 `cora.operation.adapters.*` (substrate-specific code) and the
 factory that materialises them lives in
-`cora.operation.adapters.control_port_factory`. This module ONLY
+`cora.operation.adapters.control_port_config`. This module ONLY
 carries the typed config dataclass the `Settings` field uses, so
 infrastructure can validate the env var at startup without
 importing any BC-specific adapter.
