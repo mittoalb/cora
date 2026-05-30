@@ -8,11 +8,13 @@ construction.
 JSONResponse is used (not HTTPException) per FastAPI guidance to
 avoid nested-exception pitfalls.
 
-Stage 2a holds the empty `federation_router` + BC-level exception
-handlers for every Permit / Credential / Seal domain error. Slice
-routers attach in Stage 2b/2c; the handlers are wired now so the
-arch-fitness `test_every_domain_error_registered_as_http_handler`
-passes day-one.
+Stage 2b attaches the five Permit lifecycle slice routers
+(`register_permit` + `activate_permit` + `suspend_permit` +
+`resume_permit` + `revoke_permit`). Credential / Seal slice
+routers attach in Stage 2c; their domain-error handlers are wired
+now so the arch-fitness
+`test_every_domain_error_registered_as_http_handler` passes
+day-one.
 """
 
 from fastapi import APIRouter, FastAPI, Request, status
@@ -49,6 +51,13 @@ from cora.federation.aggregates.seal.state import (
     SealSequenceNumberRegressionError,
 )
 from cora.federation.errors import FederationError, UnauthorizedError
+from cora.federation.features import (
+    activate_permit,
+    register_permit,
+    resume_permit,
+    revoke_permit,
+    suspend_permit,
+)
 
 federation_router = APIRouter(prefix="/federation", tags=["federation"])
 
@@ -113,6 +122,11 @@ async def _handle_federation_error(request: Request, exc: Exception) -> JSONResp
 def register_federation_routes(app: FastAPI) -> None:
     """Attach Federation slice routers and exception handlers to the FastAPI app."""
     app.include_router(federation_router)
+    app.include_router(register_permit.router)
+    app.include_router(activate_permit.router)
+    app.include_router(suspend_permit.router)
+    app.include_router(resume_permit.router)
+    app.include_router(revoke_permit.router)
     for validation_cls in (
         InvalidPermitScopeError,
         InvalidCredentialSecretRefError,

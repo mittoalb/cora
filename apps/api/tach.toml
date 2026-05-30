@@ -231,11 +231,19 @@ depends_on = ["cora.infrastructure", "cora.calibration.aggregates"]
 # UUID references to peer Facility / Actor targets on the write path
 # (eventual-consistency stance per the Calibration / Caution / Trust
 # Conduit precedent). The SecretStore port lives in
-# cora.infrastructure.ports (used by Credential slices in Stage 2b/2c);
-# no cross-BC kernel imports needed at Stage 2a.
+# cora.infrastructure.ports (used by Credential slices in Stage 2b/2c).
+# Depends on `cora.decision.aggregates` because `register_permit` writes
+# `DecisionRegistered` on the Decision stream alongside `PermitDefined`
+# on the Permit stream in ONE transaction via `EventStore.append_streams`
+# (same cross-BC atomic-write pattern as Agent's `define_agent` writing
+# `ActorRegistered` on the Access stream).
 [[modules]]
 path = "cora.federation"
-depends_on = ["cora.infrastructure", "cora.federation.aggregates"]
+depends_on = [
+    "cora.infrastructure",
+    "cora.federation.aggregates",
+    "cora.decision.aggregates",
+]
 
 # Campaign BC owns the Campaign aggregate (operator-declared
 # coordinated container above Run; 5-state FSM

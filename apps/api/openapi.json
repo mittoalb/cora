@@ -18,6 +18,17 @@
         "title": "AbandonCampaignRequest",
         "type": "object"
       },
+      "AbiTier": {
+        "description": "ABI-tier floor used by permits and the seal.\n\n- `Testing`:  pre-stable; SHOULD NOT be relied on for production.\n- `Stable`:   supported and recommended for production consumers.\n- `Obsolete`: still served, MAY be removed; consumers should migrate.\n- `Removed`:  no longer served; included as a closed enum arm so\n              historical event payloads remain decodable.",
+        "enum": [
+          "Testing",
+          "Stable",
+          "Obsolete",
+          "Removed"
+        ],
+        "title": "AbiTier",
+        "type": "string"
+      },
       "AbortProcedureRequest": {
         "description": "Body for `POST /procedures/{procedure_id}/abort`.",
         "properties": {
@@ -4104,6 +4115,15 @@
         "title": "DeregisterSupplyRequest",
         "type": "object"
       },
+      "Direction": {
+        "description": "Query-convenience discriminator mirroring `type(state.terms)`.\n\nLives on the aggregate root so projections and read-side filters\ncan index by direction without crossing the polymorphic terms\nboundary. Decider enforces `direction == Outbound iff\nisinstance(terms, OutboundTerms)`.",
+        "enum": [
+          "Outbound",
+          "Inbound"
+        ],
+        "title": "Direction",
+        "type": "string"
+      },
       "DiscardDatasetRequest": {
         "description": "Body for `POST /datasets/{dataset_id}/discard`.",
         "properties": {
@@ -5241,6 +5261,17 @@
         "title": "NFPA704DTO",
         "type": "object"
       },
+      "OnwardActionScope": {
+        "description": "What the peer may do with the data after reading under an outbound permit.\n\n- `ReadOnly`:               read-and-display; no persistence.\n- `MayCacheLocally`:        local caching permitted; not exposed\n                            to the peer's own peers.\n- `MayRePublishToOwnPeers`: the peer may federate the data\n                            onward to its own subscribers.\n- `MayExportOffPlatform`:   the peer may export the data out of\n                            the federation entirely.",
+        "enum": [
+          "ReadOnly",
+          "MayCacheLocally",
+          "MayRePublishToOwnPeers",
+          "MayExportOffPlatform"
+        ],
+        "title": "OnwardActionScope",
+        "type": "string"
+      },
       "PlanListResponse": {
         "description": "Page of plans plus opaque next-page cursor.",
         "properties": {
@@ -6052,6 +6083,16 @@
         "title": "ReDebriefRunResponse",
         "type": "object"
       },
+      "ReadScope": {
+        "description": "How much the peer may read under an outbound permit.\n\n- `ListMetadataOnly`:     index entries (titles, ids, tags) only;\n                          no artifact bodies.\n- `ReadAllArtifacts`:     full artifact bytes for every entry\n                          in scope.\n- `ReadByABITierMinimum`: artifact bytes only for entries at or\n                          above `abi_tier_floor`.",
+        "enum": [
+          "ListMetadataOnly",
+          "ReadAllArtifacts",
+          "ReadByABITierMinimum"
+        ],
+        "title": "ReadScope",
+        "type": "string"
+      },
       "ReasoningEntryRequest": {
         "additionalProperties": false,
         "description": "One reasoning entry's input payload (OTel gen_ai.* shape).\n\nRequired: provider_name + operation_name + request_model\n(NOT NULL discriminators per OTel semconv v1.38). Rest are\noptional; messages_jsonb is the opt-in PII-gated payload.",
@@ -6313,6 +6354,16 @@
         ],
         "title": "ReasoningEntryRequest",
         "type": "object"
+      },
+      "ReceiptKind": {
+        "description": "Receipt schemes an inbound permit requires for accepted artifacts.\n\n  - `Scitt`:       SCITT receipt (RFC draft-ietf-scitt-architecture)\n  - `RekorSct`:    Sigstore Rekor signed certificate timestamp\n  - `TsAuthority`: RFC 3161 trusted timestamp authority token\n\nThe inbound side decides which receipt kinds it requires; an\ninbound pull refuses an artifact lacking every required kind.\nDefaulting to empty frozenset means \"no receipt required\" (initial\ndeployment posture; tighten via update slice as ecosystem matures).",
+        "enum": [
+          "Scitt",
+          "RekorSct",
+          "TsAuthority"
+        ],
+        "title": "ReceiptKind",
+        "type": "string"
       },
       "RegisterActorRequest": {
         "description": "Body for `POST /actors`.",
@@ -7014,6 +7065,106 @@
           "decision_id"
         ],
         "title": "RegisterDecisionResponse",
+        "type": "object"
+      },
+      "RegisterPermitRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/permits`.",
+        "properties": {
+          "abi_tier_floor": {
+            "$ref": "#/components/schemas/AbiTier",
+            "description": "Lowest tier the permit honors on either side."
+          },
+          "allowed_credentials": {
+            "description": "Bounded set of Credential ids permitted under this permit.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Credentials",
+            "type": "array"
+          },
+          "allowed_payload_types": {
+            "description": "Payload-type strings honored on either side of the relationship.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Payload Types",
+            "type": "array"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/Direction",
+            "description": "Query-convenience discriminator mirroring `type(terms)`. Must match the `terms.kind` arm; the decider rejects mismatches."
+          },
+          "expires_at": {
+            "description": "Contractual upper bound; must lie strictly after the server's now.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "peer_facility_id": {
+            "description": "Opaque string id of the peer facility. Federation peers are external entities; CORA does NOT mint their ids.",
+            "minLength": 1,
+            "title": "Peer Facility Id",
+            "type": "string"
+          },
+          "permitted_artifact_kinds": {
+            "description": "Artifact-kind strings honored on either side of the relationship.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Permitted Artifact Kinds",
+            "type": "array"
+          },
+          "terms": {
+            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scope_set` + `read_scope` + `onward_action_scope`; `Inbound` carries `allowed_artifact_kinds` + optional canonicalization / receipt config.",
+            "discriminator": {
+              "mapping": {
+                "Inbound": "#/components/schemas/_InboundTermsRequest",
+                "Outbound": "#/components/schemas/_OutboundTermsRequest"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/_OutboundTermsRequest"
+              },
+              {
+                "$ref": "#/components/schemas/_InboundTermsRequest"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "required": [
+          "peer_facility_id",
+          "direction",
+          "allowed_credentials",
+          "allowed_payload_types",
+          "permitted_artifact_kinds",
+          "abi_tier_floor",
+          "expires_at",
+          "terms"
+        ],
+        "title": "RegisterPermitRequest",
+        "type": "object"
+      },
+      "RegisterPermitResponse": {
+        "description": "Response body for `POST /federation/permits`.",
+        "properties": {
+          "permit_id": {
+            "format": "uuid",
+            "title": "Permit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "permit_id"
+        ],
+        "title": "RegisterPermitResponse",
         "type": "object"
       },
       "RegisterProcedureRequest": {
@@ -8688,6 +8839,26 @@
         "title": "SuspendAgentRequest",
         "type": "object"
       },
+      "SuspendPermitRequest": {
+        "description": "Body for `POST /federation/permits/{permit_id}/suspend`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the Permit is being suspended. Examples: \"peer\nfacility paused outbound sharing pending PII review\",\n\"credential rotation in progress, expected back in 24h\".",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied reason for suspending the permit (audit-log breadcrumb).",
+            "title": "Reason"
+          }
+        },
+        "title": "SuspendPermitRequest",
+        "type": "object"
+      },
       "TakeControlOfSurfaceBody": {
         "additionalProperties": false,
         "description": "Body for POST /visits/{visit_id}/take-control.",
@@ -9374,6 +9545,129 @@
           "id"
         ],
         "title": "_ExternalRefBody",
+        "type": "object"
+      },
+      "_InboundTermsRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for `InboundTerms`.",
+        "properties": {
+          "accepted_canonicalization_versions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted Canonicalization Versions"
+          },
+          "allowed_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Artifact Kinds",
+            "type": "array"
+          },
+          "kind": {
+            "const": "Inbound",
+            "title": "Kind",
+            "type": "string"
+          },
+          "publisher_grant_correlation_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher Grant Correlation Handle"
+          },
+          "required_receipt_kinds": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptKind"
+            },
+            "title": "Required Receipt Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "allowed_artifact_kinds"
+        ],
+        "title": "_InboundTermsRequest",
+        "type": "object"
+      },
+      "_OutboundTermsRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for `OutboundTerms`.",
+        "properties": {
+          "kind": {
+            "const": "Outbound",
+            "title": "Kind",
+            "type": "string"
+          },
+          "onward_action_scope": {
+            "$ref": "#/components/schemas/OnwardActionScope"
+          },
+          "read_scope": {
+            "$ref": "#/components/schemas/ReadScope"
+          },
+          "scope_set": {
+            "items": {
+              "$ref": "#/components/schemas/_ScopeRefRequest"
+            },
+            "minItems": 1,
+            "title": "Scope Set",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "scope_set",
+          "read_scope",
+          "onward_action_scope"
+        ],
+        "title": "_OutboundTermsRequest",
+        "type": "object"
+      },
+      "_ScopeRefRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for a `ScopeRef`.",
+        "properties": {
+          "kind": {
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualifier"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "_ScopeRefRequest",
         "type": "object"
       },
       "_SetpointStepRequest": {
@@ -18169,6 +18463,480 @@
         "summary": "Issue a new version label for an existing family",
         "tags": [
           "equipment"
+        ]
+      }
+    },
+    "/federation/permits": {
+      "post": {
+        "operationId": "post_federation_permits_federation_permits_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Permit.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Permit.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterPermitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterPermitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (empty peer_facility_id, empty scope sets, expires_at in the past, direction / terms mismatch, or whitespace-only payload-type / artifact-kind entry)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Defensive guard: the target Permit stream already has events. Essentially impossible in production with UUIDv7 ids."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body failed schema validation (missing field, invalid enum value, malformed UUID, OutboundTerms scope collapse, unknown canonicalization version), OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Register a new federation Permit (cross-BC atomic; emits DecisionRegistered audit)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/permits/{permit_id}/activate": {
+      "post": {
+        "operationId": "post_federation_permits_activate_federation_permits__permit_id__activate_post",
+        "parameters": [
+          {
+            "description": "Target permit's id.",
+            "in": "path",
+            "name": "permit_id",
+            "required": true,
+            "schema": {
+              "description": "Target permit's id.",
+              "format": "uuid",
+              "title": "Permit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No permit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Permit is not in `Defined` status (activate_permit is single-source from Defined only)."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation (not a UUID)."
+          }
+        },
+        "summary": "Activate a Defined permit (Defined -> Active)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/permits/{permit_id}/resume": {
+      "post": {
+        "operationId": "post_federation_permits_resume_federation_permits__permit_id__resume_post",
+        "parameters": [
+          {
+            "description": "Target permit's id.",
+            "in": "path",
+            "name": "permit_id",
+            "required": true,
+            "schema": {
+              "description": "Target permit's id.",
+              "format": "uuid",
+              "title": "Permit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No permit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Permit is not in `Suspended` status (resume_permit is single-source from Suspended; first activation uses activate_permit)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume a Suspended Permit back to Active (Suspended -> Active)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/permits/{permit_id}/revoke": {
+      "post": {
+        "operationId": "post_federation_permits_revoke_federation_permits__permit_id__revoke_post",
+        "parameters": [
+          {
+            "description": "Target permit's id.",
+            "in": "path",
+            "name": "permit_id",
+            "required": true,
+            "schema": {
+              "description": "Target permit's id.",
+              "format": "uuid",
+              "title": "Permit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No permit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Permit is already Revoked (revoke_permit is strict-not-idempotent; Revoked is terminal)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke a Permit (terminal: any non-Revoked -> Revoked)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/permits/{permit_id}/suspend": {
+      "post": {
+        "operationId": "post_permits_suspend_federation_permits__permit_id__suspend_post",
+        "parameters": [
+          {
+            "description": "Target permit's id.",
+            "in": "path",
+            "name": "permit_id",
+            "required": true,
+            "schema": {
+              "description": "Target permit's id.",
+              "format": "uuid",
+              "title": "Permit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuspendPermitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No permit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Permit is not in `Active` status (suspend_permit requires Active; Defined/Suspended/Revoked permits are rejected)."
+          },
+          "422": {
+            "description": "Request body failed schema validation (reason exceeds 500 chars)."
+          }
+        },
+        "summary": "Suspend an Active Permit (Active -> Suspended)",
+        "tags": [
+          "federation"
         ]
       }
     },
