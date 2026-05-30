@@ -22,6 +22,17 @@ Coverage spans both step kinds shipped to date (setpoint + action):
   - body receives ControlPort + Clock + params via ActionContext
   - mixed setpoint + action step list walked in order
 
+  Check:
+  - Equals criterion matches the read value -> success
+  - Equals criterion mismatches -> CheckFailedError halt
+  - WithinTolerance numeric inside tolerance -> success
+  - WithinTolerance numeric outside tolerance -> CheckFailedError halt
+  - WithinTolerance on non-numeric value -> clean mismatch (no exception escape)
+  - Reading.quality != Good -> CheckFailedError halt with "quality=" reason
+  - read raises Control*Error -> failure halt with the substrate error_class
+  - recorded payload carries the observed reading (value + quality + sampled_at)
+  - mixed setpoint + action + check walked in order
+
 The unit tier uses `InMemoryControlPort` plus a fake append-step
 handler that captures each call's command + envelope into a list. No
 real handler wiring, no Procedure event store, no step store; the
@@ -44,11 +55,14 @@ from cora.operation.adapters.in_memory_control_port import InMemoryControlPort
 from cora.operation.conductor import (
     ActionContext,
     ActionStep,
+    CheckStep,
     Conductor,
     ConductorFailure,
     ConductorResult,
+    Equals,
     InMemoryActionRegistry,
     SetpointStep,
+    WithinTolerance,
 )
 from cora.operation.features.append_procedure_step.command import AppendProcedureSteps
 from cora.operation.ports.control_port import ControlTimeoutError, Reading
@@ -513,3 +527,209 @@ async def test_execute_action_default_registry_is_empty_when_omitted() -> None:
     )
     assert result.failure is not None
     assert result.failure.error_class == "UnknownActionError"
+
+
+# --- check coverage -----------------------------------------------------
+
+
+def _good_reading(value: Any, kind: str = "Scalar") -> Reading:
+    return Reading(
+        value=value,
+        kind=kind,  # type: ignore[arg-type]
+        quality="Good",
+        sampled_at=_FIXED_NOW,
+    )
+
+
+@pytest.mark.unit
+async def test_execute_check_equals_match_records_success_with_reading() -> None:
+    """Equals criterion that matches -> success; payload carries the reading."""
+    port = InMemoryControlPort()
+    port.set_reading("2bma:rot:rbv", _good_reading(45.0))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+    )
+    assert result.succeeded is True
+    entry = appender.calls[0].command.entries[0]
+    assert entry.step_kind == "check"
+    assert entry.payload["address"] == "2bma:rot:rbv"
+    assert entry.payload["criterion"] == {"kind": "equals", "expected": 45.0}
+    assert entry.payload["result"] == "ok"
+    assert entry.payload["reading"]["value"] == 45.0
+    assert entry.payload["reading"]["quality"] == "Good"
+    assert entry.payload["reading"]["sampled_at"] == _FIXED_NOW.isoformat()
+
+
+@pytest.mark.unit
+async def test_execute_check_equals_mismatch_halts_with_check_failed_error() -> None:
+    """Equals mismatch -> CheckFailedError halt; payload + result.failure match."""
+    port = InMemoryControlPort()
+    port.set_reading("2bma:rot:rbv", _good_reading(12.5))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
+            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=12.5)),
+        ),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.step_index == 0
+    assert result.failure.step_kind == "check"
+    assert result.failure.target == "2bma:rot:rbv"
+    assert result.failure.error_class == "CheckFailedError"
+    assert "did not equal" in result.failure.message
+    # second check never runs
+    assert len(appender.calls) == 1
+
+
+@pytest.mark.unit
+async def test_execute_check_within_tolerance_inside_range_succeeds() -> None:
+    port = InMemoryControlPort()
+    port.set_reading("2bma:temp:rbv", _good_reading(295.4))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            CheckStep(
+                address="2bma:temp:rbv",
+                criterion=WithinTolerance(expected=295.0, tolerance=0.5),
+            ),
+        ),
+    )
+    assert result.succeeded is True
+
+
+@pytest.mark.unit
+async def test_execute_check_within_tolerance_outside_range_halts() -> None:
+    port = InMemoryControlPort()
+    port.set_reading("2bma:temp:rbv", _good_reading(296.0))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            CheckStep(
+                address="2bma:temp:rbv",
+                criterion=WithinTolerance(expected=295.0, tolerance=0.5),
+            ),
+        ),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "CheckFailedError"
+    assert "not within" in result.failure.message
+
+
+@pytest.mark.unit
+async def test_execute_check_within_tolerance_on_non_numeric_value_clean_mismatch() -> None:
+    """Tolerance check on a string value treats it as a clean mismatch (no escape)."""
+    port = InMemoryControlPort()
+    port.set_reading("2bma:state", _good_reading("open"))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            CheckStep(
+                address="2bma:state",
+                criterion=WithinTolerance(expected=1.0, tolerance=0.1),
+            ),
+        ),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "CheckFailedError"
+
+
+@pytest.mark.unit
+async def test_execute_check_non_good_quality_halts() -> None:
+    """A Bad-quality reading halts the check with a quality= reason."""
+    port = InMemoryControlPort()
+    port.set_reading(
+        "2bma:rot:rbv",
+        Reading(
+            value=45.0,
+            kind="Scalar",
+            quality="Bad",
+            sampled_at=_FIXED_NOW,
+            quality_detail="alarm_status=3",
+        ),
+    )
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "CheckFailedError"
+    assert "quality=Bad" in result.failure.message
+    # The reading IS recorded in the payload alongside the failure.
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["reading"]["quality"] == "Bad"
+
+
+@pytest.mark.unit
+async def test_execute_check_read_raises_control_error_halts_with_substrate_class() -> None:
+    """When read raises Control*Error, the failure carries the substrate error_class."""
+    port = InMemoryControlPort()  # nothing connected -> NotConnected on read
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(CheckStep(address="missing", criterion=Equals(expected=0)),),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "ControlNotConnectedError"
+    assert result.failure.step_kind == "check"
+    # No reading observed -> no reading field in the payload.
+    payload = appender.calls[0].command.entries[0].payload
+    assert "reading" not in payload
+
+
+@pytest.mark.unit
+async def test_execute_walks_mixed_setpoint_action_check_steps_in_order() -> None:
+    """Mixed step kinds dispatch in order; success records carry per-kind shape."""
+
+    async def open_shutter(_ctx: ActionContext) -> Mapping[str, Any]:
+        return {"state": "open"}
+
+    registry = InMemoryActionRegistry({"open_shutter": open_shutter})
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    port.set_reading("2bma:rot:rbv", _good_reading(45.0))
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4() for _ in range(3)], registry=registry)
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            SetpointStep(address="2bma:rot:val", value=45.0),
+            ActionStep(name="open_shutter"),
+            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
+        ),
+    )
+    assert result.succeeded is True
+    assert result.completed_count == 3
+    kinds = [c.command.entries[0].step_kind for c in appender.calls]
+    assert kinds == ["setpoint", "action", "check"]

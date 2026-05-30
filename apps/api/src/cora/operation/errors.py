@@ -36,3 +36,23 @@ class UnknownActionError(Exception):
     def __init__(self, name: str) -> None:
         super().__init__(f"No action body registered for {name!r}")
         self.name = name
+
+
+class CheckFailedError(Exception):
+    """A `CheckStep` either read a non-Good quality or its criterion did not match.
+
+    Application-layer: the substrate responded successfully, but the
+    operator-supplied acceptance criterion did not approve the
+    observation. Distinct from `Control*Error` so log filters can
+    split substrate failures (network / IOC / access) from operator-
+    spec-mismatch failures (criterion didn't match, quality flagged).
+
+    The `reason` carries a short human-readable explanation (e.g.,
+    `"quality=Bad"` or `"value 12.5 not in tolerance 10 +/- 1"`) so
+    operators can triage from logs alone without re-running the check.
+    """
+
+    def __init__(self, address: str, reason: str) -> None:
+        super().__init__(f"Check at {address!r} failed: {reason}")
+        self.address = address
+        self.reason = reason

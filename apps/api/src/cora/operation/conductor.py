@@ -1,29 +1,32 @@
-"""Operation BC `Conductor`: walks Procedure steps via ControlPort + actions.
+"""Operation BC `Conductor`: walks Procedure steps via ControlPort + actions + checks.
 
 The Conductor is the Operation BC's Layer-2 runtime per
 [[project_edge_runtime_design]]. It receives a sequence of `Step`
-operations (a discriminated union over `SetpointStep | ActionStep`),
-dispatches each through the right primitive (`ControlPort.write` for
-setpoints, an action body looked up in the `ActionRegistry` for
-actions), and records every outcome as a step entry in the
-Procedure's steps logbook via the existing `append_procedure_step`
-handler.
+operations (a discriminated union over `SetpointStep | ActionStep |
+CheckStep`), dispatches each through the right primitive
+(`ControlPort.write` for setpoints, an action body looked up in the
+`ActionRegistry` for actions, `ControlPort.read` followed by
+criterion evaluation for checks), and records every outcome as a
+step entry in the Procedure's steps logbook via the existing
+`append_procedure_step` handler.
 
 The Conductor is a single-process asyncio walker; per-call state
 lives on the returned `ConductorResult`. Substrate-agnostic on the
-setpoint path (address parses inside the routed `ControlPort`
-adapter); body-agnostic on the action path (the registry maps a
-free-form name to a callable the deployment supplies).
+setpoint + check paths (address parses inside the routed
+`ControlPort` adapter); body-agnostic on the action path (the
+registry maps a free-form name to a callable the deployment
+supplies).
 
 ## Failure mode
 
-The first step that raises any `Control*Error` OR the first action
-whose name is not registered halts execution. The failing step IS
-recorded in the logbook (payload's `result="failed"` + `error_class`
-+ `message`) before the call returns; subsequent steps are NOT
-attempted. The Procedure's FSM is NOT advanced by the Conductor;
-the caller decides abort vs retry vs hand-off after inspecting
-`ConductorResult.failure`.
+The first step that raises any `Control*Error`, first action whose
+name is not registered, OR first check whose criterion did not match
+(or whose reading was non-Good quality) halts execution. The failing
+step IS recorded in the logbook (payload's `result="failed"` +
+`error_class` + `message`) before the call returns; subsequent steps
+are NOT attempted. The Procedure's FSM is NOT advanced by the
+Conductor; the caller decides abort vs retry vs hand-off after
+inspecting `ConductorResult.failure`.
 
 Non-`Control*Error` exceptions raised by an action body (programmer
 errors, `KeyboardInterrupt`, `CancelledError`, third-party-library
@@ -34,17 +37,33 @@ can return a result dict carrying their own status (e.g. `{"ok":
 False, "reason": "out_of_range"}`); the Conductor treats any return
 from a body as success-shaped at this tier.
 
+## Check semantics
+
+A `CheckStep` carries an address + an acceptance criterion. The
+Conductor reads from the address via `ControlPort.read`, requires
+`Reading.quality == "Good"` (Uncertain or Bad fails the check), and
+evaluates the criterion against the observed value. The closed
+criterion union (`Equals | WithinTolerance`) keeps the wire shape
+JSON-clean while leaving room for future variants (`OneOf`,
+`Matches`, `Within` range) to land as additive code edits without a
+migration. Non-numeric values land in `WithinTolerance` as a clean
+mismatch (no coercion exception escapes); criterion handling tolerates
+substrate value-type drift.
+
 ## Out of scope at this iteration
 
 The Stage-2 arc continues. The following land in subsequent iters:
 
-  - `check` step kind (post-condition verification via `ControlPort.read`)
-  - pre/post setpoint evidence-capture readings
+  - pre/post setpoint evidence-capture readings (auto-attach a
+    Reading next to the setpoint payload without an explicit CheckStep)
+  - additional check criteria (`OneOf`, `Matches`, `Within` range)
   - FSM transition wiring (`start_procedure` -> execute -> `complete_procedure`)
   - cancellation mid-execute (today CancelledError propagates uncaught)
   - concurrent / pipelined setpoint dispatch (sequential at v1)
   - `Capability`-driven step-list resolution (caller supplies the list)
   - action-body discovery from disk / config (registry is hand-built today)
+  - acceptance of Uncertain quality (today only Good passes; an opt-in
+    `allowed_qualities` field on CheckStep would land additively)
 
 ## Why call the handler not the store directly
 
@@ -65,7 +84,7 @@ from uuid import UUID
 from cora.infrastructure.ports.clock import Clock
 from cora.infrastructure.ports.id_generator import IdGenerator
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.operation.errors import UnknownActionError
+from cora.operation.errors import CheckFailedError, UnknownActionError
 from cora.operation.features.append_procedure_step.command import (
     AppendProcedureSteps,
     ProcedureStepInput,
@@ -80,6 +99,7 @@ from cora.operation.ports.control_port import (
     ControlTimeoutError,
     ControlValueCoercionError,
     ControlWriteRejectedError,
+    Reading,
 )
 
 _CONTROL_ERRORS: tuple[type[Exception], ...] = (
@@ -98,8 +118,10 @@ exceptions still propagate to the caller's task)."""
 
 _STEP_KIND_SETPOINT = "setpoint"
 _STEP_KIND_ACTION = "action"
+_STEP_KIND_CHECK = "check"
 _RESULT_OK = "ok"
 _RESULT_FAILED = "failed"
+_QUALITY_GOOD = "Good"
 """Payload constants. `step_kind` is the closed-set discriminator from
 [[project_operation_design]] (`setpoint | action | check`). `result`
 is a Conductor-local convention inside the step payload body; today's
@@ -141,14 +163,68 @@ class ActionStep:
     params: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
 
-Step = SetpointStep | ActionStep
+@dataclass(frozen=True)
+class Equals:
+    """Criterion: the observed value must equal `expected` exactly.
+
+    Equality is Python `==`: numeric comparison for numbers (mind
+    float exactness for non-integer values), structural equality for
+    tuples + strings. For floats with tolerance use
+    `WithinTolerance` instead.
+    """
+
+    expected: int | float | bool | str | tuple[Any, ...]
+
+
+@dataclass(frozen=True)
+class WithinTolerance:
+    """Criterion: numeric reading must satisfy |value - expected| <= tolerance.
+
+    `tolerance` is the absolute allowed deviation; non-negative.
+    Non-numeric values (the read returned a string, tuple, etc.) are
+    treated as a clean mismatch rather than a coercion exception:
+    operators see "criterion mismatch" rather than a substrate-shaped
+    error, which is the right read of "this reading isn't checkable
+    by this criterion."
+    """
+
+    expected: float
+    tolerance: float
+
+
+CheckCriterion = Equals | WithinTolerance
+"""Closed discriminator for `CheckStep` acceptance.
+
+Open to additive variants: `OneOf` (allowed value set), `Matches`
+(regex on string), `Within` (range with separate min/max). New
+variants land as code edits plus matching `_criterion_to_dict` +
+`_criterion_matches` arms; the payload `kind` field keeps wire shape
+stable."""
+
+
+@dataclass(frozen=True)
+class CheckStep:
+    """One post-condition verification: read `address`, evaluate `criterion`.
+
+    The Conductor reads the address via `ControlPort.read`, requires
+    `Reading.quality == "Good"`, then evaluates `criterion` against
+    `Reading.value`. Any of (read raised `Control*Error`, quality
+    not Good, criterion did not match) halts execution with a
+    recorded failure entry. The recorded payload carries the
+    observed reading so post-hoc inspection has the evidence.
+    """
+
+    address: str
+    criterion: CheckCriterion
+
+
+Step = SetpointStep | ActionStep | CheckStep
 """The closed discriminated union of step kinds the Conductor walks.
 
-`check` is intentionally NOT a member of this union yet; it joins at
-the next Stage-2 iteration once the post-condition shape (predicate
-+ reading source + acceptance criterion) is locked. Mirrors the open
-StepKind Literal in the Procedure aggregate which already lists
-"check"; the Conductor enforces tighter typing pending design."""
+Mirrors the open `StepKind` Literal in the Procedure aggregate
+(`"setpoint" | "action" | "check"`); the Conductor enforces tighter
+typing via this union so a malformed step is a type error, not a
+runtime branch."""
 
 
 @dataclass(frozen=True)
@@ -320,7 +396,9 @@ class Conductor:
         """Run one step + record outcome; return ConductorFailure on halt-condition."""
         if isinstance(step, SetpointStep):
             return await self._run_setpoint(step, index=index, envelope=envelope)
-        return await self._run_action(step, index=index, envelope=envelope)
+        if isinstance(step, ActionStep):
+            return await self._run_action(step, index=index, envelope=envelope)
+        return await self._run_check(step, index=index, envelope=envelope)
 
     async def _run_setpoint(
         self,
@@ -414,6 +492,79 @@ class Conductor:
         )
         return None
 
+    async def _run_check(
+        self,
+        step: CheckStep,
+        *,
+        index: int,
+        envelope: "_Envelope",
+    ) -> ConductorFailure | None:
+        payload_body: dict[str, Any] = {
+            "address": step.address,
+            "criterion": _criterion_to_dict(step.criterion),
+        }
+        try:
+            reading = await self._control_port.read(step.address)
+        except _CONTROL_ERRORS as exc:
+            await self._record(
+                envelope=envelope,
+                step_kind=_STEP_KIND_CHECK,
+                body=payload_body,
+                result=_RESULT_FAILED,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+            return ConductorFailure(
+                step_index=index,
+                step_kind=_STEP_KIND_CHECK,
+                target=step.address,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+        body_with_reading = {**payload_body, "reading": _reading_to_dict(reading)}
+        if reading.quality != _QUALITY_GOOD:
+            exc = CheckFailedError(step.address, f"quality={reading.quality}")
+            await self._record(
+                envelope=envelope,
+                step_kind=_STEP_KIND_CHECK,
+                body=body_with_reading,
+                result=_RESULT_FAILED,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+            return ConductorFailure(
+                step_index=index,
+                step_kind=_STEP_KIND_CHECK,
+                target=step.address,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+        if not _criterion_matches(step.criterion, reading.value):
+            reason = _mismatch_reason(step.criterion, reading.value)
+            exc = CheckFailedError(step.address, reason)
+            await self._record(
+                envelope=envelope,
+                step_kind=_STEP_KIND_CHECK,
+                body=body_with_reading,
+                result=_RESULT_FAILED,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+            return ConductorFailure(
+                step_index=index,
+                step_kind=_STEP_KIND_CHECK,
+                target=step.address,
+                error_class=type(exc).__name__,
+                message=str(exc),
+            )
+        await self._record(
+            envelope=envelope,
+            step_kind=_STEP_KIND_CHECK,
+            body=body_with_reading,
+            result=_RESULT_OK,
+        )
+        return None
+
     async def _record(
         self,
         *,
@@ -469,15 +620,69 @@ class _Envelope:
     surface_id: UUID
 
 
+def _criterion_to_dict(criterion: CheckCriterion) -> dict[str, Any]:
+    """Serialize a criterion into a JSON-clean dict for the step payload."""
+    if isinstance(criterion, Equals):
+        return {"kind": "equals", "expected": criterion.expected}
+    return {
+        "kind": "within_tolerance",
+        "expected": criterion.expected,
+        "tolerance": criterion.tolerance,
+    }
+
+
+def _criterion_matches(criterion: CheckCriterion, value: Any) -> bool:
+    """True iff `value` satisfies `criterion`.
+
+    `WithinTolerance` tolerates non-numeric values: a `TypeError` or
+    `ValueError` from `float(value)` is treated as a clean mismatch
+    rather than escaping. This is the right shape because a reading
+    that isn't numerically comparable IS a failed check, not a bug.
+    """
+    if isinstance(criterion, Equals):
+        return value == criterion.expected
+    try:
+        return abs(float(value) - criterion.expected) <= criterion.tolerance
+    except (TypeError, ValueError):
+        return False
+
+
+def _mismatch_reason(criterion: CheckCriterion, value: Any) -> str:
+    """Operator-friendly explanation for a failed criterion."""
+    if isinstance(criterion, Equals):
+        return f"value {value!r} did not equal expected {criterion.expected!r}"
+    return f"value {value!r} not within {criterion.tolerance} of expected {criterion.expected}"
+
+
+def _reading_to_dict(reading: Reading) -> dict[str, Any]:
+    """JSON-clean projection of `Reading` for the step payload.
+
+    Includes the substrate metadata fields a post-hoc inspector needs
+    (quality + quality_detail + ISO-8601 sampled_at) so a check entry
+    is self-contained without joining back to a separate stream.
+    """
+    return {
+        "value": reading.value,
+        "kind": reading.kind,
+        "quality": reading.quality,
+        "quality_detail": reading.quality_detail,
+        "sampled_at": reading.sampled_at.isoformat(),
+    }
+
+
 __all__ = [
     "ActionBody",
     "ActionContext",
     "ActionRegistry",
     "ActionStep",
+    "CheckCriterion",
+    "CheckStep",
     "Conductor",
     "ConductorFailure",
     "ConductorResult",
+    "Equals",
     "InMemoryActionRegistry",
     "SetpointStep",
     "Step",
+    "WithinTolerance",
 ]
