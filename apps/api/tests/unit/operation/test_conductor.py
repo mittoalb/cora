@@ -1,7 +1,8 @@
 """Behavioural tests for the Operation BC `Conductor`.
 
-Coverage:
+Coverage spans both step kinds shipped to date (setpoint + action):
 
+  Setpoint:
   - empty steps -> trivially succeeds, no handler call
   - 3 setpoints -> 3 ControlPort writes + 3 step entries recorded
   - first write raises ControlNotConnectedError -> halt at index 0,
@@ -14,6 +15,13 @@ Coverage:
   - recorded payload shape (address + value + result + error_class on
     failure) survives across kind values + tuple values
 
+  Action:
+  - registered name + body invoked -> result_data recorded in payload
+  - unknown name -> UnknownActionError failure recorded + halt
+  - body raises ControlTimeoutError -> failure recorded + halt
+  - body receives ControlPort + Clock + params via ActionContext
+  - mixed setpoint + action step list walked in order
+
 The unit tier uses `InMemoryControlPort` plus a fake append-step
 handler that captures each call's command + envelope into a list. No
 real handler wiring, no Procedure event store, no step store; the
@@ -22,7 +30,7 @@ the fake asserts on that.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -34,13 +42,16 @@ from cora.infrastructure.ports.clock import FakeClock
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation.adapters.in_memory_control_port import InMemoryControlPort
 from cora.operation.conductor import (
+    ActionContext,
+    ActionStep,
     Conductor,
     ConductorFailure,
     ConductorResult,
+    InMemoryActionRegistry,
     SetpointStep,
 )
 from cora.operation.features.append_procedure_step.command import AppendProcedureSteps
-from cora.operation.ports.control_port import Reading
+from cora.operation.ports.control_port import ControlTimeoutError, Reading
 
 _FIXED_NOW = datetime(2026, 5, 30, 9, 0, 0, tzinfo=UTC)
 
@@ -112,22 +123,27 @@ def _conductor(
     appender: _FakeAppendStep,
     *,
     ids: Sequence[UUID] = (),
+    registry: InMemoryActionRegistry | None = None,
 ) -> Conductor:
     return Conductor(
         control_port=port,
         append_step=appender,
         clock=FakeClock(_FIXED_NOW),
         id_generator=_SequenceIdGenerator(list(ids)),
+        action_registry=registry,
     )
 
 
+# --- setpoint coverage --------------------------------------------------
+
+
 @pytest.mark.unit
-async def test_execute_setpoints_with_empty_steps_succeeds_without_handler_call() -> None:
+async def test_execute_with_empty_steps_succeeds_without_handler_call() -> None:
     """Zero steps -> ConductorResult(completed_count=0); no handler call."""
     port = InMemoryControlPort()
     appender = _FakeAppendStep()
     conductor = _conductor(port, appender)
-    result = await conductor.execute_setpoints(
+    result = await conductor.execute(
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
@@ -148,7 +164,7 @@ async def test_execute_setpoints_writes_each_step_via_control_port_in_order() ->
     port.simulate_connect("2bma:shutter:open")
     appender = _FakeAppendStep()
     conductor = _conductor(port, appender, ids=[uuid4() for _ in range(3)])
-    result = await conductor.execute_setpoints(
+    result = await conductor.execute(
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
@@ -166,7 +182,7 @@ async def test_execute_setpoints_writes_each_step_via_control_port_in_order() ->
 
 
 @pytest.mark.unit
-async def test_execute_setpoints_records_success_entry_per_step() -> None:
+async def test_execute_setpoint_records_success_entry_with_expected_payload() -> None:
     """Each successful write produces one append call with the expected payload."""
     port = InMemoryControlPort(now=lambda: _FIXED_NOW)
     port.simulate_connect("2bma:rot:val")
@@ -176,7 +192,7 @@ async def test_execute_setpoints_records_success_entry_per_step() -> None:
     correlation_id = uuid4()
     event_id = uuid4()
     conductor = _conductor(port, appender, ids=[event_id])
-    await conductor.execute_setpoints(
+    await conductor.execute(
         procedure_id=procedure_id,
         principal_id=principal_id,
         correlation_id=correlation_id,
@@ -201,13 +217,13 @@ async def test_execute_setpoints_records_success_entry_per_step() -> None:
 
 
 @pytest.mark.unit
-async def test_execute_setpoints_halts_at_first_not_connected_error() -> None:
+async def test_execute_halts_at_first_not_connected_error_on_setpoint() -> None:
     """First write raises ControlNotConnectedError -> failure at index 0."""
     port = InMemoryControlPort()  # nothing connected
     appender = _FakeAppendStep()
     conductor = _conductor(port, appender, ids=[uuid4()])
     procedure_id = uuid4()
-    result = await conductor.execute_setpoints(
+    result = await conductor.execute(
         procedure_id=procedure_id,
         principal_id=uuid4(),
         correlation_id=uuid4(),
@@ -220,7 +236,8 @@ async def test_execute_setpoints_halts_at_first_not_connected_error() -> None:
     assert result.succeeded is False
     assert result.failure == ConductorFailure(
         step_index=0,
-        address="2bma:rot:val",
+        step_kind="setpoint",
+        target="2bma:rot:val",
         error_class="ControlNotConnectedError",
         message="Control address '2bma:rot:val' not connected",
     )
@@ -233,7 +250,7 @@ async def test_execute_setpoints_halts_at_first_not_connected_error() -> None:
 
 
 @pytest.mark.unit
-async def test_execute_setpoints_records_earlier_successes_before_middle_failure() -> None:
+async def test_execute_records_earlier_setpoint_successes_before_middle_failure() -> None:
     """Middle step failure leaves earlier success records + a failure record."""
     port = InMemoryControlPort()
     port.simulate_connect("2bma:rot:val")
@@ -241,7 +258,7 @@ async def test_execute_setpoints_records_earlier_successes_before_middle_failure
     appender = _FakeAppendStep()
     conductor = _conductor(port, appender, ids=[uuid4() for _ in range(2)])
     procedure_id = uuid4()
-    result = await conductor.execute_setpoints(
+    result = await conductor.execute(
         procedure_id=procedure_id,
         principal_id=uuid4(),
         correlation_id=uuid4(),
@@ -254,7 +271,7 @@ async def test_execute_setpoints_records_earlier_successes_before_middle_failure
     assert result.completed_count == 1
     assert result.failure is not None
     assert result.failure.step_index == 1
-    assert result.failure.address == "2bma:cam:exposure"
+    assert result.failure.target == "2bma:cam:exposure"
     # 2 append calls: one OK at index 0, one FAILED at index 1; index 2 never tried.
     assert len(appender.calls) == 2
     assert appender.calls[0].command.entries[0].payload["result"] == "ok"
@@ -262,7 +279,7 @@ async def test_execute_setpoints_records_earlier_successes_before_middle_failure
 
 
 @pytest.mark.unit
-async def test_execute_setpoints_passes_through_causation_and_surface_ids() -> None:
+async def test_execute_passes_through_causation_and_surface_ids() -> None:
     """Optional envelope fields reach the handler verbatim."""
     port = InMemoryControlPort()
     port.simulate_connect("2bma:rot:val")
@@ -270,7 +287,7 @@ async def test_execute_setpoints_passes_through_causation_and_surface_ids() -> N
     conductor = _conductor(port, appender, ids=[uuid4()])
     causation_id = uuid4()
     surface_id = uuid4()
-    await conductor.execute_setpoints(
+    await conductor.execute(
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
@@ -283,7 +300,7 @@ async def test_execute_setpoints_passes_through_causation_and_surface_ids() -> N
 
 
 @pytest.mark.unit
-async def test_execute_setpoints_does_not_catch_non_port_exceptions() -> None:
+async def test_execute_does_not_catch_non_port_exceptions_on_setpoint() -> None:
     """A CancelledError mid-write propagates; nothing is recorded for it."""
 
     class _CancellingPort:
@@ -304,7 +321,7 @@ async def test_execute_setpoints_does_not_catch_non_port_exceptions() -> None:
         id_generator=_SequenceIdGenerator([]),
     )
     with pytest.raises(asyncio.CancelledError):
-        await conductor.execute_setpoints(
+        await conductor.execute(
             procedure_id=uuid4(),
             principal_id=uuid4(),
             correlation_id=uuid4(),
@@ -320,7 +337,179 @@ def test_conductor_result_succeeded_property_reflects_failure_absence() -> None:
     bad = ConductorResult(
         procedure_id=uuid4(),
         completed_count=1,
-        failure=ConductorFailure(step_index=1, address="x", error_class="y", message="z"),
+        failure=ConductorFailure(
+            step_index=1, step_kind="setpoint", target="x", error_class="y", message="z"
+        ),
     )
     assert ok.succeeded is True
     assert bad.succeeded is False
+
+
+# --- action coverage ----------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_execute_action_invokes_registered_body_and_records_result_data() -> None:
+    """Action name resolves to body; body's return Mapping lands in payload."""
+    captured: list[ActionContext] = []
+
+    async def home_motor(ctx: ActionContext) -> Mapping[str, Any]:
+        captured.append(ctx)
+        return {"final_position": 0.0, "homed": True}
+
+    registry = InMemoryActionRegistry({"home_motor": home_motor})
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    event_id = uuid4()
+    conductor = _conductor(port, appender, ids=[event_id], registry=registry)
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(ActionStep(name="home_motor", params={"axis": "rot"}),),
+    )
+    assert result.succeeded is True
+    assert result.completed_count == 1
+    assert len(captured) == 1
+    assert captured[0].params == {"axis": "rot"}
+    assert captured[0].control_port is port
+    entry = appender.calls[0].command.entries[0]
+    assert entry.step_kind == "action"
+    assert entry.payload == {
+        "name": "home_motor",
+        "params": {"axis": "rot"},
+        "result": "ok",
+        "result_data": {"final_position": 0.0, "homed": True},
+    }
+
+
+@pytest.mark.unit
+async def test_execute_action_unknown_name_records_failure_and_halts() -> None:
+    """Unknown action name -> UnknownActionError, failure recorded, halt."""
+    registry = InMemoryActionRegistry({})
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()], registry=registry)
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            ActionStep(name="nope", params={}),
+            ActionStep(name="also_nope", params={}),
+        ),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.step_index == 0
+    assert result.failure.step_kind == "action"
+    assert result.failure.target == "nope"
+    assert result.failure.error_class == "UnknownActionError"
+    # Only one record (the failure); the second action is untouched.
+    assert len(appender.calls) == 1
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "failed"
+    assert payload["error_class"] == "UnknownActionError"
+    assert payload["name"] == "nope"
+
+
+@pytest.mark.unit
+async def test_execute_action_body_raising_control_error_records_failure_and_halts() -> None:
+    """Body raising a Control*Error halts the Conductor + records the failure."""
+
+    async def picky(_ctx: ActionContext) -> Mapping[str, Any]:
+        raise ControlTimeoutError("test_pv", 0.5)
+
+    registry = InMemoryActionRegistry({"picky": picky})
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()], registry=registry)
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(ActionStep(name="picky"),),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.error_class == "ControlTimeoutError"
+    assert result.failure.step_kind == "action"
+    assert result.failure.target == "picky"
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "failed"
+    assert payload["error_class"] == "ControlTimeoutError"
+
+
+@pytest.mark.unit
+async def test_execute_action_body_raising_non_port_exception_propagates() -> None:
+    """Generic exceptions in a body propagate; the Conductor does not swallow them."""
+
+    async def buggy(_ctx: ActionContext) -> Mapping[str, Any]:
+        raise RuntimeError("oops")
+
+    registry = InMemoryActionRegistry({"buggy": buggy})
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[], registry=registry)
+    with pytest.raises(RuntimeError, match="oops"):
+        await conductor.execute(
+            procedure_id=uuid4(),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(ActionStep(name="buggy"),),
+        )
+    assert appender.calls == []
+
+
+@pytest.mark.unit
+async def test_execute_walks_mixed_setpoint_and_action_steps_in_order() -> None:
+    """Setpoint + action in the same step list run sequentially, in order."""
+    invocations: list[str] = []
+
+    async def open_shutter(_ctx: ActionContext) -> Mapping[str, Any]:
+        invocations.append("open_shutter")
+        return {"state": "open"}
+
+    async def close_shutter(_ctx: ActionContext) -> Mapping[str, Any]:
+        invocations.append("close_shutter")
+        return {"state": "closed"}
+
+    registry = InMemoryActionRegistry(
+        {"open_shutter": open_shutter, "close_shutter": close_shutter}
+    )
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4() for _ in range(3)], registry=registry)
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(
+            ActionStep(name="open_shutter"),
+            SetpointStep(address="2bma:rot:val", value=90.0),
+            ActionStep(name="close_shutter"),
+        ),
+    )
+    assert result.succeeded is True
+    assert result.completed_count == 3
+    assert invocations == ["open_shutter", "close_shutter"]
+    # 3 recorded entries in order: action / setpoint / action.
+    kinds = [c.command.entries[0].step_kind for c in appender.calls]
+    assert kinds == ["action", "setpoint", "action"]
+
+
+@pytest.mark.unit
+async def test_execute_action_default_registry_is_empty_when_omitted() -> None:
+    """Conductor with no registry treats every action name as unknown."""
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(ActionStep(name="any_name"),),
+    )
+    assert result.failure is not None
+    assert result.failure.error_class == "UnknownActionError"

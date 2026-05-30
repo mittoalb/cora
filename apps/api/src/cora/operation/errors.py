@@ -20,3 +20,19 @@ class UnauthorizedError(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class UnknownActionError(Exception):
+    """The Conductor was asked to run an action whose name is not registered.
+
+    Application-layer, not domain-layer: a missing registry entry is a
+    configuration gap (the deployment didn't wire the action body),
+    not an aggregate-invariant violation. Surfaces as a recorded
+    `result="failed"` step entry on the Procedure's logbook plus a
+    `ConductorFailure` on the result; the caller decides whether to
+    abort the Procedure or fix the registry and retry.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(f"No action body registered for {name!r}")
+        self.name = name
