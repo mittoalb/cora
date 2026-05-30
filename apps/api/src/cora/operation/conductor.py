@@ -76,6 +76,7 @@ handler's `Handler` Protocol, not a concrete binding, so tests inject
 a fake without standing up the full handler machinery.
 """
 
+import contextlib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -85,6 +86,8 @@ from cora.infrastructure.ports.clock import Clock
 from cora.infrastructure.ports.id_generator import IdGenerator
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation.errors import CheckFailedError, UnknownActionError
+from cora.operation.features.abort_procedure.command import AbortProcedure
+from cora.operation.features.abort_procedure.handler import Handler as AbortProcedureHandler
 from cora.operation.features.append_procedure_step.command import (
     AppendProcedureSteps,
     ProcedureStepInput,
@@ -92,6 +95,12 @@ from cora.operation.features.append_procedure_step.command import (
 from cora.operation.features.append_procedure_step.handler import (
     Handler as AppendProcedureStepHandler,
 )
+from cora.operation.features.complete_procedure.command import CompleteProcedure
+from cora.operation.features.complete_procedure.handler import (
+    Handler as CompleteProcedureHandler,
+)
+from cora.operation.features.start_procedure.command import StartProcedure
+from cora.operation.features.start_procedure.handler import Handler as StartProcedureHandler
 from cora.operation.ports.control_port import (
     ControlAccessDeniedError,
     ControlNotConnectedError,
@@ -119,9 +128,26 @@ exceptions still propagate to the caller's task)."""
 _STEP_KIND_SETPOINT = "setpoint"
 _STEP_KIND_ACTION = "action"
 _STEP_KIND_CHECK = "check"
+_STEP_KIND_LIFECYCLE = "lifecycle"
+"""Pseudo-`step_kind` used on `ConductorFailure` when the failure
+came from the surrounding lifecycle handlers (start_procedure /
+complete_procedure / abort_procedure) rather than a step in the
+caller-supplied sequence. Lifecycle failures do not record a
+ProcedureStep entry; the failure surfaces only on the result."""
+
+_LIFECYCLE_TARGET_START = "start"
+_LIFECYCLE_TARGET_COMPLETE = "complete"
+_LIFECYCLE_TARGET_ABORT = "abort"
+
 _RESULT_OK = "ok"
 _RESULT_FAILED = "failed"
 _QUALITY_GOOD = "Good"
+
+_ABORT_REASON_MAX_LENGTH = 500
+"""Mirror of the Procedure aggregate's `PROCEDURE_ABORT_REASON_MAX_LENGTH`.
+Conduct derives the abort reason from the failed step's message;
+truncates to this limit so the AbortProcedure handler doesn't reject
+the cleanup attempt."""
 """Payload constants. `step_kind` is the closed-set discriminator from
 [[project_operation_design]] (`setpoint | action | check`). `result`
 is a Conductor-local convention inside the step payload body; today's
@@ -283,15 +309,28 @@ class InMemoryActionRegistry:
 
 @dataclass(frozen=True)
 class ConductorFailure:
-    """First step that raised a `Control*Error` or `UnknownActionError`.
+    """First halt-condition the Conductor hit during a run.
+
+    Covers per-step failures (a Control*Error during setpoint write
+    or check read, an UnknownActionError, a CheckFailedError) AND
+    lifecycle failures from `conduct()` (start_procedure rejected,
+    complete_procedure rejected).
+
+    `step_index` is the position in the caller-supplied step list
+    when the failure was inside a step; `None` when the failure was
+    a lifecycle handler call (start / complete / abort) and no step
+    was involved. `step_kind` is "setpoint" / "action" / "check" for
+    per-step failures, "lifecycle" for FSM-handler failures.
+    `target` is the address (setpoint/check) or name (action) or
+    lifecycle phase ("start" / "complete" / "abort").
 
     `error_class` is the simple class name (no module prefix); the
     `message` carries the formatted `str(exc)` output. Both land in
-    the recorded step payload so log inspection from the read-side
-    matches what's on the `ConductorResult`.
+    the recorded step payload (per-step failures) so log inspection
+    from the read-side matches what's on the `ConductorResult`.
     """
 
-    step_index: int
+    step_index: int | None
     step_kind: str
     target: str
     error_class: str
@@ -338,12 +377,18 @@ class Conductor:
         clock: Clock,
         id_generator: IdGenerator,
         action_registry: ActionRegistry | None = None,
+        start_procedure: StartProcedureHandler | None = None,
+        complete_procedure: CompleteProcedureHandler | None = None,
+        abort_procedure: AbortProcedureHandler | None = None,
     ) -> None:
         self._control_port = control_port
         self._append_step = append_step
         self._clock = clock
         self._id_generator = id_generator
         self._action_registry: ActionRegistry = action_registry or InMemoryActionRegistry({})
+        self._start_procedure = start_procedure
+        self._complete_procedure = complete_procedure
+        self._abort_procedure = abort_procedure
 
     async def execute(
         self,
@@ -385,6 +430,115 @@ class Conductor:
                 )
             completed += 1
         return ConductorResult(procedure_id=procedure_id, completed_count=completed)
+
+    async def conduct(
+        self,
+        *,
+        procedure_id: UUID,
+        principal_id: UUID,
+        correlation_id: UUID,
+        steps: Sequence[Step],
+        causation_id: UUID | None = None,
+        surface_id: UUID = NIL_SENTINEL_ID,
+    ) -> ConductorResult:
+        """Drive the full Procedure lifecycle: start -> execute -> complete | abort.
+
+        Three-phase wrapper around `execute()`:
+
+          1. Issue `start_procedure` (transitions Procedure Defined ->
+             Running). If the start handler rejects (Procedure not
+             in Defined, target Asset Decommissioned, Supply gate
+             unmet, authz deny), return a lifecycle ConductorFailure
+             without attempting any steps.
+          2. Call `self.execute(steps)`. Step-level failures land in
+             the result.failure as already documented.
+          3. On execute success: issue `complete_procedure`
+             (Running -> Completed). On execute failure: issue
+             `abort_procedure` with a reason derived from the failed
+             step. The abort is best-effort: if it ALSO fails, the
+             original execute failure is what surfaces on the result
+             (the Procedure stays Running and the operator must
+             reconcile via state inspection).
+
+        Requires `start_procedure` + `complete_procedure` +
+        `abort_procedure` handlers to have been supplied at __init__.
+        Raises `RuntimeError` if any of the three is missing; this
+        is a wiring bug, not a runtime failure, so it propagates.
+
+        Lifecycle failures (start rejected, complete rejected) carry
+        `step_index=None`, `step_kind="lifecycle"`, `target` in
+        `{"start", "complete", "abort"}`.
+        """
+        if (
+            self._start_procedure is None
+            or self._complete_procedure is None
+            or self._abort_procedure is None
+        ):
+            raise RuntimeError(
+                "Conductor.conduct() requires start_procedure + complete_procedure + "
+                "abort_procedure handlers at __init__; only execute() is available "
+                "without them."
+            )
+        envelope_kwargs: dict[str, Any] = {
+            "principal_id": principal_id,
+            "correlation_id": correlation_id,
+            "causation_id": causation_id,
+            "surface_id": surface_id,
+        }
+        try:
+            await self._start_procedure(
+                StartProcedure(procedure_id=procedure_id), **envelope_kwargs
+            )
+        except Exception as exc:
+            return ConductorResult(
+                procedure_id=procedure_id,
+                completed_count=0,
+                failure=ConductorFailure(
+                    step_index=None,
+                    step_kind=_STEP_KIND_LIFECYCLE,
+                    target=_LIFECYCLE_TARGET_START,
+                    error_class=type(exc).__name__,
+                    message=str(exc),
+                ),
+            )
+        result = await self.execute(
+            procedure_id=procedure_id,
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+            steps=steps,
+            causation_id=causation_id,
+            surface_id=surface_id,
+        )
+        if result.succeeded:
+            try:
+                await self._complete_procedure(
+                    CompleteProcedure(procedure_id=procedure_id), **envelope_kwargs
+                )
+            except Exception as exc:
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=result.completed_count,
+                    failure=ConductorFailure(
+                        step_index=None,
+                        step_kind=_STEP_KIND_LIFECYCLE,
+                        target=_LIFECYCLE_TARGET_COMPLETE,
+                        error_class=type(exc).__name__,
+                        message=str(exc),
+                    ),
+                )
+            return result
+        # execute failed; attempt abort with a derived reason. Best-effort:
+        # if abort itself fails, surface the original step failure since
+        # that is what the caller needs to triage.
+        failure = result.failure
+        assert failure is not None  # not result.succeeded implies failure
+        reason = _derive_abort_reason(failure)
+        with contextlib.suppress(Exception):
+            await self._abort_procedure(
+                AbortProcedure(procedure_id=procedure_id, reason=reason),
+                **envelope_kwargs,
+            )
+        return result
 
     async def _dispatch(
         self,
@@ -652,6 +806,23 @@ def _mismatch_reason(criterion: CheckCriterion, value: Any) -> str:
     if isinstance(criterion, Equals):
         return f"value {value!r} did not equal expected {criterion.expected!r}"
     return f"value {value!r} not within {criterion.tolerance} of expected {criterion.expected}"
+
+
+def _derive_abort_reason(failure: ConductorFailure) -> str:
+    """Build a Procedure-aggregate-compliant abort reason from a step failure.
+
+    Truncates to `_ABORT_REASON_MAX_LENGTH` so the AbortProcedure
+    handler does not reject the cleanup call. The format leads with
+    the step pointer (kind + index + target) so an operator scanning
+    the abort reason knows immediately which step in the conducted
+    sequence killed the Procedure.
+    """
+    if failure.step_index is None:
+        prefix = f"{failure.step_kind} {failure.target}"
+    else:
+        prefix = f"{failure.step_kind}[{failure.step_index}] {failure.target}"
+    reason = f"{prefix} failed: {failure.error_class}: {failure.message}"
+    return reason[:_ABORT_REASON_MAX_LENGTH]
 
 
 def _reading_to_dict(reading: Reading) -> dict[str, Any]:

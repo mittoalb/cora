@@ -33,6 +33,14 @@ Coverage spans both step kinds shipped to date (setpoint + action):
   - recorded payload carries the observed reading (value + quality + sampled_at)
   - mixed setpoint + action + check walked in order
 
+  Conduct (FSM lifecycle wrapper):
+  - happy path: start + execute + complete all fire in order
+  - missing handlers at __init__ -> conduct() raises RuntimeError
+  - start_procedure rejects -> lifecycle failure recorded, no execute
+  - execute fails -> abort_procedure called with reason derived from failure
+  - abort_procedure itself fails -> original execute failure is what surfaces
+  - complete_procedure fails -> lifecycle failure replaces the prior success result
+
 The unit tier uses `InMemoryControlPort` plus a fake append-step
 handler that captures each call's command + envelope into a list. No
 real handler wiring, no Procedure event store, no step store; the
@@ -733,3 +741,247 @@ async def test_execute_walks_mixed_setpoint_action_check_steps_in_order() -> Non
     assert result.completed_count == 3
     kinds = [c.command.entries[0].step_kind for c in appender.calls]
     assert kinds == ["setpoint", "action", "check"]
+
+
+# --- conduct (FSM lifecycle) coverage -----------------------------------
+
+
+@dataclass
+class _LifecycleCall:
+    """One recorded invocation of a fake start/complete/abort handler."""
+
+    command: Any
+    principal_id: UUID
+    correlation_id: UUID
+    causation_id: UUID | None
+    surface_id: UUID
+
+
+@dataclass
+class _FakeLifecycleHandler:
+    """Fake `Handler` for start/complete/abort_procedure slices.
+
+    Records every call. Optionally raises a configured exception on
+    invocation, letting tests pin the lifecycle-failure branches.
+    """
+
+    raises: Exception | None = None
+    calls: list[_LifecycleCall] = field(default_factory=list[_LifecycleCall])
+
+    async def __call__(
+        self,
+        command: Any,
+        *,
+        principal_id: UUID,
+        correlation_id: UUID,
+        causation_id: UUID | None = None,
+        surface_id: UUID = NIL_SENTINEL_ID,
+    ) -> None:
+        self.calls.append(
+            _LifecycleCall(
+                command=command,
+                principal_id=principal_id,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                surface_id=surface_id,
+            )
+        )
+        if self.raises is not None:
+            raise self.raises
+
+
+def _conductor_full_lifecycle(
+    port: InMemoryControlPort,
+    appender: _FakeAppendStep,
+    *,
+    start: _FakeLifecycleHandler,
+    complete: _FakeLifecycleHandler,
+    abort: _FakeLifecycleHandler,
+    ids: Sequence[UUID] = (),
+    registry: InMemoryActionRegistry | None = None,
+) -> Conductor:
+    return Conductor(
+        control_port=port,
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator(list(ids)),
+        action_registry=registry,
+        start_procedure=start,
+        complete_procedure=complete,
+        abort_procedure=abort,
+    )
+
+
+@pytest.mark.unit
+async def test_conduct_happy_path_runs_start_execute_complete_in_order() -> None:
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    procedure_id = uuid4()
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=complete,
+        abort=abort,
+        ids=[uuid4()],
+    )
+    result = await conductor.conduct(
+        procedure_id=procedure_id,
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=1.0),),
+    )
+    assert result.succeeded is True
+    assert result.completed_count == 1
+    assert len(start.calls) == 1
+    assert start.calls[0].command.procedure_id == procedure_id
+    assert len(complete.calls) == 1
+    assert complete.calls[0].command.procedure_id == procedure_id
+    assert abort.calls == []
+
+
+@pytest.mark.unit
+async def test_conduct_without_lifecycle_handlers_raises_runtime_error() -> None:
+    """conduct() requires all three FSM handlers; missing any is a wiring bug."""
+    port = InMemoryControlPort()
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender)  # no FSM handlers
+    with pytest.raises(RuntimeError, match="conduct"):
+        await conductor.conduct(
+            procedure_id=uuid4(),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(),
+        )
+
+
+@pytest.mark.unit
+async def test_conduct_start_failure_records_lifecycle_failure_without_execute() -> None:
+    """start_procedure rejection -> lifecycle failure; no steps attempted."""
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler(raises=RuntimeError("Procedure not in Defined"))
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    conductor = _conductor_full_lifecycle(
+        port, appender, start=start, complete=complete, abort=abort, ids=[]
+    )
+    result = await conductor.conduct(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=1.0),),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.step_index is None
+    assert result.failure.step_kind == "lifecycle"
+    assert result.failure.target == "start"
+    assert result.failure.error_class == "RuntimeError"
+    # No steps recorded; complete + abort not called.
+    assert appender.calls == []
+    assert complete.calls == []
+    assert abort.calls == []
+
+
+@pytest.mark.unit
+async def test_conduct_execute_failure_invokes_abort_with_derived_reason() -> None:
+    """Step failure -> abort_procedure called with reason derived from the failure."""
+    port = InMemoryControlPort()  # not connected -> first setpoint fails
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    procedure_id = uuid4()
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=complete,
+        abort=abort,
+        ids=[uuid4()],
+    )
+    result = await conductor.conduct(
+        procedure_id=procedure_id,
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="missing", value=1.0),),
+    )
+    assert result.succeeded is False
+    assert result.failure is not None
+    assert result.failure.step_kind == "setpoint"  # original step failure preserved
+    assert result.failure.error_class == "ControlNotConnectedError"
+    assert len(start.calls) == 1
+    assert complete.calls == []
+    assert len(abort.calls) == 1
+    assert abort.calls[0].command.procedure_id == procedure_id
+    reason = abort.calls[0].command.reason
+    assert "setpoint" in reason
+    assert "missing" in reason
+    assert "ControlNotConnectedError" in reason
+    assert len(reason) <= 500
+
+
+@pytest.mark.unit
+async def test_conduct_when_abort_itself_fails_returns_original_execute_failure() -> None:
+    """If abort_procedure raises, the ORIGINAL execute failure surfaces."""
+    port = InMemoryControlPort()  # NotConnected on first setpoint
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler(raises=RuntimeError("abort also failed"))
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=complete,
+        abort=abort,
+        ids=[uuid4()],
+    )
+    result = await conductor.conduct(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="missing", value=1.0),),
+    )
+    # Original execute failure surfaces; the secondary abort failure is suppressed.
+    assert result.failure is not None
+    assert result.failure.step_kind == "setpoint"
+    assert result.failure.error_class == "ControlNotConnectedError"
+    assert len(abort.calls) == 1
+
+
+@pytest.mark.unit
+async def test_conduct_complete_failure_overrides_success_with_lifecycle_failure() -> None:
+    """complete_procedure rejection -> lifecycle failure replaces the prior success."""
+    port = InMemoryControlPort()
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler(raises=RuntimeError("Procedure not in Running"))
+    abort = _FakeLifecycleHandler()
+    conductor = _conductor_full_lifecycle(
+        port,
+        appender,
+        start=start,
+        complete=complete,
+        abort=abort,
+        ids=[uuid4()],
+    )
+    result = await conductor.conduct(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=1.0),),
+    )
+    assert result.failure is not None
+    assert result.failure.step_kind == "lifecycle"
+    assert result.failure.target == "complete"
+    assert result.failure.error_class == "RuntimeError"
+    assert result.completed_count == 1  # the step DID succeed
+    assert abort.calls == []  # complete failure doesn't trigger abort
