@@ -54,16 +54,17 @@ substrate value-type drift.
 
 The Stage-2 arc continues. The following land in subsequent iters:
 
-  - pre/post setpoint evidence-capture readings (auto-attach a
-    Reading next to the setpoint payload without an explicit CheckStep)
+  - pre-write reading capture (`verify` only does post-write today;
+    a `capture_pre` flag would land additively when an undo / rollback
+    pattern surfaces)
   - additional check criteria (`OneOf`, `Matches`, `Within` range)
-  - FSM transition wiring (`start_procedure` -> execute -> `complete_procedure`)
   - cancellation mid-execute (today CancelledError propagates uncaught)
   - concurrent / pipelined setpoint dispatch (sequential at v1)
   - `Capability`-driven step-list resolution (caller supplies the list)
   - action-body discovery from disk / config (registry is hand-built today)
   - acceptance of Uncertain quality (today only Good passes; an opt-in
     `allowed_qualities` field on CheckStep would land additively)
+  - REST / MCP slice exposing `conduct()` to operators
 
 ## Why call the handler not the store directly
 
@@ -164,10 +165,19 @@ class SetpointStep:
     [[project_control_port_design]]. The routed `ControlPort` adapter
     parses substrate-specific syntax (EPICS PV name, Tango TRL, OPC
     UA NodeId) so the Conductor never branches on substrate.
+
+    `verify` (opt-in) requests an immediate post-write `ControlPort.read`
+    so the actual landed value joins the recorded payload as evidence.
+    The post-read is OBSERVATIONAL only: a `Control*Error` from the
+    read OR a non-Good quality on the reading does NOT halt the
+    Conductor. The write already succeeded; the evidence is incomplete
+    but not failed. Operators who need HALT-on-mismatch use a
+    `CheckStep` right after the setpoint instead.
     """
 
     address: str
     value: int | float | bool | str | tuple[Any, ...]
+    verify: bool = False
 
 
 @dataclass(frozen=True)
@@ -580,6 +590,8 @@ class Conductor:
                 error_class=type(exc).__name__,
                 message=str(exc),
             )
+        if step.verify:
+            payload_body = {**payload_body, **(await self._post_read_evidence(step.address))}
         await self._record(
             envelope=envelope,
             step_kind=_STEP_KIND_SETPOINT,
@@ -587,6 +599,25 @@ class Conductor:
             result=_RESULT_OK,
         )
         return None
+
+    async def _post_read_evidence(self, address: str) -> dict[str, Any]:
+        """Best-effort post-write `ControlPort.read` for the verify flag.
+
+        Returns a dict with either `post_reading` (success) or
+        `post_read_error` (Control*Error) for inclusion in the
+        setpoint payload. Never raises; the write already succeeded
+        and evidence capture is observational.
+        """
+        try:
+            reading = await self._control_port.read(address)
+        except _CONTROL_ERRORS as exc:
+            return {
+                "post_read_error": {
+                    "error_class": type(exc).__name__,
+                    "message": str(exc),
+                }
+            }
+        return {"post_reading": _reading_to_dict(reading)}
 
     async def _run_action(
         self,

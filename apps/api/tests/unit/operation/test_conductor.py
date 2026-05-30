@@ -41,6 +41,13 @@ Coverage spans both step kinds shipped to date (setpoint + action):
   - abort_procedure itself fails -> original execute failure is what surfaces
   - complete_procedure fails -> lifecycle failure replaces the prior success result
 
+  Setpoint verify (post-write evidence capture):
+  - verify=False (default): no post_reading field in payload
+  - verify=True success: post_reading carries the read value + quality
+  - verify=True with Bad quality on the readback: still success (observational)
+  - verify=True with Control*Error on read: post_read_error in payload, still success
+  - verify=True does NOT change write-failure halt behavior
+
 The unit tier uses `InMemoryControlPort` plus a fake append-step
 handler that captures each call's command + envelope into a list. No
 real handler wiring, no Procedure event store, no step store; the
@@ -954,6 +961,158 @@ async def test_conduct_when_abort_itself_fails_returns_original_execute_failure(
     assert result.failure.step_kind == "setpoint"
     assert result.failure.error_class == "ControlNotConnectedError"
     assert len(abort.calls) == 1
+
+
+# --- setpoint verify coverage -------------------------------------------
+
+
+@pytest.mark.unit
+async def test_setpoint_default_verify_omits_post_reading_from_payload() -> None:
+    """verify=False (default) leaves the payload without post_reading / post_read_error."""
+    port = InMemoryControlPort(now=lambda: _FIXED_NOW)
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=1.0),),
+    )
+    payload = appender.calls[0].command.entries[0].payload
+    assert "post_reading" not in payload
+    assert "post_read_error" not in payload
+
+
+@pytest.mark.unit
+async def test_setpoint_verify_attaches_post_reading_to_payload() -> None:
+    """verify=True after a successful write records the read value as evidence."""
+    port = InMemoryControlPort(now=lambda: _FIXED_NOW)
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=4.2, verify=True),),
+    )
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "ok"
+    assert payload["post_reading"]["value"] == 4.2
+    assert payload["post_reading"]["quality"] == "Good"
+    assert payload["post_reading"]["sampled_at"] == _FIXED_NOW.isoformat()
+    assert "post_read_error" not in payload
+
+
+@pytest.mark.unit
+async def test_setpoint_verify_records_bad_quality_reading_without_halting() -> None:
+    """A Bad-quality post-read is evidence; the setpoint stays successful."""
+    port = InMemoryControlPort(now=lambda: _FIXED_NOW)
+    port.simulate_connect("2bma:rot:val")
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    procedure_id = uuid4()
+    # Wire the write to land + then overwrite the cached Reading with Bad quality.
+    # InMemoryControlPort's write hard-codes Good, so use set_reading post-write
+    # via a small fake. Simpler: subclass-shaped override is heavy; instead pre-seed
+    # a Bad-quality reading that the write will overwrite, then immediately re-seed
+    # Bad-quality through set_reading by patching write to skip overwrite.
+    # Cleanest path: pre-seed Bad; rely on write to overwrite to Good; this test
+    # does it differently - set_reading AFTER conductor.execute setpoint phase.
+    # Workaround: build a minimal stub port instead.
+
+    class _StubPort:
+        async def read(self, _address: str) -> Reading:
+            return Reading(
+                value=4.2,
+                kind="Scalar",
+                quality="Bad",
+                sampled_at=_FIXED_NOW,
+                quality_detail="alarm_status=3",
+            )
+
+        async def write(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+        def subscribe(self, _address: str) -> AsyncIterator[Reading]:  # pragma: no cover
+            raise NotImplementedError
+
+    conductor = Conductor(
+        control_port=_StubPort(),  # type: ignore[arg-type]
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator([uuid4()]),
+    )
+    result = await conductor.execute(
+        procedure_id=procedure_id,
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="2bma:rot:val", value=4.2, verify=True),),
+    )
+    assert result.succeeded is True
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "ok"
+    assert payload["post_reading"]["quality"] == "Bad"
+    assert payload["post_reading"]["quality_detail"] == "alarm_status=3"
+    _ = port  # silence unused-var (kept for fixture parity with sibling tests)
+
+
+@pytest.mark.unit
+async def test_setpoint_verify_records_read_failure_as_post_read_error() -> None:
+    """post-read raising Control*Error -> post_read_error in payload, setpoint still succeeded."""
+
+    class _WriteOnlyPort:
+        async def read(self, address: str) -> Reading:
+            from cora.operation.ports.control_port import ControlNotConnectedError
+
+            raise ControlNotConnectedError(address)
+
+        async def write(self, *_args: Any, **_kwargs: Any) -> None:
+            return None
+
+        def subscribe(self, _address: str) -> AsyncIterator[Reading]:  # pragma: no cover
+            raise NotImplementedError
+
+    appender = _FakeAppendStep()
+    conductor = Conductor(
+        control_port=_WriteOnlyPort(),  # type: ignore[arg-type]
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator([uuid4()]),
+    )
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="lonely", value=1.0, verify=True),),
+    )
+    assert result.succeeded is True
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "ok"
+    assert "post_reading" not in payload
+    assert payload["post_read_error"]["error_class"] == "ControlNotConnectedError"
+    assert "not connected" in payload["post_read_error"]["message"]
+
+
+@pytest.mark.unit
+async def test_setpoint_verify_does_not_change_write_failure_halt_behavior() -> None:
+    """A write failure halts regardless of verify; no post-read is attempted."""
+    port = InMemoryControlPort()  # NotConnected on the write
+    appender = _FakeAppendStep()
+    conductor = _conductor(port, appender, ids=[uuid4()])
+    result = await conductor.execute(
+        procedure_id=uuid4(),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+        steps=(SetpointStep(address="missing", value=1.0, verify=True),),
+    )
+    assert result.succeeded is False
+    payload = appender.calls[0].command.entries[0].payload
+    assert payload["result"] == "failed"
+    assert payload["error_class"] == "ControlNotConnectedError"
+    assert "post_reading" not in payload
+    assert "post_read_error" not in payload
 
 
 @pytest.mark.unit
