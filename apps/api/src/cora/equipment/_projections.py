@@ -11,6 +11,9 @@ from cora.equipment.projections import (
     AssetFamilyMembershipProjection,
     AssetSummaryProjection,
     FamilySummaryProjection,
+    FrameChildrenProjection,
+    FrameConsumersProjection,
+    FrameSummaryProjection,
 )
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
@@ -25,6 +28,9 @@ def register_equipment_projections(
     registry.register(AssetSummaryProjection())
     registry.register(AssetFamilyMembershipProjection())
     registry.register(FamilySummaryProjection())
+    registry.register(FrameSummaryProjection())
+    registry.register(FrameChildrenProjection())
+    registry.register(FrameConsumersProjection())
 
 
 __all__ = ["register_equipment_projections"]

@@ -5,12 +5,12 @@ from uuid import uuid4
 
 import pytest
 
-from cora.equipment._placement import (
+from cora.equipment.aggregates._placement import (
+    InvalidPlacementError,
     Placement,
     ReferenceSurface,
     UnitSystem,
 )
-from cora.equipment.errors import InvalidPlacementError
 
 
 def _make_placement(**overrides: object) -> Placement:

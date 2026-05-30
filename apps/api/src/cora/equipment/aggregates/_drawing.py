@@ -42,19 +42,61 @@ MIL-HDBK-61A 5.4 / CMII, ACL).
 from dataclasses import dataclass
 from enum import StrEnum
 
-from cora.equipment.errors import (
-    InvalidDrawingNumberError,
-    InvalidDrawingRevisionError,
-)
 from cora.infrastructure.bounded_text import validate_bounded_text
 
-# Keep the literal length caps in errors.py message templates in sync
-# with these constants. The errors live in errors.py (architecture
-# fitness), the constants live here (used both by VO validation and
-# by tests), and the two cannot trivially share without a circular
-# import (errors -> _drawing -> errors). Drift risk is small; v1 lock.
 DRAWING_NUMBER_MAX_LENGTH = 200
 DRAWING_REVISION_MAX_LENGTH = 100
+
+
+class InvalidDrawingError(ValueError):
+    """Base class for Drawing VO validation failures.
+
+    Tests catch the specific subclasses (`InvalidDrawingNumberError`,
+    `InvalidDrawingRevisionError`) when they need to distinguish the
+    failing field. The route layer's `_handle_validation_error`
+    catches the base class and surfaces `str(exc)` into the 400
+    body, so the formatted message is the user-facing surface;
+    subclass-specific routing is not required today.
+
+    Lives in this module (an aggregate-scoped private VO module) so
+    aggregate state.py / events.py can import without violating the
+    aggregates-don't-depend-on-BC-root tach layering rule.
+    """
+
+
+class InvalidDrawingNumberError(InvalidDrawingError):
+    """`Drawing.number` failed bounded-text validation.
+
+    Raised by `validate_bounded_text` when the trimmed number is
+    empty / whitespace-only or exceeds `DRAWING_NUMBER_MAX_LENGTH`.
+    `value` carries the original untrimmed input for diagnostics
+    (mirrors the `InvalidAssetPortNameError` shape).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Invalid Drawing number (must be 1-{DRAWING_NUMBER_MAX_LENGTH} "
+            f"chars after trimming, got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidDrawingRevisionError(InvalidDrawingError):
+    """`Drawing.revision` failed bounded-text validation.
+
+    Raised by `validate_bounded_text` when the revision is present
+    but trimmed empty or exceeds `DRAWING_REVISION_MAX_LENGTH`. To
+    indicate 'latest' (resolves at the adapter), pass `revision=None`
+    instead of an empty string. `value` carries the original
+    untrimmed input.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Invalid Drawing revision (must be 1-{DRAWING_REVISION_MAX_LENGTH} "
+            f"chars after trimming, or None for 'latest'; got: {value!r})"
+        )
+        self.value = value
 
 
 class DrawingSystem(StrEnum):

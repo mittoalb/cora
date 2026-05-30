@@ -47,7 +47,34 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.equipment.errors import InvalidPlacementError
+
+class InvalidPlacementError(ValueError):
+    """A Placement failed VO-level domain validation.
+
+    Failure modes at the VO layer:
+      - Any tolerance is negative (tolerances are bilateral; zero
+        means "exact", negative is meaningless).
+
+    Cross-aggregate validations (parent_frame must reference an
+    active Frame, etc.) happen at the handler / decider layer, not
+    in the VO. Per the design memo: the VO is closed-shape; the
+    handler is where cross-aggregate preconditions land.
+
+    `reason` names the offending axis for diagnostics; the route
+    layer's `_handle_validation_error` reads `str(exc)` (which
+    formats as "Invalid Placement: <reason>"), so the reason is
+    embedded in the message that surfaces in the 400 body.
+
+    Lives in this module (an aggregate-scoped private VO module) so
+    aggregate state.py / events.py can import without violating the
+    aggregates-don't-depend-on-BC-root tach layering rule. The
+    `test_no_domain_errors_outside_aggregate_or_errors_module`
+    fitness exempts the entire `cora/<bc>/aggregates/...` subtree.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Placement: {reason}")
+        self.reason = reason
 
 
 class ReferenceSurface(StrEnum):

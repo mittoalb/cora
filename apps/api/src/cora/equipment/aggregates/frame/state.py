@@ -1,0 +1,270 @@
+"""Frame aggregate state, status enum, and domain errors.
+
+`Frame` is a named coordinate system. The first frames in any
+deployment are the beamline centerlines (e.g., APS 2-BM's standard
+1.35 mrad centerline, plus the alternate 5.1 mrad and 5.23 mrad
+centerlines that engage when the mirror is in use). Mount placements
+(and other Frame placements) reference a `parent_frame: UUID` field
+that points at a Frame's `id`.
+
+Frames form a tree: every Frame has a `parent_frame_id` that is
+either `None` (root frame, e.g., the storage-ring centerline as
+defined by the facility) or points at another Frame. Cycles are
+defensively rejected at register time (depth-bounded BFS, max depth
+16); since there is no `reparent_frame` slice in v1, cycles can only
+arise from manual data manipulation, but the defensive check stays
+to catch that case loudly.
+
+## Root frames versus child frames
+
+The invariant is "both together, or both None":
+  - Root frame: `parent_frame_id is None` AND
+    `placement_relative_to_parent is None`.
+  - Child frame: both non-None, and the embedded
+    `Placement.parent_frame` field MUST equal the Frame's own
+    `parent_frame_id` (the Placement points at the same parent that
+    the Frame declares).
+
+The decider enforces this invariant; `InvalidFrameRootError` carries
+the offending combination for diagnostics.
+
+## Lifecycle
+
+`FrameStatus` is `Active | Decommissioned`, matching Supply's
+lifecycle-terminal pattern (deregister_supply design). No operational
+sub-states (no `Available`/`Degraded` analog for Frames): a frame
+either exists in the coordinate hierarchy or it does not; runtime
+"misalignment" is a property of the installed Asset, not of the slot
+or frame.
+
+Transitions:
+  - `register_frame`            -> Active (genesis)
+  - `decommission_frame`        -> Decommissioned (terminal; guarded
+                                   by FrameInUseError if any active
+                                   Mount.placement.parent_frame or
+                                   active child Frame references this
+                                   frame)
+
+`update_frame` does NOT change status; it updates
+`placement_relative_to_parent` and is a no-op when the new placement
+equals the current one (idempotent contract via
+`make_asset_update_handler`).
+
+## Bounded-name VO
+
+`FrameName` is the umpteenth trimmed-bounded-name VO; uses the
+shared `validate_bounded_text` helper. The cap is 200 chars to
+match `AssetName`; frame names tend to be much shorter
+(`centerline_1p35_mrad`) but the cap protects the projection table
+column without forcing a tighter discipline on operators.
+"""
+
+from dataclasses import dataclass
+from enum import StrEnum
+from uuid import UUID
+
+from cora.equipment.aggregates._placement import Placement
+from cora.infrastructure.bounded_text import validate_bounded_text
+
+FRAME_NAME_MAX_LENGTH = 200
+
+
+class FrameStatus(StrEnum):
+    """The Frame's lifecycle state.
+
+    Binary: a frame is either in service (`Active`) or removed
+    (`Decommissioned`). No operational sub-states; runtime alignment
+    drift lives on the installed Asset's `Asset.condition`, not on
+    the frame.
+    """
+
+    ACTIVE = "Active"
+    DECOMMISSIONED = "Decommissioned"
+
+
+class InvalidFrameNameError(ValueError):
+    """The supplied frame name is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Frame name must be 1-{FRAME_NAME_MAX_LENGTH} chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidFrameRootError(ValueError):
+    """A Frame's root-vs-child invariant was violated at register time.
+
+    The invariant is "both fields together, or both None":
+      - Root frame: `parent_frame_id is None` AND
+        `placement_relative_to_parent is None`.
+      - Child frame: both non-None, and the embedded
+        `Placement.parent_frame` MUST equal the Frame's own
+        `parent_frame_id`.
+
+    Three failure modes folded into one error:
+      1. `parent_frame_id` is None but `placement_relative_to_parent`
+         is not (or vice versa).
+      2. Both are non-None but `placement.parent_frame` does not
+         equal `parent_frame_id`.
+
+    `reason` identifies which case fired for diagnostics.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid Frame root configuration: {reason}")
+        self.reason = reason
+
+
+class FrameAlreadyExistsError(Exception):
+    """Attempted to register a frame whose stream already has events."""
+
+    def __init__(self, frame_id: UUID) -> None:
+        super().__init__(f"Frame {frame_id} already exists")
+        self.frame_id = frame_id
+
+
+class FrameNotFoundError(Exception):
+    """Attempted an operation on a frame whose stream has no events."""
+
+    def __init__(self, frame_id: UUID) -> None:
+        super().__init__(f"Frame {frame_id} not found")
+        self.frame_id = frame_id
+
+
+class FrameCannotUpdateError(Exception):
+    """Attempted to update a frame under disqualifying conditions.
+
+    Two failure modes folded into one error (mirrors
+    `AssetCannotRelocateError` reason-bearing shape):
+      - Frame is in `Decommissioned` status (re-issuing a placement
+        update on a retired frame raises; operators must register a
+        fresh frame instead).
+      - Frame is a root frame (its `placement_relative_to_parent` is
+        None by invariant; updating would create a placement on a
+        root frame, violating the root-vs-child invariant).
+
+    `reason` identifies which case fired for diagnostics; surfaces in
+    the route's 409 body.
+    """
+
+    def __init__(self, frame_id: UUID, reason: str) -> None:
+        super().__init__(f"Frame {frame_id} cannot be updated: {reason}")
+        self.frame_id = frame_id
+        self.reason = reason
+
+
+class FrameCannotDecommissionError(Exception):
+    """Attempted to decommission a frame under disqualifying conditions.
+
+    Failure mode at the decider layer (no-active-consumers check
+    runs separately via `FrameInUseError` at the handler layer):
+      - Frame is already in `Decommissioned` status (re-decommissioning
+        is NOT idempotent at the domain layer; the second call raises).
+
+    `reason` identifies the case for diagnostics. The handler may
+    wrap with idempotency at the application layer if needed by the
+    caller's contract, but the domain itself rejects double-
+    decommission.
+    """
+
+    def __init__(self, frame_id: UUID, reason: str) -> None:
+        super().__init__(f"Frame {frame_id} cannot be decommissioned: {reason}")
+        self.frame_id = frame_id
+        self.reason = reason
+
+
+class FrameInUseError(Exception):
+    """Attempted to decommission a frame still referenced by active consumers.
+
+    A frame is "in use" when any of the following hold:
+      - Some active Mount's `Placement.parent_frame` points at this
+        frame (lands once the Mount aggregate exists).
+      - Some active child Frame's `parent_frame_id` points at this
+        frame.
+
+    The handler loads consumers via the `frame_consumers` projection
+    before calling the decider. `consumer_ids` lists the offending
+    references for diagnostics; the route surfaces a 409.
+    """
+
+    def __init__(self, frame_id: UUID, consumer_ids: tuple[UUID, ...]) -> None:
+        super().__init__(
+            f"Frame {frame_id} cannot be decommissioned: still referenced by "
+            f"{len(consumer_ids)} active consumer(s) ({list(consumer_ids)!r})"
+        )
+        self.frame_id = frame_id
+        self.consumer_ids = consumer_ids
+
+
+class FrameCycleError(Exception):
+    """Attempted to register a frame whose parent chain forms a cycle.
+
+    Defensive check at register time, scoped to `register_frame`
+    only (no `reparent_frame` slice in v1). The check walks the parent
+    chain from the proposed `parent_frame_id` up to a maximum depth
+    of 16; a revisit or depth overflow raises this error.
+
+    Cycle introduction via register is theoretically impossible in a
+    consistent store (the new frame doesn't exist yet, so it can't
+    appear in any existing chain), but the check protects against
+    data corruption or manual SQL edits. When (if) a
+    `reparent_frame` slice ever lands, the same check moves to update
+    time.
+    """
+
+    def __init__(self, frame_id: UUID, parent_chain: tuple[UUID, ...]) -> None:
+        super().__init__(
+            f"Frame {frame_id} cannot be registered: parent chain forms a cycle "
+            f"or exceeds max depth ({list(parent_chain)!r})"
+        )
+        self.frame_id = frame_id
+        self.parent_chain = parent_chain
+
+
+@dataclass(frozen=True)
+class FrameName:
+    """Display name for a frame. Trimmed; 1-200 chars.
+
+    Uniqueness is enforced per-parent-scope at the handler layer
+    (via the `frame_name_lookup` projection precondition), NOT at
+    the VO. Two root frames could legitimately share a name in
+    different deployments, so global uniqueness is too strong.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=FRAME_NAME_MAX_LENGTH,
+            error_class=InvalidFrameNameError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class Frame:
+    """Aggregate root: a named coordinate frame in the placement tree.
+
+    `parent_frame_id` is the immediate parent in the frame tree.
+    `None` only for root frames (the storage-ring centerline at APS,
+    for instance). Immutable across this aggregate's lifecycle (no
+    `reparent_frame` slice in v1).
+
+    `placement_relative_to_parent` is the pose of THIS frame's origin
+    relative to its parent. `None` for root frames; non-None for
+    child frames. The invariant
+    `placement.parent_frame == parent_frame_id` is enforced at the
+    decider.
+
+    `status` is `Active` at registration and transitions only to
+    `Decommissioned` (terminal). The `update_frame` slice mutates
+    `placement_relative_to_parent` but leaves status unchanged.
+    """
+
+    id: UUID
+    name: FrameName
+    parent_frame_id: UUID | None
+    placement_relative_to_parent: Placement | None
+    status: FrameStatus = FrameStatus.ACTIVE

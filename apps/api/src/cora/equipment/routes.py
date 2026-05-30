@@ -36,6 +36,8 @@ precedent.
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.equipment.aggregates._drawing import InvalidDrawingError
+from cora.equipment.aggregates._placement import InvalidPlacementError
 from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetCannotActivateError,
@@ -64,12 +66,23 @@ from cora.equipment.aggregates.family import (
     InvalidFamilySettingsSchemaError,
     InvalidFamilyVersionTagError,
 )
+from cora.equipment.aggregates.frame import (
+    FrameAlreadyExistsError,
+    FrameCannotDecommissionError,
+    FrameCannotUpdateError,
+    FrameCycleError,
+    FrameInUseError,
+    FrameNotFoundError,
+    InvalidFrameNameError,
+    InvalidFrameRootError,
+)
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
     activate_asset,
     add_asset_family,
     add_asset_port,
     decommission_asset,
+    decommission_frame,
     define_family,
     degrade_asset,
     deprecate_family,
@@ -81,6 +94,7 @@ from cora.equipment.features import (
     list_assets,
     list_families,
     register_asset,
+    register_frame,
     relocate_asset,
     remove_asset_family,
     remove_asset_port,
@@ -88,6 +102,7 @@ from cora.equipment.features import (
     restore_from_maintenance,
     update_asset_settings,
     update_family_settings_schema,
+    update_frame,
     version_family,
 )
 
@@ -179,6 +194,9 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_asset.router)
     app.include_router(get_asset_integration_view.router)
     app.include_router(list_assets.router)
+    app.include_router(register_frame.router)
+    app.include_router(update_frame.router)
+    app.include_router(decommission_frame.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -189,11 +207,19 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidAssetPortNameError,
         InvalidAssetPortSignalTypeError,
         InvalidAssetSettingsError,
+        InvalidFrameNameError,
+        InvalidFrameRootError,
+        InvalidPlacementError,
+        InvalidDrawingError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (FamilyNotFoundError, AssetNotFoundError):
+    for not_found_cls in (FamilyNotFoundError, AssetNotFoundError, FrameNotFoundError):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (FamilyAlreadyExistsError, AssetAlreadyExistsError):
+    for already_exists_cls in (
+        FamilyAlreadyExistsError,
+        AssetAlreadyExistsError,
+        FrameAlreadyExistsError,
+    ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         AssetCannotActivateError,
@@ -207,6 +233,10 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotRemovePortError,
         FamilyCannotVersionError,
         FamilyCannotDeprecateError,
+        FrameCannotUpdateError,
+        FrameCannotDecommissionError,
+        FrameInUseError,
+        FrameCycleError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

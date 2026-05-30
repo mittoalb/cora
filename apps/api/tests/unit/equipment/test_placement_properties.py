@@ -17,12 +17,12 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from cora.equipment._placement import (
+from cora.equipment.aggregates._placement import (
+    InvalidPlacementError,
     Placement,
     ReferenceSurface,
     UnitSystem,
 )
-from cora.equipment.errors import InvalidPlacementError
 
 _FINITE_FLOAT = st.floats(
     allow_nan=False,

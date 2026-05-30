@@ -17,6 +17,7 @@ from cora.equipment.features.add_asset_family import (
 )
 from cora.equipment.features.add_asset_port import tool as add_asset_port_tool
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
+from cora.equipment.features.decommission_frame import tool as decommission_frame_tool
 from cora.equipment.features.define_family import tool as define_family_tool
 from cora.equipment.features.degrade_asset import tool as degrade_asset_tool
 from cora.equipment.features.deprecate_family import (
@@ -32,6 +33,7 @@ from cora.equipment.features.get_family import tool as get_family_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
 from cora.equipment.features.list_families import tool as list_families_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
+from cora.equipment.features.register_frame import tool as register_frame_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
 from cora.equipment.features.remove_asset_family import (
     tool as remove_asset_family_tool,
@@ -47,6 +49,7 @@ from cora.equipment.features.update_asset_settings import (
 from cora.equipment.features.update_family_settings_schema import (
     tool as update_family_settings_schema_tool,
 )
+from cora.equipment.features.update_frame import tool as update_frame_tool
 from cora.equipment.features.version_family import tool as version_family_tool
 from cora.equipment.wire import EquipmentHandlers
 
@@ -148,4 +151,16 @@ def register_equipment_tools(
     list_families_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_families,
+    )
+    register_frame_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_frame,
+    )
+    update_frame_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().update_frame,
+    )
+    decommission_frame_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().decommission_frame,
     )

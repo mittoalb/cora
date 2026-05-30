@@ -36,6 +36,7 @@ from cora.equipment.features import (
     add_asset_family,
     add_asset_port,
     decommission_asset,
+    decommission_frame,
     define_family,
     degrade_asset,
     deprecate_family,
@@ -47,6 +48,7 @@ from cora.equipment.features import (
     list_assets,
     list_families,
     register_asset,
+    register_frame,
     relocate_asset,
     remove_asset_family,
     remove_asset_port,
@@ -54,6 +56,7 @@ from cora.equipment.features import (
     restore_from_maintenance,
     update_asset_settings,
     update_family_settings_schema,
+    update_frame,
     version_family,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -98,6 +101,9 @@ class EquipmentHandlers:
     get_asset_integration_view: get_asset_integration_view.Handler
     list_assets: list_assets.Handler
     list_families: list_families.Handler
+    register_frame: register_frame.IdempotentHandler
+    update_frame: update_frame.Handler
+    decommission_frame: decommission_frame.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -238,5 +244,27 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="ListFamilies",
             bc=_BC,
             kind="query",
+        ),
+        register_frame=with_tracing(
+            with_idempotency(
+                register_frame.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterFrame",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterFrame",
+            bc=_BC,
+        ),
+        update_frame=with_tracing(
+            update_frame.bind(deps),
+            command_name="UpdateFrame",
+            bc=_BC,
+        ),
+        decommission_frame=with_tracing(
+            decommission_frame.bind(deps),
+            command_name="DecommissionFrame",
+            bc=_BC,
         ),
     )

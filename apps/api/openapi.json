@@ -3682,6 +3682,23 @@
         "title": "DecisionSummaryDTO",
         "type": "object"
       },
+      "DecommissionFrameRequest": {
+        "description": "Body for `DELETE /frames/{frame_id}`.",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied free-text reason captured on the FrameDecommissioned event payload for audit.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DecommissionFrameRequest",
+        "type": "object"
+      },
       "DefineAgentRequest": {
         "description": "Body for `POST /agents`.",
         "properties": {
@@ -5942,6 +5959,110 @@
         "title": "PermitSummaryDTO",
         "type": "object"
       },
+      "PlacementBody": {
+        "description": "Wire format for a Placement value object.\n\nMirrors the domain `Placement` dataclass field-for-field. Field\nsemantics, units, and tolerance rules live with the dataclass\nin `cora.equipment.aggregates._placement`; this body is purely\nthe wire shape that Pydantic parses.\n\nDomain validation (negative tolerance rejection) happens during\nthe dataclass construction in `to_domain`, not here, so the\nroute surfaces `InvalidPlacementError` -> 400 through the BC's\nexception handler.",
+        "properties": {
+          "parent_frame": {
+            "description": "The Frame whose origin these coordinates are measured against. For a child Frame's placement_relative_to_parent, this MUST equal the owning Frame's parent_frame_id.",
+            "format": "uuid",
+            "title": "Parent Frame",
+            "type": "string"
+          },
+          "reference_surface": {
+            "$ref": "#/components/schemas/ReferenceSurface",
+            "description": "Which physical feature of the part the position values are measured FROM. One of: ThermalFace, OpticCenter, ShieldingFace."
+          },
+          "rx": {
+            "description": "Rotation around x (rad in SI_mm_rad).",
+            "title": "Rx",
+            "type": "number"
+          },
+          "ry": {
+            "description": "Rotation around y.",
+            "title": "Ry",
+            "type": "number"
+          },
+          "rz": {
+            "description": "Rotation around z.",
+            "title": "Rz",
+            "type": "number"
+          },
+          "tol_rx": {
+            "description": "Bilateral plus-or-minus tolerance on rx.",
+            "minimum": 0.0,
+            "title": "Tol Rx",
+            "type": "number"
+          },
+          "tol_ry": {
+            "description": "Bilateral plus-or-minus tolerance on ry.",
+            "minimum": 0.0,
+            "title": "Tol Ry",
+            "type": "number"
+          },
+          "tol_rz": {
+            "description": "Bilateral plus-or-minus tolerance on rz.",
+            "minimum": 0.0,
+            "title": "Tol Rz",
+            "type": "number"
+          },
+          "tol_x": {
+            "description": "Bilateral plus-or-minus tolerance on x.",
+            "minimum": 0.0,
+            "title": "Tol X",
+            "type": "number"
+          },
+          "tol_y": {
+            "description": "Bilateral plus-or-minus tolerance on y.",
+            "minimum": 0.0,
+            "title": "Tol Y",
+            "type": "number"
+          },
+          "tol_z": {
+            "description": "Bilateral plus-or-minus tolerance on z.",
+            "minimum": 0.0,
+            "title": "Tol Z",
+            "type": "number"
+          },
+          "units": {
+            "$ref": "#/components/schemas/UnitSystem",
+            "default": "SI_mm_rad",
+            "description": "Unit system. v1 ships one value (SI_mm_rad): mm for translation, rad for rotation."
+          },
+          "x": {
+            "description": "Translation along world x (mm in SI_mm_rad).",
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "description": "Translation along world y.",
+            "title": "Y",
+            "type": "number"
+          },
+          "z": {
+            "description": "Translation along beam direction z.",
+            "title": "Z",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "z",
+          "rx",
+          "ry",
+          "rz",
+          "parent_frame",
+          "reference_surface",
+          "tol_x",
+          "tol_y",
+          "tol_z",
+          "tol_rx",
+          "tol_ry",
+          "tol_rz"
+        ],
+        "title": "PlacementBody",
+        "type": "object"
+      },
       "PlanListResponse": {
         "description": "Page of plans plus opaque next-page cursor.",
         "properties": {
@@ -7035,6 +7156,16 @@
         "title": "ReceiptKind",
         "type": "string"
       },
+      "ReferenceSurface": {
+        "description": "The physical feature of a part that a Placement is measured FROM.\n\nAPS 2-BM uses three conventions documented in the reference\ntable (APS_1404611):\n  - `THERMAL_FACE`: upstream face of the thermal component (front-\n    end masks, beam stops, photon stops, Be windows; OFHC Cu /\n    Be sit between cooling water and beam).\n  - `OPTIC_CENTER`: center of the optic (mirror axis, monochromator\n    crystal axis; the active surface, not a face).\n  - `SHIELDING_FACE`: upstream face of the shielding material\n    (collimators, baffles; the W or Pb absorbing surface).\n\nClosed enum v1; CORA precedent is the Affordance StrEnum. Add a\nfourth value only when a second facility surveyed against a\nconvention not in the v1 set.",
+        "enum": [
+          "ThermalFace",
+          "OpticCenter",
+          "ShieldingFace"
+        ],
+        "title": "ReferenceSurface",
+        "type": "string"
+      },
       "RegisterActorRequest": {
         "description": "Body for `POST /actors`.",
         "properties": {
@@ -7811,6 +7942,64 @@
           "decision_id"
         ],
         "title": "RegisterDecisionResponse",
+        "type": "object"
+      },
+      "RegisterFrameRequest": {
+        "description": "Body for `POST /frames`.\n\nRoot frames pass `parent_frame_id=null` AND\n`placement_relative_to_parent=null`. Child frames pass both\nnon-null, and the embedded `placement.parent_frame` must equal\n`parent_frame_id` (decider enforces this with\nInvalidFrameRootError -> 400).",
+        "properties": {
+          "name": {
+            "description": "Display name for the new frame.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_frame_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Immediate parent in the frame tree. Must be null for root frames; required for all others. Goes together with placement_relative_to_parent (both null or both non-null).",
+            "title": "Parent Frame Id"
+          },
+          "placement_relative_to_parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pose of this frame's origin relative to its parent. Must be null for root frames; required for child frames and must reference parent_frame_id."
+          }
+        },
+        "required": [
+          "name",
+          "parent_frame_id",
+          "placement_relative_to_parent"
+        ],
+        "title": "RegisterFrameRequest",
+        "type": "object"
+      },
+      "RegisterFrameResponse": {
+        "description": "Response body for `POST /frames`.",
+        "properties": {
+          "frame_id": {
+            "format": "uuid",
+            "title": "Frame Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "frame_id"
+        ],
+        "title": "RegisterFrameResponse",
         "type": "object"
       },
       "RegisterPermitRequest": {
@@ -10079,6 +10268,14 @@
         "title": "TruncateRunRequest",
         "type": "object"
       },
+      "UnitSystem": {
+        "description": "The unit system a Placement's values are stored in.\n\nv1 ships with one value (`SI_MM_RAD`): translation in millimetres,\nrotation in radians. CORA stores canonically; conversion to or\nfrom facility-local units happens at the adapter boundary per\n`project_units_design.md` (canonical-stored, convert-at-edge).\n\nThe single v1 value is what makes the design memo's\n\"tolerance units MUST match value units per axis\" invariant\nstructurally satisfied: with one UnitSystem, a Placement's\ntolerances are by construction in the same units as its\nvalues. When a second UnitSystem lands (non-SI deployment),\nthe per-axis coupling check must move from \"trivially true\" to\nan explicit `__post_init__` validation, OR Placement must widen\nto per-axis units fields. Capture this gate before widening\nthe enum.",
+        "enum": [
+          "SI_mm_rad"
+        ],
+        "title": "UnitSystem",
+        "type": "string"
+      },
       "UpdateAssetSettingsRequest": {
         "description": "Body for `PATCH /assets/{asset_id}/settings`.\n\n`settings_patch` is a dict applied with RFC 7396 (JSON Merge\nPatch) semantics:\n  - keys with non-null values are set / replaced\n  - keys with null are deleted from settings\n  - absent keys are preserved\n\nThe decider validates the post-merge result against the union\nof the Asset's currently-assigned Capabilities' settings_schemas\n(5g-a). Validation failure surfaces as HTTP 400.",
         "properties": {
@@ -10116,6 +10313,33 @@
           "settings_schema"
         ],
         "title": "UpdateFamilySettingsSchemaRequest",
+        "type": "object"
+      },
+      "UpdateFramePlacementRequest": {
+        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FrameUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
+        "properties": {
+          "new_placement": {
+            "$ref": "#/components/schemas/PlacementBody",
+            "description": "The new placement_relative_to_parent."
+          },
+          "survey": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional re-survey provenance carried verbatim onto the event payload. Shape is open until the first survey adapter lands.",
+            "title": "Survey"
+          }
+        },
+        "required": [
+          "new_placement"
+        ],
+        "title": "UpdateFramePlacementRequest",
         "type": "object"
       },
       "UpdateMethodParametersSchemaRequest": {
@@ -21808,6 +22032,299 @@
         "summary": "Sign a new head pointer on a Live Seal (Live -> Live)",
         "tags": [
           "federation"
+        ]
+      }
+    },
+    "/frames": {
+      "post": {
+        "operationId": "post_frames_frames_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the frame.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the frame.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterFrameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterFrameResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only name, negative tolerance, OR root-vs-child mismatch (parent_frame_id and placement_relative_to_parent must be both null or both non-null, and placement.parent_frame must equal parent_frame_id)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "422": {
+            "description": "Request body failed schema validation (missing fields, malformed UUID, negative tolerance via Pydantic ge=0) OR Idempotency-Key was reused with a different body."
+          }
+        },
+        "summary": "Register a new coordinate frame",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/frames/{frame_id}": {
+      "delete": {
+        "operationId": "delete_frame_frames__frame_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "frame_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Frame Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecommissionFrameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Frame exists with the given frame_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Frame cannot be decommissioned: already Decommissioned, OR still referenced by one or more active Mount or child Frame consumers (FrameInUseError)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decommission a frame (terminal lifecycle)",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/frames/{frame_id}/placement": {
+      "patch": {
+        "operationId": "patch_frame_placement_frames__frame_id__placement_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "frame_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Frame Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFramePlacementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: negative tolerance via Placement VO OR new_placement.parent_frame does not match the Frame's parent_frame_id."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Frame exists with the given frame_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Frame cannot be updated: currently Decommissioned, or the Frame is a root frame (root frames have no placement to update)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update a frame's placement relative to its parent",
+        "tags": [
+          "equipment"
         ]
       }
     },

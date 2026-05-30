@@ -20,13 +20,11 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from cora.equipment._drawing import (
+from cora.equipment.aggregates._drawing import (
     DRAWING_NUMBER_MAX_LENGTH,
     DRAWING_REVISION_MAX_LENGTH,
     Drawing,
     DrawingSystem,
-)
-from cora.equipment.errors import (
     InvalidDrawingNumberError,
     InvalidDrawingRevisionError,
 )
