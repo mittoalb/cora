@@ -4504,7 +4504,7 @@
         "type": "object"
       },
       "DrawingBody": {
-        "description": "Wire format for a Drawing value object.\n\nLocal mirror; rule-of-three not yet met (only register_mount\nconsumes Drawing today; register_asset will gain it once its\ndrawing-widen lands). Hoist to `cora.equipment._drawing_body`\nif a third importer surfaces.",
+        "description": "Wire format for a `Drawing` value object.",
         "properties": {
           "number": {
             "description": "Document identifier within the system.",
@@ -4539,7 +4539,7 @@
         "type": "object"
       },
       "DrawingSystem": {
-        "description": "The external document-management system a Drawing lives in.\n\nExtensible StrEnum: v1 ships with three known systems but new\nfacilities add their own. Whether a given system value is\nactually wired to an adapter is enforced per-facility at the\nadapter boundary, NOT here.\n\n  - `ICMS`: APS Information Content Management System (Documentum-\n    backed).\n  - `EDMS`: generic Engineering Document Management System\n    (CERN EDMS and similar).\n  - `DOI`: DataCite Digital Object Identifier (used by PIDINST\n    for instrument-level identifiers).",
+        "description": "The external document-management system a Drawing lives in.\n\nClosed StrEnum: v1 ships with three systems. Adding a new value\nis a paired change: extend this enum AND ship a migration that\ndrops + re-adds the CHECK constraint on `drawing_system` in any\nprojection that materializes drawings (today: `proj_equipment_\nasset_summary`). Whether a given system value is actually wired\nto an adapter is enforced per-facility at the adapter boundary,\nNOT here.\n\n  - `ICMS`: APS Information Content Management System (Documentum-\n    backed).\n  - `EDMS`: generic Engineering Document Management System\n    (CERN EDMS and similar).\n  - `DOI`: DataCite Digital Object Identifier (used by PIDINST\n    for instrument-level identifiers).",
         "enum": [
           "ICMS",
           "EDMS",
@@ -7287,6 +7287,17 @@
       "RegisterAssetRequest": {
         "description": "Body for `POST /assets`.\n\n`level` accepts the StrEnum's PascalCase string values\n(\"Enterprise\" / \"Site\" / \"Area\" / \"Unit\" / \"Assembly\" /\n\"Device\"); Pydantic rejects unknowns with 422.\n\n`parent_id` is required for non-Enterprise levels and must be\nnull for Enterprise; that's a domain invariant enforced by\nthe decider (raises InvalidAssetParentError \u2192 400), not by\nPydantic, since the rule is conditional on `level`.",
         "properties": {
+          "drawing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DrawingBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional engineering reference for the physical specimen (distinct from Mount.drawing, which references the slot). Captured at registration only; not mutable in v1."
+          },
           "level": {
             "$ref": "#/components/schemas/AssetLevel",
             "description": "Hierarchical level. One of: Enterprise (root, requires null parent_id), Site, Area, Unit, Assembly, Device."

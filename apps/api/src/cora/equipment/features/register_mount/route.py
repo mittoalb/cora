@@ -2,9 +2,9 @@
 
 POST /mounts: register a new slot.
 
-Re-uses the shared `PlacementBody` and (via a local `DrawingBody`
-mirror) the Drawing wire shape; the route handler converts both to
-domain VOs before constructing the command.
+Re-uses the shared `PlacementBody` and `DrawingBody` wire shapes;
+the route handler converts both to domain VOs before constructing
+the command.
 """
 
 from typing import Annotated
@@ -13,13 +13,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
+from cora.equipment._drawing_body import DrawingBody
 from cora.equipment._placement_body import PlacementBody
-from cora.equipment.aggregates._drawing import (
-    DRAWING_NUMBER_MAX_LENGTH,
-    DRAWING_REVISION_MAX_LENGTH,
-    Drawing,
-    DrawingSystem,
-)
 from cora.equipment.aggregates.mount import SLOT_CODE_MAX_LENGTH
 from cora.equipment.features.register_mount.command import RegisterMount
 from cora.equipment.features.register_mount.handler import IdempotentHandler
@@ -29,38 +24,6 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
-
-
-class DrawingBody(BaseModel):
-    """Wire format for a Drawing value object.
-
-    Local mirror; rule-of-three not yet met (only register_mount
-    consumes Drawing today; register_asset will gain it once its
-    drawing-widen lands). Hoist to `cora.equipment._drawing_body`
-    if a third importer surfaces.
-    """
-
-    system: DrawingSystem = Field(
-        ...,
-        description="The external document-management system (ICMS / EDMS / DOI).",
-    )
-    number: str = Field(
-        ...,
-        min_length=1,
-        max_length=DRAWING_NUMBER_MAX_LENGTH,
-        description="Document identifier within the system.",
-    )
-    revision: str | None = Field(
-        None,
-        max_length=DRAWING_REVISION_MAX_LENGTH,
-        description=(
-            "Optional revision pin; None means 'resolves to latest' "
-            "(ISO 7200 / DOI / EDMS default-resolution semantics)."
-        ),
-    )
-
-    def to_domain(self) -> Drawing:
-        return Drawing(system=self.system, number=self.number, revision=self.revision)
 
 
 class RegisterMountRequest(BaseModel):

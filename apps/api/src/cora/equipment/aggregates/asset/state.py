@@ -69,6 +69,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from cora.equipment.aggregates._drawing import Drawing
 from cora.infrastructure.bounded_text import validate_bounded_text
 
 ASSET_NAME_MAX_LENGTH = 200
@@ -544,6 +545,14 @@ class Asset:
     pattern. Plan.wiring will reference these by name to declare
     port-to-port connections.
 
+    `drawing`: optional reference to the engineering document that
+    defines the build-to specification for this physical specimen
+    (ICMS drawing number, EDMS link, DOI). Distinct from
+    Mount.drawing, which references the slot's drawing (an assembly
+    location, not the specimen's build). Defaults to None; legacy
+    AssetRegistered streams without the drawing field fold cleanly
+    via the additive-state pattern.
+
     Future additive facets: `owner`, `persistent_id`. The state-
     level fields land with defaults for the same forward-
     compatibility reason.
@@ -569,3 +578,4 @@ class Asset:
     # frozenset[AssetPort] for typed connection points (5h).
     # Same parametrized-callable trick as families.
     ports: frozenset[AssetPort] = field(default_factory=frozenset[AssetPort])
+    drawing: Drawing | None = None

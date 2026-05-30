@@ -22,13 +22,15 @@ Conduit zone refs).
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates.asset import AssetLevel
 
 
 @dataclass(frozen=True)
 class RegisterAsset:
-    """Register a new asset with the given name, level, and parent."""
+    """Register a new asset with the given name, level, parent, and optional drawing."""
 
     name: str
     level: AssetLevel
     parent_id: UUID | None
+    drawing: Drawing | None = None

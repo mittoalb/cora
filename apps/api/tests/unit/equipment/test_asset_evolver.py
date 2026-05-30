@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset import (
     Asset,
     AssetCondition,
@@ -1440,3 +1441,165 @@ def test_fold_register_then_add_then_remove_yields_empty_ports() -> None:
     )
     assert state is not None
     assert state.ports == frozenset()
+
+
+_SAMPLE_DRAWING = Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A")
+
+
+@pytest.mark.unit
+def test_evolve_register_with_drawing_carries_drawing_into_state() -> None:
+    asset_id = uuid4()
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=asset_id,
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+            drawing=_SAMPLE_DRAWING,
+        ),
+    )
+    assert state.drawing == _SAMPLE_DRAWING
+
+
+@pytest.mark.unit
+def test_evolve_register_without_drawing_yields_none() -> None:
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.drawing is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_drawing(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry
+    drawing through from prior state."""
+    _ = name
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetRestoredFromMaintenance
+            else AssetLifecycle.ACTIVE
+        ),
+        drawing=_SAMPLE_DRAWING,
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    assert state.drawing == _SAMPLE_DRAWING
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_drawing() -> None:
+    old_parent = uuid4()
+    new_parent = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        drawing=_SAMPLE_DRAWING,
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.drawing == _SAMPLE_DRAWING
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition", "kwargs"),
+    [
+        ("family_added", AssetFamilyAdded, {"family_id": uuid4()}),
+        ("family_removed", AssetFamilyRemoved, {"family_id": uuid4()}),
+        ("degraded", AssetDegraded, {"reason": "x"}),
+        ("faulted", AssetFaulted, {"reason": "x"}),
+        ("restored", AssetRestored, {"reason": "x"}),
+        ("settings_updated", AssetSettingsUpdated, {"settings": {"a": 1}}),
+    ],
+)
+def test_evolve_mutation_preserves_drawing(
+    name: str,
+    transition: type,
+    kwargs: dict[str, object],
+) -> None:
+    _ = name
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        drawing=_SAMPLE_DRAWING,
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    assert state.drawing == _SAMPLE_DRAWING
+
+
+@pytest.mark.unit
+def test_evolve_port_added_preserves_drawing() -> None:
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        drawing=_SAMPLE_DRAWING,
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=prior.id,
+            port_name="x",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.drawing == _SAMPLE_DRAWING
+
+
+@pytest.mark.unit
+def test_evolve_port_removed_preserves_drawing() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        ports=frozenset({port}),
+        drawing=_SAMPLE_DRAWING,
+    )
+    state = evolve(prior, AssetPortRemoved(asset_id=prior.id, port_name="x", occurred_at=_NOW))
+    assert state.drawing == _SAMPLE_DRAWING

@@ -7,11 +7,11 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.equipment._drawing_body import DrawingBody
 from cora.equipment._placement_body import PlacementBody
 from cora.equipment.aggregates.mount import SLOT_CODE_MAX_LENGTH
 from cora.equipment.features.register_mount.command import RegisterMount
 from cora.equipment.features.register_mount.handler import IdempotentHandler
-from cora.equipment.features.register_mount.route import DrawingBody
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id

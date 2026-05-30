@@ -43,6 +43,16 @@ decommissioning to storage, etc).
 `lifecycle` is NOT carried in the payload — the event TYPE
 encodes the state change (`AssetRegistered → COMMISSIONED`).
 Same precedent as Subject / Family / Actor.
+
+`drawing` on AssetRegistered uses the omit-when-None convention:
+the payload key is absent when no Drawing was supplied (rather
+than written as JSON null). `from_stored` uses `payload.get(...)`
+so legacy events written before the drawing field landed fold
+cleanly to `drawing=None`. Mount took the opposite convention
+(always-present-with-null) because MountRegistered carried
+drawing from genesis; Asset's omit-when-None is the strict
+additive-evolution shape and matches the `AssetSettingsUpdated`
+precedent (also payload.get-based).
 """
 
 from dataclasses import dataclass
@@ -50,6 +60,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -61,6 +72,11 @@ class AssetRegistered:
     `parent_id` is optional: only `level=Enterprise` has a null
     parent (the root); other levels enforce non-null at the
     decider per the hierarchy rule.
+
+    `drawing` is an optional Drawing VO captured at registration:
+    the engineering build-to spec for the physical specimen. Defaults
+    to None so legacy AssetRegistered streams (no drawing in the
+    payload) fold cleanly via the additive-payload pattern.
     """
 
     asset_id: UUID
@@ -68,6 +84,7 @@ class AssetRegistered:
     level: str  # AssetLevel.value; carried as primitive in the payload
     parent_id: UUID | None
     occurred_at: datetime
+    drawing: Drawing | None = None
 
 
 @dataclass(frozen=True)
@@ -338,14 +355,22 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             level=level,
             parent_id=parent_id,
             occurred_at=occurred_at,
+            drawing=drawing,
         ):
-            return {
+            payload: dict[str, Any] = {
                 "asset_id": str(asset_id),
                 "name": name,
                 "level": level,
                 "parent_id": str(parent_id) if parent_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
+            if drawing is not None:
+                payload["drawing"] = {
+                    "system": drawing.system.value,
+                    "number": drawing.number,
+                    "revision": drawing.revision,
+                }
+            return payload
         case AssetActivated(asset_id=asset_id, occurred_at=occurred_at):
             return {
                 "asset_id": str(asset_id),
@@ -460,12 +485,25 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
         case "AssetRegistered":
             try:
                 raw_parent = payload["parent_id"]
+                # `payload.get` for additive evolution: stored events
+                # without the drawing key fold to None.
+                raw_drawing = payload.get("drawing")
+                drawing = (
+                    Drawing(
+                        system=DrawingSystem(raw_drawing["system"]),
+                        number=raw_drawing["number"],
+                        revision=raw_drawing.get("revision"),
+                    )
+                    if raw_drawing is not None
+                    else None
+                )
                 return AssetRegistered(
                     asset_id=UUID(payload["asset_id"]),
                     name=payload["name"],
                     level=payload["level"],
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    drawing=drawing,
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AssetRegistered payload {payload!r}: {exc}"

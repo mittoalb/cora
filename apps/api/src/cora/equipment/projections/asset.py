@@ -41,8 +41,9 @@ if TYPE_CHECKING:
 
 _INSERT_ASSET_SQL = """
 INSERT INTO proj_equipment_asset_summary
-    (asset_id, name, level, lifecycle, condition, parent_id, created_at)
-VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5)
+    (asset_id, name, level, lifecycle, condition, parent_id,
+     drawing_system, drawing_number, drawing_revision, created_at)
+VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5, $6, $7, $8)
 ON CONFLICT (asset_id) DO NOTHING
 """
 
@@ -95,12 +96,19 @@ class AssetSummaryProjection:
             case "AssetRegistered":
                 parent_id_raw = event.payload.get("parent_id")
                 parent_id = UUID(parent_id_raw) if parent_id_raw else None
+                drawing = event.payload.get("drawing")
+                drawing_system = drawing["system"] if drawing is not None else None
+                drawing_number = drawing["number"] if drawing is not None else None
+                drawing_revision = drawing.get("revision") if drawing is not None else None
                 await conn.execute(
                     _INSERT_ASSET_SQL,
                     UUID(event.payload["asset_id"]),
                     event.payload["name"],
                     event.payload["level"],
                     parent_id,
+                    drawing_system,
+                    drawing_number,
+                    drawing_revision,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "AssetActivated" | "AssetRestoredFromMaintenance":

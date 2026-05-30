@@ -97,7 +97,65 @@ async def test_asset_registered_inserts_with_commissioned_lifecycle_and_parent()
     assert args.args[2] == "BeamlineEnclosure-32-ID"
     assert args.args[3] == "Unit"
     assert args.args[4] == _PARENT_ID
-    assert args.args[5] == _NOW
+    # drawing trio omitted from payload: all three columns fold to NULL.
+    assert args.args[5] is None
+    assert args.args[6] is None
+    assert args.args[7] is None
+    assert args.args[8] == _NOW
+
+
+@pytest.mark.unit
+async def test_asset_registered_with_drawing_backfills_three_columns() -> None:
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(_ASSET_ID),
+            "name": "Microscope-2BM-A",
+            "level": "Assembly",
+            "parent_id": str(_PARENT_ID),
+            "occurred_at": _NOW.isoformat(),
+            "drawing": {
+                "system": "ICMS",
+                "number": "P4105",
+                "revision": "A",
+            },
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[5] == "ICMS"
+    assert args.args[6] == "P4105"
+    assert args.args[7] == "A"
+
+
+@pytest.mark.unit
+async def test_asset_registered_with_drawing_no_revision_keeps_revision_null() -> None:
+    proj = AssetSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(_ASSET_ID),
+            "name": "Microscope-2BM-A",
+            "level": "Assembly",
+            "parent_id": str(_PARENT_ID),
+            "occurred_at": _NOW.isoformat(),
+            "drawing": {"system": "EDMS", "number": "9001"},
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[5] == "EDMS"
+    assert args.args[6] == "9001"
+    assert args.args[7] is None
 
 
 @pytest.mark.unit

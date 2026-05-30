@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetDecommissioned,
@@ -169,6 +170,117 @@ def test_to_payload_then_from_stored_round_trips_without_parent() -> None:
         level="Enterprise",
         parent_id=None,
         occurred_at=_NOW,
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_omits_drawing_key_when_drawing_is_none() -> None:
+    """Additive-payload pattern: legacy AssetRegistered shape (no drawing)
+    must serialize without the key, so existing stream readers can't
+    accidentally observe a None value where they previously saw the key
+    missing."""
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert "drawing" not in payload
+
+
+@pytest.mark.unit
+def test_to_payload_includes_drawing_block_when_set() -> None:
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="Microscope-2BM-A",
+        level="Assembly",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        drawing=Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A"),
+    )
+    payload = to_payload(event)
+    assert payload["drawing"] == {"system": "ICMS", "number": "P4105", "revision": "A"}
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_registered_with_drawing() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "Microscope-2BM-A",
+            "level": "Assembly",
+            "parent_id": str(parent_id),
+            "occurred_at": _NOW.isoformat(),
+            "drawing": {"system": "EDMS", "number": "9001", "revision": None},
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetRegistered(
+        asset_id=asset_id,
+        name="Microscope-2BM-A",
+        level="Assembly",
+        parent_id=parent_id,
+        occurred_at=_NOW,
+        drawing=Drawing(system=DrawingSystem.EDMS, number="9001", revision=None),
+    )
+
+
+@pytest.mark.unit
+def test_from_stored_folds_legacy_payload_without_drawing_to_none() -> None:
+    """Backward-compat pin: existing AssetRegistered events written before
+    the drawing widen had no drawing key; they MUST fold to drawing=None
+    without raising."""
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "Pre-widen Asset",
+            "level": "Unit",
+            "parent_id": str(uuid4()),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.drawing is None
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_without_drawing_explicit() -> None:
+    """Pin the omit-then-rebuild path: drawing=None survives the
+    serialize+deserialize round-trip and emerges as drawing=None
+    (not as a missing attribute or something else)."""
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="No-Drawing Asset",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.drawing is None
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_with_drawing() -> None:
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="Microscope-2BM-A",
+        level="Assembly",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        drawing=Drawing(system=DrawingSystem.DOI, number="10.5281/zenodo.X", revision="v2"),
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original

@@ -37,18 +37,20 @@ mutated incrementally by `AssetFamilyAdded` /
 `AssetFamilyRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
-`families` AND `condition` AND `settings` AND `ports` through
-from prior state. Constructing `Asset(id=..., name=..., level=...,
-parent_id=..., lifecycle=...)` without explicitly passing them
-would silently WIPE the fields to their defaults (empty frozenset /
-NOMINAL / empty dict / empty frozenset). `families` was added
-with a default solely for additive-state forward compatibility on
-genesis events; `condition`, `settings`, and `ports` followed the
-same additive pattern. Transition arms must explicitly carry all
-four. Pinned by `test_evolve_<transition>_preserves_capabilities`,
+`families` AND `condition` AND `settings` AND `ports` AND
+`drawing` through from prior state. Constructing `Asset(id=...,
+name=..., level=..., parent_id=..., lifecycle=...)` without
+explicitly passing them would silently WIPE the fields to their
+defaults (empty frozenset / NOMINAL / empty dict / empty frozenset
+/ None). `families` was added with a default solely for additive-
+state forward compatibility on genesis events; `condition`,
+`settings`, `ports`, and `drawing` followed the same additive
+pattern. Transition arms must explicitly carry all five. Pinned
+by `test_evolve_<transition>_preserves_capabilities`,
 `test_evolve_<transition>_preserves_condition`,
-`test_evolve_<transition>_preserves_settings`, and
-`test_evolve_<transition>_preserves_ports` for each transition.
+`test_evolve_<transition>_preserves_settings`,
+`test_evolve_<transition>_preserves_ports`, and
+`test_evolve_<transition>_preserves_drawing` for each transition.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
@@ -91,7 +93,13 @@ from cora.infrastructure.evolver import require_state
 def evolve(state: Asset | None, event: AssetEvent) -> Asset:
     """Apply one event to the current state."""
     match event:
-        case AssetRegistered(asset_id=asset_id, name=name, level=level, parent_id=parent_id):
+        case AssetRegistered(
+            asset_id=asset_id,
+            name=name,
+            level=level,
+            parent_id=parent_id,
+            drawing=drawing,
+        ):
             _ = state  # AssetRegistered is the genesis event; prior state ignored
             return Asset(
                 id=asset_id,
@@ -99,6 +107,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 level=AssetLevel(level),
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
+                drawing=drawing,
                 # families defaults to empty frozenset; condition
                 # defaults to NOMINAL. Additive-state pattern: both
                 # default-via-state so legacy streams without these
@@ -116,6 +125,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetDecommissioned():
             prior = require_state(state, "AssetDecommissioned")
@@ -129,6 +139,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
@@ -147,6 +158,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetMaintenanceEntered():
             prior = require_state(state, "AssetMaintenanceEntered")
@@ -160,6 +172,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetRestoredFromMaintenance():
             prior = require_state(state, "AssetRestoredFromMaintenance")
@@ -173,6 +186,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetFamilyAdded(family_id=family_id):
             # Family mutation: only `families` changes; everything
@@ -191,6 +205,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families | {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetFamilyRemoved(family_id=family_id):
             # Mirror of AssetFamilyAdded. Frozenset difference is a
@@ -210,6 +225,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families - {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -228,6 +244,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetFaulted():
             prior = require_state(state, "AssetFaulted")
@@ -241,6 +258,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetRestored():
             prior = require_state(state, "AssetRestored")
@@ -254,6 +272,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
@@ -274,6 +293,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=dict(settings),
                 ports=prior.ports,
+                drawing=prior.drawing,
             )
         case AssetPortAdded(
             port_name=port_name,
@@ -302,6 +322,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=prior.ports | {new_port},
+                drawing=prior.drawing,
             )
         case AssetPortRemoved(port_name=port_name):
             # Mirror of AssetPortAdded. Removes the port whose `name`
@@ -323,6 +344,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 families=prior.families,
                 settings=prior.settings,
                 ports=frozenset(p for p in prior.ports if p.name != port_name),
+                drawing=prior.drawing,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

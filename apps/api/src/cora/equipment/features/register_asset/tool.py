@@ -14,6 +14,7 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.equipment._drawing_body import DrawingBody
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.handler import IdempotentHandler
@@ -68,10 +69,26 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
+        drawing: Annotated[
+            DrawingBody | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional engineering reference for the physical "
+                    "specimen (distinct from Mount.drawing, which "
+                    "references the slot). Captured at registration only."
+                ),
+            ),
+        ] = None,
     ) -> RegisterAssetOutput:
         handler = get_handler()
         asset_id = await handler(
-            RegisterAsset(name=name, level=level, parent_id=parent_id),
+            RegisterAsset(
+                name=name,
+                level=level,
+                parent_id=parent_id,
+                drawing=drawing.to_domain() if drawing is not None else None,
+            ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

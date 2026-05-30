@@ -82,5 +82,6 @@ def decide(
             level=command.level.value,
             parent_id=command.parent_id,
             occurred_at=now,
+            drawing=command.drawing,
         )
     ]

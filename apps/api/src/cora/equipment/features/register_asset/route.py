@@ -16,6 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
+from cora.equipment._drawing_body import DrawingBody
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.handler import IdempotentHandler
@@ -59,6 +60,14 @@ class RegisterAssetRequest(BaseModel):
             "Immediate parent in the hierarchy tree. Must be null "
             "for Enterprise-level assets; required for all others. "
             "Eventual-consistency: parent's existence is NOT verified."
+        ),
+    )
+    drawing: DrawingBody | None = Field(
+        None,
+        description=(
+            "Optional engineering reference for the physical specimen "
+            "(distinct from Mount.drawing, which references the slot). "
+            "Captured at registration only; not mutable in v1."
         ),
     )
 
@@ -123,7 +132,12 @@ async def post_assets(
     ] = None,
 ) -> RegisterAssetResponse:
     asset_id = await handler(
-        RegisterAsset(name=body.name, level=body.level, parent_id=body.parent_id),
+        RegisterAsset(
+            name=body.name,
+            level=body.level,
+            parent_id=body.parent_id,
+            drawing=body.drawing.to_domain() if body.drawing is not None else None,
+        ),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

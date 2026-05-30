@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset import (
     Asset,
     AssetAlreadyExistsError,
@@ -155,6 +156,40 @@ def test_decide_rejects_non_enterprise_with_null_parent(level: AssetLevel) -> No
             new_id=uuid4(),
         )
     assert level.value in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_decide_carries_drawing_through_to_emitted_event() -> None:
+    """Happy path: an optional Drawing supplied on the command rides
+    the AssetRegistered event without modification."""
+    drawing = Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A")
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="Microscope-2BM-A",
+            level=AssetLevel.ASSEMBLY,
+            parent_id=uuid4(),
+            drawing=drawing,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].drawing == drawing
+
+
+@pytest.mark.unit
+def test_decide_defaults_drawing_to_none_when_omitted() -> None:
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="APS",
+            level=AssetLevel.SITE,
+            parent_id=uuid4(),
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].drawing is None
 
 
 @pytest.mark.unit

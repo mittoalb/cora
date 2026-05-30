@@ -102,10 +102,13 @@ class InvalidDrawingRevisionError(InvalidDrawingError):
 class DrawingSystem(StrEnum):
     """The external document-management system a Drawing lives in.
 
-    Extensible StrEnum: v1 ships with three known systems but new
-    facilities add their own. Whether a given system value is
-    actually wired to an adapter is enforced per-facility at the
-    adapter boundary, NOT here.
+    Closed StrEnum: v1 ships with three systems. Adding a new value
+    is a paired change: extend this enum AND ship a migration that
+    drops + re-adds the CHECK constraint on `drawing_system` in any
+    projection that materializes drawings (today: `proj_equipment_
+    asset_summary`). Whether a given system value is actually wired
+    to an adapter is enforced per-facility at the adapter boundary,
+    NOT here.
 
       - `ICMS`: APS Information Content Management System (Documentum-
         backed).
