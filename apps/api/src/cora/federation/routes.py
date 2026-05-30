@@ -1,0 +1,159 @@
+"""HTTP setup for the Federation BC.
+
+`register_federation_routes(app)` includes every slice's router and
+registers exception handlers that translate the BC's domain /
+application errors to HTTP status codes. Called once at app
+construction.
+
+JSONResponse is used (not HTTPException) per FastAPI guidance to
+avoid nested-exception pitfalls.
+
+Stage 2a holds the empty `federation_router` + BC-level exception
+handlers for every Permit / Credential / Seal domain error. Slice
+routers attach in Stage 2b/2c; the handlers are wired now so the
+arch-fitness `test_every_domain_error_registered_as_http_handler`
+passes day-one.
+"""
+
+from fastapi import APIRouter, FastAPI, Request, status
+from fastapi.responses import JSONResponse
+
+from cora.federation.aggregates.credential.state import (
+    CredentialAlreadyExistsError,
+    CredentialCannotRevokeError,
+    CredentialCannotRotateError,
+    CredentialExpiredError,
+    CredentialNotFoundError,
+    InvalidCredentialSecretRefError,
+)
+from cora.federation.aggregates.permit.state import (
+    InvalidPermitScopeError,
+    PermitAlreadyExistsError,
+    PermitCannotActivateError,
+    PermitCannotResumeError,
+    PermitCannotRevokeError,
+    PermitCannotSuspendError,
+    PermitNotFoundError,
+    PermitScopeCollapseError,
+    UnsupportedCanonicalizationVersionError,
+)
+from cora.federation.aggregates.seal.state import (
+    SealAlreadyExistsError,
+    SealCannotCompleteRepublishingError,
+    SealCannotRotateError,
+    SealCannotSignError,
+    SealCannotStartRepublishingError,
+    SealKeyCollisionError,
+    SealKeyPurposeMismatchError,
+    SealNotFoundError,
+    SealSequenceNumberRegressionError,
+)
+from cora.federation.errors import FederationError, UnauthorizedError
+
+federation_router = APIRouter(prefix="/federation", tags=["federation"])
+
+
+async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_unprocessable_error(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_not_found(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_already_exists(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_conflict(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_unauthorized(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    reason = exc.reason if isinstance(exc, UnauthorizedError) else str(exc)
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": reason},
+    )
+
+
+async def _handle_federation_error(request: Request, exc: Exception) -> JSONResponse:
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
+def register_federation_routes(app: FastAPI) -> None:
+    """Attach Federation slice routers and exception handlers to the FastAPI app."""
+    app.include_router(federation_router)
+    for validation_cls in (
+        InvalidPermitScopeError,
+        InvalidCredentialSecretRefError,
+    ):
+        app.add_exception_handler(validation_cls, _handle_validation_error)
+    for unprocessable_cls in (
+        PermitScopeCollapseError,
+        UnsupportedCanonicalizationVersionError,
+        CredentialExpiredError,
+        SealKeyCollisionError,
+        SealKeyPurposeMismatchError,
+        SealSequenceNumberRegressionError,
+    ):
+        app.add_exception_handler(unprocessable_cls, _handle_unprocessable_error)
+    for not_found_cls in (
+        PermitNotFoundError,
+        CredentialNotFoundError,
+        SealNotFoundError,
+    ):
+        app.add_exception_handler(not_found_cls, _handle_not_found)
+    for already_exists_cls in (
+        PermitAlreadyExistsError,
+        CredentialAlreadyExistsError,
+        SealAlreadyExistsError,
+    ):
+        app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for conflict_cls in (
+        PermitCannotActivateError,
+        PermitCannotSuspendError,
+        PermitCannotResumeError,
+        PermitCannotRevokeError,
+        CredentialCannotRotateError,
+        CredentialCannotRevokeError,
+        SealCannotSignError,
+        SealCannotRotateError,
+        SealCannotStartRepublishingError,
+        SealCannotCompleteRepublishingError,
+    ):
+        app.add_exception_handler(conflict_cls, _handle_conflict)
+    app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
+    app.add_exception_handler(FederationError, _handle_federation_error)
+
+
+__all__ = ["federation_router", "register_federation_routes"]

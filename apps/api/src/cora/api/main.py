@@ -102,6 +102,13 @@ from cora.equipment import (
     register_equipment_tools,
     wire_equipment,
 )
+from cora.federation import (
+    FederationHandlers,
+    register_federation_projections,
+    register_federation_routes,
+    register_federation_tools,
+    wire_federation,
+)
 from cora.infrastructure.auth.bearer_auth_middleware import BearerAuthMiddleware
 from cora.infrastructure.auth.exception_handlers import register_auth_exception_handlers
 from cora.infrastructure.config import Settings
@@ -310,6 +317,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         handlers: EquipmentHandlers = fastapi_app.state.equipment
         return handlers
 
+    def _get_federation_handlers() -> FederationHandlers:
+        handlers: FederationHandlers = fastapi_app.state.federation
+        return handlers
+
     def _get_recipe_handlers() -> RecipeHandlers:
         handlers: RecipeHandlers = fastapi_app.state.recipe
         return handlers
@@ -358,6 +369,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_trust_tools(mcp, get_handlers=_get_trust_handlers)
     register_subject_tools(mcp, get_handlers=_get_subject_handlers)
     register_equipment_tools(mcp, get_handlers=_get_equipment_handlers)
+    register_federation_tools(mcp, get_handlers=_get_federation_handlers)
     register_recipe_tools(mcp, get_handlers=_get_recipe_handlers)
     register_run_tools(mcp, get_handlers=_get_run_handlers)
     register_data_tools(mcp, get_handlers=_get_data_handlers)
@@ -392,6 +404,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             app.state.trust = wire_trust(deps)
             app.state.subject = wire_subject(deps)
             app.state.equipment = wire_equipment(deps)
+            app.state.federation = wire_federation(deps)
             app.state.recipe = wire_recipe(deps)
             app.state.run = wire_run(deps)
             app.state.data = wire_data(deps)
@@ -419,6 +432,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             register_trust_projections(registry, deps)
             register_subject_projections(registry, deps)
             register_equipment_projections(registry, deps)
+            register_federation_projections(registry, deps)
             register_recipe_projections(registry, deps)
             register_run_projections(registry, deps)
             register_data_projections(registry, deps)
@@ -531,6 +545,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_trust_routes(fastapi_app)
     register_subject_routes(fastapi_app)
     register_equipment_routes(fastapi_app)
+    register_federation_routes(fastapi_app)
     register_recipe_routes(fastapi_app)
     register_run_routes(fastapi_app)
     register_data_routes(fastapi_app)

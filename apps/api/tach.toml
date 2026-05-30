@@ -67,6 +67,10 @@ path = "cora.equipment.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.federation.aggregates"
+depends_on = ["cora.infrastructure"]
+
+[[modules]]
 path = "cora.operation.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -221,6 +225,18 @@ depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
 path = "cora.calibration"
 depends_on = ["cora.infrastructure", "cora.calibration.aggregates"]
 
+# Federation BC owns the Permit (unified, OutboundTerms | InboundTerms
+# tagged union) / Credential / Seal aggregates per
+# [[project_federation_port_design]] Stage 1 lock. Day-1 lock: bare
+# UUID references to peer Facility / Actor targets on the write path
+# (eventual-consistency stance per the Calibration / Caution / Trust
+# Conduit precedent). The SecretStore port lives in
+# cora.infrastructure.ports (used by Credential slices in Stage 2b/2c);
+# no cross-BC kernel imports needed at Stage 2a.
+[[modules]]
+path = "cora.federation"
+depends_on = ["cora.infrastructure", "cora.federation.aggregates"]
+
 # Campaign BC owns the Campaign aggregate (operator-declared
 # coordinated container above Run; 5-state FSM
 # Planned -> Active <-> Held -> Closed | Abandoned). The cross-
@@ -291,6 +307,7 @@ depends_on = [
     "cora.data",
     "cora.decision",
     "cora.equipment",
+    "cora.federation",
     "cora.operation",
     "cora.recipe",
     "cora.run",
