@@ -18,14 +18,19 @@ The forbidden patterns and the rationale for each:
 
   - `Phase <digit-or-letter>...` chronological marker that rots
     (the project's phase labels are an internal scaffold). Covers
-    Latin forms (`Phase 5h`, `Phase B`) and Greek-letter forms
-    (`Phase <alpha>`, `Phase <gamma>-2`); later project_phase_plan.md
-    cohorts have shifted to the Greek alphabet and the rule extends
-    with them.
+    Latin forms (`Phase 5h`, `Phase B`), Greek-glyph forms
+    (`Phase <alpha-glyph>`, `Phase <omega-glyph>`), and the English
+    transliterations the team actually types in source
+    (`Phase alpha` ... `Phase omega`); later project_phase_plan.md
+    cohorts shifted to the Greek alphabet and the rule extends with
+    them.
   - `Iter [A-Z]...` sub-phase iteration marker.
   - `DLM-[A-Z]` design-lock-memo internal identifier.
   - `audit-YYYY-MM-DD` audit-cohort tag (the audit ran once; the
     finding is now the present-tense state).
+  - `P<n>-<Section>-<n>` gate-review section tag (`P0-Sec-2`,
+    `P2-Design-3`); the bare `P<n>#<n>` priority-issue form is
+    caught by a separate arm.
 
 ## Allowed uses (false positives we explicitly skip)
 
@@ -64,11 +69,25 @@ _FORBIDDEN = re.compile(
     # Code-point escapes (not literal glyphs) so RUF001 stays clean.
     "Phase [\u0391-\u03a9\u03b1-\u03c9]"
     r"|"
+    # English transliterations of the Greek letters above. The team types
+    # `Phase alpha` / `Phase delta` more often than the glyph form; the
+    # Greek-glyph arm alone misses every spelled-out occurrence, which is
+    # the drift class that accumulates in practice.
+    r"Phase (?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|"
+    r"kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|"
+    r"chi|psi|omega)\b"
+    r"|"
     r"\bIter [A-Z]\b"
     r"|"
     r"DLM-[A-Z]"
     r"|"
     r"audit-[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    r"|"
+    # Gate-review section/priority tag like `P0-Sec-2`, `P2-Design-3`,
+    # `P1-Impl-4`. The numeric-only `P1#3` form is caught by the
+    # priority-issue arm further below; this catches the section-name
+    # form that lives in design-memo bodies.
+    r"\bP[0-9]+-[A-Z][a-z]+-[0-9]+\b"
     r"|"
     # Implicit phase reference: prep word followed by a hyphenated phase
     # tag like `pre-7e`, `post-6g-c`, `from 6f-1`, `in 11a-c-3`. The
