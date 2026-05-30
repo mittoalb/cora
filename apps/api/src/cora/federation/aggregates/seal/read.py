@@ -19,7 +19,7 @@ mirror the Calibration Path C precedent
 timestamps live on the projection, not on the aggregate state, and
 read-side surfaces compose Seal + timestamps into a view DTO
 at the handler layer. Stage 2 introduces the projection table
-(`proj_seal_summary`) that backs this view.
+(`proj_federation_seal`) that backs this view.
 """
 
 from dataclasses import dataclass
@@ -37,7 +37,7 @@ _STREAM_TYPE = "Seal"
 
 _SELECT_TIMESTAMPS_SQL = """
 SELECT initialized_at, last_signed_at, last_signed_by_actor_id
-FROM proj_seal_summary
+FROM proj_federation_seal
 WHERE facility_id = $1
 """
 
@@ -46,7 +46,7 @@ WHERE facility_id = $1
 class SealLifecycleTimestamps:
     """Observed wall-clock timestamps for Seal lifecycle events.
 
-    Sourced from `proj_seal_summary`, not from aggregate
+    Sourced from `proj_federation_seal`, not from aggregate
     state. `initialized_at` is set once on `SealInitialized`
     (the envelope `occurred_at` of the genesis event).
     `last_signed_at` and `last_signed_by_actor_id` are `None` until

@@ -12,7 +12,8 @@ Cross-cutting decorators applied here:
   2. `with_idempotency` (create-style commands only): Idempotency-Key
      support. Wrapped before tracing so cache-hits and cache-misses
      both attribute to the tracing span.
-  3. `with_tracing`: OTel span around every handler call.
+  3. `with_tracing`: OTel span around every handler call. Query
+     handlers pass `kind="query"` so the span is tagged accordingly.
 
 Stage 2b lands the five Permit lifecycle slices: `register_permit`
 (create-style; idempotency-wrapped) plus the four transitions
@@ -26,6 +27,12 @@ lands the five Seal lifecycle slices: `initialize_seal` (genesis;
 idempotency-wrapped; cross-BC) plus the four transitions
 (`sign_seal_pointer`, `rotate_seal_online_key`,
 `start_seal_republishing`, `complete_seal_republishing`).
+Stage 2c-queries lands the six read-side slices: three list
+queries (`list_permits`, `list_credentials`, `list_seals`) backed
+by the shared `list_query` factory, and three by-id queries
+(`get_permit`, `get_credential`, `get_seal`) that compose
+`load_X` (event-store fold) with `load_X_timestamps` (projection
+fold) into a `XView` bundle.
 """
 
 from dataclasses import dataclass
@@ -36,7 +43,13 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    get_credential,
+    get_permit,
+    get_seal,
     initialize_seal,
+    list_credentials,
+    list_permits,
+    list_seals,
     register_credential,
     register_permit,
     resume_permit,
@@ -62,7 +75,8 @@ class FederationHandlers:
     Stage 2b: five Permit lifecycle slices (register + four
     transitions). Stage 2c-credential: five Credential lifecycle
     slices (register + four transitions). Stage 2c-seal: five Seal
-    lifecycle slices (initialize + four transitions).
+    lifecycle slices (initialize + four transitions). Stage 2c-queries:
+    six read-side slices (three list + three get-by-id).
     """
 
     register_permit: register_permit.IdempotentHandler
@@ -80,6 +94,12 @@ class FederationHandlers:
     rotate_seal_online_key: rotate_seal_online_key.Handler
     start_seal_republishing: start_seal_republishing.Handler
     complete_seal_republishing: complete_seal_republishing.Handler
+    list_permits: list_permits.Handler
+    get_permit: get_permit.Handler
+    list_credentials: list_credentials.Handler
+    get_credential: get_credential.Handler
+    list_seals: list_seals.Handler
+    get_seal: get_seal.Handler
 
 
 def wire_federation(deps: Kernel) -> FederationHandlers:
@@ -180,6 +200,42 @@ def wire_federation(deps: Kernel) -> FederationHandlers:
             complete_seal_republishing.bind(deps),
             command_name="CompleteSealRepublishing",
             bc=_BC,
+        ),
+        list_permits=with_tracing(
+            list_permits.bind(deps),
+            command_name="ListPermits",
+            bc=_BC,
+            kind="query",
+        ),
+        get_permit=with_tracing(
+            get_permit.bind(deps),
+            command_name="GetPermit",
+            bc=_BC,
+            kind="query",
+        ),
+        list_credentials=with_tracing(
+            list_credentials.bind(deps),
+            command_name="ListCredentials",
+            bc=_BC,
+            kind="query",
+        ),
+        get_credential=with_tracing(
+            get_credential.bind(deps),
+            command_name="GetCredential",
+            bc=_BC,
+            kind="query",
+        ),
+        list_seals=with_tracing(
+            list_seals.bind(deps),
+            command_name="ListSeals",
+            bc=_BC,
+            kind="query",
+        ),
+        get_seal=with_tracing(
+            get_seal.bind(deps),
+            command_name="GetSeal",
+            bc=_BC,
+            kind="query",
         ),
     )
 

@@ -1,0 +1,87 @@
+"""MCP tool for the `list_seals` query slice."""
+
+from collections.abc import Callable
+from datetime import datetime
+from typing import Annotated, Any
+from uuid import UUID
+
+from mcp.server.fastmcp import Context, FastMCP
+from pydantic import BaseModel, Field
+
+from cora.federation.aggregates.seal.state import SealStatus
+from cora.federation.features.list_seals.handler import Handler
+from cora.federation.features.list_seals.query import ListSeals, SealStatusFilter
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
+from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
+
+
+class SealSummaryItemOutput(BaseModel):
+    facility_id: str
+    online_key_ref: UUID
+    offline_key_ref: UUID
+    current_head_hash: str | None = None
+    current_sequence_number: int
+    initialized_by_actor_id: UUID
+    last_signed_by_actor_id: UUID | None = None
+    status: SealStatus
+    initialized_at: datetime
+    last_signed_at: datetime | None = None
+
+
+class ListSealsOutput(BaseModel):
+    """Structured output of the `list_seals` MCP tool."""
+
+    items: list[SealSummaryItemOutput]
+    next_cursor: str | None = None
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `list_seals` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="list_seals",
+        description=(
+            "List Seal singletons (one per facility) with cursor pagination "
+            "+ optional status filter (Live / Republishing). Returns sorted "
+            "by initialized_at ASC."
+        ),
+    )
+    async def list_seals_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
+        cursor: Annotated[
+            str | None, Field(default=None, description="Opaque pagination cursor.")
+        ] = None,
+        limit: Annotated[
+            int, Field(default=50, ge=1, le=100, description="Page size (1-100).")
+        ] = 50,
+        status: Annotated[
+            SealStatusFilter | None,
+            Field(default=None, description="Status filter (Live or Republishing)."),
+        ] = None,
+    ) -> ListSealsOutput:
+        handler = get_handler()
+        page = await handler(
+            ListSeals(cursor=cursor, limit=limit, status=status),
+            principal_id=get_mcp_principal_id(ctx),
+            correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
+        )
+        return ListSealsOutput(
+            items=[
+                SealSummaryItemOutput(
+                    facility_id=item.facility_id,
+                    online_key_ref=item.online_key_ref,
+                    offline_key_ref=item.offline_key_ref,
+                    current_head_hash=item.current_head_hash,
+                    current_sequence_number=item.current_sequence_number,
+                    initialized_by_actor_id=item.initialized_by_actor_id,
+                    last_signed_by_actor_id=item.last_signed_by_actor_id,
+                    status=SealStatus(item.status),
+                    initialized_at=item.initialized_at,
+                    last_signed_at=item.last_signed_at,
+                )
+                for item in page.items
+            ],
+            next_cursor=page.next_cursor,
+        )

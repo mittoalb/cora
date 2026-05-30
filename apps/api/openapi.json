@@ -2982,6 +2982,34 @@
         "title": "ConduitSummaryDTO",
         "type": "object"
       },
+      "CredentialListResponse": {
+        "description": "Page of credentials plus opaque next-page cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialSummaryDTO"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CredentialListResponse",
+        "type": "object"
+      },
       "CredentialPurpose": {
         "description": "The role this credential plays in federation traffic.\n\nSix arms locked at Memo 1 Q4:\n\n  - `Signing`: credential signs outbound payloads (manifests,\n    receipts, attestations).\n  - `Verification`: credential verifies inbound payloads signed\n    by peer facilities.\n  - `Authentication`: credential authenticates the local facility\n    to a peer at connection setup.\n  - `Encryption`: credential decrypts inbound payloads or wraps\n    outbound payloads.\n  - `SealOnlineSigning`: credential signs seal pointer updates\n    online; rotated frequently. Referenced by\n    `Seal.online_key_ref`.\n  - `SealOfflineRoot`: credential is the offline root of trust\n    for the seal; rotated rarely and held offline. Referenced by\n    `Seal.offline_key_ref`.\n\nThe two seal purposes are distinct enum values rather than a\nsingle `Seal` arm so the `verify_key_separation` guard in `Seal`\ncan statically detect a same-purpose collision between the\nonline and offline references.",
         "enum": [
@@ -2994,6 +3022,208 @@
         ],
         "title": "CredentialPurpose",
         "type": "string"
+      },
+      "CredentialResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nMirrors the Credential aggregate state plus projection-sourced\nlifecycle timestamps. `secret_ref` / `public_material_ref` /\n`rotation_pending_*_ref` are OPAQUE pointers (URI / KMS ARN /\nvault path), never raw secret material.\n\nPer Path C, `registered_at` / `rotation_started_at` are\nprojection-sourced (not aggregate state) and therefore nullable\non the wire: the projection may transiently lag behind the event\nstore, or the deps may lack a configured pool (in-memory test\nmode). Mirrors the Calibration / Method / Plan read DTOs.",
+        "properties": {
+          "audience": {
+            "title": "Audience",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "facility_id": {
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "public_material_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Material Ref"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/CredentialPurpose"
+          },
+          "registered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registered At"
+          },
+          "registered_by_actor_id": {
+            "format": "uuid",
+            "title": "Registered By Actor Id",
+            "type": "string"
+          },
+          "rotation_pending_public_material_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Pending Public Material Ref"
+          },
+          "rotation_pending_secret_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Pending Secret Ref"
+          },
+          "rotation_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Started At"
+          },
+          "secret_ref": {
+            "title": "Secret Ref",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CredentialStatus"
+          }
+        },
+        "required": [
+          "id",
+          "facility_id",
+          "audience",
+          "purpose",
+          "secret_ref",
+          "public_material_ref",
+          "expires_at",
+          "registered_by_actor_id",
+          "rotation_pending_secret_ref",
+          "rotation_pending_public_material_ref",
+          "status"
+        ],
+        "title": "CredentialResponse",
+        "type": "object"
+      },
+      "CredentialStatus": {
+        "description": "Lifecycle status of a Credential.\n\nThree values per Memo 1:\n\n  - `Active`: credential is in service for its declared purpose.\n  - `Rotating`: a rotation is in flight; the aggregate now\n    carries both the current and a pending pair of refs.\n    Completes back to `Active` (promoting pending to current)\n    or aborts back to `Active` (discarding pending).\n  - `Revoked`: terminal. The credential is no longer usable; no\n    further transitions are valid.",
+        "enum": [
+          "Active",
+          "Rotating",
+          "Revoked"
+        ],
+        "title": "CredentialStatus",
+        "type": "string"
+      },
+      "CredentialSummaryDTO": {
+        "description": "One credential in a paginated list. Opaque refs intentionally omitted.",
+        "properties": {
+          "audience": {
+            "title": "Audience",
+            "type": "string"
+          },
+          "credential_id": {
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "facility_id": {
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/CredentialPurpose"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "rotation_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CredentialStatus"
+          }
+        },
+        "required": [
+          "credential_id",
+          "facility_id",
+          "audience",
+          "purpose",
+          "status",
+          "registered_at"
+        ],
+        "title": "CredentialSummaryDTO",
+        "type": "object"
       },
       "DatasetListResponse": {
         "description": "Page of datasets plus opaque next-page cursor.",
@@ -4605,6 +4835,21 @@
         "title": "FaultAssetRequest",
         "type": "object"
       },
+      "FederationErrorDTO": {
+        "description": "Wire shape for Federation BC error responses.",
+        "properties": {
+          "detail": {
+            "description": "Human-readable error reason.",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "FederationErrorDTO",
+        "type": "object"
+      },
       "GHSDTO": {
         "properties": {
           "code": {
@@ -5387,6 +5632,315 @@
         ],
         "title": "OnwardActionScope",
         "type": "string"
+      },
+      "PermitListResponse": {
+        "description": "Page of permits plus opaque next-page cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PermitSummaryDTO"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PermitListResponse",
+        "type": "object"
+      },
+      "PermitResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nLifecycle timestamps are projection-sourced per Path C;\n`defined_at` is always present, transition timestamps stay `None`\nuntil their event fires.",
+        "properties": {
+          "abi_tier_floor": {
+            "title": "Abi Tier Floor",
+            "type": "string"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "allowed_credentials": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Allowed Credentials",
+            "type": "array"
+          },
+          "allowed_payload_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Payload Types",
+            "type": "array"
+          },
+          "defined_at": {
+            "format": "date-time",
+            "title": "Defined At",
+            "type": "string"
+          },
+          "defined_by_actor_id": {
+            "format": "uuid",
+            "title": "Defined By Actor Id",
+            "type": "string"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "peer_facility_id": {
+            "title": "Peer Facility Id",
+            "type": "string"
+          },
+          "permitted_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permitted Artifact Kinds",
+            "type": "array"
+          },
+          "resumed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumed At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "suspended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspended At"
+          },
+          "terms": {
+            "discriminator": {
+              "mapping": {
+                "Inbound": "#/components/schemas/_InboundTermsResponse",
+                "Outbound": "#/components/schemas/_OutboundTermsResponse"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/_OutboundTermsResponse"
+              },
+              {
+                "$ref": "#/components/schemas/_InboundTermsResponse"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "required": [
+          "id",
+          "peer_facility_id",
+          "direction",
+          "allowed_credentials",
+          "allowed_payload_types",
+          "permitted_artifact_kinds",
+          "abi_tier_floor",
+          "expires_at",
+          "defined_by_actor_id",
+          "status",
+          "terms",
+          "defined_at"
+        ],
+        "title": "PermitResponse",
+        "type": "object"
+      },
+      "PermitStatus": {
+        "description": "FSM positions for a Permit (shared across directions).\n\n- `Defined`:   created but not yet active; the flow is closed.\n- `Active`:    in force; pulls / publishes are permitted under terms.\n- `Suspended`: temporarily paused; resumable back to Active.\n- `Revoked`:   terminal; the permit is closed and cannot be revived.",
+        "enum": [
+          "Defined",
+          "Active",
+          "Suspended",
+          "Revoked"
+        ],
+        "title": "PermitStatus",
+        "type": "string"
+      },
+      "PermitSummaryDTO": {
+        "description": "One permit in a paginated list.",
+        "properties": {
+          "abi_tier_floor": {
+            "$ref": "#/components/schemas/AbiTier"
+          },
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
+          "allowed_credentials": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Allowed Credentials",
+            "type": "array"
+          },
+          "allowed_payload_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Payload Types",
+            "type": "array"
+          },
+          "defined_at": {
+            "format": "date-time",
+            "title": "Defined At",
+            "type": "string"
+          },
+          "defined_by_actor_id": {
+            "format": "uuid",
+            "title": "Defined By Actor Id",
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/Direction"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "peer_facility_id": {
+            "minLength": 1,
+            "title": "Peer Facility Id",
+            "type": "string"
+          },
+          "permit_id": {
+            "format": "uuid",
+            "title": "Permit Id",
+            "type": "string"
+          },
+          "permitted_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permitted Artifact Kinds",
+            "type": "array"
+          },
+          "resumed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumed At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PermitStatus"
+          },
+          "suspended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspended At"
+          },
+          "terms_kind": {
+            "$ref": "#/components/schemas/Direction"
+          }
+        },
+        "required": [
+          "permit_id",
+          "peer_facility_id",
+          "direction",
+          "abi_tier_floor",
+          "expires_at",
+          "defined_by_actor_id",
+          "status",
+          "terms_kind",
+          "defined_at"
+        ],
+        "title": "PermitSummaryDTO",
+        "type": "object"
       },
       "PlanListResponse": {
         "description": "Page of plans plus opaque next-page cursor.",
@@ -8423,6 +8977,214 @@
         "title": "SchemeDTO",
         "type": "object"
       },
+      "SealListResponse": {
+        "description": "Page of Seal singletons plus opaque next-page cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SealSummaryDTO"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SealListResponse",
+        "type": "object"
+      },
+      "SealResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nMirrors the Seal aggregate state plus projection-sourced lifecycle\ntimestamps. `online_key_ref` / `offline_key_ref` are Credential\nreferences (their referenced secrets never cross this wire).",
+        "properties": {
+          "current_head_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Head Hash"
+          },
+          "current_sequence_number": {
+            "title": "Current Sequence Number",
+            "type": "integer"
+          },
+          "facility_id": {
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "initialized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initialized At"
+          },
+          "initialized_by_actor_id": {
+            "format": "uuid",
+            "title": "Initialized By Actor Id",
+            "type": "string"
+          },
+          "last_signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Signed At"
+          },
+          "last_signed_by_actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Signed By Actor Id"
+          },
+          "offline_key_ref": {
+            "format": "uuid",
+            "title": "Offline Key Ref",
+            "type": "string"
+          },
+          "online_key_ref": {
+            "format": "uuid",
+            "title": "Online Key Ref",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SealStatus"
+          }
+        },
+        "required": [
+          "facility_id",
+          "online_key_ref",
+          "offline_key_ref",
+          "current_head_hash",
+          "current_sequence_number",
+          "initialized_by_actor_id",
+          "status"
+        ],
+        "title": "SealResponse",
+        "type": "object"
+      },
+      "SealStatus": {
+        "description": "The Seal singleton's lifecycle posture.\n\nTwo values locked day one per [[project_federation_port_design]]:\n\n  - `Live`: normal posture; the online key signs each new head\n    pointer; consumers trust the pointer chain.\n  - `Republishing`: the offline root is republishing the full\n    registry tree against a new head shape; consumers may defer\n    trust on new pointers until republish completes (the indicator\n    lets them decide, the head still signs).\n\nThe mini-FSM keeps the singleton legible: republishing is a\nbounded window that ends with `SealRepublishingCompleted`.",
+        "enum": [
+          "Live",
+          "Republishing"
+        ],
+        "title": "SealStatus",
+        "type": "string"
+      },
+      "SealSummaryDTO": {
+        "description": "One Seal singleton in a paginated list.",
+        "properties": {
+          "current_head_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Head Hash"
+          },
+          "current_sequence_number": {
+            "title": "Current Sequence Number",
+            "type": "integer"
+          },
+          "facility_id": {
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "initialized_at": {
+            "format": "date-time",
+            "title": "Initialized At",
+            "type": "string"
+          },
+          "initialized_by_actor_id": {
+            "format": "uuid",
+            "title": "Initialized By Actor Id",
+            "type": "string"
+          },
+          "last_signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Signed At"
+          },
+          "last_signed_by_actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Signed By Actor Id"
+          },
+          "offline_key_ref": {
+            "format": "uuid",
+            "title": "Offline Key Ref",
+            "type": "string"
+          },
+          "online_key_ref": {
+            "format": "uuid",
+            "title": "Online Key Ref",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SealStatus"
+          }
+        },
+        "required": [
+          "facility_id",
+          "online_key_ref",
+          "offline_key_ref",
+          "current_sequence_number",
+          "initialized_by_actor_id",
+          "status",
+          "initialized_at"
+        ],
+        "title": "SealSummaryDTO",
+        "type": "object"
+      },
       "SignSealPointerRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /federation/seals/{facility_id}/signings`.",
@@ -9905,6 +10667,56 @@
         "title": "_InboundTermsRequest",
         "type": "object"
       },
+      "_InboundTermsResponse": {
+        "description": "Wire shape for inbound terms in the response.",
+        "properties": {
+          "accepted_canonicalization_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accepted Canonicalization Versions",
+            "type": "array"
+          },
+          "allowed_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Artifact Kinds",
+            "type": "array"
+          },
+          "kind": {
+            "const": "Inbound",
+            "title": "Kind",
+            "type": "string"
+          },
+          "publisher_grant_correlation_handle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher Grant Correlation Handle"
+          },
+          "required_receipt_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Receipt Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "allowed_artifact_kinds",
+          "accepted_canonicalization_versions",
+          "required_receipt_kinds"
+        ],
+        "title": "_InboundTermsResponse",
+        "type": "object"
+      },
       "_OutboundTermsRequest": {
         "additionalProperties": false,
         "description": "JSON wire shape for `OutboundTerms`.",
@@ -9938,6 +10750,39 @@
         "title": "_OutboundTermsRequest",
         "type": "object"
       },
+      "_OutboundTermsResponse": {
+        "description": "Wire shape for outbound terms in the response.",
+        "properties": {
+          "kind": {
+            "const": "Outbound",
+            "title": "Kind",
+            "type": "string"
+          },
+          "onward_action_scope": {
+            "title": "Onward Action Scope",
+            "type": "string"
+          },
+          "read_scope": {
+            "title": "Read Scope",
+            "type": "string"
+          },
+          "scope_set": {
+            "items": {
+              "$ref": "#/components/schemas/_ScopeRefResponse"
+            },
+            "title": "Scope Set",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "scope_set",
+          "read_scope",
+          "onward_action_scope"
+        ],
+        "title": "_OutboundTermsResponse",
+        "type": "object"
+      },
       "_ScopeRefRequest": {
         "additionalProperties": false,
         "description": "JSON wire shape for a `ScopeRef`.",
@@ -9969,6 +10814,36 @@
           "name"
         ],
         "title": "_ScopeRefRequest",
+        "type": "object"
+      },
+      "_ScopeRefResponse": {
+        "description": "Wire shape for a `ScopeRef` in the outbound terms response.",
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualifier"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "_ScopeRefResponse",
         "type": "object"
       },
       "_SetpointStepRequest": {
@@ -18768,6 +19643,158 @@
       }
     },
     "/federation/credentials": {
+      "get": {
+        "operationId": "list_credentials_federation_credentials_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `next_cursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's `next_cursor`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size; capped at 100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Page size; capped at 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Optional facility filter; matches the credential's facility_id.",
+            "in": "query",
+            "name": "facility_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional facility filter; matches the credential's facility_id.",
+              "title": "Facility Id"
+            }
+          },
+          {
+            "description": "Optional purpose filter (one of the 6 CredentialPurpose values).",
+            "in": "query",
+            "name": "purpose",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Signing",
+                    "Verification",
+                    "Authentication",
+                    "Encryption",
+                    "SealOnlineSigning",
+                    "SealOfflineRoot"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional purpose filter (one of the 6 CredentialPurpose values).",
+              "title": "Purpose"
+            }
+          },
+          {
+            "description": "Optional status filter (one of Active / Rotating / Revoked).",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Active",
+                    "Rotating",
+                    "Revoked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional status filter (one of Active / Rotating / Revoked).",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "422": {
+            "description": "Query parameters failed validation OR `cursor` was malformed."
+          }
+        },
+        "summary": "List credentials with cursor pagination + facility_id / purpose / status filters. Opaque secret refs are NOT surfaced; fetch get_credential for those.",
+        "tags": [
+          "federation"
+        ]
+      },
       "post": {
         "operationId": "post_federation_credentials_federation_credentials_post",
         "parameters": [
@@ -18872,6 +19899,83 @@
           }
         },
         "summary": "Register a new federation Credential (cross-BC atomic; emits DecisionRegistered audit)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/credentials/{credential_id}": {
+      "get": {
+        "operationId": "get_federation_credential_federation_credentials__credential_id__get",
+        "parameters": [
+          {
+            "description": "Target credential's id.",
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "description": "Target credential's id.",
+              "format": "uuid",
+              "title": "Credential Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a federation Credential by id",
         "tags": [
           "federation"
         ]
@@ -19259,6 +20363,155 @@
       }
     },
     "/federation/permits": {
+      "get": {
+        "operationId": "list_permits_federation_permits_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `next_cursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's `next_cursor`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size; capped at 100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Page size; capped at 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Optional direction filter (Outbound | Inbound).",
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Outbound",
+                    "Inbound"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional direction filter (Outbound | Inbound).",
+              "title": "Direction"
+            }
+          },
+          {
+            "description": "Optional status filter (one of the 4 PermitStatus values: Defined / Active / Suspended / Revoked).",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Defined",
+                    "Active",
+                    "Suspended",
+                    "Revoked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional status filter (one of the 4 PermitStatus values: Defined / Active / Suspended / Revoked).",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Optional opaque peer-facility-id filter; matches the external string id of the peer facility.",
+            "in": "query",
+            "name": "peer_facility_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional opaque peer-facility-id filter; matches the external string id of the peer facility.",
+              "title": "Peer Facility Id"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermitListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "422": {
+            "description": "Query parameters failed validation OR `cursor` was malformed."
+          }
+        },
+        "summary": "List federation Permits with cursor pagination + direction / status / peer_facility_id filters. Per-arc terms detail not surfaced (fetch get_permit for the full polymorphic terms VO).",
+        "tags": [
+          "federation"
+        ]
+      },
       "post": {
         "operationId": "post_federation_permits_federation_permits_post",
         "parameters": [
@@ -19363,6 +20616,90 @@
           }
         },
         "summary": "Register a new federation Permit (cross-BC atomic; emits DecisionRegistered audit)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/permits/{permit_id}": {
+      "get": {
+        "operationId": "get_federation_permit_federation_permits__permit_id__get",
+        "parameters": [
+          {
+            "description": "Target permit's id.",
+            "in": "path",
+            "name": "permit_id",
+            "required": true,
+            "schema": {
+              "description": "Target permit's id.",
+              "format": "uuid",
+              "title": "Permit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederationErrorDTO"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederationErrorDTO"
+                }
+              }
+            },
+            "description": "No Permit exists with the given id."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederationErrorDTO"
+                }
+              }
+            },
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a federation Permit by id",
         "tags": [
           "federation"
         ]
@@ -19733,6 +21070,113 @@
       }
     },
     "/federation/seals": {
+      "get": {
+        "operationId": "list_seals_federation_seals_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `next_cursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's `next_cursor`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size; capped at 100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Page size; capped at 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Optional status filter (Live or Republishing).",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Live",
+                    "Republishing"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional status filter (Live or Republishing).",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "422": {
+            "description": "Query parameters failed validation OR `cursor` was malformed."
+          }
+        },
+        "summary": "List Seal singletons (one per facility) with cursor pagination + optional status filter.",
+        "tags": [
+          "federation"
+        ]
+      },
       "post": {
         "operationId": "post_federation_seals_federation_seals_post",
         "parameters": [
@@ -19837,6 +21281,83 @@
           }
         },
         "summary": "Initialize the per-facility Seal singleton (cross-BC atomic; emits DecisionRegistered audit)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/seals/{facility_id}": {
+      "get": {
+        "operationId": "get_federation_seal_federation_seals__facility_id__get",
+        "parameters": [
+          {
+            "description": "Target facility's opaque string id.",
+            "in": "path",
+            "name": "facility_id",
+            "required": true,
+            "schema": {
+              "description": "Target facility's opaque string id.",
+              "minLength": 1,
+              "title": "Facility Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SealResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Seal exists for the given facility."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get the per-facility Seal singleton",
         "tags": [
           "federation"
         ]

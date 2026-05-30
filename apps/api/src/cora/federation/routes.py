@@ -20,7 +20,10 @@ attaches the five Seal lifecycle slice routers (`initialize_seal`
 Seal domain-error handlers were wired alongside the Credential
 slices, so the arch-fitness
 `test_every_domain_error_registered_as_http_handler` passed
-day-one.
+day-one. Stage 2c-queries attaches the six read-side routers
+(`list_permits` + `get_permit` + `list_credentials` +
+`get_credential` + `list_seals` + `get_seal`); queries surface
+404 on miss through the existing `*NotFoundError` handlers.
 """
 
 from fastapi import APIRouter, FastAPI, Request, status
@@ -62,7 +65,13 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    get_credential,
+    get_permit,
+    get_seal,
     initialize_seal,
+    list_credentials,
+    list_permits,
+    list_seals,
     register_credential,
     register_permit,
     resume_permit,
@@ -153,6 +162,12 @@ def register_federation_routes(app: FastAPI) -> None:
     app.include_router(rotate_seal_online_key.router)
     app.include_router(start_seal_republishing.router)
     app.include_router(complete_seal_republishing.router)
+    app.include_router(list_permits.router)
+    app.include_router(get_permit.router)
+    app.include_router(list_credentials.router)
+    app.include_router(get_credential.router)
+    app.include_router(list_seals.router)
+    app.include_router(get_seal.router)
     for validation_cls in (
         InvalidPermitScopeError,
         InvalidCredentialSecretRefError,

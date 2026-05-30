@@ -9,7 +9,9 @@ is always used.
 Stage 2b registers the five Permit lifecycle slice tools.
 Stage 2c-credential registers the five Credential lifecycle slice
 tools. Stage 2c-seal registers the five Seal lifecycle slice
-tools.
+tools. Stage 2c-queries registers the six read-side slice tools
+(`list_permits` + `get_permit` + `list_credentials` +
+`get_credential` + `list_seals` + `get_seal`).
 """
 
 from collections.abc import Callable
@@ -26,7 +28,13 @@ from cora.federation.features.complete_credential_rotation import (
 from cora.federation.features.complete_seal_republishing import (
     tool as complete_seal_republishing_tool,
 )
+from cora.federation.features.get_credential import tool as get_credential_tool
+from cora.federation.features.get_permit import tool as get_permit_tool
+from cora.federation.features.get_seal import tool as get_seal_tool
 from cora.federation.features.initialize_seal import tool as initialize_seal_tool
+from cora.federation.features.list_credentials import tool as list_credentials_tool
+from cora.federation.features.list_permits import tool as list_permits_tool
+from cora.federation.features.list_seals import tool as list_seals_tool
 from cora.federation.features.register_credential import (
     tool as register_credential_tool,
 )
@@ -115,6 +123,30 @@ def register_federation_tools(
     complete_seal_republishing_tool.register(
         mcp,
         get_handler=lambda: get_handlers().complete_seal_republishing,
+    )
+    list_permits_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_permits,
+    )
+    get_permit_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_permit,
+    )
+    list_credentials_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_credentials,
+    )
+    get_credential_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_credential,
+    )
+    list_seals_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_seals,
+    )
+    get_seal_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_seal,
     )
 
 
