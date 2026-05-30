@@ -9,11 +9,15 @@ projection module under `cora.equipment.projections`.
 
 from cora.equipment.projections import (
     AssetFamilyMembershipProjection,
+    AssetLocationProjection,
     AssetSummaryProjection,
     FamilySummaryProjection,
     FrameChildrenProjection,
     FrameConsumersProjection,
     FrameSummaryProjection,
+    MountChildrenProjection,
+    MountLookupProjection,
+    MountSummaryProjection,
 )
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
@@ -31,6 +35,10 @@ def register_equipment_projections(
     registry.register(FrameSummaryProjection())
     registry.register(FrameChildrenProjection())
     registry.register(FrameConsumersProjection())
+    registry.register(MountSummaryProjection())
+    registry.register(MountLookupProjection())
+    registry.register(MountChildrenProjection())
+    registry.register(AssetLocationProjection())
 
 
 __all__ = ["register_equipment_projections"]
