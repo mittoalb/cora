@@ -323,7 +323,7 @@ async def test_hold_visit_handler_records_reason_via_factory_wiring() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase gamma: check_in_to_visit + check_out_from_visit (presence).
+# Presence handlers: check_in_to_visit + check_out_from_visit.
 # ---------------------------------------------------------------------------
 
 

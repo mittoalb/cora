@@ -52,7 +52,7 @@ def register_trust_tools(
     list_conduits_tool.register(mcp, get_handler=lambda: get_handlers().list_conduits)
     list_policies_tool.register(mcp, get_handler=lambda: get_handlers().list_policies)
     list_permissions_tool.register(mcp, get_handler=lambda: get_handlers().list_permissions)
-    # Visit lifecycle tools (Phase beta).
+    # Visit lifecycle tools.
     register_visit_tool.register(mcp, get_handler=lambda: get_handlers().register_visit)
     arrive_visit_tool.register(mcp, get_handler=lambda: get_handlers().arrive_visit)
     start_visit_tool.register(mcp, get_handler=lambda: get_handlers().start_visit)
@@ -62,7 +62,7 @@ def register_trust_tools(
     cancel_visit_tool.register(mcp, get_handler=lambda: get_handlers().cancel_visit)
     abort_visit_tool.register(mcp, get_handler=lambda: get_handlers().abort_visit)
     void_visit_tool.register(mcp, get_handler=lambda: get_handlers().void_visit)
-    # Visit presence tools (Phase gamma).
+    # Visit presence tools.
     check_in_to_visit_tool.register(mcp, get_handler=lambda: get_handlers().check_in_to_visit)
     check_out_from_visit_tool.register(mcp, get_handler=lambda: get_handlers().check_out_from_visit)
     # Visit Surface-control tools.

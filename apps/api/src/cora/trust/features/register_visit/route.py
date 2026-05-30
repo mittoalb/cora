@@ -57,20 +57,16 @@ class RegisterVisitRequest(BaseModel):
     part_of_visit_id: UUID | None = Field(
         default=None,
         description=(
-            "Optional self-FK for nested commissioning. WARNING: partOf "
-            "cohesion checks (parent exists, parent on same Surface) land "
-            "Phase delta; until then the field is accepted but not "
-            "validated. Set only when shipping in tandem with Phase delta "
-            "or your tooling enforces cohesion externally."
+            "Optional self-FK for nested commissioning. The decider enforces "
+            "parent existence and same-Surface cohesion."
         ),
     )
     external_refs: list[_ExternalRefBody] = Field(
         default_factory=list[_ExternalRefBody],
         description=(
             "Anti-corruption refs to upstream-deferred concepts (proposal, "
-            "btr, visit, cycle). WARNING: scope-bounded query slices land "
-            "Phase epsilon; until then refs are stored on the event but "
-            "not exposed via list_visits_by_external_ref."
+            "btr, visit, cycle). Stored on the event; surfaced through the "
+            "list_visits_by_external_ref query slice."
         ),
     )
 

@@ -1,6 +1,6 @@
 """Domain events emitted by the Visit aggregate, plus the discriminated union.
 
-Nine events ship Phase beta (8 lifecycle transitions + 1 voided terminal):
+Lifecycle events (8 transitions + 1 voided terminal):
 
   - `VisitRegistered`   -- genesis (Planned status)
   - `VisitArrived`      -- Planned -> Arrived
@@ -13,21 +13,17 @@ Nine events ship Phase beta (8 lifecycle transitions + 1 voided terminal):
   - `VisitVoided`       -- any non-terminal -> Voided (+ reason)
                           FHIR `entered-in-error` analog.
 
-Presence events (`VisitCheckedIn` / `VisitCheckedOut`) ship Phase gamma.
-Control events (`VisitTookControlOfSurface` / `VisitReleasedControlOfSurface`)
-ship Phase delta. Both will land as additive union members.
+Presence events: `VisitCheckedIn` / `VisitCheckedOut`. Surface-control
+events: `VisitTookControlOfSurface` / `VisitReleasedControlOfSurface`.
 
 `VisitRegistered.permitted_*` lists become `frozenset` on state in the
 evolver -- same list-on-event / frozenset-on-state pattern as PolicyDefined.
 `external_refs` is serialized as a sorted list of dicts in to_payload for
 deterministic byte-equality across runs.
 
-`part_of_visit_id` and `external_refs` are on the VisitRegistered event
-payload from Phase beta even though their API surface only lands in
-Phase delta / Phase epsilon respectively (per design memo P2-Design-3
-migration-drift closure). The slice's command exposes them as optional
-params with defaults; nothing semantically uses them until later phases
-expose them at the API.
+`part_of_visit_id` and `external_refs` ship on the VisitRegistered event
+payload alongside the lifecycle fields to avoid a two-pass payload migration
+when the partOf cohesion check + external-ref query slices land.
 """
 
 from dataclasses import dataclass, field
@@ -58,7 +54,7 @@ class VisitRegistered:
 class VisitArrived:
     """The Visit team has arrived (explicit operator gesture).
 
-    Distinct from any presence event (Phase gamma `VisitCheckedIn`).
+    Distinct from any presence event (`VisitCheckedIn`).
     Operator may call `arrive_visit` without any individual actor
     check-in (e.g., team here but specific presences not tracked).
     Defends V6 explicit-gesture lock.

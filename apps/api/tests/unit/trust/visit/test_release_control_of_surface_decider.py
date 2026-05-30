@@ -1,4 +1,4 @@
-"""Decider tests for `release_control_of_surface` (Phase delta)."""
+"""Decider tests for `release_control_of_surface`."""
 
 from uuid import uuid4
 

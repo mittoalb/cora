@@ -1,13 +1,13 @@
 """The `RegisterVisit` command -- intent dataclass for this slice.
 
 Genesis command. Caller-supplied `visit_id` so a BSS subscriber can
-mint deterministic UUIDs in Phase iota (`uuid5(NAMESPACE_BSS,
-f'{scheme}:{external_id}')`) for replay-safe ingest, while operator-
-direct registration can also supply a UUID.
+mint deterministic UUIDs (`uuid5(NAMESPACE_BSS, f'{scheme}:{external_id}')`)
+for replay-safe ingest, while operator-direct registration can also supply
+a UUID.
 
-`part_of_visit_id` and `external_refs` are on the command from Phase
-beta (closes P2-Design-3 migration drift) even though their API surface
-lands Phase delta + Phase epsilon respectively.
+`part_of_visit_id` and `external_refs` ship on the command alongside
+the lifecycle fields to avoid a two-pass event-payload migration when
+the partOf cohesion check + external-ref query slices land.
 """
 
 from dataclasses import dataclass, field
@@ -37,12 +37,10 @@ class RegisterVisit:
     `planned_start_at` + `planned_end_at`: REQUIRED. Decider enforces
     `planned_end_at > planned_start_at`.
 
-    `part_of_visit_id`: OPTIONAL self-FK for nested commissioning
-    (Phase delta API surface; field already on event payload).
+    `part_of_visit_id`: OPTIONAL self-FK for nested commissioning.
 
     `external_refs`: OPTIONAL anti-corruption refs to upstream-
-    deferred concepts (Phase epsilon API surface; field already on
-    event payload).
+    deferred concepts.
     """
 
     visit_id: UUID

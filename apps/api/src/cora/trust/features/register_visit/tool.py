@@ -64,9 +64,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             UUID | None,
             Field(
                 description=(
-                    "Optional self-FK for nested commissioning. WARNING: partOf "
-                    "cohesion checks land Phase delta; until then the field is "
-                    "accepted but not validated."
+                    "Optional self-FK for nested commissioning; the decider "
+                    "enforces parent existence and same-Surface cohesion."
                 ),
             ),
         ] = None,
@@ -74,10 +73,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             list[_ExternalRefInput],
             Field(
                 description=(
-                    "Anti-corruption refs to upstream-deferred concepts. WARNING: "
-                    "scope-bounded query slices land Phase epsilon; until then refs "
-                    "are stored on the event but not exposed via "
-                    "list_visits_by_external_ref."
+                    "Anti-corruption refs to upstream-deferred concepts "
+                    "(proposal, btr, visit, cycle). Stored on the event."
                 ),
             ),
         ] = [],  # noqa: B006  -- MCP requires literal default, frozen via tuple-conversion below

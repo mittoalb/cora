@@ -49,10 +49,10 @@ _EXPECTED_TOOL_NAMES = {
     "cancel_visit",
     "abort_visit",
     "void_visit",
-    # Phase gamma presence tools.
+    # Presence tools.
     "check_in_to_visit",
     "check_out_from_visit",
-    # Phase delta Surface-control tools.
+    # Surface-control tools.
     "take_control_of_surface",
     "release_control_of_surface",
 }
@@ -114,12 +114,12 @@ def test_mcp_lifecycle_tool_returns_iserror_when_visit_not_found(tool_name: str)
     arguments: dict[str, str] = {"visit_id": str(uuid4())}
     if tool_name in {"hold_visit", "cancel_visit", "abort_visit", "void_visit"}:
         arguments["reason"] = "r"
-    # Phase gamma presence tools carry actor_id (and check_in_to_visit also mode).
+    # Presence tools carry actor_id (and check_in_to_visit also mode).
     if tool_name in {"check_in_to_visit", "check_out_from_visit"}:
         arguments["actor_id"] = str(uuid4())
     if tool_name == "check_in_to_visit":
         arguments["mode"] = "physical"
-    # Phase delta Surface-control tools carry surface_id.
+    # Surface-control tools carry surface_id.
     if tool_name in {"take_control_of_surface", "release_control_of_surface"}:
         arguments["surface_id"] = str(uuid4())
 

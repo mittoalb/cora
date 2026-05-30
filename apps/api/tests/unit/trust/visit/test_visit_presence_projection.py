@@ -1,4 +1,4 @@
-"""Unit tests for `VisitPresenceProjection` (Phase gamma).
+"""Unit tests for `VisitPresenceProjection`.
 
 Pins per-event-type apply() dispatch + idempotency. Postgres-side
 behavior is exercised in the integration-tier projection-worker tests.

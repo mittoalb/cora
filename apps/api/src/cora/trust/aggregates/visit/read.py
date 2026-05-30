@@ -8,9 +8,9 @@ projection-backed read paths that need to load + fold a stream.
 is the Path C reader for projection-side observable timestamps
 (`created_at` / `arrived_at` / `started_at` / `completed_at`). Returned
 together with the state by the per-handler `VisitView` wrapper at the
-read boundary (Phase beta returns timestamps separately via the
-projection table; the wrapper VO is convention-aligned with
-`AgentView` / `MethodView` / etc. Path C precedent).
+read boundary; timestamps come from the projection table while the
+wrapper VO is convention-aligned with `AgentView` / `MethodView` / etc.
+(Path C precedent).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

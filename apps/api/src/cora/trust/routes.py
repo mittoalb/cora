@@ -182,7 +182,7 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(list_conduits.router)
     app.include_router(list_policies.router)
     app.include_router(list_permissions.router)
-    # Visit lifecycle slices (Phase beta).
+    # Visit lifecycle slices.
     app.include_router(register_visit.router)
     app.include_router(arrive_visit.router)
     app.include_router(start_visit.router)
@@ -192,7 +192,7 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(cancel_visit.router)
     app.include_router(abort_visit.router)
     app.include_router(void_visit.router)
-    # Visit presence slices (Phase gamma).
+    # Visit presence slices.
     app.include_router(check_in_to_visit.router)
     app.include_router(check_out_from_visit.router)
     # Visit Surface-control slices.

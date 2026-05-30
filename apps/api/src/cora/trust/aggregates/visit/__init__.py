@@ -8,9 +8,9 @@ Per `[[project_visit_aggregate_design]]`, Visit is the operational-
 envelope counterpart to Trust's authz-topology primitives. 8-state FSM
 locked day one: Planned -> Arrived -> InProgress <-> OnHold ->
 Completed; +Cancelled (pre-work) +Aborted (mid-work) +Voided
-(registration-error). 9 lifecycle slices ship in Phase beta; presence
-(Phase gamma) + control (Phase delta) + type API surface (Phase
-epsilon) + statushistory projection (Phase zeta) follow.
+(registration-error). Concerns are layered as additive slices: lifecycle
+(register + 8 transitions), presence (check-in / check-out), and
+Surface control (take / release).
 """
 
 from cora.trust.aggregates.visit.events import (

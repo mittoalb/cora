@@ -29,10 +29,8 @@ Surface + Run + Subject.
 
 The aggregate is intentionally slim per `[[project_fold_cost_principles]]`
 and the thin-shape lock in `[[project_visit_aggregate_research]]`: 6
-owned scalar fields plus 2 collections (presence_entries shipped Phase
-gamma, external_refs shipped Phase epsilon API surface but already on
-event payload from Phase beta) plus 1 self-FK (part_of_visit_id, Phase
-delta API surface, already on event payload).
+owned scalar fields plus 2 collections (`presence_entries`,
+`external_refs`) plus 1 self-FK (`part_of_visit_id`).
 
 ## Two-tier period split
 
@@ -172,7 +170,7 @@ class InvalidVisitReasonError(ValueError):
 
 
 # ---------------------------------------------------------------------------
-# Presence value object + mode enum (Phase gamma)
+# Presence value object + mode enum
 # ---------------------------------------------------------------------------
 
 
@@ -422,20 +420,18 @@ class Visit:
     Actual periods live on projection per Path C.
 
     `part_of_visit_id: UUID | None` is the self-FK for commissioning-
-    during-user nesting (Phase delta API surface; field on event payload
-    from Phase beta). Constraint at register_visit: child Visit must
+    during-user nesting. Constraint at register_visit: child Visit must
     reference parent on the SAME Surface (`VisitPartOfMismatchedSurfaceError`).
 
     `external_refs: frozenset[ExternalRef]` is the open-scheme anti-
     corruption ref to upstream-deferred concepts (`proposal` / `btr` /
-    `visit` / `cycle`). Reuses cross-BC infrastructure. API surface
-    exposed in Phase epsilon; defaults empty until then.
+    `visit` / `cycle`). Reuses cross-BC infrastructure.
 
     `last_status_reason: str | None` is populated by Held / Cancelled /
     Aborted / Voided events. Carries the audit breadcrumb. Resume
     preserves the prior value.
 
-    `presence_entries: frozenset[PresenceEntry]` (Phase gamma) tracks
+    `presence_entries: frozenset[PresenceEntry]` tracks
     who actually checked in / out, in which mode (physical | remote),
     and when. The Visit lifecycle FSM operates independently of
     presence per V6 explicit-gesture lock: the operator can drive the

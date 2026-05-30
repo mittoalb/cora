@@ -36,10 +36,10 @@ _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
         "CancelVisit",
         "AbortVisit",
         "VoidVisit",
-        # Phase gamma (presence)
+        # Presence
         "CheckInToVisit",
         "CheckOutFromVisit",
-        # Phase delta (Surface control)
+        # Surface control
         "TakeControlOfSurface",
         "ReleaseControlOfSurface",
     }

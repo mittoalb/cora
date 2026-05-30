@@ -27,7 +27,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="arrive_visit",
         description=(
             "Arrive at a Planned Visit (Planned -> Arrived). Explicit "
-            "operator gesture; distinct from check_in (Phase gamma)."
+            "operator gesture; distinct from check_in."
         ),
     )
     async def arrive_visit_tool(  # pyright: ignore[reportUnusedFunction]

@@ -226,7 +226,7 @@ def test_void_returns_409_when_visit_is_already_completed() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase gamma: check-in + check-out endpoints (presence).
+# Presence endpoints: check-in + check-out.
 # ---------------------------------------------------------------------------
 
 
@@ -314,7 +314,7 @@ def test_check_out_returns_404_when_actor_not_checked_in() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase delta: take-control + release-control endpoints (Surface control).
+# Surface-control endpoints: take-control + release-control.
 #
 # The pool-less TestClient kernel returns active_holder=None (Surface
 # presumed free) so the take-control happy path returns 204. The

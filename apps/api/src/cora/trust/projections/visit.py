@@ -1,7 +1,7 @@
 """VisitSummaryProjection: folds Visit events into the proj_trust_visit_summary
-read model that backs `GET /visits` (Phase epsilon API surface).
+read model that backs `GET /visits`.
 
-Subscribed events (Phase beta):
+Subscribed events:
   - VisitRegistered  -> INSERT (genesis, with planned_* + part_of + external_refs)
   - VisitArrived     -> UPDATE arrived_at + status='Arrived'
   - VisitStarted     -> UPDATE started_at + status='InProgress'
@@ -13,8 +13,8 @@ Subscribed events (Phase beta):
   - VisitVoided      -> UPDATE completed_at + status='Voided' + reason
 
 Per `[[project_template_aggregate_timestamps]]` Path C, statushistory is
-NOT inline -- ships Phase zeta as separate proj_trust_visit_status_history
-projection.
+NOT inline; a separate proj_trust_visit_status_history projection lands
+when needed.
 
 All INSERTs use ON CONFLICT (visit_id) DO NOTHING; all UPDATEs are
 naturally idempotent (re-applying the same event matches the same row).

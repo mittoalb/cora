@@ -1,7 +1,7 @@
 """VisitPresenceProjection: folds VisitCheckedIn / VisitCheckedOut events
 into the `proj_trust_visit_presence` read model.
 
-Subscribed events (Phase gamma):
+Subscribed events:
   - VisitCheckedIn  -> INSERT row with check_out_at=NULL
                        ON CONFLICT DO NOTHING (replay idempotency)
   - VisitCheckedOut -> UPDATE check_out_at where (visit_id, actor_id, NULL)

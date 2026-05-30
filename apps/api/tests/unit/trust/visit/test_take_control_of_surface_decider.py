@@ -1,4 +1,4 @@
-"""Decider tests for `take_control_of_surface` (Phase delta)."""
+"""Decider tests for `take_control_of_surface`."""
 
 from dataclasses import replace
 from uuid import uuid4
