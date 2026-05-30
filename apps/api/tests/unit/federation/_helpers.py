@@ -1,14 +1,27 @@
-"""Shared seed helpers for the Federation Permit lifecycle handler tests.
+"""Shared seed helpers for the Federation aggregate lifecycle handler tests.
 
-Each transition slice's handler test (activate / suspend / resume /
-revoke) needs to seed a `Defined`, `Active`, `Suspended`, or `Revoked`
-Permit against an InMemoryEventStore. The helpers keep per-test files
-focused on assertions rather than re-encoding the same seed dance.
+Each transition slice's handler test (Permit: activate / suspend /
+resume / revoke; Credential: start / complete / abort rotation,
+revoke) needs to seed an aggregate at a specific FSM status against
+an InMemoryEventStore. The helpers keep per-test files focused on
+assertions rather than re-encoding the same seed dance.
 """
 
 from datetime import datetime
 from uuid import UUID
 
+from cora.federation.aggregates.credential import (
+    CredentialPurpose,
+    CredentialRegistered,
+    CredentialRevoked,
+    CredentialRotationStarted,
+)
+from cora.federation.aggregates.credential import (
+    event_type_name as credential_event_type_name,
+)
+from cora.federation.aggregates.credential import (
+    to_payload as credential_to_payload,
+)
 from cora.federation.aggregates.permit import (
     AbiTier,
     Direction,
@@ -173,8 +186,153 @@ async def seed_suspended_permit(
     )
 
 
+async def seed_active_credential(
+    store: InMemoryEventStore,
+    *,
+    credential_id: UUID,
+    genesis_event_id: UUID,
+    correlation_id: UUID,
+    principal_id: UUID,
+    registered_at: datetime,
+    expires_at: datetime | None,
+    facility_id: str = "aps-2bm",
+    audience: str = "peer-acme",
+    purpose: CredentialPurpose = CredentialPurpose.SIGNING,
+    secret_ref: str = "vault://current/v1",
+    public_material_ref: str | None = "vault://current/pub/v1",
+) -> None:
+    """Append a single `CredentialRegistered` event so the credential lands in `Active`."""
+    genesis = CredentialRegistered(
+        credential_id=credential_id,
+        facility_id=facility_id,
+        audience=audience,
+        purpose=purpose,
+        secret_ref=secret_ref,
+        public_material_ref=public_material_ref,
+        expires_at=expires_at,
+        registered_by_actor_id=principal_id,
+        occurred_at=registered_at,
+    )
+    await store.append(
+        stream_type="Credential",
+        stream_id=credential_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=credential_event_type_name(genesis),
+                payload=credential_to_payload(genesis),
+                occurred_at=genesis.occurred_at,
+                event_id=genesis_event_id,
+                command_name="RegisterCredential",
+                correlation_id=correlation_id,
+                causation_id=None,
+                principal_id=principal_id,
+            )
+        ],
+    )
+
+
+async def seed_rotating_credential(
+    store: InMemoryEventStore,
+    *,
+    credential_id: UUID,
+    genesis_event_id: UUID,
+    rotation_started_event_id: UUID,
+    correlation_id: UUID,
+    principal_id: UUID,
+    registered_at: datetime,
+    rotation_started_at: datetime,
+    expires_at: datetime | None,
+    pending_secret_ref: str = "vault://pending/v2",
+    pending_public_material_ref: str | None = "vault://pending/pub/v2",
+) -> None:
+    """Seed Registered (Active) then RotationStarted; stream version ends at 2."""
+    await seed_active_credential(
+        store,
+        credential_id=credential_id,
+        genesis_event_id=genesis_event_id,
+        correlation_id=correlation_id,
+        principal_id=principal_id,
+        registered_at=registered_at,
+        expires_at=expires_at,
+    )
+    started = CredentialRotationStarted(
+        credential_id=credential_id,
+        pending_secret_ref=pending_secret_ref,
+        pending_public_material_ref=pending_public_material_ref,
+        rotation_started_by_actor_id=principal_id,
+        occurred_at=rotation_started_at,
+    )
+    await store.append(
+        stream_type="Credential",
+        stream_id=credential_id,
+        expected_version=1,
+        events=[
+            to_new_event(
+                event_type=credential_event_type_name(started),
+                payload=credential_to_payload(started),
+                occurred_at=started.occurred_at,
+                event_id=rotation_started_event_id,
+                command_name="StartCredentialRotation",
+                correlation_id=correlation_id,
+                causation_id=None,
+                principal_id=principal_id,
+            )
+        ],
+    )
+
+
+async def seed_revoked_credential(
+    store: InMemoryEventStore,
+    *,
+    credential_id: UUID,
+    genesis_event_id: UUID,
+    revoke_event_id: UUID,
+    correlation_id: UUID,
+    principal_id: UUID,
+    registered_at: datetime,
+    revoked_at: datetime,
+    expires_at: datetime | None,
+) -> None:
+    """Seed Registered (Active) then Revoked; stream version ends at 2."""
+    await seed_active_credential(
+        store,
+        credential_id=credential_id,
+        genesis_event_id=genesis_event_id,
+        correlation_id=correlation_id,
+        principal_id=principal_id,
+        registered_at=registered_at,
+        expires_at=expires_at,
+    )
+    revoked = CredentialRevoked(
+        credential_id=credential_id,
+        revoked_by_actor_id=principal_id,
+        occurred_at=revoked_at,
+    )
+    await store.append(
+        stream_type="Credential",
+        stream_id=credential_id,
+        expected_version=1,
+        events=[
+            to_new_event(
+                event_type=credential_event_type_name(revoked),
+                payload=credential_to_payload(revoked),
+                occurred_at=revoked.occurred_at,
+                event_id=revoke_event_id,
+                command_name="RevokeCredential",
+                correlation_id=correlation_id,
+                causation_id=None,
+                principal_id=principal_id,
+            )
+        ],
+    )
+
+
 __all__ = [
+    "seed_active_credential",
     "seed_active_permit",
     "seed_defined_permit",
+    "seed_revoked_credential",
+    "seed_rotating_credential",
     "seed_suspended_permit",
 ]

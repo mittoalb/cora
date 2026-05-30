@@ -29,6 +29,26 @@
         "title": "AbiTier",
         "type": "string"
       },
+      "AbortCredentialRotationRequest": {
+        "description": "Body for `POST /federation/credentials/{credential_id}/rotation/abort`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the rotation is being aborted. Examples: \"peer\nrefused new material\", \"SecretStore generation failed mid-flight\",\n\"operator changed their mind\".",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied reason for aborting the rotation (audit-log breadcrumb).",
+            "title": "Reason"
+          }
+        },
+        "title": "AbortCredentialRotationRequest",
+        "type": "object"
+      },
       "AbortProcedureRequest": {
         "description": "Body for `POST /procedures/{procedure_id}/abort`.",
         "properties": {
@@ -2929,6 +2949,19 @@
         ],
         "title": "ConduitSummaryDTO",
         "type": "object"
+      },
+      "CredentialPurpose": {
+        "description": "The role this credential plays in federation traffic.\n\nSix arms locked at Memo 1 Q4:\n\n  - `Signing`: credential signs outbound payloads (manifests,\n    receipts, attestations).\n  - `Verification`: credential verifies inbound payloads signed\n    by peer facilities.\n  - `Authentication`: credential authenticates the local facility\n    to a peer at connection setup.\n  - `Encryption`: credential decrypts inbound payloads or wraps\n    outbound payloads.\n  - `SealOnlineSigning`: credential signs seal pointer updates\n    online; rotated frequently. Referenced by\n    `Seal.online_key_ref`.\n  - `SealOfflineRoot`: credential is the offline root of trust\n    for the seal; rotated rarely and held offline. Referenced by\n    `Seal.offline_key_ref`.\n\nThe two seal purposes are distinct enum values rather than a\nsingle `Seal` arm so the `verify_key_separation` guard in `Seal`\ncan statically detect a same-purpose collision between the\nonline and offline references.",
+        "enum": [
+          "Signing",
+          "Verification",
+          "Authentication",
+          "Encryption",
+          "SealOnlineSigning",
+          "SealOfflineRoot"
+        ],
+        "title": "CredentialPurpose",
+        "type": "string"
       },
       "DatasetListResponse": {
         "description": "Page of datasets plus opaque next-page cursor.",
@@ -6795,6 +6828,82 @@
         "title": "RegisterClearanceResponse",
         "type": "object"
       },
+      "RegisterCredentialRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/credentials`.",
+        "properties": {
+          "audience": {
+            "description": "Opaque string scoping the credential to a particular peer / endpoint.",
+            "minLength": 1,
+            "title": "Audience",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional contractual upper bound. When set, must lie strictly after the server's now.",
+            "title": "Expires At"
+          },
+          "facility_id": {
+            "description": "Opaque string id of the facility this credential binds to. Facility identity is external to CORA; we do NOT mint facility ids.",
+            "minLength": 1,
+            "title": "Facility Id",
+            "type": "string"
+          },
+          "public_material_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Opaque pointer to the public counterpart when the purpose has one (verification key, encryption-public-key, certificate handle). None for symmetric purposes.",
+            "title": "Public Material Ref"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/CredentialPurpose",
+            "description": "Closed enum selecting which of the six roles this credential plays (Signing / Verification / Authentication / Encryption / SealOnlineSigning / SealOfflineRoot)."
+          },
+          "secret_ref": {
+            "description": "Opaque pointer (URI / KMS ARN / vault path) to the secret material held in a SecretStore adapter. The aggregate NEVER carries raw secret bytes; the caller is responsible for landing bytes in SecretStore before invoking this slice.",
+            "minLength": 1,
+            "title": "Secret Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_id",
+          "audience",
+          "purpose",
+          "secret_ref"
+        ],
+        "title": "RegisterCredentialRequest",
+        "type": "object"
+      },
+      "RegisterCredentialResponse": {
+        "description": "Response body for `POST /federation/credentials`.",
+        "properties": {
+          "credential_id": {
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential_id"
+        ],
+        "title": "RegisterCredentialResponse",
+        "type": "object"
+      },
       "RegisterDatasetRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /datasets`.",
@@ -7764,6 +7873,25 @@
         "title": "RevisionResponse",
         "type": "object"
       },
+      "RevokeCredentialBody": {
+        "description": "Optional revoke-credential request body.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional free-text operator intent for the revoke. Accepted at the schema boundary but not persisted on the CredentialRevoked event today; reserved for a future audit-narrative wiring.",
+            "title": "Reason"
+          }
+        },
+        "title": "RevokeCredentialBody",
+        "type": "object"
+      },
       "RevokeToolFromAgentRequest": {
         "description": "Body for `POST /agents/{agent_id}/tools/revoke`.",
         "properties": {
@@ -8276,6 +8404,35 @@
           "first_reviewer_role"
         ],
         "title": "StartClearanceReviewRequest",
+        "type": "object"
+      },
+      "StartCredentialRotationRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/credentials/{credential_id}/rotation/start`.",
+        "properties": {
+          "new_public_material_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional opaque pointer to the pending public counterpart (verification key, certificate handle). None when the purpose is symmetric or the public half lives elsewhere.",
+            "title": "New Public Material Ref"
+          },
+          "new_secret_ref": {
+            "description": "Opaque pointer to the pending secret material. Must differ from the credential's current secret_ref. The raw secret bytes never cross this boundary; the caller is responsible for SecretStore provisioning.",
+            "minLength": 1,
+            "title": "New Secret Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_secret_ref"
+        ],
+        "title": "StartCredentialRotationRequest",
         "type": "object"
       },
       "StartRunRequest": {
@@ -18463,6 +18620,497 @@
         "summary": "Issue a new version label for an existing family",
         "tags": [
           "equipment"
+        ]
+      }
+    },
+    "/federation/credentials": {
+      "post": {
+        "operationId": "post_federation_credentials_federation_credentials_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Credential.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Credential.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterCredentialResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only facility_id, audience, or secret_ref)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Defensive guard: the target Credential stream already has events. Essentially impossible in production with UUIDv7 ids."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body failed schema validation (missing field, invalid enum value, malformed datetime), OR expires_at is set in the past, OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Register a new federation Credential (cross-BC atomic; emits DecisionRegistered audit)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/credentials/{credential_id}/revoke": {
+      "post": {
+        "operationId": "post_federation_credentials_revoke_federation_credentials__credential_id__revoke_post",
+        "parameters": [
+          {
+            "description": "Target credential's id.",
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "description": "Target credential's id.",
+              "format": "uuid",
+              "title": "Credential Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RevokeCredentialBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Credential is already Revoked (revoke_credential is strict-not-idempotent; Revoked is terminal)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke a Credential (terminal: any non-Revoked -> Revoked)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/credentials/{credential_id}/rotation/abort": {
+      "post": {
+        "operationId": "post_credentials_rotation_abort_federation_credentials__credential_id__rotation_abort_post",
+        "parameters": [
+          {
+            "description": "Target credential's id.",
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "description": "Target credential's id.",
+              "format": "uuid",
+              "title": "Credential Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbortCredentialRotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Credential is not in `Rotating` status (abort_credential_rotation requires Rotating; Active / Revoked credentials are rejected)."
+          },
+          "422": {
+            "description": "Request body failed schema validation (reason exceeds 500 chars) or path parameter is not a UUID."
+          }
+        },
+        "summary": "Abort an in-flight credential rotation (Rotating -> Active)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/credentials/{credential_id}/rotation/complete": {
+      "post": {
+        "operationId": "post_federation_credentials_rotation_complete_federation_credentials__credential_id__rotation_complete_post",
+        "parameters": [
+          {
+            "description": "Target credential's id.",
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "description": "Target credential's id.",
+              "format": "uuid",
+              "title": "Credential Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Credential is not in `Rotating` status, or pending refs are absent (complete_credential_rotation is single-source from Rotating with pending refs populated)."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation (not a UUID)."
+          }
+        },
+        "summary": "Complete an in-flight credential rotation (Rotating -> Active)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/credentials/{credential_id}/rotation/start": {
+      "post": {
+        "operationId": "post_federation_credentials_rotation_start_federation_credentials__credential_id__rotation_start_post",
+        "parameters": [
+          {
+            "description": "Target credential's id.",
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "description": "Target credential's id.",
+              "format": "uuid",
+              "title": "Credential Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCredentialRotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only new_secret_ref)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No credential exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Credential is not in `Active` status, or the supplied new_secret_ref matches the current secret_ref (start_credential_rotation is single-source from Active only and strict-not-idempotent)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Start a rotation against an Active credential (Active -> Rotating)",
+        "tags": [
+          "federation"
         ]
       }
     },

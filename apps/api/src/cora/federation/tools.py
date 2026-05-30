@@ -6,18 +6,32 @@ callable returning the `FederationHandlers` bundle wired during the
 FastAPI lifespan; it is invoked per tool call so the latest wiring
 is always used.
 
-Stage 2b registers the five Permit lifecycle slice tools. The
-Credential / Seal slice tools attach in Stage 2c.
+Stage 2b registers the five Permit lifecycle slice tools.
+Stage 2c-credential registers the five Credential lifecycle slice
+tools. Seal slice tools attach in Stage 2c-seal.
 """
 
 from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.federation.features.abort_credential_rotation import (
+    tool as abort_credential_rotation_tool,
+)
 from cora.federation.features.activate_permit import tool as activate_permit_tool
+from cora.federation.features.complete_credential_rotation import (
+    tool as complete_credential_rotation_tool,
+)
+from cora.federation.features.register_credential import (
+    tool as register_credential_tool,
+)
 from cora.federation.features.register_permit import tool as register_permit_tool
 from cora.federation.features.resume_permit import tool as resume_permit_tool
+from cora.federation.features.revoke_credential import tool as revoke_credential_tool
 from cora.federation.features.revoke_permit import tool as revoke_permit_tool
+from cora.federation.features.start_credential_rotation import (
+    tool as start_credential_rotation_tool,
+)
 from cora.federation.features.suspend_permit import tool as suspend_permit_tool
 from cora.federation.wire import FederationHandlers
 
@@ -49,6 +63,26 @@ def register_federation_tools(
     revoke_permit_tool.register(
         mcp,
         get_handler=lambda: get_handlers().revoke_permit,
+    )
+    register_credential_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_credential,
+    )
+    start_credential_rotation_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().start_credential_rotation,
+    )
+    complete_credential_rotation_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().complete_credential_rotation,
+    )
+    abort_credential_rotation_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().abort_credential_rotation,
+    )
+    revoke_credential_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().revoke_credential,
     )
 
 
