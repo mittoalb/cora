@@ -101,8 +101,8 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # endpoint by design ("operators have buttons; machines have ports").
         # In-process adapters call via SupplyHandlers.observe_supply_status.
         "cora.supply.features.observe_supply_status",
-        # Frame slices: contract tests deferred to the next slice-batch
-        # (Mount aggregate) so REST + MCP suite can be authored together
+        # Frame slices: contract tests deferred to a follow-up commit
+        # so the Frame + Mount REST + MCP suite can be authored together
         # against the shared PlacementBody surface. Decider tests +
         # event round-trip + idempotency-via-decider already pin
         # behavior; OpenAPI snapshot pins wire shape. Remove from this
@@ -110,6 +110,14 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
         "cora.equipment.features.update_frame",
+        # Mount slices: same deferral. The 5 Mount slices ship with
+        # decider tests but no REST/MCP contract suite; backfill
+        # together with Frame's once the integration scenario lands.
+        "cora.equipment.features.decommission_mount",
+        "cora.equipment.features.install_asset",
+        "cora.equipment.features.register_mount",
+        "cora.equipment.features.uninstall_asset",
+        "cora.equipment.features.update_placement",
     }
 )
 
@@ -137,13 +145,18 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.recipe.features.update_plan_default_parameters",
         "cora.safety.features.activate_clearance",
         "cora.safety.features.expire_clearance",
-        # Frame slices: MCP contract tests deferred to the next
-        # slice-batch (Mount aggregate) so REST + MCP suite can be
-        # authored together. Remove from this allowlist when the
-        # contract suite lands.
+        # Frame slices: MCP contract tests deferred to a follow-up
+        # commit so REST + MCP suite can be authored together. Remove
+        # from this allowlist when the contract suite lands.
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
         "cora.equipment.features.update_frame",
+        # Mount slices: same deferral.
+        "cora.equipment.features.decommission_mount",
+        "cora.equipment.features.install_asset",
+        "cora.equipment.features.register_mount",
+        "cora.equipment.features.uninstall_asset",
+        "cora.equipment.features.update_placement",
     }
 )
 
@@ -170,13 +183,14 @@ EXEMPT_FROM_HANDLER_UNIT: frozenset[str] = frozenset(
 
 EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
     {
-        # register_frame: integration test deferred to the next
-        # slice-batch (Mount aggregate). Decider + event round-trip
-        # cover the genesis path; the integration tier locks event-
-        # store version sequencing + idempotency-store wrap + projection
-        # apply. Remove from this allowlist when the integration suite
-        # lands.
+        # register_frame: integration test deferred to a follow-up
+        # commit. Decider + event round-trip cover the genesis path;
+        # the integration tier locks event-store version sequencing +
+        # idempotency-store wrap + projection apply. Remove from this
+        # allowlist when the integration suite lands.
         "cora.equipment.features.register_frame",
+        # register_mount: same deferral.
+        "cora.equipment.features.register_mount",
     }
 )
 

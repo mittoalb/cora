@@ -29,28 +29,7 @@ from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 # OR pre-existing drift this test surfaced and which is being
 # cleaned up in a follow-up. Each entry MUST have a comment.
 # Empty each entry as the slice ships / drift is fixed.
-WIP_ERRORS: dict[str, frozenset[str]] = {
-    # Mount aggregate kernel landed before its slices (Mount/Frame
-    # Stage-1 sub-commit C.1); the 10 Mount-side errors are exported
-    # from the aggregate kernel so other consumers can reference the
-    # types, but no slice raises them yet. The C.3 commit lands the
-    # 5 Mount slices AND registers all 10 errors as HTTP handlers in
-    # cora/equipment/routes.py; remove this entry then.
-    "equipment": frozenset(
-        {
-            "AssetNotFoundForMountError",
-            "InvalidSlotCodeError",
-            "MountAlreadyExistsError",
-            "MountAlreadyOccupiedError",
-            "MountCannotDecommissionError",
-            "MountCannotUpdateError",
-            "MountHasActiveChildrenError",
-            "MountHasInstalledAssetError",
-            "MountIsEmptyError",
-            "MountNotFoundError",
-        }
-    ),
-}
+WIP_ERRORS: dict[str, frozenset[str]] = {}
 
 
 def _bc_module(bc: str) -> Any:

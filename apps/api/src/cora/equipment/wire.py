@@ -37,6 +37,7 @@ from cora.equipment.features import (
     add_asset_port,
     decommission_asset,
     decommission_frame,
+    decommission_mount,
     define_family,
     degrade_asset,
     deprecate_family,
@@ -45,18 +46,22 @@ from cora.equipment.features import (
     get_asset,
     get_asset_integration_view,
     get_family,
+    install_asset,
     list_assets,
     list_families,
     register_asset,
     register_frame,
+    register_mount,
     relocate_asset,
     remove_asset_family,
     remove_asset_port,
     restore_asset,
     restore_from_maintenance,
+    uninstall_asset,
     update_asset_settings,
     update_family_settings_schema,
     update_frame,
+    update_placement,
     version_family,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -104,6 +109,11 @@ class EquipmentHandlers:
     register_frame: register_frame.IdempotentHandler
     update_frame: update_frame.Handler
     decommission_frame: decommission_frame.Handler
+    register_mount: register_mount.IdempotentHandler
+    update_placement: update_placement.Handler
+    decommission_mount: decommission_mount.Handler
+    install_asset: install_asset.Handler
+    uninstall_asset: uninstall_asset.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -265,6 +275,38 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         decommission_frame=with_tracing(
             decommission_frame.bind(deps),
             command_name="DecommissionFrame",
+            bc=_BC,
+        ),
+        register_mount=with_tracing(
+            with_idempotency(
+                register_mount.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterMount",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterMount",
+            bc=_BC,
+        ),
+        update_placement=with_tracing(
+            update_placement.bind(deps),
+            command_name="UpdatePlacement",
+            bc=_BC,
+        ),
+        decommission_mount=with_tracing(
+            decommission_mount.bind(deps),
+            command_name="DecommissionMount",
+            bc=_BC,
+        ),
+        install_asset=with_tracing(
+            install_asset.bind(deps),
+            command_name="InstallAsset",
+            bc=_BC,
+        ),
+        uninstall_asset=with_tracing(
+            uninstall_asset.bind(deps),
+            command_name="UninstallAsset",
             bc=_BC,
         ),
     )

@@ -27,11 +27,17 @@ write fixed values per event type so re-application is a no-op).
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from cora.infrastructure.ports.event_store import StoredEvent
-from cora.infrastructure.projection.handler import ConnectionLike
+if TYPE_CHECKING:
+    import asyncpg
+
+    from cora.infrastructure.ports.event_store import StoredEvent
+    from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_ASSET_SQL = """
 INSERT INTO proj_equipment_asset_summary
@@ -143,4 +149,36 @@ class AssetSummaryProjection:
         )
 
 
-__all__ = ["AssetSummaryProjection"]
+_SELECT_ASSET_EXISTS_SQL = """
+SELECT 1
+FROM proj_equipment_asset_summary
+WHERE asset_id = $1
+"""
+
+
+async def load_asset_exists(
+    pool: asyncpg.Pool | None,
+    asset_id: UUID,
+) -> bool:
+    """Return True iff an Asset row exists for `asset_id`.
+
+    Used by the install_asset handler as a projection precondition:
+    if the Asset has no event-store stream (or projection row), the
+    decider raises AssetNotFoundForMountError before mutating the
+    Mount stream.
+
+    Returns False when `pool` is None (test environments that opt
+    out of Postgres; the corresponding install_asset tests construct
+    the context directly).
+
+    Reuses the existing proj_equipment_asset_summary table per the
+    Mount/Frame Stage-1 design memo intent: no separate asset_lookup
+    projection needed.
+    """
+    if pool is None:
+        return False
+    row = await pool.fetchrow(_SELECT_ASSET_EXISTS_SQL, asset_id)
+    return row is not None
+
+
+__all__ = ["AssetSummaryProjection", "load_asset_exists"]

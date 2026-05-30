@@ -76,6 +76,18 @@ from cora.equipment.aggregates.frame import (
     InvalidFrameNameError,
     InvalidFrameRootError,
 )
+from cora.equipment.aggregates.mount import (
+    AssetNotFoundForMountError,
+    InvalidSlotCodeError,
+    MountAlreadyExistsError,
+    MountAlreadyOccupiedError,
+    MountCannotDecommissionError,
+    MountCannotUpdateError,
+    MountHasActiveChildrenError,
+    MountHasInstalledAssetError,
+    MountIsEmptyError,
+    MountNotFoundError,
+)
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
     activate_asset,
@@ -83,6 +95,7 @@ from cora.equipment.features import (
     add_asset_port,
     decommission_asset,
     decommission_frame,
+    decommission_mount,
     define_family,
     degrade_asset,
     deprecate_family,
@@ -91,18 +104,22 @@ from cora.equipment.features import (
     get_asset,
     get_asset_integration_view,
     get_family,
+    install_asset,
     list_assets,
     list_families,
     register_asset,
     register_frame,
+    register_mount,
     relocate_asset,
     remove_asset_family,
     remove_asset_port,
     restore_asset,
     restore_from_maintenance,
+    uninstall_asset,
     update_asset_settings,
     update_family_settings_schema,
     update_frame,
+    update_placement,
     version_family,
 )
 
@@ -197,6 +214,11 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(register_frame.router)
     app.include_router(update_frame.router)
     app.include_router(decommission_frame.router)
+    app.include_router(register_mount.router)
+    app.include_router(update_placement.router)
+    app.include_router(decommission_mount.router)
+    app.include_router(install_asset.router)
+    app.include_router(uninstall_asset.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -211,14 +233,22 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidFrameRootError,
         InvalidPlacementError,
         InvalidDrawingError,
+        InvalidSlotCodeError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (FamilyNotFoundError, AssetNotFoundError, FrameNotFoundError):
+    for not_found_cls in (
+        FamilyNotFoundError,
+        AssetNotFoundError,
+        FrameNotFoundError,
+        MountNotFoundError,
+        AssetNotFoundForMountError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
         FamilyAlreadyExistsError,
         AssetAlreadyExistsError,
         FrameAlreadyExistsError,
+        MountAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -237,6 +267,12 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameCannotDecommissionError,
         FrameInUseError,
         FrameCycleError,
+        MountCannotUpdateError,
+        MountCannotDecommissionError,
+        MountHasInstalledAssetError,
+        MountHasActiveChildrenError,
+        MountAlreadyOccupiedError,
+        MountIsEmptyError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

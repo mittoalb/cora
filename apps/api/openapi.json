@@ -3699,6 +3699,22 @@
         "title": "DecommissionFrameRequest",
         "type": "object"
       },
+      "DecommissionMountRequest": {
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied free-text reason for the audit log.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DecommissionMountRequest",
+        "type": "object"
+      },
       "DefineAgentRequest": {
         "description": "Body for `POST /agents`.",
         "properties": {
@@ -4487,6 +4503,51 @@
         "title": "DismountSubjectRequest",
         "type": "object"
       },
+      "DrawingBody": {
+        "description": "Wire format for a Drawing value object.\n\nLocal mirror; rule-of-three not yet met (only register_mount\nconsumes Drawing today; register_asset will gain it once its\ndrawing-widen lands). Hoist to `cora.equipment._drawing_body`\nif a third importer surfaces.",
+        "properties": {
+          "number": {
+            "description": "Document identifier within the system.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional revision pin; None means 'resolves to latest' (ISO 7200 / DOI / EDMS default-resolution semantics).",
+            "title": "Revision"
+          },
+          "system": {
+            "$ref": "#/components/schemas/DrawingSystem",
+            "description": "The external document-management system (ICMS / EDMS / DOI)."
+          }
+        },
+        "required": [
+          "system",
+          "number"
+        ],
+        "title": "DrawingBody",
+        "type": "object"
+      },
+      "DrawingSystem": {
+        "description": "The external document-management system a Drawing lives in.\n\nExtensible StrEnum: v1 ships with three known systems but new\nfacilities add their own. Whether a given system value is\nactually wired to an adapter is enforced per-facility at the\nadapter boundary, NOT here.\n\n  - `ICMS`: APS Information Content Management System (Documentum-\n    backed).\n  - `EDMS`: generic Engineering Document Management System\n    (CERN EDMS and similar).\n  - `DOI`: DataCite Digital Object Identifier (used by PIDINST\n    for instrument-level identifiers).",
+        "enum": [
+          "ICMS",
+          "EDMS",
+          "DOI"
+        ],
+        "title": "DrawingSystem",
+        "type": "string"
+      },
       "EncodingRequest": {
         "description": "Structured encoding descriptor on the registration request body.",
         "properties": {
@@ -5210,6 +5271,21 @@
           "binding_status"
         ],
         "title": "InspectPlanBindingResponse",
+        "type": "object"
+      },
+      "InstallAssetRequest": {
+        "properties": {
+          "asset_id": {
+            "description": "The Asset specimen to install.",
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id"
+        ],
+        "title": "InstallAssetRequest",
         "type": "object"
       },
       "ListPermissionsResponse": {
@@ -8002,6 +8078,68 @@
         "title": "RegisterFrameResponse",
         "type": "object"
       },
+      "RegisterMountRequest": {
+        "description": "Body for `POST /mounts`.",
+        "properties": {
+          "drawing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DrawingBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional engineering reference for the slot itself (distinct from the installed Asset's build-to drawing)."
+          },
+          "parent_mount_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Immediate parent in the slot hierarchy. Null for top-level slots. Hierarchy axis is distinct from coordinate-frame axis (which lives on placement.parent_frame).",
+            "title": "Parent Mount Id"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/PlacementBody",
+            "description": "Pose of this slot relative to a Frame."
+          },
+          "slot_code": {
+            "description": "External alias for this slot (e.g., APS 2-BM RSS tag '02-BM-A-K-01'). Must be unique across Active mounts.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Slot Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_code",
+          "parent_mount_id",
+          "placement"
+        ],
+        "title": "RegisterMountRequest",
+        "type": "object"
+      },
+      "RegisterMountResponse": {
+        "description": "Response body for `POST /mounts`.",
+        "properties": {
+          "mount_id": {
+            "format": "uuid",
+            "title": "Mount Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mount_id"
+        ],
+        "title": "RegisterMountResponse",
+        "type": "object"
+      },
       "RegisterPermitRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /federation/permits`.",
@@ -10268,6 +10406,22 @@
         "title": "TruncateRunRequest",
         "type": "object"
       },
+      "UninstallAssetRequest": {
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied free-text reason for the audit log.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "UninstallAssetRequest",
+        "type": "object"
+      },
       "UnitSystem": {
         "description": "The unit system a Placement's values are stored in.\n\nv1 ships with one value (`SI_MM_RAD`): translation in millimetres,\nrotation in radians. CORA stores canonically; conversion to or\nfrom facility-local units happens at the adapter boundary per\n`project_units_design.md` (canonical-stored, convert-at-edge).\n\nThe single v1 value is what makes the design memo's\n\"tolerance units MUST match value units per axis\" invariant\nstructurally satisfied: with one UnitSystem, a Placement's\ntolerances are by construction in the same units as its\nvalues. When a second UnitSystem lands (non-SI deployment),\nthe per-axis coupling check must move from \"trivially true\" to\nan explicit `__post_init__` validation, OR Placement must widen\nto per-axis units fields. Capture this gate before widening\nthe enum.",
         "enum": [
@@ -10363,6 +10517,32 @@
           "parameters_schema"
         ],
         "title": "UpdateMethodParametersSchemaRequest",
+        "type": "object"
+      },
+      "UpdatePlacementRequest": {
+        "properties": {
+          "new_placement": {
+            "$ref": "#/components/schemas/PlacementBody",
+            "description": "The new placement."
+          },
+          "survey": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional re-survey provenance carried onto the event payload.",
+            "title": "Survey"
+          }
+        },
+        "required": [
+          "new_placement"
+        ],
+        "title": "UpdatePlacementRequest",
         "type": "object"
       },
       "UpdatePlanDefaultParametersRequest": {
@@ -22903,6 +23083,504 @@
         "summary": "Issue a new version label for an existing method",
         "tags": [
           "recipe"
+        ]
+      }
+    },
+    "/mounts": {
+      "post": {
+        "operationId": "post_mounts_mounts_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied key for idempotent retry: replaying the same key returns the original mount_id without creating a new mount. Updates, decommission, install, and uninstall slices have no Idempotency-Key equivalent (the decider is already strict-not-idempotent).",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied key for idempotent retry: replaying the same key returns the original mount_id without creating a new mount. Updates, decommission, install, and uninstall slices have no Idempotency-Key equivalent (the decider is already strict-not-idempotent).",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterMountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterMountResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only slot_code, negative tolerance via Placement VO, or invalid Drawing."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Mount with the requested slot_code already exists (MountAlreadyExistsError)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register a new mount (slot) in the beamline",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/mounts/{mount_id}": {
+      "delete": {
+        "operationId": "delete_mount_mounts__mount_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mount_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mount Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecommissionMountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Mount cannot be decommissioned: already Decommissioned, still has an installed Asset (uninstall first), OR still has active child Mounts (decommission children first)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decommission a mount (terminal lifecycle)",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/mounts/{mount_id}/installed-asset": {
+      "delete": {
+        "operationId": "delete_mount_installed_asset_mounts__mount_id__installed_asset_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mount_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mount Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UninstallAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Mount cannot uninstall: already Decommissioned OR slot is vacant (MountIsEmptyError)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Uninstall the currently-installed Asset from a mount slot",
+        "tags": [
+          "equipment"
+        ]
+      },
+      "put": {
+        "operationId": "put_mount_installed_asset_mounts__mount_id__installed_asset_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mount_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mount Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallAssetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Mount or Asset does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Mount cannot accept install: already Decommissioned OR slot is already occupied by another Asset (uninstall first; no implicit eviction)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Install an Asset specimen into a mount slot",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/mounts/{mount_id}/placement": {
+      "patch": {
+        "operationId": "patch_mount_placement_mounts__mount_id__placement_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mount_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mount Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlacementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update a mount's placement relative to its parent frame",
+        "tags": [
+          "equipment"
         ]
       }
     },
