@@ -47,6 +47,18 @@ _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
         "cora.operation.features.append_procedure_step",
     }
 )
+# Orchestration slices: command-shaped but no decider; the handler
+# delegates to a runtime (Conductor) that internally calls other
+# slices. Same file set as entry-append (no decider.py).
+_ORCHESTRATION_SLICES: frozenset[str] = frozenset(
+    {
+        # Conductor entry: delegates start_procedure / append_procedure_step /
+        # complete_procedure / abort_procedure handlers; no direct event
+        # emission. See [[project_edge_runtime_design]].
+        "cora.operation.features.run_procedure",
+    }
+)
+_NO_DECIDER_SLICES: frozenset[str] = _ENTRY_APPEND_SLICES | _ORCHESTRATION_SLICES
 
 # Slices currently in flight. Each entry MUST cite the phase that
 # will close it; reviewers should reject additions that don't.
@@ -92,7 +104,7 @@ def test_slice_has_required_files(slice_dir: Path) -> None:
         f"query (query.py), never both."
     )
 
-    if qualified in _ENTRY_APPEND_SLICES:
+    if qualified in _NO_DECIDER_SLICES:
         required = _ENTRY_APPEND_SLICE_FILES
     elif has_command:
         required = _COMMAND_SLICE_FILES

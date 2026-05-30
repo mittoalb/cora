@@ -101,6 +101,12 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # endpoint by design ("operators have buttons; machines have ports").
         # In-process adapters call via SupplyHandlers.observe_supply_status.
         "cora.supply.features.observe_supply_status",
+        # Conductor entry: endpoint exists + unit-tier wire-converter tests
+        # exist. End-to-end contract test against the live FastAPI app +
+        # in-process InMemoryControlPort + InMemoryStepStore deferred until
+        # production ControlPort wiring lands. See
+        # [[project_edge_runtime_design]].
+        "cora.operation.features.run_procedure",
     }
 )
 
@@ -128,6 +134,11 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.recipe.features.update_plan_default_parameters",
         "cora.safety.features.activate_clearance",
         "cora.safety.features.expire_clearance",
+        # Conductor entry: MCP tool exists + unit-tier wire-converter
+        # tests exist. End-to-end contract test against the live MCP
+        # server deferred alongside the REST endpoint contract test.
+        # See [[project_edge_runtime_design]].
+        "cora.operation.features.run_procedure",
     }
 )
 

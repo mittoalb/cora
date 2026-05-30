@@ -17,6 +17,7 @@ from cora.operation.features.complete_procedure import tool as complete_procedur
 from cora.operation.features.get_procedure import tool as get_procedure_tool
 from cora.operation.features.list_procedures import tool as list_procedures_tool
 from cora.operation.features.register_procedure import tool as register_procedure_tool
+from cora.operation.features.run_procedure import tool as run_procedure_tool
 from cora.operation.features.start_procedure import tool as start_procedure_tool
 from cora.operation.features.truncate_procedure import tool as truncate_procedure_tool
 from cora.operation.wire import OperationHandlers
@@ -59,4 +60,8 @@ def register_operation_tools(
     list_procedures_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_procedures,
+    )
+    run_procedure_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().run_procedure,
     )

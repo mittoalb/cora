@@ -7686,6 +7686,76 @@
         "title": "RunListResponse",
         "type": "object"
       },
+      "RunProcedureRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /procedures/{procedure_id}/run`.",
+        "properties": {
+          "steps": {
+            "description": "Steps the Conductor walks in order (0-500). Empty list is valid: start + complete fire with no steps.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "action": "#/components/schemas/_ActionStepRequest",
+                  "check": "#/components/schemas/_CheckStepRequest",
+                  "setpoint": "#/components/schemas/_SetpointStepRequest"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/_SetpointStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_ActionStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_CheckStepRequest"
+                }
+              ]
+            },
+            "maxItems": 500,
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "title": "RunProcedureRequest",
+        "type": "object"
+      },
+      "RunProcedureResponse": {
+        "description": "Response body for the run_procedure slice.\n\n`succeeded` is the canonical pass/fail bit; `failure` is non-null\niff `succeeded` is False. `completed_count` is informational\n(the number of steps that ran successfully before halt, if any).",
+        "properties": {
+          "completed_count": {
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_ConductorFailureResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "procedure_id": {
+            "format": "uuid",
+            "title": "Procedure Id",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "procedure_id",
+          "completed_count",
+          "succeeded"
+        ],
+        "title": "RunProcedureResponse",
+        "type": "object"
+      },
       "RunReadingRequest": {
         "additionalProperties": false,
         "description": "One reading entry's input payload (polymorphic, SOSA-aligned).\n\nRequired: event_id + channel_name + value + sampled_at +\nsampling_procedure. `units` and `occurred_at` are optional.",
@@ -9136,6 +9206,153 @@
         "title": "ZoneSummaryDTO",
         "type": "object"
       },
+      "_ActionStepRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for an `ActionStep`.",
+        "properties": {
+          "kind": {
+            "const": "action",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "_ActionStepRequest",
+        "type": "object"
+      },
+      "_CheckStepRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for a `CheckStep`.",
+        "properties": {
+          "address": {
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "criterion": {
+            "discriminator": {
+              "mapping": {
+                "equals": "#/components/schemas/_EqualsCriterion",
+                "within_tolerance": "#/components/schemas/_WithinToleranceCriterion"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/_EqualsCriterion"
+              },
+              {
+                "$ref": "#/components/schemas/_WithinToleranceCriterion"
+              }
+            ],
+            "title": "Criterion"
+          },
+          "kind": {
+            "const": "check",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "address",
+          "criterion"
+        ],
+        "title": "_CheckStepRequest",
+        "type": "object"
+      },
+      "_ConductorFailureResponse": {
+        "description": "JSON wire shape for `ConductorFailure`.",
+        "properties": {
+          "error_class": {
+            "title": "Error Class",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "step_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Index"
+          },
+          "step_kind": {
+            "title": "Step Kind",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_index",
+          "step_kind",
+          "target",
+          "error_class",
+          "message"
+        ],
+        "title": "_ConductorFailureResponse",
+        "type": "object"
+      },
+      "_EqualsCriterion": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for an `Equals` criterion.",
+        "properties": {
+          "expected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "title": "Expected"
+          },
+          "kind": {
+            "const": "equals",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "expected"
+        ],
+        "title": "_EqualsCriterion",
+        "type": "object"
+      },
       "_ExternalRefBody": {
         "description": "One ExternalRef carried on the request body.",
         "properties": {
@@ -9157,6 +9374,82 @@
           "id"
         ],
         "title": "_ExternalRefBody",
+        "type": "object"
+      },
+      "_SetpointStepRequest": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for a `SetpointStep`.",
+        "properties": {
+          "address": {
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "kind": {
+            "const": "setpoint",
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {},
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          },
+          "verify": {
+            "default": false,
+            "title": "Verify",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "address",
+          "value"
+        ],
+        "title": "_SetpointStepRequest",
+        "type": "object"
+      },
+      "_WithinToleranceCriterion": {
+        "additionalProperties": false,
+        "description": "JSON wire shape for a `WithinTolerance` criterion.",
+        "properties": {
+          "expected": {
+            "title": "Expected",
+            "type": "number"
+          },
+          "kind": {
+            "const": "within_tolerance",
+            "title": "Kind",
+            "type": "string"
+          },
+          "tolerance": {
+            "minimum": 0.0,
+            "title": "Tolerance",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "expected",
+          "tolerance"
+        ],
+        "title": "_WithinToleranceCriterion",
         "type": "object"
       }
     }
@@ -20723,6 +21016,84 @@
           }
         },
         "summary": "Mark an existing Procedure as completed (happy-path terminal)",
+        "tags": [
+          "operation"
+        ]
+      }
+    },
+    "/procedures/{procedure_id}/run": {
+      "post": {
+        "description": "Conduct a Procedure end-to-end. Failures land in the response body.",
+        "operationId": "post_procedures_run_procedures__procedure_id__run_post",
+        "parameters": [
+          {
+            "description": "Target procedure's id.",
+            "in": "path",
+            "name": "procedure_id",
+            "required": true,
+            "schema": {
+              "description": "Target procedure's id.",
+              "format": "uuid",
+              "title": "Procedure Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunProcedureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunProcedureResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "422": {
+            "description": "Request body failed schema validation: unknown step kind, missing required field, batch over cap, invalid criterion shape."
+          }
+        },
+        "summary": "Conduct a Procedure: start -> walk steps via ControlPort + actions + checks -> complete (success) or abort (failure).",
         "tags": [
           "operation"
         ]

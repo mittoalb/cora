@@ -56,11 +56,13 @@ from uuid import UUID
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
+from cora.operation.adapters.in_memory_control_port import InMemoryControlPort
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
     PostgresStepStore,
     StepStore,
 )
+from cora.operation.conductor import Conductor
 from cora.operation.features import (
     abort_procedure,
     append_procedure_step,
@@ -68,6 +70,7 @@ from cora.operation.features import (
     get_procedure,
     list_procedures,
     register_procedure,
+    run_procedure,
     start_procedure,
     truncate_procedure,
 )
@@ -93,12 +96,55 @@ class OperationHandlers:
     append_procedure_step: append_procedure_step.Handler
     get_procedure: get_procedure.Handler
     list_procedures: list_procedures.Handler
+    run_procedure: run_procedure.Handler
 
 
 def wire_operation(deps: Kernel) -> OperationHandlers:
-    """Build the Operation BC handlers from shared dependencies."""
+    """Build the Operation BC handlers from shared dependencies.
+
+    Note on the run_procedure / Conductor wire-up: the Conductor needs
+    the FINAL (post-tracing) versions of start / complete / abort /
+    append_procedure_step so its internal calls land with the same
+    observability shape as direct REST / MCP calls. We hoist those
+    four bindings into locals, build the Conductor, then assemble
+    the bundle. The placeholder ControlPort is `InMemoryControlPort`
+    in every environment at v1: a substrate-routed `ControlPortRegistry`
+    construction (per deployment config) lands at a follow-up
+    iteration, alongside the action_registry-from-config plumbing.
+    Until then, RunProcedure invocations operate against an in-process
+    dict-backed port and the empty default action registry.
+    """
     step_store: StepStore = (
         PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
+    )
+    start_handler = with_tracing(
+        start_procedure.bind(deps),
+        command_name="StartProcedure",
+        bc=_BC,
+    )
+    complete_handler = with_tracing(
+        complete_procedure.bind(deps),
+        command_name="CompleteProcedure",
+        bc=_BC,
+    )
+    abort_handler = with_tracing(
+        abort_procedure.bind(deps),
+        command_name="AbortProcedure",
+        bc=_BC,
+    )
+    append_step_handler = with_tracing(
+        append_procedure_step.bind(deps, step_store=step_store),
+        command_name="AppendProcedureStep",
+        bc=_BC,
+    )
+    conductor = Conductor(
+        control_port=InMemoryControlPort(),
+        append_step=append_step_handler,
+        clock=deps.clock,
+        id_generator=deps.id_generator,
+        start_procedure=start_handler,
+        complete_procedure=complete_handler,
+        abort_procedure=abort_handler,
     )
     return OperationHandlers(
         register_procedure=with_tracing(
@@ -115,31 +161,15 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             command_name="RegisterProcedure",
             bc=_BC,
         ),
-        start_procedure=with_tracing(
-            start_procedure.bind(deps),
-            command_name="StartProcedure",
-            bc=_BC,
-        ),
-        complete_procedure=with_tracing(
-            complete_procedure.bind(deps),
-            command_name="CompleteProcedure",
-            bc=_BC,
-        ),
-        abort_procedure=with_tracing(
-            abort_procedure.bind(deps),
-            command_name="AbortProcedure",
-            bc=_BC,
-        ),
+        start_procedure=start_handler,
+        complete_procedure=complete_handler,
+        abort_procedure=abort_handler,
         truncate_procedure=with_tracing(
             truncate_procedure.bind(deps),
             command_name="TruncateProcedure",
             bc=_BC,
         ),
-        append_procedure_step=with_tracing(
-            append_procedure_step.bind(deps, step_store=step_store),
-            command_name="AppendProcedureStep",
-            bc=_BC,
-        ),
+        append_procedure_step=append_step_handler,
         get_procedure=with_tracing(
             get_procedure.bind(deps),
             command_name="GetProcedure",
@@ -151,5 +181,10 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             command_name="ListProcedures",
             bc=_BC,
             kind="query",
+        ),
+        run_procedure=with_tracing(
+            run_procedure.bind(deps, conductor=conductor),
+            command_name="RunProcedure",
+            bc=_BC,
         ),
     )
