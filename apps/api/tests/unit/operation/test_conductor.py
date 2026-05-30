@@ -40,6 +40,8 @@ Coverage spans both step kinds shipped to date (setpoint + action):
   - execute fails -> abort_procedure called with reason derived from failure
   - abort_procedure itself fails -> original execute failure is what surfaces
   - complete_procedure fails -> lifecycle failure replaces the prior success result
+  - CancelledError mid-execute -> best-effort abort + re-raise
+  - CancelledError + abort also fails -> CancelledError still surfaces
 
   Setpoint verify (post-write evidence capture):
   - verify=False (default): no post_reading field in payload
@@ -1113,6 +1115,86 @@ async def test_setpoint_verify_does_not_change_write_failure_halt_behavior() -> 
     assert payload["error_class"] == "ControlNotConnectedError"
     assert "post_reading" not in payload
     assert "post_read_error" not in payload
+
+
+@pytest.mark.unit
+async def test_conduct_cancellation_mid_execute_attempts_abort_then_reraises() -> None:
+    """CancelledError mid-execute triggers best-effort abort + re-raises."""
+
+    class _CancellingPort:
+        async def read(self, _address: str) -> Reading:  # pragma: no cover  # unused
+            raise NotImplementedError
+
+        async def write(self, *_args: Any, **_kwargs: Any) -> None:
+            raise asyncio.CancelledError
+
+        def subscribe(self, _address: str) -> AsyncIterator[Reading]:  # pragma: no cover
+            raise NotImplementedError
+
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler()
+    procedure_id = uuid4()
+    conductor = Conductor(
+        control_port=_CancellingPort(),  # type: ignore[arg-type]
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator([]),
+        start_procedure=start,
+        complete_procedure=complete,
+        abort_procedure=abort,
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await conductor.conduct(
+            procedure_id=procedure_id,
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(SetpointStep(address="any", value=1.0),),
+        )
+    # Start was called; complete was not; abort was called with the cancelled reason.
+    assert len(start.calls) == 1
+    assert complete.calls == []
+    assert len(abort.calls) == 1
+    assert abort.calls[0].command.procedure_id == procedure_id
+    assert "cancelled" in abort.calls[0].command.reason
+
+
+@pytest.mark.unit
+async def test_conduct_cancellation_reraises_even_when_abort_itself_fails() -> None:
+    """If abort_procedure raises during cancellation cleanup, CancelledError still surfaces."""
+
+    class _CancellingPort:
+        async def read(self, _address: str) -> Reading:  # pragma: no cover
+            raise NotImplementedError
+
+        async def write(self, *_args: Any, **_kwargs: Any) -> None:
+            raise asyncio.CancelledError
+
+        def subscribe(self, _address: str) -> AsyncIterator[Reading]:  # pragma: no cover
+            raise NotImplementedError
+
+    appender = _FakeAppendStep()
+    start = _FakeLifecycleHandler()
+    complete = _FakeLifecycleHandler()
+    abort = _FakeLifecycleHandler(raises=RuntimeError("abort also failed"))
+    conductor = Conductor(
+        control_port=_CancellingPort(),  # type: ignore[arg-type]
+        append_step=appender,
+        clock=FakeClock(_FIXED_NOW),
+        id_generator=_SequenceIdGenerator([]),
+        start_procedure=start,
+        complete_procedure=complete,
+        abort_procedure=abort,
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await conductor.conduct(
+            procedure_id=uuid4(),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+            steps=(SetpointStep(address="any", value=1.0),),
+        )
+    assert len(abort.calls) == 1
 
 
 @pytest.mark.unit

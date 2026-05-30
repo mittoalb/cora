@@ -50,6 +50,18 @@ migration. Non-numeric values land in `WithinTolerance` as a clean
 mismatch (no coercion exception escapes); criterion handling tolerates
 substrate value-type drift.
 
+## Cancellation handling
+
+`execute()` lets `CancelledError` propagate untouched: it is the
+lower-level primitive that does not own FSM transitions. `conduct()`
+catches `CancelledError` raised mid-`execute`, attempts a best-effort
+`abort_procedure(reason="cancelled mid-execute")` so the Procedure
+FSM lands in Aborted rather than orphaned in Running, then re-raises
+so the caller's task still sees the cancellation. Cancellation
+during the start / complete handler calls themselves propagates as-is
+(those boundaries are single-handler-atomic; abort cleanup would race
+the in-flight transition).
+
 ## Out of scope at this iteration
 
 The Stage-2 arc continues. The following land in subsequent iters:
@@ -58,13 +70,11 @@ The Stage-2 arc continues. The following land in subsequent iters:
     a `capture_pre` flag would land additively when an undo / rollback
     pattern surfaces)
   - additional check criteria (`OneOf`, `Matches`, `Within` range)
-  - cancellation mid-execute (today CancelledError propagates uncaught)
   - concurrent / pipelined setpoint dispatch (sequential at v1)
   - `Capability`-driven step-list resolution (caller supplies the list)
   - action-body discovery from disk / config (registry is hand-built today)
   - acceptance of Uncertain quality (today only Good passes; an opt-in
     `allowed_qualities` field on CheckStep would land additively)
-  - REST / MCP slice exposing `conduct()` to operators
 
 ## Why call the handler not the store directly
 
@@ -77,6 +87,7 @@ handler's `Handler` Protocol, not a concrete binding, so tests inject
 a fake without standing up the full handler machinery.
 """
 
+import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -511,14 +522,30 @@ class Conductor:
                     message=str(exc),
                 ),
             )
-        result = await self.execute(
-            procedure_id=procedure_id,
-            principal_id=principal_id,
-            correlation_id=correlation_id,
-            steps=steps,
-            causation_id=causation_id,
-            surface_id=surface_id,
-        )
+        try:
+            result = await self.execute(
+                procedure_id=procedure_id,
+                principal_id=principal_id,
+                correlation_id=correlation_id,
+                steps=steps,
+                causation_id=causation_id,
+                surface_id=surface_id,
+            )
+        except asyncio.CancelledError:
+            # The execute() call was cancelled mid-flight (caller cancelled
+            # the conducting task or the loop is shutting down). The
+            # Procedure is now in `Running` with partial step history; if
+            # we let the cancellation propagate untouched, the FSM would
+            # be orphaned. Best-effort transition to Aborted so operator
+            # state reflects what happened. Re-raise so the caller's task
+            # still sees the cancellation - this keeps signals + shutdown
+            # behaving normally.
+            with contextlib.suppress(Exception):
+                await self._abort_procedure(
+                    AbortProcedure(procedure_id=procedure_id, reason="cancelled mid-execute"),
+                    **envelope_kwargs,
+                )
+            raise
         if result.succeeded:
             try:
                 await self._complete_procedure(
