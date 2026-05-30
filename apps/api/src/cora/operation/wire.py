@@ -56,7 +56,7 @@ from uuid import UUID
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
-from cora.operation.adapters.in_memory_control_port import InMemoryControlPort
+from cora.operation.adapters.control_port_config import build_control_port
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
     PostgresStepStore,
@@ -107,12 +107,14 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
     append_procedure_step so its internal calls land with the same
     observability shape as direct REST / MCP calls. We hoist those
     four bindings into locals, build the Conductor, then assemble
-    the bundle. The placeholder ControlPort is `InMemoryControlPort`
-    in every environment at v1: a substrate-routed `ControlPortRegistry`
-    construction (per deployment config) lands at a follow-up
-    iteration, alongside the action_registry-from-config plumbing.
-    Until then, RunProcedure invocations operate against an in-process
-    dict-backed port and the empty default action registry.
+    the bundle. The ControlPort is materialised from
+    `deps.settings.control_port_routes` via `build_control_port`:
+    empty routes (the default) returns `InMemoryControlPort` (legacy
+    + test convenience); populated routes returns a
+    `ControlPortRegistry` with the configured substrate adapters per
+    prefix. The `action_registry-from-config` plumbing remains
+    deferred; until then, RunProcedure invocations operate against
+    the empty default action registry.
     """
     step_store: StepStore = (
         PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
@@ -138,7 +140,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         bc=_BC,
     )
     conductor = Conductor(
-        control_port=InMemoryControlPort(),
+        control_port=build_control_port(deps.settings.control_port_routes),
         append_step=append_step_handler,
         clock=deps.clock,
         id_generator=deps.id_generator,

@@ -12,6 +12,7 @@ from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cora.infrastructure.auth.config import IdentityProviderConfig
+from cora.infrastructure.control_port_route import ControlPortRoute
 
 _ALLOWED_DATABASE_SCHEMES = ("postgresql://", "postgres://")
 
@@ -168,6 +169,25 @@ class Settings(BaseSettings):
     # value starts with `[`. Schema validation runs at startup so
     # malformed config fails fast, not on first auth attempt.
     identity_providers: list[IdentityProviderConfig] = []
+
+    # ControlPort routing — Operation BC Conductor
+    # When empty (default), `wire_operation` builds an
+    # `InMemoryControlPort` (legacy + test convenience: the run_procedure
+    # endpoint is reachable but no real substrate is exercised). When
+    # populated, `build_control_port` constructs a `ControlPortRegistry`
+    # with each route's substrate adapter under its prefix; the
+    # Conductor + registry handle longest-prefix dispatch.
+    #
+    # Read from `CONTROL_PORT_ROUTES` env var as JSON, for example:
+    #
+    #   CONTROL_PORT_ROUTES='[
+    #     {"prefix":"2bma:cam1:image","substrate":"epics_pva"},
+    #     {"prefix":"2bma:","substrate":"epics_ca"}
+    #   ]'
+    #
+    # See `cora.infrastructure.control_port_route` for the route shape +
+    # `cora.operation.adapters.control_port_config` for the factory.
+    control_port_routes: list[ControlPortRoute] = []
 
     @field_validator("database_url")
     @classmethod
