@@ -10,9 +10,6 @@ on:
       - ".github/workflows/docs.yml"
       - "scripts/stage_docs.py"
       - "scripts/mkdocs_hooks.py"
-      - "scripts/scenarios_meta.py"
-      - "scripts/scenarios_pages.py"
-      - "apps/api/tests/integration/scenarios/test_*.py"
       - "talks/**"
   workflow_dispatch:
 

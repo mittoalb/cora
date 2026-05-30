@@ -1,38 +1,28 @@
 """MkDocs build-time hooks.
 
-Two distinct responsibilities (both registered in mkdocs.yml under
-`hooks:`):
+**Link rewriting** (`on_page_markdown`). Rewrites markdown links
+in-memory so the static site at xmap.github.io/cora/ resolves
+correctly without mutating the source files in docs/.
 
-A) **Link rewriting** (`on_page_markdown`). Rewrites markdown links
-   in-memory so the static site at xmap.github.io/cora/ resolves
-   correctly without mutating the source files in docs/.
+  1. The staged reference/contributing.md (mirrored from /CONTRIBUTING.md
+     at build time) has paths that are repo-root-relative. They are
+     rewritten to either an intra-site mkdocs path (when the target is a
+     docs/ page) or a GitHub blob URL (when the target is a repo file
+     outside docs/).
 
-   1. The staged reference/contributing.md (mirrored from /CONTRIBUTING.md
-      at build time) has paths that are repo-root-relative. They are
-      rewritten to either an intra-site mkdocs path (when the target is a
-      docs/ page) or a GitHub blob URL (when the target is a repo file
-      outside docs/).
+  2. Every other page in docs/ is page-aware: links that resolve inside
+     docs/ are left alone (mkdocs handles relative intra-site links
+     natively); links that resolve outside docs/ are rewritten to GitHub
+     blob URLs (or to the staged contributing page for the
+     ../CONTRIBUTING.md special case).
 
-   2. Every other page in docs/ is page-aware: links that resolve inside
-      docs/ are left alone (mkdocs handles relative intra-site links
-      natively); links that resolve outside docs/ are rewritten to GitHub
-      blob URLs (or to the staged contributing page for the
-      ../CONTRIBUTING.md special case).
-
-   Links containing /.claude/ (private auto-memory) are stripped to plain
-   text.
-
-B) **Scenarios surface generation** (`on_files`). Reads scenario test
-   docstring headers via scripts/scenarios_meta.py and emits virtual
-   markdown files under docs/scenarios/ (overview + 5 cluster pages +
-   by-archetype + by-bc + 34 per-scenario stubs). Validation runs at
-   pytest collection too (apps/api/tests/integration/scenarios/conftest.py).
+Links containing /.claude/ (private auto-memory) are stripped to plain
+text.
 """
 
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -40,15 +30,9 @@ REPO_BLOB = "https://github.com/xmap/cora/blob/main/"
 HOOK_DIR = Path(__file__).resolve().parent
 REPO_ROOT = HOOK_DIR.parent
 DOCS_DIR = REPO_ROOT / "docs"
-SCENARIOS_DIR = REPO_ROOT / "apps" / "api" / "tests" / "integration" / "scenarios"
 STAGED_CONTRIBUTING_SRC_URI = "reference/contributing.md"
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-
-# Ensure sibling scripts (scenarios_meta, scenarios_pages) are importable
-# when mkdocs runs this hook with the repo root not on sys.path.
-if str(HOOK_DIR) not in sys.path:
-    sys.path.insert(0, str(HOOK_DIR))
 
 
 def _rewrite_in_page(page_src_uri: str, markdown: str) -> str:
@@ -140,27 +124,3 @@ def on_page_markdown(
     files: Any,  # noqa: ARG001
 ) -> str:
     return _rewrite_in_page(page.file.src_uri, markdown)
-
-
-def on_files(files: Any, *, config: Any) -> Any:
-    """Inject the generated docs/scenarios/ surface as virtual files.
-
-    Reads scenario test docstring headers via scripts/scenarios_meta and
-    renders pages via scripts/scenarios_pages. Failures (missing or
-    invalid headers) raise and fail the build.
-    """
-    # Defensive: re-assert sys.path entry inside the function. The
-    # module-scope insert can be lost depending on how mkdocs loads hooks.
-    if str(HOOK_DIR) not in sys.path:
-        sys.path.insert(0, str(HOOK_DIR))
-
-    from mkdocs.structure.files import File  # noqa: PLC0415
-
-    from scenarios_meta import scan_dir  # noqa: PLC0415
-    from scenarios_pages import render_all  # noqa: PLC0415
-
-    metas = scan_dir(SCENARIOS_DIR)
-    pages = render_all(metas)
-    for src_uri, content in pages.items():
-        files.append(File.generated(config, src_uri, content=content))
-    return files
