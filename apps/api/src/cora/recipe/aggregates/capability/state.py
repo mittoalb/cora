@@ -23,7 +23,10 @@ Distinct from Equipment BC's `Family` aggregate:
 The two-aggregate split was the core lock of
 [[project-capability-research]] Round 1+2: equipment classification
 vs operations template are orthogonal axes (ISA-88 Physical Model
-vs Procedural Control Model precedent).
+vs Procedural Control Model precedent). The Family-side anchor for
+the same orthogonality lives at [[project-family-affordance-design]]
+watch item 10 (Equipment.Family rename freed the word "Capability"
+for this aggregate).
 
 
 Genesis + FSM (Defined → Versioned → Deprecated, matching

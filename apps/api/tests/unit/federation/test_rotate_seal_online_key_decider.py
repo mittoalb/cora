@@ -34,6 +34,7 @@ from cora.federation.aggregates.seal import (
     Seal,
     SealCannotRotateError,
     SealCannotRotateWithInactiveCredentialError,
+    SealCrossFacilityBindingError,
     SealKeyCollisionError,
     SealKeyPurposeMismatchError,
     SealNotFoundError,
@@ -384,3 +385,22 @@ def test_rotate_seal_online_key_raises_inactive_when_credential_is_revoked() -> 
             new_online_credential=revoked,
         )
     assert exc_info.value.actual_status == CredentialStatus.REVOKED.value
+
+
+@pytest.mark.unit
+def test_rotate_seal_online_key_rejects_credential_from_other_facility() -> None:
+    """Cross-tenant key mounting defense: new online credential's
+    facility_id must equal state.facility_id (sec gate SEC-FED-01)."""
+    state = _seal(SealStatus.LIVE)
+    foreign = _credential(facility_id="aps-32id")
+    with pytest.raises(SealCrossFacilityBindingError) as exc_info:
+        rotate_seal_online_key.decide(
+            state=state,
+            command=_command(),
+            now=_NOW,
+            rotated_by_actor_id=_PRINCIPAL_ID,
+            new_online_credential=foreign,
+        )
+    assert exc_info.value.expected_facility_id == _FACILITY_ID
+    assert exc_info.value.actual_facility_id == "aps-32id"
+    assert exc_info.value.key_ref_role == "online"

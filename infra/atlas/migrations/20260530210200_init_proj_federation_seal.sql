@@ -57,6 +57,21 @@ CREATE INDEX proj_federation_seal_status_idx
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON proj_federation_seal TO cora_app;
 
+-- Row-Level Security: defense-in-depth on signing-chain head.
+ALTER TABLE proj_federation_seal ENABLE ROW LEVEL SECURITY;
+ALTER TABLE proj_federation_seal FORCE  ROW LEVEL SECURITY;
+
+CREATE POLICY proj_federation_seal_cora_app_read
+    ON proj_federation_seal FOR SELECT
+    TO cora_app
+    USING (true);
+
+CREATE POLICY proj_federation_seal_cora_app_write
+    ON proj_federation_seal FOR ALL
+    TO cora_app
+    USING (true)
+    WITH CHECK (true);
+
 INSERT INTO projection_bookmarks (name)
 VALUES ('proj_federation_seal')
 ON CONFLICT DO NOTHING;

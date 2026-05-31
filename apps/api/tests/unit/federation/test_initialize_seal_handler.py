@@ -348,7 +348,13 @@ async def test_initialize_seal_handler_derives_stream_id_from_facility_id() -> N
         UUID("01900000-0000-7000-8000-000000fed302"),
         UUID("01900000-0000-7000-8000-000000fed303"),
     ]
-    deps = _build_deps(ids=other_ids)
+    other_lookup = InMemoryCredentialLookup()
+    _seed_active_credentials(other_lookup, facility_id=other_facility)
+    deps = _build_deps(
+        ids=other_ids,
+        credential_lookup=other_lookup,
+        seed_credentials=False,
+    )
     handler = initialize_seal.bind(deps)
     result = await handler(
         _command(facility_id=other_facility),

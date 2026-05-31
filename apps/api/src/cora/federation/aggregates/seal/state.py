@@ -197,6 +197,39 @@ class SealKeyPurposeMismatchError(Exception):
         self.actual_purpose = actual_purpose
 
 
+class SealCrossFacilityBindingError(Exception):
+    """A key ref points at a Credential whose `facility_id` does not match the Seal.
+
+    Defense against cross-tenant key-mounting: a Credential issued under
+    facility A must never back the Seal of facility B. Initialization
+    checks both online and offline credentials against
+    `command.facility_id`, plus a defense-in-depth cross-check that
+    online and offline credentials share the same `facility_id`.
+    Rotation checks the new online credential against
+    `state.facility_id`. Surfaced as HTTP 409 by the federation routes
+    (mirrors `SealCannotRotateWithInactiveCredentialError`; the binding
+    is structurally valid but operationally conflicting).
+
+    `key_ref_role` is one of: `"online"`, `"offline"`, or
+    `"online_vs_offline"` (the defense-in-depth cross-check).
+    """
+
+    def __init__(
+        self,
+        expected_facility_id: str,
+        actual_facility_id: str,
+        key_ref_role: str,
+    ) -> None:
+        super().__init__(
+            f"Seal {key_ref_role} credential facility_id "
+            f"{actual_facility_id!r} does not match expected "
+            f"{expected_facility_id!r}"
+        )
+        self.expected_facility_id = expected_facility_id
+        self.actual_facility_id = actual_facility_id
+        self.key_ref_role = key_ref_role
+
+
 class SealCannotRotateWithInactiveCredentialError(Exception):
     """A key ref points at a Credential whose status is not Active.
 

@@ -22,7 +22,10 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
-from cora.federation.aggregates.seal import SealAlreadyExistsError
+from cora.federation.aggregates.seal import (
+    SealAlreadyExistsError,
+    SealCrossFacilityBindingError,
+)
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.aggregates.seal.state import InvalidSealFacilityIdError
 from cora.federation.errors import UnauthorizedError
@@ -185,6 +188,27 @@ def test_post_federation_seals_returns_400_when_handler_raises_invalid_facility_
     with TestClient(app) as client:
         response = client.post("/federation/seals", json=_body())
     assert response.status_code == 400
+    assert "facility_id" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_federation_seals_returns_409_on_cross_facility_binding() -> None:
+    """SealCrossFacilityBindingError (cross-tenant key mounting defense)
+    surfaces as 409 conflict per the federation routes mapping."""
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> UUID:
+        _ = (args, kwargs)
+        raise SealCrossFacilityBindingError(
+            expected_facility_id="aps-2bm",
+            actual_facility_id="aps-32id",
+            key_ref_role="online",
+        )
+
+    app.dependency_overrides[_get_initialize_seal_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post("/federation/seals", json=_body())
+    assert response.status_code == 409
     assert "facility_id" in response.json()["detail"]
 
 

@@ -27,7 +27,9 @@ BC's domain invariants.
 
   - State must be None (genesis-only; Seal is a per-facility singleton)
     -> SealAlreadyExistsError
-  - facility_id non-empty after trim
+  - facility_id non-empty AND already in canonical form (no leading
+    or trailing whitespace); avoids auto-normalization that could mask
+    a peer-facility credential drift in the binding check
     -> InvalidSealFacilityIdError
   - online_key_ref != offline_key_ref (key-separation invariant;
     enforced by building the prospective post-state and calling
@@ -42,6 +44,14 @@ BC's domain invariants.
     -> SealKeyPurposeMismatchError (HTTP 422)
   - offline_credential.purpose must equal "SealOfflineRoot"
     -> SealKeyPurposeMismatchError (HTTP 422)
+  - online_credential.facility_id must equal command.facility_id
+    -> SealCrossFacilityBindingError (HTTP 409; cross-tenant key
+    mounting defense)
+  - offline_credential.facility_id must equal command.facility_id
+    -> SealCrossFacilityBindingError (HTTP 409)
+  - online_credential.facility_id must equal offline_credential.facility_id
+    -> SealCrossFacilityBindingError (HTTP 409; defense-in-depth even
+    if both match command, catches misconfigured tests)
   - online_credential.status must equal "Active"
     -> SealCannotInitializeWithInactiveCredentialError (HTTP 409;
     Rotating or Revoked secrets cannot back a Seal)
@@ -62,6 +72,7 @@ from cora.federation.aggregates.seal import (
     Seal,
     SealAlreadyExistsError,
     SealCannotInitializeWithInactiveCredentialError,
+    SealCrossFacilityBindingError,
     SealInitialized,
     SealKeyPurposeMismatchError,
     SealStatus,
@@ -88,7 +99,7 @@ def decide(
     Invariants:
       - State must be None (genesis-only singleton)
         -> SealAlreadyExistsError
-      - facility_id non-empty after trim
+      - facility_id non-empty AND canonical (no surrounding whitespace)
         -> InvalidSealFacilityIdError
       - online_key_ref must differ from offline_key_ref
         -> SealKeyCollisionError (via verify_key_separation)
@@ -100,6 +111,12 @@ def decide(
         -> SealKeyPurposeMismatchError
       - offline_credential.purpose must be SealOfflineRoot
         -> SealKeyPurposeMismatchError
+      - online_credential.facility_id must equal command facility_id
+        -> SealCrossFacilityBindingError
+      - offline_credential.facility_id must equal command facility_id
+        -> SealCrossFacilityBindingError
+      - online_credential.facility_id must equal offline_credential.facility_id
+        -> SealCrossFacilityBindingError
       - online_credential.status must be Active
         -> SealCannotInitializeWithInactiveCredentialError
       - offline_credential.status must be Active
@@ -109,7 +126,7 @@ def decide(
         raise SealAlreadyExistsError(state.facility_id)
 
     facility_id = command.facility_id.strip()
-    if not facility_id:
+    if not facility_id or facility_id != command.facility_id:
         raise InvalidSealFacilityIdError(command.facility_id)
 
     prospective = Seal(
@@ -143,6 +160,25 @@ def decide(
             credential_id=command.offline_key_ref,
             expected_purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
             actual_purpose=offline_credential.purpose,
+        )
+
+    if online_credential.facility_id != command.facility_id:
+        raise SealCrossFacilityBindingError(
+            expected_facility_id=command.facility_id,
+            actual_facility_id=online_credential.facility_id,
+            key_ref_role="online",
+        )
+    if offline_credential.facility_id != command.facility_id:
+        raise SealCrossFacilityBindingError(
+            expected_facility_id=command.facility_id,
+            actual_facility_id=offline_credential.facility_id,
+            key_ref_role="offline",
+        )
+    if online_credential.facility_id != offline_credential.facility_id:
+        raise SealCrossFacilityBindingError(
+            expected_facility_id=online_credential.facility_id,
+            actual_facility_id=offline_credential.facility_id,
+            key_ref_role="online_vs_offline",
         )
 
     if online_credential.status != CredentialStatus.ACTIVE.value:

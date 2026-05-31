@@ -27,6 +27,7 @@ from cora.federation.aggregates.seal import (
     Seal,
     SealAlreadyExistsError,
     SealCannotInitializeWithInactiveCredentialError,
+    SealCrossFacilityBindingError,
     SealKeyCollisionError,
     SealKeyPurposeMismatchError,
     SealStatus,
@@ -115,16 +116,21 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
 
 
 @pytest.mark.unit
-def test_initialize_seal_trims_facility_id_before_capture() -> None:
-    events = initialize_seal.decide(
-        state=None,
-        command=_command(facility_id="  aps-2bm  "),
-        now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
-        online_credential=_online_cred(),
-        offline_credential=_offline_cred(),
-    )
-    assert events[0].facility_id == _FACILITY_ID
+def test_initialize_seal_rejects_non_canonical_facility_id() -> None:
+    """Padded facility_id is rejected (canonical form required) so the
+    cross-facility binding check compares against `command.facility_id`
+    directly without auto-normalization that could mask a peer-facility
+    credential drift."""
+    with pytest.raises(InvalidSealFacilityIdError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(facility_id="  aps-2bm  "),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
+        )
+    assert exc.value.value == "  aps-2bm  "
 
 
 @pytest.mark.unit
@@ -189,11 +195,12 @@ def test_initialize_seal_raises_collision_when_keys_equal() -> None:
 
 
 @pytest.mark.unit
-def test_initialize_seal_raises_collision_after_facility_id_trim() -> None:
-    """Trim happens before key-separation; the collision error still
-    carries the trimmed facility_id."""
+def test_initialize_seal_rejects_non_canonical_before_collision_check() -> None:
+    """Canonical-form validation fires BEFORE key-separation; padded input
+    is rejected via InvalidSealFacilityIdError even when keys would also
+    collide. Keeps the failure mode unambiguous."""
     shared = uuid4()
-    with pytest.raises(SealKeyCollisionError) as exc:
+    with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
             command=_command(
@@ -206,7 +213,7 @@ def test_initialize_seal_raises_collision_after_facility_id_trim() -> None:
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.value == "  aps-2bm  "
 
 
 @pytest.mark.unit
@@ -406,3 +413,60 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
     assert exc.value.slot == "offline_key_ref"
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.actual_status == CredentialStatus.REVOKED.value
+
+
+@pytest.mark.unit
+def test_initialize_seal_rejects_online_credential_from_other_facility() -> None:
+    """Cross-tenant key mounting defense: online credential's facility_id
+    must equal command.facility_id (sec gate SEC-FED-01)."""
+    with pytest.raises(SealCrossFacilityBindingError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(facility_id="aps-32id"),
+            offline_credential=_offline_cred(),
+        )
+    assert exc.value.expected_facility_id == _FACILITY_ID
+    assert exc.value.actual_facility_id == "aps-32id"
+    assert exc.value.key_ref_role == "online"
+
+
+@pytest.mark.unit
+def test_initialize_seal_rejects_offline_credential_from_other_facility() -> None:
+    """Cross-tenant key mounting defense: offline credential's facility_id
+    must equal command.facility_id (sec gate SEC-FED-01)."""
+    with pytest.raises(SealCrossFacilityBindingError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(facility_id="aps-32id"),
+        )
+    assert exc.value.expected_facility_id == _FACILITY_ID
+    assert exc.value.actual_facility_id == "aps-32id"
+    assert exc.value.key_ref_role == "offline"
+
+
+@pytest.mark.unit
+def test_initialize_seal_rejects_when_both_credentials_from_other_facility() -> None:
+    """Both credentials issued under a foreign facility: the online check
+    fires first per the decider's declared order, surfacing the foreign
+    facility_id on the error payload. The disagreement-between-credentials
+    branch is defense-in-depth (transitively unreachable once the per-
+    credential checks pass)."""
+    with pytest.raises(SealCrossFacilityBindingError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(facility_id="aps-32id"),
+            offline_credential=_offline_cred(facility_id="aps-32id"),
+        )
+    assert exc.value.expected_facility_id == _FACILITY_ID
+    assert exc.value.actual_facility_id == "aps-32id"
+    assert exc.value.key_ref_role == "online"

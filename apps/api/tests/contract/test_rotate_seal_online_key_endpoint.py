@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from cora.api.main import create_app
 from cora.federation.aggregates.seal import (
     SealCannotRotateError,
+    SealCrossFacilityBindingError,
     SealKeyCollisionError,
     SealNotFoundError,
     SealStatus,
@@ -126,6 +127,30 @@ def test_post_rotate_seal_online_key_returns_422_on_key_collision() -> None:
         )
     assert response.status_code == 422
     assert "differ" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
+def test_post_rotate_seal_online_key_returns_409_on_cross_facility_binding() -> None:
+    """SealCrossFacilityBindingError (cross-tenant key mounting defense)
+    surfaces as 409 conflict per the federation routes mapping."""
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise SealCrossFacilityBindingError(
+            expected_facility_id="aps-2bm",
+            actual_facility_id="aps-32id",
+            key_ref_role="online",
+        )
+
+    app.dependency_overrides[_get_rotate_seal_online_key_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(
+            "/federation/seals/aps-2bm/online-key/rotate",
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+        )
+    assert response.status_code == 409
+    assert "facility_id" in response.json()["detail"]
 
 
 @pytest.mark.contract

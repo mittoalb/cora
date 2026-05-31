@@ -34,6 +34,9 @@ raises `SealKeyCollisionError` when `new_online_key_ref` would equal
     PlanNotFoundError / MethodNotFoundError precedent)
   - new_online_credential.purpose must equal "SealOnlineSigning"
     -> SealKeyPurposeMismatchError (HTTP 422)
+  - new_online_credential.facility_id must equal state.facility_id
+    -> SealCrossFacilityBindingError (HTTP 409; cross-tenant key
+    mounting defense)
   - new_online_credential.status must equal "Active"
     -> SealCannotRotateWithInactiveCredentialError (HTTP 409;
     Rotating or Revoked secrets cannot back a Seal)
@@ -54,6 +57,7 @@ from cora.federation.aggregates.seal import (
     Seal,
     SealCannotRotateError,
     SealCannotRotateWithInactiveCredentialError,
+    SealCrossFacilityBindingError,
     SealKeyPurposeMismatchError,
     SealNotFoundError,
     SealOnlineKeyRotated,
@@ -87,6 +91,8 @@ def decide(
         -> CredentialNotFoundError (unknown credential ref)
       - new_online_credential.purpose must be SealOnlineSigning
         -> SealKeyPurposeMismatchError
+      - new_online_credential.facility_id must equal state.facility_id
+        -> SealCrossFacilityBindingError
       - new_online_credential.status must be Active
         -> SealCannotRotateWithInactiveCredentialError
       - new_online_key_ref must differ from state.offline_key_ref
@@ -108,6 +114,12 @@ def decide(
             credential_id=command.new_online_key_ref,
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
             actual_purpose=new_online_credential.purpose,
+        )
+    if new_online_credential.facility_id != state.facility_id:
+        raise SealCrossFacilityBindingError(
+            expected_facility_id=state.facility_id,
+            actual_facility_id=new_online_credential.facility_id,
+            key_ref_role="online",
         )
     if new_online_credential.status != CredentialStatus.ACTIVE.value:
         raise SealCannotRotateWithInactiveCredentialError(

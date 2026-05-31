@@ -104,6 +104,21 @@ CREATE INDEX proj_federation_permit_summary_expiry_idx
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON proj_federation_permit_summary TO cora_app;
 
+-- Row-Level Security: defense-in-depth on permit terms.
+ALTER TABLE proj_federation_permit_summary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE proj_federation_permit_summary FORCE  ROW LEVEL SECURITY;
+
+CREATE POLICY proj_federation_permit_summary_cora_app_read
+    ON proj_federation_permit_summary FOR SELECT
+    TO cora_app
+    USING (true);
+
+CREATE POLICY proj_federation_permit_summary_cora_app_write
+    ON proj_federation_permit_summary FOR ALL
+    TO cora_app
+    USING (true)
+    WITH CHECK (true);
+
 INSERT INTO projection_bookmarks (name)
 VALUES ('proj_federation_permit_summary')
 ON CONFLICT DO NOTHING;

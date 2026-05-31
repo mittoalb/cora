@@ -218,7 +218,7 @@ class Credential:
     timestamps live on the projection, not on aggregate state. The
     genesis `occurred_at` (the moment of registration) and the
     rotation-started `occurred_at` are envelope-derivable and live on
-    `proj_credential_summary`; see `CredentialLifecycleTimestamps` in
+    `proj_federation_credential_summary`; see `CredentialLifecycleTimestamps` in
     `read.py`. `registered_by_actor_id` stays as identity denorm,
     matching Calibration / Clearance / Caution precedent.
     """

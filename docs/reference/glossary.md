@@ -99,3 +99,19 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 
 - **Calibration.** *(Calibration BC)* Aggregate carrying empirically-measured system constants (motor sensitivities, beam profiles, encoder offsets). Distinct from `operation/calibration` ceremonies — Operation runs the ceremony, Calibration stores the resulting values.
 - **AsShot anchor.** Snapshot of which Calibrations were in force at a given moment. `Run.pinned_calibrations` captures the Calibrations pinned at `start_run`; `Dataset.used_calibrations` captures which of those the resulting Dataset actually consumed. The pair separates "what was available" from "what was used," which the analysis chain needs for provenance.
+
+## Supply
+
+*Supply BC, continuous resources, kind discriminator.*
+
+- **Supply.** *(Supply BC)* Continuous resource a Run or Procedure depends on. Multiple aggregate instances at runtime, one per resource type. Free-form `kind` field (string, NOT closed enum in v1) carries the resource identity. FSM: `Unknown → Available → Degraded → Unavailable → Recovering → Available`; terminal `Decommissioned` via `deregister_supply`. Pre-flight gate: `start_run` / `start_procedure` reject if any `Method.needed_supplies` kind has zero `Available` in scope.
+- **Supply.kind.** Free-form identifier covering both upstream-provided and facility-distributed resources, facility-neutral across photon / neutron / FEL / HPC. Starter vocabulary spans photon-facility examples (`photon_beam`, `cryogen`, `vacuum`, `electricity`, `compressed_air`, `process_gas`) and non-photon examples (`neutron_flux`, `FELPulses`, `ComputePool`). Physical infrastructure delivering the resource (gas cabinets, compressors, mass-flow controllers) stays as Equipment Assets; the resource itself is Supply. Promotion to a closed `SupplyKind` enum is deferred until pilot vocabulary settles (2026-05-30 audit watch item).
+
+## Federation
+
+*Federation BC, cross-facility per-edge grants.*
+
+- **Federation.** *(Federation BC, 16th BC, DLM-C 2026-05-30)* Cross-facility per-edge trust layer. Distinct from Trust BC (which carries intra-facility command-level PDP rules); Federation carries directional bilateral grants between facilities. Corpus-validated against TUF, Sigstore, SCITT, OAuth RFC 8707, TEFCA QHIN, SWIFT RMA. Reuses `Trust.Surface` for federation-tier identity rather than carving its own.
+- **Credential.** *(Federation BC)* Facility-neutral identity record mapping to OAuth/OIDC tokens cross-industry. Identity tuple `(facility_id, audience, purpose)` per RFC 8707; rotation lifecycle handles credential refresh.
+- **Permit.** *(Federation BC)* Directional bilateral grant: `Outbound` (this facility permits another to call inbound) or `Inbound` (this facility accepts calls from another). Polymorphic terms per direction; keyed on `(peer_facility_id, audience, purpose)`. Distinct from `Trust.Policy` (intra-facility, undirected, command-level PDP) by layer and shape.
+- **Seal.** *(Federation BC)* Per-facility singleton freshness pointer. Metaphor-only naming (avoids TUF-specific jargon like "snapshot" or "timestamp") so the concept travels cleanly across the SCITT / TUF / Sigstore / SWIFT corpus.

@@ -34,7 +34,7 @@ _STREAM_TYPE = "Credential"
 
 _SELECT_TIMESTAMPS_SQL = """
 SELECT registered_at, rotation_started_at
-FROM proj_credential_summary
+FROM proj_federation_credential_summary
 WHERE credential_id = $1
 """
 
@@ -43,7 +43,7 @@ WHERE credential_id = $1
 class CredentialLifecycleTimestamps:
     """Observed wall-clock timestamps for Credential lifecycle events.
 
-    Sourced from `proj_credential_summary`, not from aggregate state.
+    Sourced from `proj_federation_credential_summary`, not from aggregate state.
     `registered_at` is set once on `CredentialRegistered` (the envelope
     `occurred_at` of the genesis event). `rotation_started_at` tracks
     the most recent `CredentialRotationStarted` envelope `occurred_at`
