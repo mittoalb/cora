@@ -135,19 +135,22 @@ class OnwardActionScope(StrEnum):
 class ReceiptKind(StrEnum):
     """Receipt schemes an inbound permit requires for accepted artifacts.
 
-      - `Scitt`:       SCITT receipt (RFC draft-ietf-scitt-architecture)
-      - `RekorSct`:    Sigstore Rekor signed certificate timestamp
-      - `TsAuthority`: RFC 3161 trusted timestamp authority token
+      - `scitt`:        transparency-log receipt arm
+      - `rekor_sct`:    certificate-transparency receipt arm
+      - `ts_authority`: timestamp-authority token arm
 
     The inbound side decides which receipt kinds it requires; an
     inbound pull refuses an artifact lacking every required kind.
     Defaulting to empty frozenset means "no receipt required" (initial
     deployment posture; tighten via update slice as ecosystem matures).
+
+    See [[project_federation_adapter_design]] for the wire-tier per-arm
+    format vocabulary.
     """
 
-    SCITT = "Scitt"
-    REKOR_SCT = "RekorSct"
-    TS_AUTHORITY = "TsAuthority"
+    SCITT = "scitt"
+    REKOR_SCT = "rekor_sct"
+    TS_AUTHORITY = "ts_authority"
 
 
 class Direction(StrEnum):
@@ -290,9 +293,9 @@ class UnsupportedCanonicalizationVersionError(ValueError):
     The inbound side has to map each accepted version to a concrete
     canonicalization implementation; an unknown string would mean
     every artifact under that version is unverifiable. Recognized
-    versions are listed in `cora.infrastructure.canonicalization`
-    (today: only `cora/v1`). Adding a new version is an explicit
-    additive step.
+    versions are owned by the canonicalization port; v1 (`cora/v1`)
+    is the day-one default per
+    [[project_canonicalization_port_design]].
     """
 
     def __init__(self, version: str) -> None:

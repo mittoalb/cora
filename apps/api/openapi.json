@@ -7223,11 +7223,11 @@
         "type": "object"
       },
       "ReceiptKind": {
-        "description": "Receipt schemes an inbound permit requires for accepted artifacts.\n\n  - `Scitt`:       SCITT receipt (RFC draft-ietf-scitt-architecture)\n  - `RekorSct`:    Sigstore Rekor signed certificate timestamp\n  - `TsAuthority`: RFC 3161 trusted timestamp authority token\n\nThe inbound side decides which receipt kinds it requires; an\ninbound pull refuses an artifact lacking every required kind.\nDefaulting to empty frozenset means \"no receipt required\" (initial\ndeployment posture; tighten via update slice as ecosystem matures).",
+        "description": "Receipt schemes an inbound permit requires for accepted artifacts.\n\n  - `scitt`:        transparency-log receipt arm\n  - `rekor_sct`:    certificate-transparency receipt arm\n  - `ts_authority`: timestamp-authority token arm\n\nThe inbound side decides which receipt kinds it requires; an\ninbound pull refuses an artifact lacking every required kind.\nDefaulting to empty frozenset means \"no receipt required\" (initial\ndeployment posture; tighten via update slice as ecosystem matures).\n\nSee [[project_federation_adapter_design]] for the wire-tier per-arm\nformat vocabulary.",
         "enum": [
-          "Scitt",
-          "RekorSct",
-          "TsAuthority"
+          "scitt",
+          "rekor_sct",
+          "ts_authority"
         ],
         "title": "ReceiptKind",
         "type": "string"
