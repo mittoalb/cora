@@ -56,13 +56,14 @@ from uuid import UUID
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
+from cora.operation.acquisitions import collect
 from cora.operation.adapters.control_port_config import build_control_port
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
     PostgresStepStore,
     StepStore,
 )
-from cora.operation.conductor import Conductor
+from cora.operation.conductor import Conductor, InMemoryActionRegistry
 from cora.operation.features import (
     abort_procedure,
     append_procedure_steps,
@@ -119,9 +120,9 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
     empty routes (the default) returns `InMemoryControlPort` (legacy
     + test convenience); populated routes returns a
     `ControlPortRegistry` with the configured substrate adapters per
-    prefix. The `action_registry-from-config` plumbing remains
-    deferred; until then, RunProcedure invocations operate against
-    the empty default action registry.
+    prefix. The action registry is hand-seeded with the substrate-
+    neutral scan-acquisition primitive `collect`. Per-deployment
+    registry-from-config plumbing remains deferred.
     """
     step_store: StepStore = (
         PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
@@ -147,11 +148,13 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         bc=_BC,
     )
     control_port = build_control_port(deps.settings.control_port_routes)
+    action_registry = InMemoryActionRegistry({"collect": collect})
     conductor = Conductor(
         control_port=control_port,
         append_step=append_step_handler,
         clock=deps.clock,
         id_generator=deps.id_generator,
+        action_registry=action_registry,
         start_procedure=start_handler,
         complete_procedure=complete_handler,
         abort_procedure=abort_handler,
