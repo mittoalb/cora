@@ -31,6 +31,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.external_ref import ExternalRef
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -361,7 +362,8 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
     payload = stored.payload
     match stored.event_type:
         case "VisitRegistered":
-            try:
+
+            def _build_registered() -> VisitRegistered:
                 part_of_raw = payload.get("part_of_visit_id")
                 return VisitRegistered(
                     visit_id=UUID(payload["visit_id"]),
@@ -374,126 +376,113 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
                     part_of_visit_id=UUID(part_of_raw) if part_of_raw is not None else None,
                     external_refs=_external_refs_from_payload(payload.get("external_refs", [])),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("VisitRegistered", _build_registered)
         case "VisitArrived":
-            try:
-                return VisitArrived(
+            return deserialize_or_raise(
+                "VisitArrived",
+                lambda: VisitArrived(
                     visit_id=UUID(payload["visit_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitArrived payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitStarted":
-            try:
-                return VisitStarted(
+            return deserialize_or_raise(
+                "VisitStarted",
+                lambda: VisitStarted(
                     visit_id=UUID(payload["visit_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitHeld":
-            try:
-                return VisitHeld(
+            return deserialize_or_raise(
+                "VisitHeld",
+                lambda: VisitHeld(
                     visit_id=UUID(payload["visit_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitHeld payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitResumed":
-            try:
-                return VisitResumed(
+            return deserialize_or_raise(
+                "VisitResumed",
+                lambda: VisitResumed(
                     visit_id=UUID(payload["visit_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitResumed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitCompleted":
-            try:
-                return VisitCompleted(
+            return deserialize_or_raise(
+                "VisitCompleted",
+                lambda: VisitCompleted(
                     visit_id=UUID(payload["visit_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitCompleted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitCancelled":
-            try:
-                return VisitCancelled(
+            return deserialize_or_raise(
+                "VisitCancelled",
+                lambda: VisitCancelled(
                     visit_id=UUID(payload["visit_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitCancelled payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitAborted":
-            try:
-                return VisitAborted(
+            return deserialize_or_raise(
+                "VisitAborted",
+                lambda: VisitAborted(
                     visit_id=UUID(payload["visit_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitAborted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitVoided":
-            try:
-                return VisitVoided(
+            return deserialize_or_raise(
+                "VisitVoided",
+                lambda: VisitVoided(
                     visit_id=UUID(payload["visit_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitVoided payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitCheckedIn":
-            try:
-                return VisitCheckedIn(
+            return deserialize_or_raise(
+                "VisitCheckedIn",
+                lambda: VisitCheckedIn(
                     visit_id=UUID(payload["visit_id"]),
                     actor_id=UUID(payload["actor_id"]),
                     mode=payload["mode"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitCheckedIn payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitCheckedOut":
-            try:
-                return VisitCheckedOut(
+            return deserialize_or_raise(
+                "VisitCheckedOut",
+                lambda: VisitCheckedOut(
                     visit_id=UUID(payload["visit_id"]),
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitCheckedOut payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitTookControlOfSurface":
-            try:
-                return VisitTookControlOfSurface(
+            return deserialize_or_raise(
+                "VisitTookControlOfSurface",
+                lambda: VisitTookControlOfSurface(
                     visit_id=UUID(payload["visit_id"]),
                     surface_id=UUID(payload["surface_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitTookControlOfSurface payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "VisitReleasedControlOfSurface":
-            try:
-                return VisitReleasedControlOfSurface(
+            return deserialize_or_raise(
+                "VisitReleasedControlOfSurface",
+                lambda: VisitReleasedControlOfSurface(
                     visit_id=UUID(payload["visit_id"]),
                     surface_id=UUID(payload["surface_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed VisitReleasedControlOfSurface payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown VisitEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

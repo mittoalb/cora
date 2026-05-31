@@ -53,6 +53,7 @@ from cora.equipment.aggregates._placement import (
     ReferenceSurface,
     UnitSystem,
 )
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -309,7 +310,8 @@ def from_stored(stored: StoredEvent) -> MountEvent:
     payload = stored.payload
     match stored.event_type:
         case "MountRegistered":
-            try:
+
+            def _build_registered() -> MountRegistered:
                 raw_parent = payload["parent_mount_id"]
                 raw_drawing = payload["drawing"]
                 return MountRegistered(
@@ -322,32 +324,30 @@ def from_stored(stored: StoredEvent) -> MountEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MountRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("MountRegistered", _build_registered)
         case "MountDecommissioned":
-            try:
-                return MountDecommissioned(
+            return deserialize_or_raise(
+                "MountDecommissioned",
+                lambda: MountDecommissioned(
                     mount_id=UUID(payload["mount_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MountDecommissioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "MountPlacementUpdated":
-            try:
-                return MountPlacementUpdated(
+            return deserialize_or_raise(
+                "MountPlacementUpdated",
+                lambda: MountPlacementUpdated(
                     mount_id=UUID(payload["mount_id"]),
                     new_placement=_placement_from_payload(payload["new_placement"]),
                     survey=payload.get("survey"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MountPlacementUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "MountAssetInstalled":
-            try:
+
+            def _build_installed() -> MountAssetInstalled:
                 raw_prior = payload.get("previously_installed_asset_id")
                 return MountAssetInstalled(
                     mount_id=UUID(payload["mount_id"]),
@@ -357,20 +357,18 @@ def from_stored(stored: StoredEvent) -> MountEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MountAssetInstalled payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("MountAssetInstalled", _build_installed)
         case "MountAssetUninstalled":
-            try:
-                return MountAssetUninstalled(
+            return deserialize_or_raise(
+                "MountAssetUninstalled",
+                lambda: MountAssetUninstalled(
                     mount_id=UUID(payload["mount_id"]),
                     asset_id=UUID(payload["asset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MountAssetUninstalled payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown MountEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

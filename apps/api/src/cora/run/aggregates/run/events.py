@@ -82,6 +82,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -674,13 +675,14 @@ def from_stored(stored: StoredEvent) -> RunEvent:
     payload = stored.payload
     match stored.event_type:
         case "RunStarted":
-            try:
+
+            def _build_run_started() -> RunStarted:
                 raw_subject = payload["subject_id"]
                 # Forward-compat additive evolution: `raid`,
                 # `override_parameters` / `effective_parameters` /
                 # `trigger_source`, `external_refs`,
                 # `acknowledged_cautions`, `campaign_id`,
-                # `decided_by_decision_id` (Decision→Run linkage),
+                # `decided_by_decision_id` (Decision-to-Run linkage),
                 # `pinned_calibrations` (Calibration AsShot anchor)
                 # were all added additively. Each .get(...) returns
                 # the field's default when the key isn't in the jsonb
@@ -718,40 +720,37 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("RunStarted", _build_run_started)
         case "RunHeld":
-            try:
-                return RunHeld(
+            return deserialize_or_raise(
+                "RunHeld",
+                lambda: RunHeld(
                     run_id=UUID(payload["run_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunHeld payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunResumed":
-            try:
-                return RunResumed(
+            return deserialize_or_raise(
+                "RunResumed",
+                lambda: RunResumed(
                     run_id=UUID(payload["run_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunResumed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunCompleted":
-            try:
-                return RunCompleted(
+            return deserialize_or_raise(
+                "RunCompleted",
+                lambda: RunCompleted(
                     run_id=UUID(payload["run_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunCompleted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunAborted":
-            try:
+
+            def _build_run_aborted() -> RunAborted:
                 # `decided_by_decision_id` optional. Forward-compat
-                # additive evolution: pre-Phase-1 streams replay without the
+                # additive evolution: pre-existing streams replay without the
                 # key via `.get(..., None)`.
                 raw_decided_by_abort = payload.get("decided_by_decision_id")
                 return RunAborted(
@@ -762,21 +761,20 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunAborted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("RunAborted", _build_run_aborted)
         case "RunStopped":
-            try:
-                return RunStopped(
+            return deserialize_or_raise(
+                "RunStopped",
+                lambda: RunStopped(
                     run_id=UUID(payload["run_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunStopped payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunTruncated":
-            try:
+
+            def _build_run_truncated() -> RunTruncated:
                 raw_interrupted_at = payload["interrupted_at"]
                 return RunTruncated(
                     run_id=UUID(payload["run_id"]),
@@ -788,11 +786,11 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunTruncated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("RunTruncated", _build_run_truncated)
         case "RunAdjusted":
-            try:
+
+            def _build_run_adjusted() -> RunAdjusted:
                 # `decided_by_decision_id` is optional on the
                 # event payload. Forward-compat additive: synthetic / future
                 # callers omitting the key (None semantically) deserialize
@@ -809,42 +807,38 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunAdjusted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("RunAdjusted", _build_run_adjusted)
         case "RunReadingLogbookOpened":
-            try:
-                return RunReadingLogbookOpened(
+            return deserialize_or_raise(
+                "RunReadingLogbookOpened",
+                lambda: RunReadingLogbookOpened(
                     run_id=UUID(payload["run_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     kind=payload["kind"],
                     schema=LogbookSchema.from_dict(payload["schema"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunReadingLogbookOpened payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunAddedToCampaign":
-            try:
-                return RunAddedToCampaign(
+            return deserialize_or_raise(
+                "RunAddedToCampaign",
+                lambda: RunAddedToCampaign(
                     run_id=UUID(payload["run_id"]),
                     campaign_id=UUID(payload["campaign_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunAddedToCampaign payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "RunRemovedFromCampaign":
-            try:
-                return RunRemovedFromCampaign(
+            return deserialize_or_raise(
+                "RunRemovedFromCampaign",
+                lambda: RunRemovedFromCampaign(
                     run_id=UUID(payload["run_id"]),
                     campaign_id=UUID(payload["campaign_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunRemovedFromCampaign payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

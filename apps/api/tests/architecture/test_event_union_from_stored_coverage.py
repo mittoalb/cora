@@ -100,12 +100,49 @@ def _find_from_stored(tree: ast.Module) -> ast.FunctionDef | None:
     return None
 
 
+def _builder_target_class(call: ast.Call, case_scope: ast.AST) -> str | None:
+    """Resolve the event class constructed by a ``deserialize_or_raise`` call.
+
+    Recognises two shapes used by the ``cora.infrastructure.event_payload``
+    helper:
+
+      - ``deserialize_or_raise("X", lambda: ClassName(...))`` -> ``ClassName``
+      - ``deserialize_or_raise("X", _build_x)`` -> walks the nested
+        ``def _build_x()`` inside ``case_scope`` and returns the
+        ``return ClassName(...)`` target.
+    """
+    if not (isinstance(call.func, ast.Name) and call.func.id == "deserialize_or_raise"):
+        return None
+    if len(call.args) < 2:
+        return None
+    builder = call.args[1]
+    if isinstance(builder, ast.Lambda) and isinstance(builder.body, ast.Call):
+        body_call = builder.body
+        if isinstance(body_call.func, ast.Name):
+            return body_call.func.id
+        return None
+    if isinstance(builder, ast.Name):
+        for node in ast.walk(case_scope):
+            if isinstance(node, ast.FunctionDef) and node.name == builder.id:
+                for sub in ast.walk(node):
+                    if (
+                        isinstance(sub, ast.Return)
+                        and isinstance(sub.value, ast.Call)
+                        and isinstance(sub.value.func, ast.Name)
+                    ):
+                        return sub.value.func.id
+        return None
+    return None
+
+
 def _collect_case_targets(func: ast.FunctionDef) -> dict[str, str | None]:
     """For each ``case "X":`` arm, return ``{X: ClassName}`` it constructs.
 
     Maps a case string to the name of the dataclass returned by its body.
-    Returns ``None`` for the class name when the return shape doesn't fit
-    the ``return ClassName(...)`` pattern (would be a separate audit).
+    Recognises both the legacy ``return ClassName(...)`` shape and the
+    ``return deserialize_or_raise("X", lambda: ClassName(...))`` /
+    ``return deserialize_or_raise("X", _build_x)`` shapes introduced by
+    ``cora.infrastructure.event_payload.deserialize_or_raise``.
     """
     out: dict[str, str | None] = {}
     for node in ast.walk(func):
@@ -122,12 +159,16 @@ def _collect_case_targets(func: ast.FunctionDef) -> dict[str, str | None]:
             case_str = pattern.value.value
             target: str | None = None
             for body_node in ast.walk(case):
-                if (
-                    isinstance(body_node, ast.Return)
-                    and isinstance(body_node.value, ast.Call)
-                    and isinstance(body_node.value.func, ast.Name)
+                if not (
+                    isinstance(body_node, ast.Return) and isinstance(body_node.value, ast.Call)
                 ):
-                    target = body_node.value.func.id
+                    continue
+                call = body_node.value
+                if isinstance(call.func, ast.Name) and call.func.id == "deserialize_or_raise":
+                    target = _builder_target_class(call, case)
+                    break
+                if isinstance(call.func, ast.Name):
+                    target = call.func.id
                     break
             out[case_str] = target
     return out

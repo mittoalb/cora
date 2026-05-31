@@ -44,6 +44,7 @@ from cora.federation.aggregates.permit.state import (
     ReceiptKind,
     ScopeRef,
 )
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -254,8 +255,9 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
     payload = stored.payload
     match stored.event_type:
         case "PermitDefined":
-            try:
-                return PermitDefined(
+            return deserialize_or_raise(
+                "PermitDefined",
+                lambda: PermitDefined(
                     permit_id=UUID(payload["permit_id"]),
                     peer_facility_id=payload["peer_facility_id"],
                     direction=Direction(payload["direction"]),
@@ -267,52 +269,47 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
                     terms=deserialize_terms(payload["terms"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed PermitDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+            )
         case "PermitActivated":
-            try:
-                return PermitActivated(
+            return deserialize_or_raise(
+                "PermitActivated",
+                lambda: PermitActivated(
                     permit_id=UUID(payload["permit_id"]),
                     activated_by_actor_id=UUID(payload["activated_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PermitActivated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PermitSuspended":
-            try:
-                return PermitSuspended(
+            return deserialize_or_raise(
+                "PermitSuspended",
+                lambda: PermitSuspended(
                     permit_id=UUID(payload["permit_id"]),
                     suspended_by_actor_id=UUID(payload["suspended_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PermitSuspended payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PermitResumed":
-            try:
-                return PermitResumed(
+            return deserialize_or_raise(
+                "PermitResumed",
+                lambda: PermitResumed(
                     permit_id=UUID(payload["permit_id"]),
                     resumed_by_actor_id=UUID(payload["resumed_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PermitResumed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PermitRevoked":
-            try:
-                return PermitRevoked(
+            return deserialize_or_raise(
+                "PermitRevoked",
+                lambda: PermitRevoked(
                     permit_id=UUID(payload["permit_id"]),
                     revoked_by_actor_id=UUID(payload["revoked_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PermitRevoked payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case unknown:
             msg = f"Unknown Permit event type: {unknown!r}"
             raise ValueError(msg)

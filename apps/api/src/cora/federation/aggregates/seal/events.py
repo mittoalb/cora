@@ -31,6 +31,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -228,65 +229,60 @@ def from_stored(stored: StoredEvent) -> SealEvent:
     payload = stored.payload
     match stored.event_type:
         case "SealInitialized":
-            try:
-                return SealInitialized(
+            return deserialize_or_raise(
+                "SealInitialized",
+                lambda: SealInitialized(
                     facility_id=payload["facility_id"],
                     online_key_ref=UUID(payload["online_key_ref"]),
                     offline_key_ref=UUID(payload["offline_key_ref"]),
                     initialized_by_actor_id=UUID(payload["initialized_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SealInitialized payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SealPointerSigned":
-            try:
-                return SealPointerSigned(
+            return deserialize_or_raise(
+                "SealPointerSigned",
+                lambda: SealPointerSigned(
                     facility_id=payload["facility_id"],
                     head_hash=payload["head_hash"],
                     sequence_number=payload["sequence_number"],
                     signed_at=datetime.fromisoformat(payload["signed_at"]),
                     signed_by_actor_id=UUID(payload["signed_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SealPointerSigned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SealOnlineKeyRotated":
-            try:
-                return SealOnlineKeyRotated(
+            return deserialize_or_raise(
+                "SealOnlineKeyRotated",
+                lambda: SealOnlineKeyRotated(
                     facility_id=payload["facility_id"],
                     new_online_key_ref=UUID(payload["new_online_key_ref"]),
                     signed_by_offline_root=payload["signed_by_offline_root"],
                     rotated_by_actor_id=UUID(payload["rotated_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SealOnlineKeyRotated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SealRepublishingStarted":
-            try:
-                return SealRepublishingStarted(
+            return deserialize_or_raise(
+                "SealRepublishingStarted",
+                lambda: SealRepublishingStarted(
                     facility_id=payload["facility_id"],
                     started_by_actor_id=UUID(payload["started_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SealRepublishingStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SealRepublishingCompleted":
-            try:
-                return SealRepublishingCompleted(
+            return deserialize_or_raise(
+                "SealRepublishingCompleted",
+                lambda: SealRepublishingCompleted(
                     facility_id=payload["facility_id"],
                     new_head_hash=payload["new_head_hash"],
                     new_sequence_number=payload["new_sequence_number"],
                     completed_by_actor_id=UUID(payload["completed_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SealRepublishingCompleted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case unknown:
             msg = f"Unknown Seal event type: {unknown!r}"
             raise ValueError(msg)

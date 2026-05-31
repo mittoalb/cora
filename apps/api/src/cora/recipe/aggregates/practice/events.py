@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -144,36 +145,33 @@ def from_stored(stored: StoredEvent) -> PracticeEvent:
     payload = stored.payload
     match stored.event_type:
         case "PracticeDefined":
-            try:
-                return PracticeDefined(
+            return deserialize_or_raise(
+                "PracticeDefined",
+                lambda: PracticeDefined(
                     practice_id=UUID(payload["practice_id"]),
                     name=payload["name"],
                     method_id=UUID(payload["method_id"]),
                     site_id=UUID(payload["site_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PracticeDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PracticeVersioned":
-            try:
-                return PracticeVersioned(
+            return deserialize_or_raise(
+                "PracticeVersioned",
+                lambda: PracticeVersioned(
                     practice_id=UUID(payload["practice_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PracticeVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PracticeDeprecated":
-            try:
-                return PracticeDeprecated(
+            return deserialize_or_raise(
+                "PracticeDeprecated",
+                lambda: PracticeDeprecated(
                     practice_id=UUID(payload["practice_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PracticeDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown PracticeEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

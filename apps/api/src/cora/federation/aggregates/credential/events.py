@@ -29,6 +29,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.federation.aggregates.credential.state import CredentialPurpose
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -211,7 +212,8 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
     payload = stored.payload
     match stored.event_type:
         case "CredentialRegistered":
-            try:
+
+            def _build_credential_registered() -> CredentialRegistered:
                 raw_expires = payload.get("expires_at")
                 return CredentialRegistered(
                     credential_id=UUID(payload["credential_id"]),
@@ -226,53 +228,51 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
                     registered_by_actor_id=UUID(payload["registered_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CredentialRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise(
+                "CredentialRegistered",
+                _build_credential_registered,
+            )
         case "CredentialRotationStarted":
-            try:
-                return CredentialRotationStarted(
+            return deserialize_or_raise(
+                "CredentialRotationStarted",
+                lambda: CredentialRotationStarted(
                     credential_id=UUID(payload["credential_id"]),
                     pending_secret_ref=payload["pending_secret_ref"],
                     pending_public_material_ref=payload.get("pending_public_material_ref"),
                     rotation_started_by_actor_id=UUID(payload["rotation_started_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CredentialRotationStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CredentialRotationCompleted":
-            try:
-                return CredentialRotationCompleted(
+            return deserialize_or_raise(
+                "CredentialRotationCompleted",
+                lambda: CredentialRotationCompleted(
                     credential_id=UUID(payload["credential_id"]),
                     rotation_completed_by_actor_id=UUID(payload["rotation_completed_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CredentialRotationCompleted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CredentialRotationAborted":
-            try:
-                return CredentialRotationAborted(
+            return deserialize_or_raise(
+                "CredentialRotationAborted",
+                lambda: CredentialRotationAborted(
                     credential_id=UUID(payload["credential_id"]),
                     rotation_aborted_by_actor_id=UUID(payload["rotation_aborted_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CredentialRotationAborted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CredentialRevoked":
-            try:
-                return CredentialRevoked(
+            return deserialize_or_raise(
+                "CredentialRevoked",
+                lambda: CredentialRevoked(
                     credential_id=UUID(payload["credential_id"]),
                     revoked_by_actor_id=UUID(payload["revoked_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CredentialRevoked payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case unknown:
             msg = f"Unknown Credential event type: {unknown!r}"
             raise ValueError(msg)

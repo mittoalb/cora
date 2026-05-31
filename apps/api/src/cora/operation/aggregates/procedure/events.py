@@ -52,6 +52,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -334,7 +335,8 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
     payload = stored.payload
     match stored.event_type:
         case "ProcedureRegistered":
-            try:
+
+            def _build_registered() -> ProcedureRegistered:
                 raw_parent = payload["parent_run_id"]
                 # capability_id is OPTIONAL on the payload.
                 # Pre-10d streams omit the key entirely; fold via `.get` →
@@ -349,39 +351,36 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                     capability_id=UUID(raw_capability) if raw_capability is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("ProcedureRegistered", _build_registered)
         case "ProcedureStarted":
-            try:
-                return ProcedureStarted(
+            return deserialize_or_raise(
+                "ProcedureStarted",
+                lambda: ProcedureStarted(
                     procedure_id=UUID(payload["procedure_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ProcedureCompleted":
-            try:
-                return ProcedureCompleted(
+            return deserialize_or_raise(
+                "ProcedureCompleted",
+                lambda: ProcedureCompleted(
                     procedure_id=UUID(payload["procedure_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureCompleted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ProcedureAborted":
-            try:
-                return ProcedureAborted(
+            return deserialize_or_raise(
+                "ProcedureAborted",
+                lambda: ProcedureAborted(
                     procedure_id=UUID(payload["procedure_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureAborted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ProcedureTruncated":
-            try:
+
+            def _build_truncated() -> ProcedureTruncated:
                 raw_interrupted_at = payload["interrupted_at"]
                 return ProcedureTruncated(
                     procedure_id=UUID(payload["procedure_id"]),
@@ -393,21 +392,19 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureTruncated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("ProcedureTruncated", _build_truncated)
         case "ProcedureStepsLogbookOpened":
-            try:
-                return ProcedureStepsLogbookOpened(
+            return deserialize_or_raise(
+                "ProcedureStepsLogbookOpened",
+                lambda: ProcedureStepsLogbookOpened(
                     procedure_id=UUID(payload["procedure_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     kind=payload["kind"],
                     schema=LogbookSchema.from_dict(payload["schema"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ProcedureStepsLogbookOpened payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown ProcedureEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

@@ -12,6 +12,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.equipment.aggregates.family.affordance import Affordance
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -153,46 +154,42 @@ def from_stored(stored: StoredEvent) -> FamilyEvent:
     payload = stored.payload
     match stored.event_type:
         case "FamilyDefined":
-            try:
-                return FamilyDefined(
+            return deserialize_or_raise(
+                "FamilyDefined",
+                lambda: FamilyDefined(
                     family_id=UUID(payload["family_id"]),
                     name=payload["name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     affordances=_load_affordances(payload),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FamilyDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "FamilyVersioned":
-            try:
-                return FamilyVersioned(
+            return deserialize_or_raise(
+                "FamilyVersioned",
+                lambda: FamilyVersioned(
                     family_id=UUID(payload["family_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     affordances=_load_affordances(payload),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FamilyVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "FamilyDeprecated":
-            try:
-                return FamilyDeprecated(
+            return deserialize_or_raise(
+                "FamilyDeprecated",
+                lambda: FamilyDeprecated(
                     family_id=UUID(payload["family_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FamilyDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "FamilySettingsSchemaUpdated":
-            try:
-                return FamilySettingsSchemaUpdated(
+            return deserialize_or_raise(
+                "FamilySettingsSchemaUpdated",
+                lambda: FamilySettingsSchemaUpdated(
                     family_id=UUID(payload["family_id"]),
                     settings_schema=payload.get("settings_schema"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FamilySettingsSchemaUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown FamilyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

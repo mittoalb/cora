@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.trust.aggregates.surface.surface_kind import SurfaceKind
 
@@ -56,16 +57,16 @@ def from_stored(stored: StoredEvent) -> SurfaceEvent:
     payload = stored.payload
     match stored.event_type:
         case "SurfaceDefined":
-            try:
-                return SurfaceDefined(
+            return deserialize_or_raise(
+                "SurfaceDefined",
+                lambda: SurfaceDefined(
                     surface_id=UUID(payload["surface_id"]),
                     name=payload["name"],
                     kind=SurfaceKind(payload["kind"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed SurfaceDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+            )
         case _:
             msg = f"Unknown SurfaceEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

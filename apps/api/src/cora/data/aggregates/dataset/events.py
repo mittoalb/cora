@@ -38,6 +38,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -262,7 +263,8 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
     payload = stored.payload
     match stored.event_type:
         case "DatasetRegistered":
-            try:
+
+            def _build_registered() -> DatasetRegistered:
                 raw_producing_run_id = payload["producing_run_id"]
                 raw_subject_id = payload["subject_id"]
                 raw_checksum = payload["checksum"]
@@ -282,51 +284,39 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
                     derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # additive evolution: legacy events have no
-                    # producing_run_end_state or intent in payload; default
-                    # to None and "Trial" respectively (state evolver will
-                    # construct Intent.TRIAL from the string).
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
-                    # additive evolution: legacy events have no
-                    # used_calibrations key; .get(..., []) returns [] so
-                    # legacy streams fold to an empty tuple (evolver coerces
-                    # to frozenset for in-memory equality semantics).
                     used_calibrations=tuple(UUID(c) for c in payload.get("used_calibrations", [])),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DatasetRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("DatasetRegistered", _build_registered)
         case "DatasetDiscarded":
-            try:
-                return DatasetDiscarded(
+            return deserialize_or_raise(
+                "DatasetDiscarded",
+                lambda: DatasetDiscarded(
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DatasetDiscarded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "DatasetPromoted":
-            try:
-                return DatasetPromoted(
+            return deserialize_or_raise(
+                "DatasetPromoted",
+                lambda: DatasetPromoted(
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DatasetPromoted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "DatasetDemoted":
-            try:
-                return DatasetDemoted(
+            return deserialize_or_raise(
+                "DatasetDemoted",
+                lambda: DatasetDemoted(
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DatasetDemoted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown DatasetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

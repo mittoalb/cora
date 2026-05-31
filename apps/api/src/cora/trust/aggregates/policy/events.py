@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 
@@ -87,22 +88,18 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
     payload = stored.payload
     match stored.event_type:
         case "PolicyDefined":
-            try:
-                return PolicyDefined(
+            return deserialize_or_raise(
+                "PolicyDefined",
+                lambda: PolicyDefined(
                     policy_id=UUID(payload["policy_id"]),
                     name=payload["name"],
                     conduit_id=UUID(payload["conduit_id"]),
                     permitted_principals=tuple(UUID(p) for p in payload["permitted_principals"]),
                     permitted_commands=tuple(payload["permitted_commands"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # surface_id is post-Phase-B-Iter-B-additive; V1 events
-                    # on disk lack it. `.get` with nil default preserves
-                    # backward compat without breaking V1 fold.
                     surface_id=UUID(payload.get("surface_id", str(NIL_SENTINEL_ID))),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PolicyDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown PolicyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

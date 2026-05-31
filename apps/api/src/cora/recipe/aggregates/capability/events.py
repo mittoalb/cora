@@ -34,6 +34,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.equipment.aggregates.family import Affordance
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.capability.executor_shape import ExecutorShape
 
@@ -192,8 +193,9 @@ def from_stored(stored: StoredEvent) -> CapabilityEvent:
     payload = stored.payload
     match stored.event_type:
         case "CapabilityDefined":
-            try:
-                return CapabilityDefined(
+            return deserialize_or_raise(
+                "CapabilityDefined",
+                lambda: CapabilityDefined(
                     capability_id=UUID(payload["capability_id"]),
                     code=payload["code"],
                     name=payload["name"],
@@ -202,13 +204,12 @@ def from_stored(stored: StoredEvent) -> CapabilityEvent:
                     executor_shapes=_load_executor_shapes(payload),
                     parameters_schema=payload.get("parameters_schema"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CapabilityVersioned":
-            try:
-                return CapabilityVersioned(
+            return deserialize_or_raise(
+                "CapabilityVersioned",
+                lambda: CapabilityVersioned(
                     capability_id=UUID(payload["capability_id"]),
                     version_tag=payload["version_tag"],
                     description=payload.get("description"),
@@ -216,12 +217,11 @@ def from_stored(stored: StoredEvent) -> CapabilityEvent:
                     executor_shapes=_load_executor_shapes(payload),
                     parameters_schema=payload.get("parameters_schema"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CapabilityDeprecated":
-            try:
+
+            def _build_capability_deprecated() -> CapabilityDeprecated:
                 replaced_raw = payload.get("replaced_by_capability_id")
                 return CapabilityDeprecated(
                     capability_id=UUID(payload["capability_id"]),
@@ -230,9 +230,8 @@ def from_stored(stored: StoredEvent) -> CapabilityEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("CapabilityDeprecated", _build_capability_deprecated)
         case _:
             msg = f"Unknown CapabilityEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

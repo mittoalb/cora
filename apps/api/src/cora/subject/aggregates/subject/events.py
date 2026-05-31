@@ -30,6 +30,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -269,85 +270,75 @@ def from_stored(stored: StoredEvent) -> SubjectEvent:
     payload = stored.payload
     match stored.event_type:
         case "SubjectRegistered":
-            try:
-                return SubjectRegistered(
+            return deserialize_or_raise(
+                "SubjectRegistered",
+                lambda: SubjectRegistered(
                     subject_id=UUID(payload["subject_id"]),
                     name=payload["name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectMounted":
-            try:
-                # `payload.get` for additive evolution: stored events
-                # without the reason key fold to "" (empty string).
-                return SubjectMounted(
+            return deserialize_or_raise(
+                "SubjectMounted",
+                lambda: SubjectMounted(
                     subject_id=UUID(payload["subject_id"]),
                     asset_id=UUID(payload["asset_id"]),
                     reason=payload.get("reason", ""),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectMounted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectMeasured":
-            try:
-                return SubjectMeasured(
+            return deserialize_or_raise(
+                "SubjectMeasured",
+                lambda: SubjectMeasured(
                     subject_id=UUID(payload["subject_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectMeasured payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectRemoved":
-            try:
-                return SubjectRemoved(
+            return deserialize_or_raise(
+                "SubjectRemoved",
+                lambda: SubjectRemoved(
                     subject_id=UUID(payload["subject_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectReturned":
-            try:
-                return SubjectReturned(
+            return deserialize_or_raise(
+                "SubjectReturned",
+                lambda: SubjectReturned(
                     subject_id=UUID(payload["subject_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectReturned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectStored":
-            try:
-                return SubjectStored(
+            return deserialize_or_raise(
+                "SubjectStored",
+                lambda: SubjectStored(
                     subject_id=UUID(payload["subject_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectStored payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectDiscarded":
-            try:
-                return SubjectDiscarded(
+            return deserialize_or_raise(
+                "SubjectDiscarded",
+                lambda: SubjectDiscarded(
                     subject_id=UUID(payload["subject_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectDiscarded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SubjectDismounted":
-            try:
-                return SubjectDismounted(
+            return deserialize_or_raise(
+                "SubjectDismounted",
+                lambda: SubjectDismounted(
                     subject_id=UUID(payload["subject_id"]),
                     from_asset_id=UUID(payload["from_asset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SubjectDismounted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown SubjectEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

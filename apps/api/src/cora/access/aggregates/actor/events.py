@@ -30,6 +30,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.access.aggregates.actor.state import ActorKind
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -158,48 +159,49 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
     payload = stored.payload
     match stored.event_type:
         case "ActorRegisteredV2":
-            try:
-                return ActorRegistered(
+            return deserialize_or_raise(
+                "ActorRegisteredV2",
+                lambda: ActorRegistered(
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     kind=ActorKind(payload["kind"]),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed ActorRegisteredV2 payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+            )
         case "ActorRegistered":
             # Legacy V1: payload still carries `name`. Drop it on
             # rebuild; the backfill migration copied the legacy name
             # into actor_profile before this arm started replaying.
             # `kind` may also be absent on the oldest legacy payloads;
             # fall back to HUMAN.
-            try:
-                return ActorRegistered(
+            return deserialize_or_raise(
+                "ActorRegistered",
+                lambda: ActorRegistered(
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     kind=ActorKind(payload.get("kind", ActorKind.HUMAN.value)),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed ActorRegistered payload (V1) {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+                message_suffix=" (V1)",
+            )
         case "ActorDeactivated":
-            try:
-                return ActorDeactivated(
+            return deserialize_or_raise(
+                "ActorDeactivated",
+                lambda: ActorDeactivated(
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed ActorDeactivated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+            )
         case "ActorProfileForgotten":
-            try:
-                return ActorProfileForgotten(
+            return deserialize_or_raise(
+                "ActorProfileForgotten",
+                lambda: ActorProfileForgotten(
                     actor_id=UUID(payload["actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError, ValueError) as exc:
-                msg = f"Malformed ActorProfileForgotten payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+                extra=(ValueError,),
+            )
         case _:
             msg = f"Unknown ActorEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

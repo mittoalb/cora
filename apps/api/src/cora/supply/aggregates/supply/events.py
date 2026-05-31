@@ -42,6 +42,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -314,53 +315,46 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
     payload = stored.payload
     match stored.event_type:
         case "SupplyRegistered":
-            try:
-                return SupplyRegistered(
+            return deserialize_or_raise(
+                "SupplyRegistered",
+                lambda: SupplyRegistered(
                     supply_id=UUID(payload["supply_id"]),
                     scope=payload["scope"],
                     kind=payload["kind"],
                     name=payload["name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "SupplyMarkedAvailable":
-            try:
-                return SupplyMarkedAvailable(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyMarkedAvailable payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyMarkedAvailable",
+                lambda: SupplyMarkedAvailable(**_transition_kwargs(payload)),
+            )
         case "SupplyDegraded":
-            try:
-                return SupplyDegraded(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyDegraded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyDegraded",
+                lambda: SupplyDegraded(**_transition_kwargs(payload)),
+            )
         case "SupplyMarkedUnavailable":
-            try:
-                return SupplyMarkedUnavailable(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyMarkedUnavailable payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyMarkedUnavailable",
+                lambda: SupplyMarkedUnavailable(**_transition_kwargs(payload)),
+            )
         case "SupplyMarkedRecovering":
-            try:
-                return SupplyMarkedRecovering(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyMarkedRecovering payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyMarkedRecovering",
+                lambda: SupplyMarkedRecovering(**_transition_kwargs(payload)),
+            )
         case "SupplyRestored":
-            try:
-                return SupplyRestored(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyRestored payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyRestored",
+                lambda: SupplyRestored(**_transition_kwargs(payload)),
+            )
         case "SupplyDeregistered":
-            try:
-                return SupplyDeregistered(**_transition_kwargs(payload))
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed SupplyDeregistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+            return deserialize_or_raise(
+                "SupplyDeregistered",
+                lambda: SupplyDeregistered(**_transition_kwargs(payload)),
+            )
         case _:
             msg = f"Unknown SupplyEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

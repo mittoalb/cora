@@ -51,6 +51,7 @@ from cora.caution.aggregates.caution.state import (
     CautionTarget,
     ProcedureTarget,
 )
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -257,11 +258,13 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
     discriminators so a stream contaminated with foreign event types
     fails loud rather than silently being dropped by the evolver.
 
-    Each arm body is wrapped in a try/except that re-raises malformed
-    payloads as ValueError; mirrors Safety's `deserialize_binding`
-    defensive shape (the outer `deserialize_target` already does this
-    for the polymorphic target subfield, but the arm-level wrap catches
-    every other malformed field too).
+    Each arm delegates to `deserialize_or_raise`, which catches
+    KeyError / TypeError / AttributeError and re-raises as ValueError
+    tagged with the event-type name; mirrors Safety's
+    `deserialize_binding` defensive shape (the outer
+    `deserialize_target` already does this for the polymorphic target
+    subfield, but the arm-level wrap catches every other malformed
+    field too).
 
     Nullable / defaulted fields (`expires_at`, `parent_caution_id`,
     `propagate_to_children`) use `payload.get(...)` so future migrations
@@ -270,7 +273,8 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
     payload = stored.payload
     match stored.event_type:
         case "CautionRegistered":
-            try:
+
+            def _build_registered() -> CautionRegistered:
                 expires_at_raw = payload.get("expires_at")
                 parent_caution_id_raw = payload.get("parent_caution_id")
                 return CautionRegistered(
@@ -293,29 +297,26 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CautionRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("CautionRegistered", _build_registered)
         case "CautionSuperseded":
-            try:
-                return CautionSuperseded(
+            return deserialize_or_raise(
+                "CautionSuperseded",
+                lambda: CautionSuperseded(
                     caution_id=UUID(payload["caution_id"]),
                     by_caution_id=UUID(payload["by_caution_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CautionSuperseded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CautionRetired":
-            try:
-                return CautionRetired(
+            return deserialize_or_raise(
+                "CautionRetired",
+                lambda: CautionRetired(
                     caution_id=UUID(payload["caution_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CautionRetired payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown CautionEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

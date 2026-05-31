@@ -54,6 +54,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -344,7 +345,8 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
     payload = stored.payload
     match stored.event_type:
         case "PlanDefined":
-            try:
+
+            def _build_plan_defined() -> PlanDefined:
                 # dual-key fallback: legacy PlanDefined payloads carry
                 # `method_needed_capabilities_snapshot` and
                 # `asset_capabilities_snapshot`; current payloads carry the
@@ -369,12 +371,12 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                     asset_families_snapshot=_deserialize_asset_families_snapshot(asset_snap),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("PlanDefined", _build_plan_defined)
         case "PlanVersioned":
-            try:
-                return PlanVersioned(
+            return deserialize_or_raise(
+                "PlanVersioned",
+                lambda: PlanVersioned(
                     plan_id=UUID(payload["plan_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
@@ -383,55 +385,49 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                     # evolution pattern per [[project_content_addressed
                     # _identity_design]] watch item on pre-rollout fold.
                     content_hash=payload.get("content_hash"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PlanDeprecated":
-            try:
-                return PlanDeprecated(
+            return deserialize_or_raise(
+                "PlanDeprecated",
+                lambda: PlanDeprecated(
                     plan_id=UUID(payload["plan_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PlanDefaultParametersUpdated":
-            try:
-                return PlanDefaultParametersUpdated(
+            return deserialize_or_raise(
+                "PlanDefaultParametersUpdated",
+                lambda: PlanDefaultParametersUpdated(
                     plan_id=UUID(payload["plan_id"]),
                     default_parameters=payload["default_parameters"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanDefaultParametersUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PlanWireAdded":
-            try:
-                return PlanWireAdded(
+            return deserialize_or_raise(
+                "PlanWireAdded",
+                lambda: PlanWireAdded(
                     plan_id=UUID(payload["plan_id"]),
                     source_asset_id=UUID(payload["source_asset_id"]),
                     source_port_name=payload["source_port_name"],
                     target_asset_id=UUID(payload["target_asset_id"]),
                     target_port_name=payload["target_port_name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanWireAdded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "PlanWireRemoved":
-            try:
-                return PlanWireRemoved(
+            return deserialize_or_raise(
+                "PlanWireRemoved",
+                lambda: PlanWireRemoved(
                     plan_id=UUID(payload["plan_id"]),
                     source_asset_id=UUID(payload["source_asset_id"]),
                     source_port_name=payload["source_port_name"],
                     target_asset_id=UUID(payload["target_asset_id"]),
                     target_port_name=payload["target_port_name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed PlanWireRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

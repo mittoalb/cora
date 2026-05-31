@@ -36,6 +36,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -229,7 +230,8 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
     payload = stored.payload
     match stored.event_type:
         case "MethodDefined":
-            try:
+
+            def _build_method_defined() -> MethodDefined:
                 capability_raw = payload.get("capability_id")
                 return MethodDefined(
                     method_id=UUID(payload["method_id"]),
@@ -245,12 +247,12 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     capability_id=(UUID(capability_raw) if capability_raw is not None else None),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MethodDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("MethodDefined", _build_method_defined)
         case "MethodVersioned":
-            try:
-                return MethodVersioned(
+            return deserialize_or_raise(
+                "MethodVersioned",
+                lambda: MethodVersioned(
                     method_id=UUID(payload["method_id"]),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
@@ -259,29 +261,25 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     # evolution pattern per [[project_content_addressed
                     # _identity_design]] watch item on pre-rollout fold.
                     content_hash=payload.get("content_hash"),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MethodVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "MethodDeprecated":
-            try:
-                return MethodDeprecated(
+            return deserialize_or_raise(
+                "MethodDeprecated",
+                lambda: MethodDeprecated(
                     method_id=UUID(payload["method_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MethodDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "MethodParametersSchemaUpdated":
-            try:
-                return MethodParametersSchemaUpdated(
+            return deserialize_or_raise(
+                "MethodParametersSchemaUpdated",
+                lambda: MethodParametersSchemaUpdated(
                     method_id=UUID(payload["method_id"]),
                     parameters_schema=payload["parameters_schema"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed MethodParametersSchemaUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown MethodEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

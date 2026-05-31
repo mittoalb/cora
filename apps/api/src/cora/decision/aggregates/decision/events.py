@@ -51,6 +51,7 @@ from cora.decision.aggregates.decision.state import (
     DecisionOverrideKind,
     DecisionRating,
 )
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -264,7 +265,8 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
     payload = stored.payload
     match stored.event_type:
         case "DecisionRegistered":
-            try:
+
+            def _build_registered() -> DecisionRegistered:
                 raw_parent = payload["parent_id"]
                 raw_override = payload["override_kind"]
                 raw_conf_source = payload["confidence_source"]
@@ -274,7 +276,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                     context=payload["context"],
                     choice=payload["choice"],
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
-                    override_kind=raw_override,  # already-narrow Literal value
+                    override_kind=raw_override,
                     rule=payload["rule"],
                     reasoning=payload["reasoning"],
                     confidence=payload["confidence"],
@@ -288,37 +290,31 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                     reasoning_signature=payload["reasoning_signature"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DecisionRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("DecisionRegistered", _build_registered)
         case "DecisionLogbookOpened":
-            try:
-                return DecisionLogbookOpened(
+            return deserialize_or_raise(
+                "DecisionLogbookOpened",
+                lambda: DecisionLogbookOpened(
                     decision_id=UUID(payload["decision_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     kind=payload["kind"],
                     schema=LogbookSchema.from_dict(payload["schema"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DecisionLogbookOpened payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "DecisionLogbookClosed":
-            try:
-                return DecisionLogbookClosed(
+            return deserialize_or_raise(
+                "DecisionLogbookClosed",
+                lambda: DecisionLogbookClosed(
                     decision_id=UUID(payload["decision_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DecisionLogbookClosed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "DecisionRated":
-            try:
-                # `occurred_at` defaults to `rated_at` for forward-compat
-                # with pre-cleanup payloads (none exist in production but
-                # the .get() pattern is the cross-BC additive-evolution
-                # convention). Same for `confidence_at_rating` -> None.
+
+            def _build_rated() -> DecisionRated:
                 rated_at = datetime.fromisoformat(payload["rated_at"])
                 occurred_at_raw = payload.get("occurred_at")
                 return DecisionRated(
@@ -334,9 +330,8 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                     ),
                     confidence_at_rating=payload.get("confidence_at_rating"),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed DecisionRated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("DecisionRated", _build_rated)
         case _:
             msg = f"Unknown DecisionEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

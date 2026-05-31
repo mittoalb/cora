@@ -84,12 +84,20 @@ def test_from_stored_wraps_every_event_type(events_file: Path) -> None:
     if not case_names:
         pytest.skip(f"{_qualified(events_file)}: no event-type cases found")
 
-    unwrapped = [n for n in case_names if f"Malformed {n} payload" not in body]
+    unwrapped = [
+        n
+        for n in case_names
+        if f"Malformed {n} payload" not in body
+        and f'deserialize_or_raise(\n                "{n}"' not in body
+        and f'deserialize_or_raise("{n}"' not in body
+    ]
     assert not unwrapped, (
         f"{_qualified(events_file)}: the following event-type cases in "
         f"from_stored() do not wrap KeyError/TypeError/AttributeError as "
-        f'`raise ValueError("Malformed <EventType> payload ...")`: {unwrapped}.\n'
+        f'`raise ValueError("Malformed <EventType> payload ...")` or route '
+        f"through `deserialize_or_raise(...)`: {unwrapped}.\n"
         f"\nSee tests/architecture/test_from_stored_wraps_payload.py for the "
         f"convention rationale + corpus survey. Apply the same per-case "
-        f"try/except wrap used by the already-converted aggregates."
+        f"try/except wrap used by the already-converted aggregates, or "
+        f"call `cora.infrastructure.event_payload.deserialize_or_raise`."
     )

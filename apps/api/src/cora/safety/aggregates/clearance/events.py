@@ -32,6 +32,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance.hazard_classification import (
     GHSPictogram,
@@ -539,7 +540,8 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
     payload = stored.payload
     match stored.event_type:
         case "ClearanceRegistered":
-            try:
+
+            def _build_registered() -> ClearanceRegistered:
                 raw_valid_from = payload.get("valid_from")
                 raw_valid_until = payload.get("valid_until")
                 raw_parent = payload.get("parent_clearance_id")
@@ -565,31 +567,29 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                     parent_clearance_id=(UUID(raw_parent) if raw_parent is not None else None),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("ClearanceRegistered", _build_registered)
         case "ClearanceSubmitted":
-            try:
-                return ClearanceSubmitted(
+            return deserialize_or_raise(
+                "ClearanceSubmitted",
+                lambda: ClearanceSubmitted(
                     clearance_id=UUID(payload["clearance_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceSubmitted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceReviewStarted":
-            try:
-                return ClearanceReviewStarted(
+            return deserialize_or_raise(
+                "ClearanceReviewStarted",
+                lambda: ClearanceReviewStarted(
                     clearance_id=UUID(payload["clearance_id"]),
                     first_reviewer_role=payload["first_reviewer_role"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceReviewStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceReviewStepAppended":
-            try:
-                return ClearanceReviewStepAppended(
+            return deserialize_or_raise(
+                "ClearanceReviewStepAppended",
+                lambda: ClearanceReviewStepAppended(
                     clearance_id=UUID(payload["clearance_id"]),
                     step_index=payload["step_index"],
                     role=payload["role"],
@@ -598,12 +598,11 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                     decided_at=datetime.fromisoformat(payload["decided_at"]),
                     notes=payload.get("notes"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceReviewStepAppended payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceApproved":
-            try:
+
+            def _build_approved() -> ClearanceApproved:
                 raw_valid_from = payload.get("valid_from")
                 raw_valid_until = payload.get("valid_until")
                 return ClearanceApproved(
@@ -620,48 +619,43 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceApproved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("ClearanceApproved", _build_approved)
         case "ClearanceRejected":
-            try:
-                return ClearanceRejected(
+            return deserialize_or_raise(
+                "ClearanceRejected",
+                lambda: ClearanceRejected(
                     clearance_id=UUID(payload["clearance_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceRejected payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceActivated":
-            try:
-                return ClearanceActivated(
+            return deserialize_or_raise(
+                "ClearanceActivated",
+                lambda: ClearanceActivated(
                     clearance_id=UUID(payload["clearance_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceActivated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceExpired":
-            try:
-                return ClearanceExpired(
+            return deserialize_or_raise(
+                "ClearanceExpired",
+                lambda: ClearanceExpired(
                     clearance_id=UUID(payload["clearance_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceExpired payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "ClearanceSuperseded":
-            try:
-                return ClearanceSuperseded(
+            return deserialize_or_raise(
+                "ClearanceSuperseded",
+                lambda: ClearanceSuperseded(
                     clearance_id=UUID(payload["clearance_id"]),
                     by_clearance_id=UUID(payload["by_clearance_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed ClearanceSuperseded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown ClearanceEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

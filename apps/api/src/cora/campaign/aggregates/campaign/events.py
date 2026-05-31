@@ -51,6 +51,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.external_ref import ExternalRef
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -347,15 +348,17 @@ def from_stored(stored: StoredEvent) -> CampaignEvent:
     discriminators so a stream contaminated with foreign event types
     fails loud rather than being silently dropped by the evolver.
 
-    Each arm body is wrapped in a try/except that re-raises malformed
-    payloads as ValueError. Nullable fields use `payload.get(...)` so
-    future migrations that add new nullable fields stay forward-compat
-    at replay time.
+    Each arm delegates to `deserialize_or_raise` which re-raises
+    malformed payloads as ValueError carrying the canonical
+    `"Malformed {event_type} payload"` text. Nullable fields use
+    `payload.get(...)` so future migrations that add new nullable
+    fields stay forward-compat at replay time.
     """
     payload = stored.payload
     match stored.event_type:
         case "CampaignRegistered":
-            try:
+
+            def _build_campaign_registered() -> CampaignRegistered:
                 subject_id_raw = payload.get("subject_id")
                 external_id_raw = payload.get("external_id")
                 external_refs_raw = payload.get("external_refs", [])
@@ -371,77 +374,69 @@ def from_stored(stored: StoredEvent) -> CampaignEvent:
                     external_id=external_id_raw,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("CampaignRegistered", _build_campaign_registered)
         case "CampaignStarted":
-            try:
-                return CampaignStarted(
+            return deserialize_or_raise(
+                "CampaignStarted",
+                lambda: CampaignStarted(
                     campaign_id=UUID(payload["campaign_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignStarted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignHeld":
-            try:
-                return CampaignHeld(
+            return deserialize_or_raise(
+                "CampaignHeld",
+                lambda: CampaignHeld(
                     campaign_id=UUID(payload["campaign_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignHeld payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignResumed":
-            try:
-                return CampaignResumed(
+            return deserialize_or_raise(
+                "CampaignResumed",
+                lambda: CampaignResumed(
                     campaign_id=UUID(payload["campaign_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignResumed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignClosed":
-            try:
-                return CampaignClosed(
+            return deserialize_or_raise(
+                "CampaignClosed",
+                lambda: CampaignClosed(
                     campaign_id=UUID(payload["campaign_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignClosed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignAbandoned":
-            try:
-                return CampaignAbandoned(
+            return deserialize_or_raise(
+                "CampaignAbandoned",
+                lambda: CampaignAbandoned(
                     campaign_id=UUID(payload["campaign_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignAbandoned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignRunAdded":
-            try:
-                return CampaignRunAdded(
+            return deserialize_or_raise(
+                "CampaignRunAdded",
+                lambda: CampaignRunAdded(
                     campaign_id=UUID(payload["campaign_id"]),
                     run_id=UUID(payload["run_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignRunAdded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CampaignRunRemoved":
-            try:
-                return CampaignRunRemoved(
+            return deserialize_or_raise(
+                "CampaignRunRemoved",
+                lambda: CampaignRunRemoved(
                     campaign_id=UUID(payload["campaign_id"]),
                     run_id=UUID(payload["run_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CampaignRunRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown CampaignEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

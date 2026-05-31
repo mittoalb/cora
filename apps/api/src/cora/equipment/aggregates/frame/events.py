@@ -55,6 +55,7 @@ from uuid import UUID
 
 from cora.equipment.aggregates._placement import Placement, ReferenceSurface, UnitSystem
 from cora.equipment.aggregates.frame.state import FrameRevisionLink
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -265,7 +266,8 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
     payload = stored.payload
     match stored.event_type:
         case "FrameRegistered":
-            try:
+
+            def _build_registered() -> FrameRegistered:
                 raw_parent = payload["parent_frame_id"]
                 raw_placement = payload["placement_relative_to_parent"]
                 raw_supersedes = payload.get("supersedes")
@@ -285,30 +287,27 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FrameRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("FrameRegistered", _build_registered)
         case "FramePlacementUpdated":
-            try:
-                return FramePlacementUpdated(
+            return deserialize_or_raise(
+                "FramePlacementUpdated",
+                lambda: FramePlacementUpdated(
                     frame_id=UUID(payload["frame_id"]),
                     new_placement=_placement_from_payload(payload["new_placement"]),
                     survey=payload.get("survey"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FramePlacementUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "FrameDecommissioned":
-            try:
-                return FrameDecommissioned(
+            return deserialize_or_raise(
+                "FrameDecommissioned",
+                lambda: FrameDecommissioned(
                     frame_id=UUID(payload["frame_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FrameDecommissioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown FrameEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

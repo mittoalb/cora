@@ -34,6 +34,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.agent.aggregates.agent.state import ModelRef
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -356,7 +357,8 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
     payload = stored.payload
     match stored.event_type:
         case "AgentDefined":
-            try:
+
+            def _build_agent_defined() -> AgentDefined:
                 prompt_template_id_raw = payload.get("prompt_template_id")
                 return AgentDefined(
                     agent_id=UUID(payload["agent_id"]),
@@ -371,85 +373,75 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                     ),
                     capabilities=frozenset(payload.get("capabilities", [])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    # forward-compat reads for pre-
-                    # iter-2 streams (default to empty / None).
                     tools=frozenset(payload.get("tools", [])),
                     budget_monthly_usd_cap=payload.get("budget_monthly_usd_cap"),
                     budget_daily_token_cap=payload.get("budget_daily_token_cap"),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("AgentDefined", _build_agent_defined)
         case "AgentVersioned":
-            try:
-                return AgentVersioned(
+            return deserialize_or_raise(
+                "AgentVersioned",
+                lambda: AgentVersioned(
                     agent_id=UUID(payload["agent_id"]),
                     version=payload["version"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentDeprecated":
-            try:
-                return AgentDeprecated(
+            return deserialize_or_raise(
+                "AgentDeprecated",
+                lambda: AgentDeprecated(
                     agent_id=UUID(payload["agent_id"]),
                     reason=payload.get("reason"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentSuspended":
-            try:
-                return AgentSuspended(
+            return deserialize_or_raise(
+                "AgentSuspended",
+                lambda: AgentSuspended(
                     agent_id=UUID(payload["agent_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentSuspended payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentResumed":
-            try:
-                return AgentResumed(
+            return deserialize_or_raise(
+                "AgentResumed",
+                lambda: AgentResumed(
                     agent_id=UUID(payload["agent_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentResumed payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentToolGranted":
-            try:
-                return AgentToolGranted(
+            return deserialize_or_raise(
+                "AgentToolGranted",
+                lambda: AgentToolGranted(
                     agent_id=UUID(payload["agent_id"]),
                     tool_name=payload["tool_name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentToolGranted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentToolRevoked":
-            try:
-                return AgentToolRevoked(
+            return deserialize_or_raise(
+                "AgentToolRevoked",
+                lambda: AgentToolRevoked(
                     agent_id=UUID(payload["agent_id"]),
                     tool_name=payload["tool_name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentToolRevoked payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AgentBudgetRevised":
-            try:
-                return AgentBudgetRevised(
+            return deserialize_or_raise(
+                "AgentBudgetRevised",
+                lambda: AgentBudgetRevised(
                     agent_id=UUID(payload["agent_id"]),
                     monthly_usd_cap=payload.get("monthly_usd_cap"),
                     daily_token_cap=payload.get("daily_token_cap"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AgentBudgetRevised payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown AgentEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

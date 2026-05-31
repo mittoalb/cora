@@ -61,6 +61,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -481,10 +482,9 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
     payload = stored.payload
     match stored.event_type:
         case "AssetRegistered":
-            try:
+
+            def _build_registered() -> AssetRegistered:
                 raw_parent = payload["parent_id"]
-                # `payload.get` for additive evolution: stored events
-                # without the drawing key fold to None.
                 raw_drawing = payload.get("drawing")
                 drawing = (
                     Drawing(
@@ -503,141 +503,125 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     drawing=drawing,
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetRegistered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise("AssetRegistered", _build_registered)
         case "AssetActivated":
-            try:
-                return AssetActivated(
+            return deserialize_or_raise(
+                "AssetActivated",
+                lambda: AssetActivated(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetActivated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetDecommissioned":
-            try:
-                return AssetDecommissioned(
+            return deserialize_or_raise(
+                "AssetDecommissioned",
+                lambda: AssetDecommissioned(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetDecommissioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetRelocated":
-            try:
-                return AssetRelocated(
+            return deserialize_or_raise(
+                "AssetRelocated",
+                lambda: AssetRelocated(
                     asset_id=UUID(payload["asset_id"]),
                     from_parent_id=UUID(payload["from_parent_id"]),
                     to_parent_id=UUID(payload["to_parent_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetRelocated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetMaintenanceEntered":
-            try:
-                return AssetMaintenanceEntered(
+            return deserialize_or_raise(
+                "AssetMaintenanceEntered",
+                lambda: AssetMaintenanceEntered(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetMaintenanceEntered payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetMaintenanceExited":
-            try:
-                return AssetMaintenanceExited(
+            return deserialize_or_raise(
+                "AssetMaintenanceExited",
+                lambda: AssetMaintenanceExited(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetMaintenanceExited payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetFamilyAdded":
-            try:
-                return AssetFamilyAdded(
+            return deserialize_or_raise(
+                "AssetFamilyAdded",
+                lambda: AssetFamilyAdded(
                     asset_id=UUID(payload["asset_id"]),
                     family_id=UUID(payload["family_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetFamilyAdded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetFamilyRemoved":
-            try:
-                return AssetFamilyRemoved(
+            return deserialize_or_raise(
+                "AssetFamilyRemoved",
+                lambda: AssetFamilyRemoved(
                     asset_id=UUID(payload["asset_id"]),
                     family_id=UUID(payload["family_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetFamilyRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetDegraded":
-            try:
-                return AssetDegraded(
+            return deserialize_or_raise(
+                "AssetDegraded",
+                lambda: AssetDegraded(
                     asset_id=UUID(payload["asset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetDegraded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetFaulted":
-            try:
-                return AssetFaulted(
+            return deserialize_or_raise(
+                "AssetFaulted",
+                lambda: AssetFaulted(
                     asset_id=UUID(payload["asset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetFaulted payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetRestored":
-            try:
-                return AssetRestored(
+            return deserialize_or_raise(
+                "AssetRestored",
+                lambda: AssetRestored(
                     asset_id=UUID(payload["asset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetRestored payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetSettingsUpdated":
-            try:
-                # `payload.get` for additive evolution: stored events
-                # without the settings key fold to {} (empty dict).
-                return AssetSettingsUpdated(
+            return deserialize_or_raise(
+                "AssetSettingsUpdated",
+                lambda: AssetSettingsUpdated(
                     asset_id=UUID(payload["asset_id"]),
                     settings=payload.get("settings", {}),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetSettingsUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetPortAdded":
-            try:
-                return AssetPortAdded(
+            return deserialize_or_raise(
+                "AssetPortAdded",
+                lambda: AssetPortAdded(
                     asset_id=UUID(payload["asset_id"]),
                     port_name=payload["port_name"],
                     direction=payload["direction"],
                     signal_type=payload["signal_type"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetPortAdded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "AssetPortRemoved":
-            try:
-                return AssetPortRemoved(
+            return deserialize_or_raise(
+                "AssetPortRemoved",
+                lambda: AssetPortRemoved(
                     asset_id=UUID(payload["asset_id"]),
                     port_name=payload["port_name"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetPortRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)

@@ -52,6 +52,7 @@ from cora.calibration.aggregates.calibration.state import (
     InvalidCalibrationSourceError,
     MeasuredSource,
 )
+from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -298,8 +299,9 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
     payload = stored.payload
     match stored.event_type:
         case "CalibrationDefined":
-            try:
-                return CalibrationDefined(
+            return deserialize_or_raise(
+                "CalibrationDefined",
+                lambda: CalibrationDefined(
                     calibration_id=UUID(payload["calibration_id"]),
                     target_id=UUID(payload["target_id"]),
                     quantity=payload["quantity"],
@@ -307,12 +309,11 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     description=payload.get("description"),
                     defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CalibrationDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+                ),
+            )
         case "CalibrationRevisionAppended":
-            try:
+
+            def _build_revision_appended() -> CalibrationRevisionAppended:
                 raw_proc = payload.get("source_procedure_id")
                 raw_dataset = payload.get("source_dataset_id")
                 raw_actor = payload.get("source_actor_id")
@@ -335,9 +336,12 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     content_hash=payload.get("content_hash"),
                 )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CalibrationRevisionAppended payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
+
+            return deserialize_or_raise(
+                "CalibrationRevisionAppended",
+                _build_revision_appended,
+                extra=(ValueError,),
+            )
         case unknown:
             msg = f"Unknown Calibration event type: {unknown!r}"
             raise ValueError(msg)
