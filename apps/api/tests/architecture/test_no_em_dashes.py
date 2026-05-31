@@ -116,7 +116,6 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/equipment/aggregates/asset/settings_validation.py",
         "src/cora/equipment/aggregates/asset/state.py",
         "src/cora/equipment/aggregates/family/affordance.py",
-        "src/cora/equipment/aggregates/family/events.py",
         "src/cora/equipment/aggregates/family/evolver.py",
         "src/cora/equipment/aggregates/family/read.py",
         "src/cora/equipment/aggregates/family/state.py",

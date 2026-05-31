@@ -1,27 +1,9 @@
 """Domain events emitted by the Family aggregate, plus the discriminated union.
 
-## Rename history
-
-Direct rename of Capability -> Family per
-[[family-affordance-design-phases-5i-5j-lock]]:
-
-- New event type names: `FamilyDefined`, `FamilyVersioned`,
-  `FamilyDeprecated`, `FamilySettingsSchemaUpdated`.
-- Dataclass field renamed `capability_id` -> `family_id`.
-- Payload key renamed `"capability_id"` -> `"family_id"` for new events.
-
-The lifecycle event-type strings (`*Defined`, `*Versioned`,
-`*Deprecated`) no longer dual-match on `"Capability*"`: those
-strings are now owned by the Recipe BC's `Capability` aggregate.
-The greenfield project has no historical `"Capability*"` Family
-streams to replay, so the dual-match is unnecessary and would
-collide with the sibling aggregate. The legacy
-`CapabilitySettingsSchemaUpdated` alias is retained because it has
-no Recipe-side sibling.
-
-Status is NOT carried in event payloads -- the event type itself
-encodes the state change. The evolver hardcodes the mapping per
-match arm.
+Event types: `FamilyDefined`, `FamilyVersioned`, `FamilyDeprecated`,
+`FamilySettingsSchemaUpdated`. Status is NOT carried in event
+payloads -- the event type itself encodes the state change. The
+evolver hardcodes the mapping per match arm.
 """
 
 from dataclasses import dataclass, field
@@ -86,12 +68,10 @@ class FamilyDeprecated:
 class FamilySettingsSchemaUpdated:
     """The Family's `settings_schema` was set, replaced, or cleared.
 
-    Originally `CapabilitySettingsSchemaUpdated` before the rename;
-    dual-matched in `from_stored`. Carries the FULL replacement
-    schema. Independent of the Defined/Versioned/Deprecated lifecycle:
-    schema can be updated in any non-terminal state. The validator
-    runs at decider time, so this event ALWAYS carries a valid schema
-    or None.
+    Carries the FULL replacement schema. Independent of the
+    Defined/Versioned/Deprecated lifecycle: schema can be updated in
+    any non-terminal state. The validator runs at decider time, so
+    this event ALWAYS carries a valid schema or None.
     """
 
     family_id: UUID
@@ -104,21 +84,12 @@ FamilyEvent = FamilyDefined | FamilyVersioned | FamilyDeprecated | FamilySetting
 
 
 def event_type_name(event: FamilyEvent) -> str:
-    """Discriminator string written into StoredEvent.event_type.
-
-    New events emit `"FamilyDefined"` etc. Legacy `"CapabilityDefined"`
-    events in the log are recognized by `from_stored` but never emitted
-    again.
-    """
+    """Discriminator string written into StoredEvent.event_type."""
     return type(event).__name__
 
 
 def to_payload(event: FamilyEvent) -> dict[str, Any]:
-    """Serialize a Family event to a JSON-friendly dict for jsonb storage.
-
-    New events serialize with `"family_id"` key. Legacy events in the
-    log already carry `"capability_id"` and are NOT rewritten.
-    """
+    """Serialize a Family event to a JSON-friendly dict for jsonb storage."""
     match event:
         case FamilyDefined(
             family_id=family_id,
@@ -167,72 +138,20 @@ def to_payload(event: FamilyEvent) -> dict[str, Any]:
 def _load_affordances(payload: dict[str, Any]) -> frozenset[Affordance]:
     """Load the affordance set from a payload's `affordances` list field.
 
-    Tolerates: missing key (legacy events; default empty), empty list,
-    or list of valid Affordance enum value strings. Unknown values
-    raise a defensive `ValueError` via the StrEnum constructor — same
-    fail-loud stance as the `from_stored` top-level dispatch on
-    unknown event types.
+    Tolerates: missing key (default empty), empty list, or list of
+    valid Affordance enum value strings. Unknown values raise a
+    defensive `ValueError` via the StrEnum constructor, same fail-loud
+    stance as the `from_stored` top-level dispatch on unknown event
+    types.
     """
     raw = payload.get("affordances", [])
     return frozenset(Affordance(v) for v in raw)
 
 
 def from_stored(stored: StoredEvent) -> FamilyEvent:
-    """Rebuild a Family event from a StoredEvent loaded from the event store.
-
-    Dual-matches both legacy `"Capability*"` event type strings (with
-    `"capability_id"` payload key) and new `"Family*"` strings (with
-    `"family_id"` key). Both produce the same `Family*` dataclass.
-    Legacy arms stay forever per Marten/Axon canonical rename pattern.
-    """
+    """Rebuild a Family event from a StoredEvent loaded from the event store."""
     payload = stored.payload
     match stored.event_type:
-        # Legacy event type names from prior naming. Payload key is
-        # `"capability_id"`. Stays forever. Legacy events lack the
-        # `affordances` payload field; default to empty frozenset
-        # (additive-state pattern).
-        case "CapabilityDefined":
-            try:
-                return FamilyDefined(
-                    family_id=UUID(payload["capability_id"]),
-                    name=payload["name"],
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    affordances=_load_affordances(payload),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityDefined payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
-        case "CapabilityVersioned":
-            try:
-                return FamilyVersioned(
-                    family_id=UUID(payload["capability_id"]),
-                    version_tag=payload["version_tag"],
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    affordances=_load_affordances(payload),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityVersioned payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
-        case "CapabilityDeprecated":
-            try:
-                return FamilyDeprecated(
-                    family_id=UUID(payload["capability_id"]),
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilityDeprecated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
-        case "CapabilitySettingsSchemaUpdated":
-            try:
-                return FamilySettingsSchemaUpdated(
-                    family_id=UUID(payload["capability_id"]),
-                    settings_schema=payload.get("settings_schema"),
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed CapabilitySettingsSchemaUpdated payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
-        # Current event type names. Payload key is `"family_id"`.
         case "FamilyDefined":
             try:
                 return FamilyDefined(

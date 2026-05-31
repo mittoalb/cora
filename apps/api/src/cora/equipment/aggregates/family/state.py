@@ -10,26 +10,21 @@ specific `Asset` instances.
 
 ## Aggregate scope
 
-The Family aggregate was renamed from `Capability` per
-[[family-affordance-design-phases-5i-5j-lock]]: same FSM (Defined →
-Versioned → Deprecated), same settings_schema field, same lifecycle.
+Family is the Equipment BC's device-class aggregate. Same FSM
+(Defined to Versioned to Deprecated), with `settings_schema` and
+`affordances` as the two declarative fields.
 
-5j adds `affordances: frozenset[Affordance]` as a REQUIRED field at
-`define_family` time (per FHIR R5 minimum-cardinality criterion +
-Pattern P over Pattern Q per Round 5 corpus research). Empty
-`frozenset()` is a valid argument the caller must supply explicitly
-(Scintillator's case at v1, until the Consumable lifecycle affordance
-makes it non-empty). Affordance set changes flow through
-`version_family` (a new version IS a new declaration; matches
-Method/Plan/Practice replace-on-version precedent), NOT a separate
-`set_family_affordances` slice. See [[project-capability-research]]
-section 5 for the 28-item / 3-pattern starter list and the dropped
-parameter-shaped pseudo-affordances.
+`affordances: frozenset[Affordance]` is REQUIRED at
+`define_family` time. Empty `frozenset()` is a valid argument the
+caller must supply explicitly (Scintillator's case at v1, until the
+Consumable lifecycle affordance makes it non-empty). Affordance set
+changes flow through `version_family` (a new version IS a new
+declaration; matches Method/Plan/Practice replace-on-version
+precedent), NOT a separate `set_family_affordances` slice.
 
 The word "Capability" is reserved for the Recipe BC operations-layer
-aggregate (see [[project-capability-aggregate-design]]); "Capability"
-must not appear in Equipment BC except in dual-match evolver arms
-recognizing legacy event-type strings.
+aggregate (see [[project-capability-aggregate-design]]) and must not
+appear in Equipment BC.
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
@@ -181,9 +176,7 @@ class Family:
     applies (Scintillator's case). Replaced wholesale by
     `version_family` (a new version IS a new declaration). See
     `cora.equipment.aggregates.family.affordance.Affordance` for the
-    28-item closed enum and the 3-pattern rule. Defaults to empty
-    frozenset for evolver-level back-compat with legacy `FamilyDefined`
-    events (additive-state pattern).
+    28-item closed enum and the 3-pattern rule.
 
     `settings_schema` is the optional JSON Schema (Draft 2020-12,
     constrained subset) declaring the shape of `Asset.settings` keys

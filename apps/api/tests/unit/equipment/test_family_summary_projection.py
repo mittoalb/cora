@@ -43,18 +43,12 @@ def test_projection_metadata() -> None:
     proj = FamilySummaryProjection()
     assert proj.name == "proj_equipment_family_summary"
 
-    # SettingsSchemaUpdated keeps its legacy "Capability*" alias because no
-    # sibling BC emits that name. The other lifecycle event-type strings
-    # (*Defined / *Versioned / *Deprecated) are now owned by Recipe BC's
-    # Capability aggregate under its own stream, so equipment.Family no
-    # longer dual-matches them.
     assert proj.subscribed_event_types == frozenset(
         {
             "FamilyDefined",
             "FamilyVersioned",
             "FamilyDeprecated",
             "FamilySettingsSchemaUpdated",
-            "CapabilitySettingsSchemaUpdated",
         }
     )
 
@@ -335,34 +329,3 @@ async def test_capability_defined_inserts_with_schema_present_false() -> None:
     assert args is not None
     sql = args.args[0]
     assert "FALSE" in sql  # explicit FALSE in INSERT
-
-
-# ---------- dual-match: projection processes legacy Capability* events ----------
-#
-# The FamilySummaryProjection subscribes to BOTH new Family* and legacy
-# Capability* event types per the Marten/Axon dual-match contract.
-# These tests pin the apply-arm dual-match so a replay-from-zero on a
-# deployment with historical data populates the summary table correctly.
-
-
-@pytest.mark.unit
-async def test_legacy_capability_settings_schema_updated_via_family_summary_path() -> None:
-    proj = FamilySummaryProjection()
-    conn = AsyncMock()
-    event = _stored(
-        "CapabilitySettingsSchemaUpdated",
-        {
-            "capability_id": str(_CAPABILITY_ID),
-            "settings_schema": {"$schema": "x", "type": "object"},
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-
-    await proj.apply(event, conn)
-
-    args = conn.execute.await_args
-    assert args is not None
-    sql = args.args[0]
-    assert "settings_schema_present" in sql
-    assert args.args[1] == _CAPABILITY_ID
-    assert args.args[2] is True

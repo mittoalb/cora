@@ -554,31 +554,6 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AssetMaintenanceExited payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        # dual-match: legacy Asset events used "AssetCapabilityAdded"
-        # / "AssetCapabilityRemoved" type strings with "capability_id" payload
-        # key. Current emit is "AssetFamilyAdded" / "AssetFamilyRemoved" with
-        # "family_id". Both type strings produce the new Family-shaped
-        # dataclass. Legacy arms stay forever per Marten/Axon rename pattern.
-        case "AssetCapabilityAdded":
-            try:
-                return AssetFamilyAdded(
-                    asset_id=UUID(payload["asset_id"]),
-                    family_id=UUID(payload["capability_id"]),
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetCapabilityAdded payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
-        case "AssetCapabilityRemoved":
-            try:
-                return AssetFamilyRemoved(
-                    asset_id=UUID(payload["asset_id"]),
-                    family_id=UUID(payload["capability_id"]),
-                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                )
-            except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetCapabilityRemoved payload {payload!r}: {exc}"
-                raise ValueError(msg) from exc
         case "AssetFamilyAdded":
             try:
                 return AssetFamilyAdded(

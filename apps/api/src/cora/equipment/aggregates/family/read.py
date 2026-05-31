@@ -13,18 +13,8 @@ projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` /
 `load_plan_timestamps` / `load_practice_timestamps`.
 
-## Stream type after rename
-
 `_STREAM_TYPE = "Family"`. The stream-type string is the event store's
-internal categorization key. CORA is greenfield (no production
-deployments at rename time), so changing the stream key to match the
-new aggregate name is the simpler choice; if a future deployment ever
-needs to read legacy streams written under the old `"Capability"`
-stream type, add a one-time migration that updates `events.stream_type`
-to `"Family"` (the event payloads themselves stay untouched per
-[[project-immutability-guarantee]]; only the categorization label
-changes). Watch item documented in
-[[family-affordance-design-phases-5i-5j-lock]].
+internal categorization key for this aggregate.
 """
 
 from collections.abc import Iterable
@@ -53,10 +43,10 @@ class FamilyLifecycleTimestamps:
     """Observed wall-clock timestamps of FSM transitions.
 
     Sourced from the Family summary projection, not from aggregate state.
-    `created_at` is set once on `(Family|Capability)Defined`; `versioned_at`
-    is overwritten on each `(Family|Capability)Versioned` (state-always-
-    holds-latest convention mirrored in the projection); `deprecated_at`
-    is set once on `(Family|Capability)Deprecated` and is terminal.
+    `created_at` is set once on `FamilyDefined`; `versioned_at` is
+    overwritten on each `FamilyVersioned` (state-always-holds-latest
+    convention mirrored in the projection); `deprecated_at` is set
+    once on `FamilyDeprecated` and is terminal.
     """
 
     created_at: datetime

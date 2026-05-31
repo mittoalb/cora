@@ -283,98 +283,6 @@ def test_to_payload_then_from_stored_round_trips_for_capability_settings_schema_
     assert from_stored(stored) == original
 
 
-# ---------- dual-match: legacy "Capability*" event types ----------
-#
-# Per the direct-rename pattern (Marten/Axon canonical): old event
-# type strings stay in the log forever; from_stored upcasts them to
-# the new Family* dataclasses. These tests pin the dual-match arms so
-# a future refactor can't silently break replay safety.
-
-
-@pytest.mark.unit
-def test_from_stored_upcasts_legacy_capability_defined_to_family_defined() -> None:
-    """Pre-5i events have event_type='CapabilityDefined' and payload key
-    'capability_id'. from_stored must produce a FamilyDefined with the
-    new .family_id field populated from the legacy key."""
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilityDefined",
-        {
-            "capability_id": str(legacy_id),
-            "name": "LegacyRotaryStage",
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilyDefined(family_id=legacy_id, name="LegacyRotaryStage", occurred_at=_NOW)
-
-
-@pytest.mark.unit
-def test_from_stored_upcasts_legacy_capability_versioned_to_family_versioned() -> None:
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilityVersioned",
-        {
-            "capability_id": str(legacy_id),
-            "version_tag": "v3",
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilyVersioned(family_id=legacy_id, version_tag="v3", occurred_at=_NOW)
-
-
-@pytest.mark.unit
-def test_from_stored_upcasts_legacy_capability_deprecated_to_family_deprecated() -> None:
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilityDeprecated",
-        {
-            "capability_id": str(legacy_id),
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilyDeprecated(family_id=legacy_id, occurred_at=_NOW)
-
-
-@pytest.mark.unit
-def test_from_stored_upcasts_legacy_capability_settings_schema_updated() -> None:
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilitySettingsSchemaUpdated",
-        {
-            "capability_id": str(legacy_id),
-            "settings_schema": _TEST_SCHEMA,
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilySettingsSchemaUpdated(
-        family_id=legacy_id, settings_schema=_TEST_SCHEMA, occurred_at=_NOW
-    )
-
-
-@pytest.mark.unit
-def test_from_stored_upcasts_legacy_settings_schema_updated_with_null_schema() -> None:
-    """Pre-5i CapabilitySettingsSchemaUpdated could carry settings_schema=null
-    (operator explicitly cleared the schema). The upcast must preserve that
-    None rather than confuse it with an unset field."""
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilitySettingsSchemaUpdated",
-        {
-            "capability_id": str(legacy_id),
-            "settings_schema": None,
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilySettingsSchemaUpdated(
-        family_id=legacy_id, settings_schema=None, occurred_at=_NOW
-    )
-
-
 # ---------- non-empty affordance round-trip ----------
 #
 # Gate review P0: the original 5j tests round-tripped EMPTY affordances
@@ -441,37 +349,9 @@ def test_load_affordances_raises_on_unknown_enum_string() -> None:
 
 
 @pytest.mark.unit
-def test_legacy_capability_defined_with_affordances_payload_upcasts() -> None:
-    """A legacy payload that DID carry an affordances key (defensive
-    case for partial migration / future renames) upcasts correctly to
-    the new FamilyDefined dataclass with the non-empty set."""
-    legacy_id = uuid4()
-    stored = _stored(
-        "CapabilityDefined",
-        {
-            "capability_id": str(legacy_id),
-            "name": "LegacyRotary",
-            "occurred_at": _NOW.isoformat(),
-            "affordances": ["Rotatable"],
-        },
-    )
-    rebuilt = from_stored(stored)
-    assert rebuilt == FamilyDefined(
-        family_id=legacy_id,
-        name="LegacyRotary",
-        occurred_at=_NOW,
-        affordances=frozenset({Affordance.ROTATABLE}),
-    )
-
-
-@pytest.mark.unit
 @pytest.mark.parametrize(
     "event_type",
     [
-        "CapabilityDefined",
-        "CapabilityVersioned",
-        "CapabilityDeprecated",
-        "CapabilitySettingsSchemaUpdated",
         "FamilyDefined",
         "FamilyVersioned",
         "FamilyDeprecated",

@@ -3,11 +3,6 @@
 Vertical slices that operate on this aggregate live under
 `cora.equipment.features.<verb>_family/` and import from here for
 state and event types.
-
-The aggregate was renamed from `Capability` to `Family` and the
-`Affordance` closed StrEnum + `Family.affordances` required field
-were added per the design lock at
-[[family-affordance-design-phases-5i-5j-lock]].
 """
 
 from cora.equipment.aggregates.family.affordance import (
