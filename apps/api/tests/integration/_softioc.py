@@ -28,6 +28,23 @@ state without trying to call the unsafe `ca_context_destroy`.
   - `enum_value`   (DBR_ENUM,   `mbbo` with 3 strings) -> `Reading(kind="Categorical")`
   - `bad_quality_value` (`ao` with HIHI threshold tripped) -> `Reading(quality="Bad")`
 
+## areaDetector ADCore-shaped PVs for the acquisition action bodies
+
+The `cam1:*` PV family mirrors areaDetector's ADCore PV convention so
+`cora.operation.acquisitions.{collect,discrete,continuous}` can talk
+real CA against this fixture. Acquire_RBV is seeded to `0` (always-Done
+state); the body's poll loop exits on the first read. Real-detector
+timing (Acquire_RBV staying 1 mid-flight) is exercised by the unit
+tests via the IteratingPort fixture; this integration tier proves the
+EPICS wire framing, not the detector finite-state machine.
+
+  - `cam1:TriggerMode`        (mbbo: Internal / External)
+  - `cam1:AcquireTime`        (ao,  per-acquisition seconds)
+  - `cam1:NumImages`          (longout, bounded count)
+  - `cam1:Acquire`            (bo,  start command)
+  - `cam1:Acquire_RBV`        (longin, 0 = Done)
+  - `cam1:DetectorState_RBV`  (mbbi: Idle / Acquiring / Error)
+
 PV names are pure test-shape (`double_value`, etc.); they do NOT
 mirror production EPICS conventions at APS 2-BM (`2bma:m1.RBV` etc.).
 
@@ -170,6 +187,60 @@ record(waveform, "$(P)image:data") {
       "timeStamp": {+type:"meta", +channel:"TIME"}
     }
   })
+}
+
+# areaDetector ADCore PV family for collect / discrete / continuous
+# action body integration tests. Acquire_RBV starts at 0 (Done) so the
+# body's poll loop exits on the first read; the wire framing + record-
+# routing assertions are what the integration tier is here to prove.
+
+record(mbbo, "$(P)cam1:TriggerMode") {
+  field(DESC, "AD trigger mode")
+  field(DTYP, "Soft Channel")
+  field(ZRST, "Internal")
+  field(ONST, "External")
+  field(VAL, "0")
+  field(PINI, "YES")
+}
+
+record(ao, "$(P)cam1:AcquireTime") {
+  field(DESC, "Per-acquisition exposure (seconds)")
+  field(DTYP, "Soft Channel")
+  field(VAL, 0.0)
+  field(PINI, "YES")
+}
+
+record(longout, "$(P)cam1:NumImages") {
+  field(DESC, "Bounded image count")
+  field(DTYP, "Soft Channel")
+  field(VAL, 0)
+  field(PINI, "YES")
+}
+
+record(bo, "$(P)cam1:Acquire") {
+  field(DESC, "Start (1) / stop (0) acquisition")
+  field(DTYP, "Soft Channel")
+  field(ZNAM, "Done")
+  field(ONAM, "Acquire")
+  field(VAL, "0")
+  field(PINI, "YES")
+}
+
+record(longin, "$(P)cam1:Acquire_RBV") {
+  field(DESC, "Acquire status readback; 0 = done")
+  field(DTYP, "Soft Channel")
+  field(VAL, 0)
+  field(PINI, "YES")
+}
+
+record(mbbi, "$(P)cam1:DetectorState_RBV") {
+  field(DESC, "Detector state readback")
+  field(DTYP, "Soft Channel")
+  field(ZRST, "Idle")
+  field(ONST, "Acquiring")
+  field(TWST, "Error")
+  field(VAL, "0")
+  field(PINI, "YES")
 }
 """
 
