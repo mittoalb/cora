@@ -27,6 +27,7 @@ class RotateSealOnlineKeyOutput(BaseModel):
 
     facility_id: str
     new_online_key_ref: UUID
+    signed_by_offline_root: bool
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -58,12 +59,23 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 ),
             ),
         ],
+        signed_by_offline_root: Annotated[
+            bool,
+            Field(
+                description=(
+                    "Operator affirmation that the offline (cold) root "
+                    "countersigned this rotation. Required for the audit "
+                    "denorm."
+                ),
+            ),
+        ],
     ) -> RotateSealOnlineKeyOutput:
         handler = get_handler()
         await handler(
             RotateSealOnlineKey(
                 facility_id=facility_id,
                 new_online_key_ref=new_online_key_ref,
+                signed_by_offline_root=signed_by_offline_root,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
@@ -72,4 +84,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         return RotateSealOnlineKeyOutput(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=signed_by_offline_root,
         )

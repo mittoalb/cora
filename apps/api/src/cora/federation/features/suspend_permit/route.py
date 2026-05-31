@@ -1,10 +1,9 @@
 """HTTP route for the `suspend_permit` slice.
 
 Action endpoint at `POST /federation/permits/{permit_id}/suspend`.
-Optional `reason` body field is accepted for forward-compat (today
-it is not persisted on the `PermitSuspended` event payload; operator
-context lives on the surrounding `DecisionRegistered` audit trail).
-204 No Content on success.
+Optional `reason` body field flows through to the emitted
+`PermitSuspended` event payload so operator context survives on the
+immutable event log. 204 No Content on success.
 """
 
 from typing import Annotated

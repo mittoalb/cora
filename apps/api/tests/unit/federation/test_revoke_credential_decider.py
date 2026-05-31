@@ -9,10 +9,10 @@ Revoked credential raises `CredentialCannotRevokeError` per the
 `principal_id` (capture-don't-recompute) and stamped onto the emitted
 `CredentialRevoked` event as the audit denorm.
 
-`reason` rides on the command for forward-compat audit context but is
-NOT persisted on the emitted event payload (Stage 2c-credential
-posture: identity-only event payload; operator context lives on the
-surrounding DecisionRegistered audit trail).
+`reason` flows from the command through the decider onto the emitted
+`CredentialRevoked` event payload so operator context survives on
+the immutable event log; tests pin both the with-reason and the
+None-default paths.
 """
 
 from datetime import UTC, datetime
@@ -95,6 +95,7 @@ def test_revoke_credential_emits_event_from_any_non_revoked_status(
             credential_id=_CREDENTIAL_ID,
             revoked_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
+            reason=None,
         )
     ]
 
@@ -166,11 +167,10 @@ def test_revoke_credential_is_pure_same_inputs_same_outputs() -> None:
 
 
 @pytest.mark.unit
-def test_revoke_credential_accepts_reason_but_does_not_carry_it_on_event() -> None:
-    """Stage 2c-credential posture: `reason` is captured on the command for
-    forward-compat audit context but NOT persisted on the emitted
-    `CredentialRevoked` event payload (identity-only event payload;
-    operator context lives on the surrounding DecisionRegistered audit)."""
+def test_revoke_credential_flows_reason_onto_event_payload() -> None:
+    """`reason` is captured on the command and flows through to the
+    emitted `CredentialRevoked` event so operator context survives
+    on the immutable event log."""
     events = revoke_credential.decide(
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(reason="compromised secret being retired"),
@@ -180,7 +180,23 @@ def test_revoke_credential_accepts_reason_but_does_not_carry_it_on_event() -> No
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, CredentialRevoked)
-    assert not hasattr(event, "reason")
+    assert event.reason == "compromised secret being retired"
+
+
+@pytest.mark.unit
+def test_revoke_credential_defaults_reason_to_none_when_omitted() -> None:
+    """`reason` defaults to None on the command and the emitted event
+    carries None when the operator did not supply one."""
+    events = revoke_credential.decide(
+        state=_credential(CredentialStatus.ACTIVE),
+        command=_command(),
+        now=_NOW,
+        revoked_by_actor_id=_PRINCIPAL_ID,
+    )
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, CredentialRevoked)
+    assert event.reason is None
 
 
 @pytest.mark.unit

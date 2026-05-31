@@ -140,6 +140,7 @@ class PermitSuspended:
     permit_id: UUID
     suspended_by_actor_id: UUID
     occurred_at: datetime
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +155,7 @@ class PermitRevoked:
     permit_id: UUID
     revoked_by_actor_id: UUID
     occurred_at: datetime
+    reason: str | None = None
 
 
 PermitEvent = PermitDefined | PermitActivated | PermitSuspended | PermitResumed | PermitRevoked
@@ -206,11 +208,13 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
             permit_id=permit_id,
             suspended_by_actor_id=suspended_by_actor_id,
             occurred_at=occurred_at,
+            reason=reason,
         ):
             return {
                 "permit_id": str(permit_id),
                 "suspended_by_actor_id": str(suspended_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
             }
         case PermitResumed(
             permit_id=permit_id,
@@ -226,11 +230,13 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
             permit_id=permit_id,
             revoked_by_actor_id=revoked_by_actor_id,
             occurred_at=occurred_at,
+            reason=reason,
         ):
             return {
                 "permit_id": str(permit_id),
                 "revoked_by_actor_id": str(revoked_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
             }
         case _:  # pragma: no cover
             assert_never(event)
@@ -279,6 +285,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     permit_id=UUID(payload["permit_id"]),
                     suspended_by_actor_id=UUID(payload["suspended_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed PermitSuspended payload {payload!r}: {exc}"
@@ -299,6 +306,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     permit_id=UUID(payload["permit_id"]),
                     revoked_by_actor_id=UUID(payload["revoked_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed PermitRevoked payload {payload!r}: {exc}"

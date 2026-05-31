@@ -7,11 +7,10 @@ and the strict-not-idempotent posture (re-suspend a Suspended permit
 raises rather than no-ops). Slice-level integration (handler ->
 event-store -> projection) is covered by the integration suite.
 
-Per the Stage 2a brief, `reason` is captured on the command for
-forward-compat audit context but is NOT persisted on the emitted
-`PermitSuspended` event payload (the event is identity-only:
-permit_id, suspended_by_actor_id, occurred_at). This test pins both:
-the field is accepted, and the emitted event does not carry it.
+`reason` flows from the command through the decider onto the emitted
+`PermitSuspended` event payload so operator context survives on the
+immutable event log; tests pin both the with-reason and the
+None-default paths.
 """
 
 from datetime import UTC, datetime
@@ -86,6 +85,7 @@ def test_suspend_permit_emits_event_when_state_is_active() -> None:
             permit_id=_PERMIT_ID,
             suspended_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
+            reason="operator pause",
         )
     ]
 
@@ -142,11 +142,10 @@ def test_suspend_permit_rejects_when_revoked() -> None:
 
 
 @pytest.mark.unit
-def test_suspend_permit_accepts_reason_but_does_not_carry_it_on_event() -> None:
-    """`reason` is accepted on the command but NOT persisted on the
-    emitted `PermitSuspended` event (Stage 2a posture: identity-only
-    event payload; operator context lives on the surrounding
-    DecisionRegistered audit trail)."""
+def test_suspend_permit_flows_reason_onto_event_payload() -> None:
+    """`reason` is captured on the command and flows through to the
+    emitted `PermitSuspended` event so operator context survives on
+    the immutable event log."""
     state = _permit(PermitStatus.ACTIVE)
     events = suspend_permit.decide(
         state=state,
@@ -157,12 +156,13 @@ def test_suspend_permit_accepts_reason_but_does_not_carry_it_on_event() -> None:
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, PermitSuspended)
-    assert not hasattr(event, "reason")
+    assert event.reason == "peer paused pending PII review"
 
 
 @pytest.mark.unit
-def test_suspend_permit_accepts_none_reason() -> None:
-    """`reason` defaults to None and the decider still emits cleanly."""
+def test_suspend_permit_defaults_reason_to_none_when_omitted() -> None:
+    """`reason` defaults to None on the command and the emitted event
+    carries None when the operator did not supply one."""
     state = _permit(PermitStatus.ACTIVE)
     events = suspend_permit.decide(
         state=state,
@@ -171,7 +171,10 @@ def test_suspend_permit_accepts_none_reason() -> None:
         suspended_by_actor_id=_PRINCIPAL_ID,
     )
     assert len(events) == 1
-    assert events[0].suspended_by_actor_id == _PRINCIPAL_ID
+    event = events[0]
+    assert isinstance(event, PermitSuspended)
+    assert event.reason is None
+    assert event.suspended_by_actor_id == _PRINCIPAL_ID
 
 
 @pytest.mark.unit

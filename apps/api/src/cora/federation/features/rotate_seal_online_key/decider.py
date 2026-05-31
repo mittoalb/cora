@@ -81,6 +81,7 @@ def decide(
         SealOnlineKeyRotated(
             facility_id=state.facility_id,
             new_online_key_ref=command.new_online_key_ref,
+            signed_by_offline_root=command.signed_by_offline_root,
             rotated_by_actor_id=rotated_by_actor_id,
             occurred_at=now,
         )

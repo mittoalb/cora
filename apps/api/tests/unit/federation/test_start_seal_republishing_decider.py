@@ -1,9 +1,11 @@
 """Unit tests for the `start_seal_republishing` slice's pure decider.
 
 Pin the FSM single-source guard (Live is the only legal source),
-the not-found branch, purity (same inputs -> same outputs), and the
+the not-found branch, purity (same inputs -> same outputs), the
 handler-injected `started_by_actor_id` / `now` capture per the
-non-determinism principle (capture, don't recompute).
+non-determinism principle (capture, don't recompute), and that
+`reason` flows from the command through the decider onto the
+emitted `SealRepublishingStarted` event payload.
 """
 
 from datetime import UTC, datetime
@@ -61,6 +63,7 @@ def test_start_seal_republishing_emits_event_when_state_is_live() -> None:
             facility_id=_FACILITY_ID,
             started_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
+            reason="root rotation drill",
         )
     ]
 
@@ -92,8 +95,9 @@ def test_start_seal_republishing_raises_cannot_start_when_already_republishing()
 
 
 @pytest.mark.unit
-def test_start_seal_republishing_accepts_none_reason() -> None:
-    """Reason is optional on the command; absent reason still emits the event."""
+def test_start_seal_republishing_defaults_reason_to_none_when_omitted() -> None:
+    """Reason is optional on the command; absent reason still emits
+    the event with reason None on the payload."""
     state = _seal(SealStatus.LIVE)
     events = start_seal_republishing.decide(
         state=state,
@@ -102,7 +106,10 @@ def test_start_seal_republishing_accepts_none_reason() -> None:
         started_by_actor_id=_PRINCIPAL_ID,
     )
     assert len(events) == 1
-    assert events[0].facility_id == _FACILITY_ID
+    event = events[0]
+    assert isinstance(event, SealRepublishingStarted)
+    assert event.facility_id == _FACILITY_ID
+    assert event.reason is None
 
 
 @pytest.mark.unit
@@ -150,9 +157,10 @@ def test_start_seal_republishing_uses_handler_injected_now_verbatim() -> None:
 
 
 @pytest.mark.unit
-def test_start_seal_republishing_does_not_carry_reason_into_event() -> None:
-    """Locked event payload is (facility_id, started_by_actor_id, occurred_at);
-    the command-level reason is intentionally not threaded into the event."""
+def test_start_seal_republishing_flows_reason_onto_event_payload() -> None:
+    """`reason` is captured on the command and flows through to the
+    emitted `SealRepublishingStarted` event so operator context
+    survives on the immutable event log."""
     state = _seal(SealStatus.LIVE)
     events = start_seal_republishing.decide(
         state=state,
@@ -161,4 +169,6 @@ def test_start_seal_republishing_does_not_carry_reason_into_event() -> None:
         started_by_actor_id=_PRINCIPAL_ID,
     )
     assert len(events) == 1
-    assert not hasattr(events[0], "reason")
+    event = events[0]
+    assert isinstance(event, SealRepublishingStarted)
+    assert event.reason == "key compromise drill"

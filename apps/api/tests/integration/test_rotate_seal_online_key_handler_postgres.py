@@ -86,6 +86,7 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
         RotateSealOnlineKey(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -132,6 +133,7 @@ async def test_rotate_seal_online_key_shared_xid8_across_streams(
         RotateSealOnlineKey(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -185,6 +187,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
         RotateSealOnlineKey(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -239,6 +242,7 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
         RotateSealOnlineKey(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -247,7 +251,9 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT event_type, payload->>'new_online_key_ref' AS new_ref
+            SELECT event_type,
+                   payload->>'new_online_key_ref' AS new_ref,
+                   (payload->>'signed_by_offline_root')::bool AS signed_root
               FROM events
              WHERE stream_type = 'Seal'
                AND stream_id = $1
@@ -257,3 +263,4 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
         )
     assert len(rows) == 1
     assert rows[0]["new_ref"] == str(new_online_key_ref)
+    assert rows[0]["signed_root"] is True

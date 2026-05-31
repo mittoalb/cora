@@ -7,9 +7,8 @@ namespace) per the singleton convention locked on
 
 `reason` is a free-form operator note that captures WHY republishing
 was kicked off (key compromise drill, root rotation, tree rewrite).
-Not persisted on the aggregate event today; the field is kept on the
-command so future audit / DecisionRegistered overlays can pick it up
-without a wire break.
+Flows through to the emitted `SealRepublishingStarted` event payload
+so operator context survives on the immutable event log.
 
 Server-side concerns (`started_by_actor_id`, wall-clock timestamp,
 per-event ids, correlation id) are injected by the handler from

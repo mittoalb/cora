@@ -83,10 +83,15 @@ class SealOnlineKeyRotated:
     that the new credential's purpose is `SealOnlineSigning`. The
     offline root is unchanged by this event; rotating the offline
     root is a separate slice not in Stage 1 scope.
+
+    `signed_by_offline_root` records the operator gesture that the
+    offline root authorised this rotation (audit-only; verification of
+    the offline signature itself is out of Stage-1 scope).
     """
 
     facility_id: str
     new_online_key_ref: UUID
+    signed_by_offline_root: bool
     rotated_by_actor_id: UUID
     occurred_at: datetime
 
@@ -103,6 +108,7 @@ class SealRepublishingStarted:
     facility_id: str
     started_by_actor_id: UUID
     occurred_at: datetime
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -171,12 +177,14 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
         case SealOnlineKeyRotated(
             facility_id=facility_id,
             new_online_key_ref=new_online_key_ref,
+            signed_by_offline_root=signed_by_offline_root,
             rotated_by_actor_id=rotated_by_actor_id,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
                 "new_online_key_ref": str(new_online_key_ref),
+                "signed_by_offline_root": signed_by_offline_root,
                 "rotated_by_actor_id": str(rotated_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -184,11 +192,13 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             facility_id=facility_id,
             started_by_actor_id=started_by_actor_id,
             occurred_at=occurred_at,
+            reason=reason,
         ):
             return {
                 "facility_id": facility_id,
                 "started_by_actor_id": str(started_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
             }
         case SealRepublishingCompleted(
             facility_id=facility_id,
@@ -247,6 +257,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                 return SealOnlineKeyRotated(
                     facility_id=payload["facility_id"],
                     new_online_key_ref=UUID(payload["new_online_key_ref"]),
+                    signed_by_offline_root=payload["signed_by_offline_root"],
                     rotated_by_actor_id=UUID(payload["rotated_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
@@ -259,6 +270,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                     facility_id=payload["facility_id"],
                     started_by_actor_id=UUID(payload["started_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed SealRepublishingStarted payload {payload!r}: {exc}"

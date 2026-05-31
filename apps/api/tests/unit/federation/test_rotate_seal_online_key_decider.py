@@ -58,10 +58,15 @@ def _seal(
     )
 
 
-def _command(new_online_key_ref: UUID = _NEW_ONLINE_KEY) -> RotateSealOnlineKey:
+def _command(
+    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+    *,
+    signed_by_offline_root: bool = True,
+) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
         facility_id=_FACILITY_ID,
         new_online_key_ref=new_online_key_ref,
+        signed_by_offline_root=signed_by_offline_root,
     )
 
 
@@ -78,10 +83,35 @@ def test_rotate_seal_online_key_emits_event_from_live() -> None:
         SealOnlineKeyRotated(
             facility_id=_FACILITY_ID,
             new_online_key_ref=_NEW_ONLINE_KEY,
+            signed_by_offline_root=True,
             rotated_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
         )
     ]
+
+
+@pytest.mark.unit
+def test_rotate_seal_online_key_propagates_signed_by_offline_root_true() -> None:
+    events = rotate_seal_online_key.decide(
+        state=_seal(SealStatus.LIVE),
+        command=_command(signed_by_offline_root=True),
+        now=_NOW,
+        rotated_by_actor_id=_PRINCIPAL_ID,
+    )
+    assert events[0].signed_by_offline_root is True
+
+
+@pytest.mark.unit
+def test_rotate_seal_online_key_propagates_signed_by_offline_root_false() -> None:
+    """When the operator did not obtain an offline-root countersignature,
+    the event records the gesture verbatim so the audit stream can flag it."""
+    events = rotate_seal_online_key.decide(
+        state=_seal(SealStatus.LIVE),
+        command=_command(signed_by_offline_root=False),
+        now=_NOW,
+        rotated_by_actor_id=_PRINCIPAL_ID,
+    )
+    assert events[0].signed_by_offline_root is False
 
 
 @pytest.mark.unit

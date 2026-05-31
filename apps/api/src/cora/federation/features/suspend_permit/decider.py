@@ -53,6 +53,7 @@ def decide(
             permit_id=state.id,
             suspended_by_actor_id=suspended_by_actor_id,
             occurred_at=now,
+            reason=command.reason,
         )
     ]
 

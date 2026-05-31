@@ -161,7 +161,7 @@ async def test_revoke_permit_handler_appends_event_from_defined() -> None:
     handler = revoke_permit.bind(deps)
 
     await handler(
-        RevokePermit(permit_id=_PERMIT_ID),
+        RevokePermit(permit_id=_PERMIT_ID, reason="peer decommissioned"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -172,8 +172,28 @@ async def test_revoke_permit_handler_appends_event_from_defined() -> None:
     assert transition.event_type == "PermitRevoked"
     assert transition.payload["permit_id"] == str(_PERMIT_ID)
     assert transition.payload["revoked_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert transition.payload["reason"] == "peer decommissioned"
     assert transition.correlation_id == _CORRELATION_ID
     assert transition.causation_id is None
+
+
+@pytest.mark.unit
+async def test_revoke_permit_handler_event_payload_records_none_reason() -> None:
+    """When the operator omits `reason`, the emitted event carries
+    None on the payload (round-trip stays clean)."""
+    store = InMemoryEventStore()
+    await _seed_defined_permit(store)
+    deps = _build_deps(event_store=store)
+    handler = revoke_permit.bind(deps)
+
+    await handler(
+        RevokePermit(permit_id=_PERMIT_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Permit", _PERMIT_ID)
+    assert events[-1].payload["reason"] is None
 
 
 @pytest.mark.unit

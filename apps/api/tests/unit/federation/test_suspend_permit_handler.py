@@ -93,14 +93,16 @@ async def test_suspend_permit_handler_appends_event_to_active_permit() -> None:
     assert stored.event_type == "PermitSuspended"
     assert stored.payload["suspended_by_actor_id"] == str(_PRINCIPAL_ID)
     assert stored.payload["permit_id"] == str(_PERMIT_ID)
+    assert stored.payload["reason"] == "peer paused outbound"
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
 
 @pytest.mark.unit
-async def test_suspend_permit_handler_event_payload_omits_reason() -> None:
-    """Stage 2a posture: `reason` rides on the command for forward-compat
-    but does NOT land on the emitted `PermitSuspended` event payload."""
+async def test_suspend_permit_handler_event_payload_carries_reason() -> None:
+    """`reason` flows from the command through the decider onto the
+    emitted `PermitSuspended` event payload (audit context survives
+    on the immutable event log)."""
     store = InMemoryEventStore()
     await seed_active_permit(
         store,
@@ -121,7 +123,34 @@ async def test_suspend_permit_handler_event_payload_omits_reason() -> None:
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Permit", _PERMIT_ID)
-    assert "reason" not in events[-1].payload
+    assert events[-1].payload["reason"] == "peer paused outbound"
+
+
+@pytest.mark.unit
+async def test_suspend_permit_handler_event_payload_records_none_reason() -> None:
+    """When the operator omits `reason`, the emitted event carries
+    None on the payload (round-trip stays clean)."""
+    store = InMemoryEventStore()
+    await seed_active_permit(
+        store,
+        permit_id=_PERMIT_ID,
+        genesis_event_id=_GENESIS_EVENT_ID,
+        activate_event_id=_ACTIVATE_EVENT_ID,
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
+        defined_at=_T0,
+        activated_at=_T1,
+        expires_at=_EXPIRES_AT,
+    )
+    deps = _build_deps(event_store=store)
+    handler = suspend_permit.bind(deps)
+    await handler(
+        SuspendPermit(permit_id=_PERMIT_ID, reason=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Permit", _PERMIT_ID)
+    assert events[-1].payload["reason"] is None
 
 
 @pytest.mark.unit

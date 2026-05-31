@@ -17,11 +17,9 @@ non-determinism in, events out.
   - Current status must be `Live`
     -> SealCannotStartRepublishingError
 
-`reason` on the command is intentionally not threaded into the event:
-the locked `SealRepublishingStarted` event payload carries
-`(facility_id, started_by_actor_id, occurred_at)` only. The command
-field exists so future audit overlays can pick it up without a wire
-break.
+`reason` on the command flows through to the emitted
+`SealRepublishingStarted` event payload so operator context survives
+on the immutable event log.
 """
 
 from datetime import datetime
@@ -62,6 +60,7 @@ def decide(
             facility_id=state.facility_id,
             started_by_actor_id=started_by_actor_id,
             occurred_at=now,
+            reason=command.reason,
         )
     ]
 

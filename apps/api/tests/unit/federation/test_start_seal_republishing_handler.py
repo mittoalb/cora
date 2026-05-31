@@ -90,6 +90,7 @@ async def test_start_seal_republishing_handler_appends_event_to_live_seal() -> N
     assert stored.event_type == "SealRepublishingStarted"
     assert stored.payload["facility_id"] == _FACILITY_ID
     assert stored.payload["started_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["reason"] == "root rotation drill"
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
@@ -263,8 +264,9 @@ async def test_start_seal_republishing_handler_records_started_by_actor_id() -> 
 
 
 @pytest.mark.unit
-async def test_start_seal_republishing_handler_accepts_none_reason() -> None:
-    """Reason is optional on the command; absent reason still appends the event."""
+async def test_start_seal_republishing_handler_event_payload_records_none_reason() -> None:
+    """When the operator omits `reason`, the emitted event carries
+    None on the payload (round-trip stays clean)."""
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
@@ -285,3 +287,4 @@ async def test_start_seal_republishing_handler_accepts_none_reason() -> None:
     events, version = await store.load("Seal", _STREAM_ID)
     assert version == 2
     assert events[-1].event_type == "SealRepublishingStarted"
+    assert events[-1].payload["reason"] is None

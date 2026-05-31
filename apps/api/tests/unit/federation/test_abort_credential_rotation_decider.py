@@ -6,12 +6,10 @@ handler-injected `rotation_aborted_by_actor_id` reproducibility,
 and the strict-not-idempotent posture (re-aborting an Active
 credential raises rather than no-ops).
 
-Per the Stage 2c-credential brief, `reason` is captured on the
-command for forward-compat audit context but is NOT persisted on
-the emitted `CredentialRotationAborted` event payload (the event
-is identity-only: credential_id, rotation_aborted_by_actor_id,
-occurred_at). This test pins both: the field is accepted, and the
-emitted event does not carry it.
+`reason` flows from the command through the decider onto the emitted
+`CredentialRotationAborted` event payload so operator context
+survives on the immutable event log; tests pin both the
+with-reason and the None-default paths.
 """
 
 from datetime import UTC, datetime
@@ -89,6 +87,7 @@ def test_abort_credential_rotation_emits_event_when_state_is_rotating() -> None:
             credential_id=_CREDENTIAL_ID,
             rotation_aborted_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
+            reason="peer refused new material",
         )
     ]
 
@@ -136,11 +135,10 @@ def test_abort_credential_rotation_rejects_when_state_is_revoked() -> None:
 
 
 @pytest.mark.unit
-def test_abort_credential_rotation_accepts_reason_but_does_not_carry_it_on_event() -> None:
-    """`reason` is accepted on the command but NOT persisted on the emitted
-    `CredentialRotationAborted` event (Stage 2c-credential posture: identity-only
-    event payload; operator context lives on the surrounding
-    DecisionRegistered audit trail)."""
+def test_abort_credential_rotation_flows_reason_onto_event_payload() -> None:
+    """`reason` is captured on the command and flows through to the
+    emitted `CredentialRotationAborted` event so operator context
+    survives on the immutable event log."""
     state = _credential(
         CredentialStatus.ROTATING,
         pending_secret_ref="vault://pending/v2",
@@ -154,12 +152,13 @@ def test_abort_credential_rotation_accepts_reason_but_does_not_carry_it_on_event
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, CredentialRotationAborted)
-    assert not hasattr(event, "reason")
+    assert event.reason == "SecretStore generation failed mid-flight"
 
 
 @pytest.mark.unit
-def test_abort_credential_rotation_accepts_none_reason() -> None:
-    """`reason` defaults to None and the decider still emits cleanly."""
+def test_abort_credential_rotation_defaults_reason_to_none_when_omitted() -> None:
+    """`reason` defaults to None on the command and the emitted event
+    carries None when the operator did not supply one."""
     state = _credential(
         CredentialStatus.ROTATING,
         pending_secret_ref="vault://pending/v2",
@@ -174,7 +173,10 @@ def test_abort_credential_rotation_accepts_none_reason() -> None:
         rotation_aborted_by_actor_id=_PRINCIPAL_ID,
     )
     assert len(events) == 1
-    assert events[0].rotation_aborted_by_actor_id == _PRINCIPAL_ID
+    event = events[0]
+    assert isinstance(event, CredentialRotationAborted)
+    assert event.reason is None
+    assert event.rotation_aborted_by_actor_id == _PRINCIPAL_ID
 
 
 @pytest.mark.unit

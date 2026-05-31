@@ -259,10 +259,10 @@ async def test_revoke_credential_handler_propagates_causation_id() -> None:
 
 
 @pytest.mark.unit
-async def test_revoke_credential_handler_event_payload_omits_reason() -> None:
-    """Stage 2c-credential posture: `reason` rides on the command for
-    forward-compat but does NOT land on the emitted `CredentialRevoked`
-    event payload."""
+async def test_revoke_credential_handler_event_payload_carries_reason() -> None:
+    """`reason` flows from the command through the decider onto the
+    emitted `CredentialRevoked` event payload (audit context survives
+    on the immutable event log)."""
     store = InMemoryEventStore()
     await seed_active_credential(
         store,
@@ -281,7 +281,32 @@ async def test_revoke_credential_handler_event_payload_omits_reason() -> None:
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert "reason" not in events[-1].payload
+    assert events[-1].payload["reason"] == "compromised secret being retired"
+
+
+@pytest.mark.unit
+async def test_revoke_credential_handler_event_payload_records_none_reason() -> None:
+    """When the operator omits `reason`, the emitted event carries
+    None on the payload (round-trip stays clean)."""
+    store = InMemoryEventStore()
+    await seed_active_credential(
+        store,
+        credential_id=_CREDENTIAL_ID,
+        genesis_event_id=_GENESIS_EVENT_ID,
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
+        registered_at=_T0,
+        expires_at=_EXPIRES_AT,
+    )
+    deps = _build_deps(event_store=store)
+    handler = revoke_credential.bind(deps)
+    await handler(
+        _command(reason=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Credential", _CREDENTIAL_ID)
+    assert events[-1].payload["reason"] is None
 
 
 @pytest.mark.unit

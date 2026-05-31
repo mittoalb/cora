@@ -86,6 +86,7 @@ def test_revoke_permit_emits_event_from_any_non_revoked_status(
             permit_id=_PERMIT_ID,
             revoked_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
+            reason=None,
         )
     ]
 
@@ -156,13 +157,25 @@ def test_revoke_permit_is_pure_same_inputs_same_outputs() -> None:
 
 
 @pytest.mark.unit
-def test_revoke_permit_omits_reason_from_payload() -> None:
-    """`PermitRevoked` does not carry a `reason` field today.
+def test_revoke_permit_flows_reason_onto_event_payload() -> None:
+    """`reason` is captured on the command and flows through to the
+    emitted `PermitRevoked` event so operator context survives on
+    the immutable event log."""
+    events = revoke_permit.decide(
+        state=_permit(PermitStatus.DEFINED),
+        command=RevokePermit(permit_id=_PERMIT_ID, reason="peer decommissioned"),
+        now=_NOW,
+        revoked_by_actor_id=_PRINCIPAL_ID,
+    )
+    event = events[0]
+    assert isinstance(event, PermitRevoked)
+    assert event.reason == "peer decommissioned"
 
-    Pinned per the `RevokePermit` command docstring: an audit-narrative
-    breadcrumb is a future additive widening on the aggregate, not a
-    silent payload smuggling. The emitted event surface stays narrow.
-    """
+
+@pytest.mark.unit
+def test_revoke_permit_defaults_reason_to_none_when_omitted() -> None:
+    """`reason` defaults to None on the command and the emitted event
+    carries None when the operator did not supply one."""
     events = revoke_permit.decide(
         state=_permit(PermitStatus.DEFINED),
         command=RevokePermit(permit_id=_PERMIT_ID),
@@ -170,4 +183,5 @@ def test_revoke_permit_omits_reason_from_payload() -> None:
         revoked_by_actor_id=_PRINCIPAL_ID,
     )
     event = events[0]
-    assert not hasattr(event, "reason")
+    assert isinstance(event, PermitRevoked)
+    assert event.reason is None

@@ -42,8 +42,8 @@ class StartSealRepublishingRequest(BaseModel):
         description=(
             "Optional operator note explaining why republishing was "
             "started (key compromise drill, root rotation, tree "
-            "rewrite). Not persisted on the aggregate event today; "
-            "reserved for future audit overlays."
+            "rewrite). Flows onto the SealRepublishingStarted event "
+            "payload (audit-log breadcrumb)."
         ),
     )
 

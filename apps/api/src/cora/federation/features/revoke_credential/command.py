@@ -1,18 +1,15 @@
 """The `RevokeCredential` command: intent dataclass for this slice.
 
-`credential_id` is the target Credential aggregate. The principal-id
-of the invoker is supplied separately by the application handler at
-call time and stamped onto the `CredentialRevoked` event as
-`revoked_by_actor_id`; revoke is operator-driven (or compromise-
-driven) and carries no additional payload beyond an optional reason.
+`credential_id` is the target Credential aggregate. `reason` is
+operator-supplied free text captured at the API boundary for
+audit-log breadcrumb purposes (for example, "credential compromise",
+"audience deprecation", "peer rotation policy"). `reason` flows
+through to the emitted `CredentialRevoked` event payload so
+operator context survives on the immutable event log.
 
-The optional `reason` is accepted at the schema boundary so callers
-can surface human-readable intent in the audit trail, but it is NOT
-persisted on the `CredentialRevoked` event today. The
-`DecisionRegistered` audit emitted alongside the revoke carries the
-operator-supplied `reason` in its `reasoning` field if a future
-extension wires it through; until then the field is accepted-and-
-ignored so the command shape stays forward-compatible.
+The principal-id of the invoker is supplied separately by the
+application handler at call time and stamped onto the
+`CredentialRevoked` event as `revoked_by_actor_id`.
 
 Revoking is terminal: any non-Revoked status (Active, Rotating)
 transitions to Revoked. Strict-not-idempotent at the decider:

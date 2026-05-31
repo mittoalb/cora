@@ -43,7 +43,7 @@ def test_post_rotate_seal_online_key_returns_204_via_handler_override() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 204, response.text
 
@@ -61,7 +61,7 @@ def test_post_rotate_seal_online_key_returns_404_when_seal_not_found() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 404
 
@@ -80,7 +80,7 @@ def test_post_rotate_seal_online_key_returns_409_when_republishing() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 409
     assert "rotate" in response.json()["detail"].lower()
@@ -100,7 +100,7 @@ def test_post_rotate_seal_online_key_returns_409_on_noop_rotation() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 409
 
@@ -119,7 +119,10 @@ def test_post_rotate_seal_online_key_returns_422_on_key_collision() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(shared_ref)},
+            json={
+                "new_online_key_ref": str(shared_ref),
+                "signed_by_offline_root": True,
+            },
         )
     assert response.status_code == 422
     assert "differ" in response.json()["detail"].lower()
@@ -137,7 +140,7 @@ def test_post_rotate_seal_online_key_returns_403_when_authorize_denies() -> None
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"
@@ -161,7 +164,19 @@ def test_post_rotate_seal_online_key_rejects_malformed_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": "not-a-uuid"},
+            json={"new_online_key_ref": "not-a-uuid", "signed_by_offline_root": True},
+        )
+    assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_rotate_seal_online_key_rejects_missing_signed_by_offline_root_with_422() -> None:
+    """`signed_by_offline_root` is required (no default); a body without it is
+    rejected at the Pydantic layer with 422."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/federation/seals/aps-2bm/online-key/rotate",
+            json={"new_online_key_ref": str(uuid4())},
         )
     assert response.status_code == 422
 
@@ -173,7 +188,11 @@ def test_post_rotate_seal_online_key_rejects_extra_body_field_with_422() -> None
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "unknown_field": "y"},
+            json={
+                "new_online_key_ref": str(uuid4()),
+                "signed_by_offline_root": True,
+                "unknown_field": "y",
+            },
         )
     assert response.status_code == 422
 
@@ -192,7 +211,10 @@ def test_post_rotate_seal_online_key_accepts_uuid_v4_ref() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(valid_ref)},
+            json={
+                "new_online_key_ref": str(valid_ref),
+                "signed_by_offline_root": True,
+            },
         )
     assert response.status_code == 204, response.text
     # UUID round-trip to confirm the value parses

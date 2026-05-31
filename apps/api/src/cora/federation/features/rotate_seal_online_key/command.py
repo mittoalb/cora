@@ -36,7 +36,14 @@ class RotateSealOnlineKey:
     stage; today the slice accepts the ref opaquely per the eventual-
     consistency carve-out documented in
     [[project_federation_port_design]].
+
+    `signed_by_offline_root` is the operator's affirmation that the
+    offline (cold) root authorised this rotation. Required (no default)
+    because the audit gesture is security-meaningful: the SOC must be
+    able to scrub the Decision-BC stream and distinguish ceremonies
+    where the offline root countersigned from those where it did not.
     """
 
     facility_id: str
     new_online_key_ref: UUID
+    signed_by_offline_root: bool

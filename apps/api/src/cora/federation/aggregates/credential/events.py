@@ -98,6 +98,7 @@ class CredentialRotationAborted:
     credential_id: UUID
     rotation_aborted_by_actor_id: UUID
     occurred_at: datetime
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ class CredentialRevoked:
     credential_id: UUID
     revoked_by_actor_id: UUID
     occurred_at: datetime
+    reason: str | None = None
 
 
 CredentialEvent = (
@@ -180,21 +182,25 @@ def to_payload(event: CredentialEvent) -> dict[str, Any]:
             credential_id=credential_id,
             rotation_aborted_by_actor_id=rotation_aborted_by_actor_id,
             occurred_at=occurred_at,
+            reason=reason,
         ):
             return {
                 "credential_id": str(credential_id),
                 "rotation_aborted_by_actor_id": str(rotation_aborted_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
             }
         case CredentialRevoked(
             credential_id=credential_id,
             revoked_by_actor_id=revoked_by_actor_id,
             occurred_at=occurred_at,
+            reason=reason,
         ):
             return {
                 "credential_id": str(credential_id),
                 "revoked_by_actor_id": str(revoked_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -251,6 +257,7 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
                     credential_id=UUID(payload["credential_id"]),
                     rotation_aborted_by_actor_id=UUID(payload["rotation_aborted_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed CredentialRotationAborted payload {payload!r}: {exc}"
@@ -261,6 +268,7 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
                     credential_id=UUID(payload["credential_id"]),
                     revoked_by_actor_id=UUID(payload["revoked_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed CredentialRevoked payload {payload!r}: {exc}"

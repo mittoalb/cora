@@ -1,18 +1,18 @@
 """The `RevokePermit` command: intent dataclass for this slice.
 
-`permit_id` is the target Permit aggregate. The principal-id of the
-invoker is supplied separately by the application handler at call
-time and stamped onto the `PermitRevoked` event as
-`revoked_by_actor_id`; revoke is operator-driven and carries no
-additional payload.
+`permit_id` is the target Permit aggregate. `reason` is operator-
+supplied free text captured at the API boundary for audit-log
+breadcrumb purposes (for example, "peer facility decommissioned",
+"credential compromise"). `reason` flows through to the emitted
+`PermitRevoked` event payload so operator context survives on the
+immutable event log.
+
+The principal-id of the invoker is supplied separately by the
+application handler at call time and stamped onto the
+`PermitRevoked` event as `revoked_by_actor_id`.
 
 Closing the permit is terminal: any non-Revoked status transitions to
-Revoked. The PermitRevoked event payload does not capture a free-text
-reason today; if an audit-narrative breadcrumb is needed in the
-future, add it as an aggregate-level field (events.py + evolver.py)
-first, then surface it on this command. Until then this slice rejects
-extra payload at the schema boundary so callers do not silently lose
-audit context.
+Revoked.
 """
 
 from dataclasses import dataclass
@@ -29,3 +29,4 @@ class RevokePermit:
     """
 
     permit_id: UUID
+    reason: str | None = None

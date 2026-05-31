@@ -93,15 +93,16 @@ async def test_abort_credential_rotation_handler_appends_event_to_rotating_crede
     assert stored.event_type == "CredentialRotationAborted"
     assert stored.payload["rotation_aborted_by_actor_id"] == str(_PRINCIPAL_ID)
     assert stored.payload["credential_id"] == str(_CREDENTIAL_ID)
+    assert stored.payload["reason"] == "peer refused new material"
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
 
 @pytest.mark.unit
-async def test_abort_credential_rotation_handler_event_payload_omits_reason() -> None:
-    """Stage 2c-credential posture: `reason` rides on the command for
-    forward-compat but does NOT land on the emitted
-    `CredentialRotationAborted` event payload."""
+async def test_abort_credential_rotation_handler_event_payload_carries_reason() -> None:
+    """`reason` flows from the command through the decider onto the
+    emitted `CredentialRotationAborted` event payload (audit context
+    survives on the immutable event log)."""
     store = InMemoryEventStore()
     await seed_rotating_credential(
         store,
@@ -122,7 +123,34 @@ async def test_abort_credential_rotation_handler_event_payload_omits_reason() ->
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert "reason" not in events[-1].payload
+    assert events[-1].payload["reason"] == "SecretStore generation failed"
+
+
+@pytest.mark.unit
+async def test_abort_credential_rotation_handler_event_payload_records_none_reason() -> None:
+    """When the operator omits `reason`, the emitted event carries
+    None on the payload (round-trip stays clean)."""
+    store = InMemoryEventStore()
+    await seed_rotating_credential(
+        store,
+        credential_id=_CREDENTIAL_ID,
+        genesis_event_id=_GENESIS_EVENT_ID,
+        rotation_started_event_id=_ROTATION_STARTED_EVENT_ID,
+        correlation_id=_CORRELATION_ID,
+        principal_id=_PRINCIPAL_ID,
+        registered_at=_T0,
+        rotation_started_at=_T1,
+        expires_at=_EXPIRES_AT,
+    )
+    deps = _build_deps(event_store=store)
+    handler = abort_credential_rotation.bind(deps)
+    await handler(
+        _command(reason=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Credential", _CREDENTIAL_ID)
+    assert events[-1].payload["reason"] is None
 
 
 @pytest.mark.unit

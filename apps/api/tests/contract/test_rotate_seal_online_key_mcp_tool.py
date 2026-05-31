@@ -93,12 +93,14 @@ def test_mcp_rotate_seal_online_key_tool_returns_structured_ids() -> None:
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": str(new_online_key_ref),
+                "signed_by_offline_root": True,
             },
         )
     result = body["result"]
     assert result["isError"] is False, result
     assert result["structuredContent"]["facility_id"] == "aps-2bm"
     assert result["structuredContent"]["new_online_key_ref"] == str(new_online_key_ref)
+    assert result["structuredContent"]["signed_by_offline_root"] is True
     UUID(result["structuredContent"]["new_online_key_ref"])
 
 
@@ -123,6 +125,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_when_republishing() -> 
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": str(uuid4()),
+                "signed_by_offline_root": True,
             },
         )
     assert body["result"]["isError"] is True
@@ -149,6 +152,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_noop_rotation() -> N
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": str(uuid4()),
+                "signed_by_offline_root": True,
             },
         )
     assert body["result"]["isError"] is True
@@ -175,6 +179,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_key_collision() -> N
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": str(shared_ref),
+                "signed_by_offline_root": True,
             },
         )
     assert body["result"]["isError"] is True
@@ -201,6 +206,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_unknown_seal() -> No
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": str(uuid4()),
+                "signed_by_offline_root": True,
             },
         )
     assert body["result"]["isError"] is True
@@ -235,6 +241,25 @@ def test_mcp_rotate_seal_online_key_tool_rejects_malformed_uuid() -> None:
             arguments={
                 "facility_id": "aps-2bm",
                 "new_online_key_ref": "not-a-uuid",
+                "signed_by_offline_root": True,
+            },
+        )
+    assert body["result"]["isError"] is True
+
+
+@pytest.mark.contract
+def test_mcp_rotate_seal_online_key_tool_rejects_missing_signed_by_offline_root() -> None:
+    """Pydantic-layer rejection (missing signed_by_offline_root) bubbles as isError."""
+    with TestClient(create_app()) as client:
+        headers = open_session(client)
+        body = _call_tool(
+            client,
+            headers=headers,
+            request_id=80,
+            name="rotate_seal_online_key",
+            arguments={
+                "facility_id": "aps-2bm",
+                "new_online_key_ref": str(uuid4()),
             },
         )
     assert body["result"]["isError"] is True

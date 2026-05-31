@@ -73,10 +73,15 @@ def _build_deps(
     )
 
 
-def _command(new_online_key_ref: UUID = _NEW_ONLINE_KEY) -> RotateSealOnlineKey:
+def _command(
+    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+    *,
+    signed_by_offline_root: bool = True,
+) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
         facility_id=_FACILITY_ID,
         new_online_key_ref=new_online_key_ref,
+        signed_by_offline_root=signed_by_offline_root,
     )
 
 
@@ -113,9 +118,30 @@ async def test_rotate_seal_online_key_handler_appends_event_from_live() -> None:
     assert transition.event_type == "SealOnlineKeyRotated"
     assert transition.payload["facility_id"] == _FACILITY_ID
     assert transition.payload["new_online_key_ref"] == str(_NEW_ONLINE_KEY)
+    assert transition.payload["signed_by_offline_root"] is True
     assert transition.payload["rotated_by_actor_id"] == str(_PRINCIPAL_ID)
     assert transition.correlation_id == _CORRELATION_ID
     assert transition.causation_id is None
+
+
+@pytest.mark.unit
+async def test_rotate_seal_online_key_handler_propagates_signed_by_offline_root_false() -> None:
+    """The handler threads `command.signed_by_offline_root` verbatim onto
+    the emitted event payload so the audit stream records the operator
+    gesture exactly."""
+    store = InMemoryEventStore()
+    await _seed_live(store)
+    deps = _build_deps(event_store=store)
+    handler = rotate_seal_online_key.bind(deps)
+
+    await handler(
+        _command(signed_by_offline_root=False),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    events, _ = await store.load("Seal", _STREAM_ID)
+    assert events[-1].payload["signed_by_offline_root"] is False
 
 
 @pytest.mark.unit

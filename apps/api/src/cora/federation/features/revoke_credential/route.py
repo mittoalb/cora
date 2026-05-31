@@ -9,10 +9,9 @@ transitions sit under the resource via verb, not as a DELETE, so the
 audit gesture (revoke) is distinguishable from a resource-delete
 semantic.
 
-The `reason` body field is accepted but NOT persisted on the
-`CredentialRevoked` event today; it is forward-compatibility for a
-future audit-narrative breadcrumb on the Decision-BC audit
-emission's `reasoning` field.
+The optional `reason` body field flows through to the emitted
+`CredentialRevoked` event payload so operator context survives on
+the immutable event log.
 """
 
 from typing import Annotated
@@ -37,9 +36,9 @@ class RevokeCredentialBody(BaseModel):
     reason: str | None = Field(
         default=None,
         description=(
-            "Optional free-text operator intent for the revoke. Accepted at "
-            "the schema boundary but not persisted on the CredentialRevoked "
-            "event today; reserved for a future audit-narrative wiring."
+            "Optional operator-supplied reason for revoking the credential "
+            "(audit-log breadcrumb). Flows onto the CredentialRevoked event "
+            "payload."
         ),
     )
 

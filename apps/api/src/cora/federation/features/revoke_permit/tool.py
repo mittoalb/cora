@@ -43,10 +43,21 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UUID,
             Field(description="Target permit's id."),
         ],
+        reason: Annotated[
+            str | None,
+            Field(
+                default=None,
+                max_length=500,
+                description=(
+                    "Optional operator-supplied reason for revoking the permit "
+                    "(audit-log breadcrumb)."
+                ),
+            ),
+        ] = None,
     ) -> RevokePermitOutput:
         handler = get_handler()
         await handler(
-            RevokePermit(permit_id=permit_id),
+            RevokePermit(permit_id=permit_id, reason=reason),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

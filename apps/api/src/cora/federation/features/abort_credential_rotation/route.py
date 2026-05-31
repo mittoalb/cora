@@ -2,10 +2,9 @@
 
 Action endpoint at
 `POST /federation/credentials/{credential_id}/rotation/abort`.
-Optional `reason` body field is accepted for forward-compat (today
-it is not persisted on the `CredentialRotationAborted` event
-payload; operator context lives on the surrounding
-`DecisionRegistered` audit trail). 204 No Content on success.
+Optional `reason` body field flows through to the emitted
+`CredentialRotationAborted` event payload so operator context
+survives on the immutable event log. 204 No Content on success.
 
 The `aborted_by_actor_id` command field is supplied verbatim by
 the route from the request envelope's `principal_id` (same actor

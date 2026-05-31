@@ -4,14 +4,9 @@
 operator-supplied free text captured at the API boundary for
 audit-log breadcrumb purposes (for example, "peer refused new
 material", "SecretStore generation failed", "operator changed
-their mind"). Today `reason` is accepted but not threaded onto
-the emitted `CredentialRotationAborted` event; the event payload
-is identity-only (`credential_id`, `rotation_aborted_by_actor_id`,
-`occurred_at`) and operator context is preserved on the
-surrounding `DecisionRegistered` audit trail. Mirrors the
-`SuspendPermit` precedent: carrying the field on the command
-keeps the call shape forward-compatible for a future event-payload
-widening without breaking REST / MCP callers.
+their mind"). `reason` flows through to the emitted
+`CredentialRotationAborted` event payload so operator context
+survives on the immutable event log.
 
 The invoking principal's id is supplied separately by the
 application handler at call time (envelope `principal_id` denorms
