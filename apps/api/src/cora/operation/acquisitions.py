@@ -4,8 +4,9 @@ The three primitives `collect` / `discrete` / `continuous` register as
 named `ActionBody` callables in the `InMemoryActionRegistry` the
 `Conductor` consumes. `collect` is the single-detector capture cycle;
 `discrete` walks a trajectory of axis points and runs a `collect` cycle
-at each; `continuous` drives the axis while the detector receives
-external trigger pulses fired by an emitter during motion.
+at each; `continuous` drives the axis from `start` to `stop` while the
+detector receives external trigger pulses fired by an emitter during
+motion.
 
 See `project_scan_primitives_design` for the design lock and
 `project_scan_primitives_research` for the corpus that backs the
@@ -244,4 +245,121 @@ async def discrete(ctx: ActionContext) -> Mapping[str, Any]:
     }
 
 
-__all__ = ["CollectParams", "DiscreteParams", "collect", "discrete"]
+class ContinuousParams(CollectParams):
+    """Validated parameters for the `continuous` action body.
+
+    Extends `CollectParams` with the axis sweep definition (`axis` +
+    `start` + `stop`) plus optional `rate`. Inherits all detector /
+    trigger fields and the three conditional `@model_validator` rules.
+
+    The trigger emitter (per `source`) fires `repetitions` pulses
+    during the sweep; the detector counts pulses internally. The body
+    arms the detector AFTER axis reaches `start` (blocking write) but
+    BEFORE motion toward `stop` begins (non-blocking write), so the
+    emitter sees motion + arm overlap.
+
+    `start != stop` is enforced at the validator boundary: a continuous
+    scan with zero range is meaningless and would deadlock the poll
+    loop (detector waits for pulses that never arrive). `rate` is
+    `gt=0` when present; the axis-dimensional `unit` declaration lives
+    on the Capability template's outer `parameters_schema` (rate units
+    vary by axis: deg/s for rotation, eV/s for energy, K/s for
+    temperature, T/s for field).
+
+    v1 limitation: `rate` is recorded as evidence but NOT written to
+    any axis-rate PV by the body. The substrate-specific rate PV
+    convention (EPICS motor `.VELO`, ramp-controller setpoint, etc.)
+    is the caller's responsibility via a `SetpointStep` before this
+    action step, mirroring the polarity / source emitter-side split
+    documented for `collect`.
+    """
+
+    axis: str
+    start: float
+    stop: float
+    rate: float | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _check_sweep_range(self) -> ContinuousParams:
+        if self.start == self.stop:
+            raise ValueError("continuous scan requires start != stop (zero range)")
+        return self
+
+
+async def continuous(ctx: ActionContext) -> Mapping[str, Any]:
+    """Continuous-trajectory scan: arm detector, sweep axis, collect on triggers.
+
+    Fly-scan ordering: configure detector, move axis to `start` (blocking
+    so motion completes before arm), arm detector (Acquire=1), start
+    motion toward `stop` (non-blocking so the trigger emitter sees
+    motion + arm overlap), then poll Acquire_RBV until the detector has
+    consumed all expected trigger pulses. The trigger emitter (per
+    `source`) fires `repetitions` pulses during the sweep, externally
+    coordinated with the axis motion (Aerotech PSO, PandABox PCOMP,
+    etc.).
+
+    Evidence shape carries the request (`axis_start_requested`,
+    `axis_stop_requested`, `rate_requested`, `repetitions_requested`)
+    plus the observed `axis_final_actual` for end-of-sweep verification,
+    timestamps, trigger config, and the detector's final state.
+
+    `Control*Error` from any read or write propagates unchanged; the
+    Conductor records the failure per its standard contract. The
+    detector is NOT explicitly stopped on the happy path; the
+    NumImages=repetitions setting bounds it, so it self-terminates when
+    all pulses have been consumed. Detector-side overrun handling
+    (motion completes before pulses arrive) is deferred: surfaces as a
+    poll-loop hang the caller cancels via Procedure abort. Revisit at
+    first deployment that exercises the overrun edge.
+    """
+    params = ContinuousParams.model_validate(ctx.params)
+    started_at = ctx.clock.now()
+
+    await ctx.control_port.write(
+        f"{params.detector}:TriggerMode",
+        _AD_TRIGGER_MODE_VALUES[params.trigger_mode],
+    )
+    await ctx.control_port.write(f"{params.detector}:AcquireTime", params.dwell)
+    await ctx.control_port.write(
+        f"{params.detector}:NumImages",
+        params.repetitions if params.repetitions is not None else 0,
+    )
+
+    await ctx.control_port.write(params.axis, params.start, wait=True)
+    await ctx.control_port.write(f"{params.detector}:Acquire", 1)
+    await ctx.control_port.write(params.axis, params.stop, wait=False)
+
+    while True:
+        reading = await ctx.control_port.read(f"{params.detector}:Acquire_RBV")
+        if reading.value in (0, "Done"):
+            break
+        await asyncio.sleep(_POLL_INTERVAL_S)
+
+    stopped_at = ctx.clock.now()
+    state_reading = await ctx.control_port.read(f"{params.detector}:DetectorState_RBV")
+    axis_final = await ctx.control_port.read(params.axis)
+
+    return {
+        "started_at": started_at.isoformat(),
+        "stopped_at": stopped_at.isoformat(),
+        "axis": params.axis,
+        "axis_start_requested": params.start,
+        "axis_stop_requested": params.stop,
+        "axis_final_actual": axis_final.value,
+        "rate_requested": params.rate,
+        "repetitions_requested": params.repetitions,
+        "trigger_mode": params.trigger_mode,
+        "polarity": params.polarity,
+        "source": params.source,
+        "detector_state_final": state_reading.value,
+    }
+
+
+__all__ = [
+    "CollectParams",
+    "ContinuousParams",
+    "DiscreteParams",
+    "collect",
+    "continuous",
+    "discrete",
+]
