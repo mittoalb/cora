@@ -3,7 +3,9 @@
 The three primitives `collect` / `discrete` / `continuous` register as
 named `ActionBody` callables in the `InMemoryActionRegistry` the
 `Conductor` consumes. `collect` is the single-detector capture cycle;
-`discrete` and `continuous` compose it for trajectory + fly-scan use.
+`discrete` walks a trajectory of axis points and runs a `collect` cycle
+at each; `continuous` drives the axis while the detector receives
+external trigger pulses fired by an emitter during motion.
 
 See `project_scan_primitives_design` for the design lock and
 `project_scan_primitives_research` for the corpus that backs the
@@ -115,24 +117,17 @@ class CollectParams(BaseModel):
         return self
 
 
-async def collect(ctx: ActionContext) -> Mapping[str, Any]:
-    """Single-detector capture against areaDetector ADCore PV convention.
+async def _run_collect_cycle(ctx: ActionContext, params: CollectParams) -> Mapping[str, Any]:
+    """One collect cycle: configure detector, arm, poll until Done, read state.
 
-    Writes TriggerMode / AcquireTime / NumImages, starts Acquire, polls
-    Acquire_RBV until `0` / `"Done"`, reads DetectorState_RBV for the
-    final-state evidence, returns a Mapping the Conductor records as the
-    step entry's `result_data`.
-
-    `Control*Error` raised by the underlying `ControlPort` propagates
-    unchanged; the Conductor catches it at the action-dispatch site and
-    records the step failure per its standard contract.
-
-    See module docstring for the AD-convention v1 contract and the
-    detector-side / emitter-side split that leaves `polarity` and
-    `source` as evidence-only fields (the trigger EMITTER is configured
-    by caller-authored setpoint steps before this action step).
+    Internal helper shared by the `collect` action body and the
+    composing `discrete` / `continuous` bodies. Takes a validated
+    `CollectParams` (or any subclass that exposes the
+    same fields, e.g., `DiscreteParams` inherits all of them), so the
+    callers don't re-validate or re-wrap `ActionContext` per cycle.
+    Returns the same evidence Mapping the `collect` action body returns,
+    so per-point composition stays uniform.
     """
-    params = CollectParams.model_validate(ctx.params)
     started_at = ctx.clock.now()
 
     await ctx.control_port.write(
@@ -166,4 +161,87 @@ async def collect(ctx: ActionContext) -> Mapping[str, Any]:
     }
 
 
-__all__ = ["CollectParams", "collect"]
+async def collect(ctx: ActionContext) -> Mapping[str, Any]:
+    """Single-detector capture against areaDetector ADCore PV convention.
+
+    Writes TriggerMode / AcquireTime / NumImages, starts Acquire, polls
+    Acquire_RBV until `0` / `"Done"`, reads DetectorState_RBV for the
+    final-state evidence, returns a Mapping the Conductor records as the
+    step entry's `result_data`.
+
+    `Control*Error` raised by the underlying `ControlPort` propagates
+    unchanged; the Conductor catches it at the action-dispatch site and
+    records the step failure per its standard contract.
+
+    See module docstring for the AD-convention v1 contract and the
+    detector-side / emitter-side split that leaves `polarity` and
+    `source` as evidence-only fields (the trigger EMITTER is configured
+    by caller-authored setpoint steps before this action step).
+    """
+    return await _run_collect_cycle(ctx, CollectParams.model_validate(ctx.params))
+
+
+class DiscreteParams(CollectParams):
+    """Validated parameters for the `discrete` action body.
+
+    Extends `CollectParams` with the trajectory definition (`axis` +
+    `points`) and per-point dwell-before-collect `wait`. Inherits the
+    detector / trigger / dwell / repetitions fields and the three
+    conditional `@model_validator` rules unchanged: `discrete` runs the
+    same collect cycle at each point, so the same trigger semantics
+    apply.
+
+    `points: tuple[float, ...]` is the data-coded trajectory (vs motor-
+    coded `positions`). Works equally well for energy / temperature /
+    field axes. `min_length=1` rejects empty trajectories. `wait`
+    defaults to `0.0`: per-point settle is opt-in. Per
+    [[project_units_design]] both `dwell` (inherited) and `wait` carry
+    the canonical unit annotation.
+    """
+
+    axis: str
+    points: tuple[float, ...] = Field(..., min_length=1)
+    wait: float = Field(
+        default=0.0,
+        ge=0,
+        json_schema_extra={"unit": {"system": "udunits", "code": "s"}},
+    )
+
+
+async def discrete(ctx: ActionContext) -> Mapping[str, Any]:
+    """Discrete-trajectory scan: for each `points[i]`, write the axis, wait, collect.
+
+    Composes a `collect` cycle at each axis point. The inherited trigger
+    fields (`trigger_mode` / `polarity` / `source` / `repetitions` /
+    `dwell`) apply uniformly across points: each point runs the same
+    detector capture configuration. Per-point `wait` is honored only
+    when `> 0` to skip the asyncio.sleep call when no settle is
+    requested.
+
+    Evidence shape: `per_point_results` is a list parallel to `points`;
+    each entry carries the visited `point` value and the `collect`
+    evidence Mapping for the cycle at that point. `axis` and
+    `points_visited` are surfaced at the top of the result for
+    quick-scan logging.
+
+    Halts on the first `Control*Error` from a write or read; partial
+    `per_point_results` is NOT returned in that case (the exception
+    propagates up through the Conductor, which records the failure per
+    its standard contract).
+    """
+    params = DiscreteParams.model_validate(ctx.params)
+    results: list[Mapping[str, Any]] = []
+    for point in params.points:
+        await ctx.control_port.write(params.axis, point, wait=True)
+        if params.wait > 0:
+            await asyncio.sleep(params.wait)
+        cycle = await _run_collect_cycle(ctx, params)
+        results.append({"point": point, "collect": cycle})
+    return {
+        "axis": params.axis,
+        "points_visited": len(results),
+        "per_point_results": results,
+    }
+
+
+__all__ = ["CollectParams", "DiscreteParams", "collect", "discrete"]

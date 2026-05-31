@@ -56,7 +56,7 @@ from uuid import UUID
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
-from cora.operation.acquisitions import collect
+from cora.operation.acquisitions import collect, discrete
 from cora.operation.adapters.control_port_config import build_control_port
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
@@ -121,8 +121,8 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
     + test convenience); populated routes returns a
     `ControlPortRegistry` with the configured substrate adapters per
     prefix. The action registry is hand-seeded with the substrate-
-    neutral scan-acquisition primitive `collect`. Per-deployment
-    registry-from-config plumbing remains deferred.
+    neutral scan-acquisition primitives `collect` + `discrete`.
+    Per-deployment registry-from-config plumbing remains deferred.
     """
     step_store: StepStore = (
         PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
@@ -148,7 +148,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         bc=_BC,
     )
     control_port = build_control_port(deps.settings.control_port_routes)
-    action_registry = InMemoryActionRegistry({"collect": collect})
+    action_registry = InMemoryActionRegistry({"collect": collect, "discrete": discrete})
     conductor = Conductor(
         control_port=control_port,
         append_step=append_step_handler,
