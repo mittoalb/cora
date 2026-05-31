@@ -18,10 +18,10 @@ non-determinism in, events out.
     -> SealCannotCompleteRepublishingError
   - `new_head_hash` and `new_sequence_number` MUST be supplied together
     or omitted together (pairing invariant; the back-edge carries both
-    or neither) -> ValueError
+    or neither) -> InvalidSealHeadHashError
   - When omitted, the prior `state.current_head_hash` MUST already be
     set (a republish-without-fresh-head only makes sense after at least
-    one signing) -> ValueError
+    one signing) -> InvalidSealHeadHashError
   - When supplied, `new_sequence_number` MUST be strictly greater than
     `state.current_sequence_number`
     -> SealSequenceNumberRegressionError
@@ -35,6 +35,7 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.federation.aggregates.seal import (
+    InvalidSealHeadHashError,
     Seal,
     SealCannotCompleteRepublishingError,
     SealNotFoundError,
@@ -61,8 +62,9 @@ def decide(
       - Status must be Republishing
         -> SealCannotCompleteRepublishingError
       - head_hash / sequence_number pair supplied together or omitted
-        together -> ValueError
-      - When omitted, prior head_hash must already exist -> ValueError
+        together -> InvalidSealHeadHashError
+      - When omitted, prior head_hash must already exist
+        -> InvalidSealHeadHashError
       - When supplied, sequence_number strictly greater than prior
         -> SealSequenceNumberRegressionError
     """
@@ -77,11 +79,12 @@ def decide(
     head_supplied = command.new_head_hash is not None
     seq_supplied = command.new_sequence_number is not None
     if head_supplied != seq_supplied:
-        msg = (
-            "CompleteSealRepublishing requires new_head_hash and "
-            "new_sequence_number to be supplied together or omitted together"
+        raise InvalidSealHeadHashError(
+            "new_head_hash and new_sequence_number must be supplied "
+            "together or omitted together "
+            f"(new_head_hash={command.new_head_hash!r}, "
+            f"new_sequence_number={command.new_sequence_number!r})"
         )
-        raise ValueError(msg)
 
     if head_supplied:
         assert command.new_head_hash is not None
@@ -96,12 +99,11 @@ def decide(
         new_sequence_number = command.new_sequence_number
     else:
         if state.current_head_hash is None:
-            msg = (
+            raise InvalidSealHeadHashError(
                 f"Seal for facility {state.facility_id!r}: "
                 f"complete_seal_republishing without new_head_hash requires "
                 f"a prior signing (current_head_hash is None)"
             )
-            raise ValueError(msg)
         new_head_hash = state.current_head_hash
         new_sequence_number = state.current_sequence_number
 

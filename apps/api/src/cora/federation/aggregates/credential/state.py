@@ -90,17 +90,25 @@ class CredentialStatus(StrEnum):
 
 
 class InvalidCredentialSecretRefError(ValueError):
-    """The supplied `secret_ref` is empty or whitespace-only.
+    """The supplied opaque-pointer / identity field is empty or whitespace-only.
 
-    The aggregate does not validate the pointer's resolvability (that
+    Re-used across the Credential aggregate for every field-shape
+    violation: today the genesis fields (`facility_id`, `audience`,
+    `secret_ref`) and the rotation field (`new_secret_ref`). The
+    `field_name` argument keeps the message and the captured attribute
+    accurate to whichever field actually tripped, so the error does
+    not lie about which input was bad.
+
+    The aggregate does not validate any pointer's resolvability (that
     is the SecretStore adapter's concern at Stage 2); it only rejects
-    a structurally empty handle which would silently bind nothing.
+    structurally empty handles which would silently bind nothing.
     """
 
-    def __init__(self, value: str) -> None:
+    def __init__(self, field_name: str, value: str) -> None:
         super().__init__(
-            f"Credential secret_ref must be a non-empty opaque pointer (got: {value!r})"
+            f"Credential {field_name} must be non-empty after trimming (got: {value!r})"
         )
+        self.field_name = field_name
         self.value = value
 
 

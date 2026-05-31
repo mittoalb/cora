@@ -177,7 +177,7 @@ def test_register_credential_rejects_when_state_already_exists() -> None:
 
 @pytest.mark.unit
 def test_register_credential_rejects_empty_facility_id() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(facility_id=""),
@@ -185,11 +185,13 @@ def test_register_credential_rejects_empty_facility_id() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "facility_id"
+    assert "facility_id" in str(exc.value)
 
 
 @pytest.mark.unit
 def test_register_credential_rejects_whitespace_only_facility_id() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(facility_id="   "),
@@ -197,11 +199,13 @@ def test_register_credential_rejects_whitespace_only_facility_id() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "facility_id"
+    assert exc.value.value == "   "
 
 
 @pytest.mark.unit
 def test_register_credential_rejects_empty_audience() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(audience=""),
@@ -209,11 +213,13 @@ def test_register_credential_rejects_empty_audience() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "audience"
+    assert "audience" in str(exc.value)
 
 
 @pytest.mark.unit
 def test_register_credential_rejects_whitespace_only_audience() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(audience="   "),
@@ -221,11 +227,13 @@ def test_register_credential_rejects_whitespace_only_audience() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "audience"
+    assert exc.value.value == "   "
 
 
 @pytest.mark.unit
 def test_register_credential_rejects_empty_secret_ref() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(secret_ref=""),
@@ -233,11 +241,13 @@ def test_register_credential_rejects_empty_secret_ref() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "secret_ref"
+    assert "secret_ref" in str(exc.value)
 
 
 @pytest.mark.unit
 def test_register_credential_rejects_whitespace_only_secret_ref() -> None:
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
             command=_command(secret_ref="   \t  "),
@@ -245,6 +255,8 @@ def test_register_credential_rejects_whitespace_only_secret_ref() -> None:
             new_id=_NEW_ID,
             registered_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "secret_ref"
+    assert exc.value.value == "   \t  "
 
 
 @pytest.mark.unit

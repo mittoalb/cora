@@ -20,7 +20,7 @@ captured (mirrors Calibration revision `established_at`).
   - Current status must be `Live`
     -> SealCannotSignError
   - `new_head_hash` must be non-empty after trimming
-    -> ValueError
+    -> InvalidSealHeadHashError
   - `new_sequence_number` must strictly exceed the prior value
     -> SealSequenceNumberRegressionError
 """
@@ -29,6 +29,7 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.federation.aggregates.seal import (
+    InvalidSealHeadHashError,
     Seal,
     SealCannotSignError,
     SealNotFoundError,
@@ -51,7 +52,8 @@ def decide(
     Invariants:
       - State must not be None -> SealNotFoundError
       - Current status must be Live -> SealCannotSignError
-      - new_head_hash must be non-empty after trimming -> ValueError
+      - new_head_hash must be non-empty after trimming
+        -> InvalidSealHeadHashError
       - new_sequence_number must strictly exceed prior
         -> SealSequenceNumberRegressionError
     """
@@ -62,8 +64,10 @@ def decide(
 
     head_hash = command.new_head_hash.strip()
     if not head_hash:
-        msg = "new_head_hash must be a non-empty string after trimming"
-        raise ValueError(msg)
+        raise InvalidSealHeadHashError(
+            f"new_head_hash must be a non-empty string after trimming "
+            f"(got: {command.new_head_hash!r})"
+        )
 
     if command.new_sequence_number <= state.current_sequence_number:
         raise SealSequenceNumberRegressionError(

@@ -8,12 +8,11 @@ cannot use the `make_update_handler` factory (which only forwards
 load-authorize-fold-decide-append sequence.
 
 Singleton stream identity: the Seal aggregate is keyed by `facility_id`
-(str) but the event store keys streams by UUID. The handler mints a
-deterministic stream UUID via `uuid5(_FACILITY_NAMESPACE, facility_id)`
-so the same facility always maps to the same stream. The namespace
-constant is local to this slice while it is the only landed Seal slice;
-when `initialize_seal` / the remaining transitions land they will
-hoist the helper to `cora.federation.aggregates.seal`.
+(str) but the event store keys streams by UUID. The handler derives a
+deterministic stream UUID via `seal_stream_id(facility_id)` (UUID5 over
+the canonical federation namespace) so the same facility always maps
+to the same stream and every Seal slice agrees on stream identity for
+a given `facility_id`.
 
 Not idempotency-wrapped at wire.py: sign_seal_pointer is a strict-not-
 idempotent transition (signing from a non-Live posture raises
@@ -23,7 +22,7 @@ caching adds no value when the decider rejects replays.
 """
 
 from typing import Protocol
-from uuid import UUID, uuid5
+from uuid import UUID
 
 from cora.federation.aggregates.seal import (
     event_type_name,
@@ -31,6 +30,7 @@ from cora.federation.aggregates.seal import (
     from_stored,
     to_payload,
 )
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.sign_seal_pointer.command import SignSealPointer
 from cora.federation.features.sign_seal_pointer.decider import decide
@@ -42,13 +42,8 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Seal"
 _COMMAND_NAME = "SignSealPointer"
-_FACILITY_NAMESPACE = UUID("01900000-0000-7000-8000-0000fed50001")
 
 _log = get_logger(__name__)
-
-
-def _seal_stream_id(facility_id: str) -> UUID:
-    return uuid5(_FACILITY_NAMESPACE, facility_id)
 
 
 class Handler(Protocol):
@@ -103,7 +98,7 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        stream_id = _seal_stream_id(command.facility_id)
+        stream_id = seal_stream_id(command.facility_id)
         stored, current_version = await deps.event_store.load(
             stream_type=_STREAM_TYPE,
             stream_id=stream_id,

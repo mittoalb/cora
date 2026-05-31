@@ -18,7 +18,7 @@ Invariants:
   - State must be None (genesis-only; Seal is a per-facility singleton)
     -> SealAlreadyExistsError
   - facility_id non-empty after trim
-    -> ValueError("Invalid facility_id")
+    -> InvalidSealFacilityIdError
   - online_key_ref != offline_key_ref (key-separation invariant;
     enforced by building the prospective post-state and calling
     `verify_key_separation` per sec-4 AH#15)
@@ -35,6 +35,7 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.federation.aggregates.seal import (
+    InvalidSealFacilityIdError,
     Seal,
     SealAlreadyExistsError,
     SealInitialized,
@@ -57,8 +58,7 @@ def decide(
 
     facility_id = command.facility_id.strip()
     if not facility_id:
-        msg = f"Invalid facility_id: {command.facility_id!r}"
-        raise ValueError(msg)
+        raise InvalidSealFacilityIdError(command.facility_id)
 
     prospective = Seal(
         facility_id=facility_id,

@@ -18,6 +18,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.federation.aggregates.seal import (
+    InvalidSealFacilityIdError,
     Seal,
     SealAlreadyExistsError,
     SealKeyCollisionError,
@@ -98,24 +99,26 @@ def test_initialize_seal_raises_already_exists_when_state_present() -> None:
 
 @pytest.mark.unit
 def test_initialize_seal_rejects_empty_facility_id() -> None:
-    with pytest.raises(ValueError, match="Invalid facility_id"):
+    with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
             command=_command(facility_id=""),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.value == ""
 
 
 @pytest.mark.unit
 def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
-    with pytest.raises(ValueError, match="Invalid facility_id"):
+    with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
             command=_command(facility_id="   "),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.value == "   "
 
 
 @pytest.mark.unit

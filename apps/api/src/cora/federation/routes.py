@@ -49,6 +49,8 @@ from cora.federation.aggregates.permit.state import (
     UnsupportedCanonicalizationVersionError,
 )
 from cora.federation.aggregates.seal.state import (
+    InvalidSealFacilityIdError,
+    InvalidSealHeadHashError,
     SealAlreadyExistsError,
     SealCannotCompleteRepublishingError,
     SealCannotRotateError,
@@ -171,6 +173,8 @@ def register_federation_routes(app: FastAPI) -> None:
     for validation_cls in (
         InvalidPermitScopeError,
         InvalidCredentialSecretRefError,
+        InvalidSealFacilityIdError,
+        InvalidSealHeadHashError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for unprocessable_cls in (

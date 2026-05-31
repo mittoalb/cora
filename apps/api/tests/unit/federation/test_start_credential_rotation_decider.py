@@ -142,26 +142,30 @@ def test_start_credential_rotation_rejects_when_state_is_revoked() -> None:
 def test_start_credential_rotation_rejects_empty_new_secret_ref() -> None:
     """`new_secret_ref` must be non-empty after trimming."""
     state = _credential(CredentialStatus.ACTIVE)
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         start_credential_rotation.decide(
             state=state,
             command=_command(new_secret_ref=""),
             now=_NOW,
             rotation_started_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "new_secret_ref"
+    assert "new_secret_ref" in str(exc.value)
 
 
 @pytest.mark.unit
 def test_start_credential_rotation_rejects_whitespace_new_secret_ref() -> None:
     """Whitespace-only `new_secret_ref` is structurally empty after trim."""
     state = _credential(CredentialStatus.ACTIVE)
-    with pytest.raises(InvalidCredentialSecretRefError):
+    with pytest.raises(InvalidCredentialSecretRefError) as exc:
         start_credential_rotation.decide(
             state=state,
             command=_command(new_secret_ref="   \t  "),
             now=_NOW,
             rotation_started_by_actor_id=_PRINCIPAL_ID,
         )
+    assert exc.value.field_name == "new_secret_ref"
+    assert exc.value.value == "   \t  "
 
 
 @pytest.mark.unit

@@ -89,6 +89,45 @@ class SealStatus(StrEnum):
 # Domain validation errors
 
 
+class InvalidSealFacilityIdError(ValueError):
+    """The supplied `facility_id` is empty or whitespace-only.
+
+    The aggregate keys the per-facility singleton on `facility_id`;
+    accepting an empty or whitespace-only handle would bind the
+    singleton to nothing. Surfaced as HTTP 400 by the federation
+    routes (mirrors `InvalidPermitScopeError` /
+    `InvalidCredentialSecretRefError` precedent).
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Seal facility_id must be a non-empty string after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidSealHeadHashError(ValueError):
+    """Structural problem with the head-pointer fields.
+
+    Covers three head-hash structural rejections, all surfaced as
+    HTTP 400 by the federation routes:
+
+      - `new_head_hash` empty or whitespace-only after trim
+        (sign_seal_pointer).
+      - On complete_seal_republishing, `new_head_hash` and
+        `new_sequence_number` supplied as a half-pair (must be
+        supplied together or omitted together).
+      - On complete_seal_republishing with the pair omitted, the
+        Seal has no prior `current_head_hash` to reuse (a
+        republish-without-fresh-head only makes sense after at
+        least one signing).
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Seal head_hash invalid: {reason}")
+        self.reason = reason
+
+
 class SealAlreadyExistsError(Exception):
     """Attempted to initialize the Seal twice for the same facility.
 

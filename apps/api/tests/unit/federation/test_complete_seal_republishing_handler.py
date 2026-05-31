@@ -7,13 +7,13 @@ pairing-invariant and sequence-regression decider rejections
 propagated through the handler, and the success path's event envelope
 shape (correlation_id, causation_id, and the `completed_by_actor_id`
 denorm on payload). The Seal is a per-facility singleton; the handler
-derives the stream UUID deterministically via UUID5 with the
-federation namespace, so handler tests load the stream via the same
+derives the stream UUID deterministically via the canonical
+`seal_stream_id` helper, so handler tests load the stream via the same
 helper.
 """
 
 from datetime import UTC, datetime
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 
 import pytest
 
@@ -22,6 +22,7 @@ from cora.federation.aggregates.seal import (
     SealNotFoundError,
     SealSequenceNumberRegressionError,
 )
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features import complete_seal_republishing
 from cora.federation.features.complete_seal_republishing import (
@@ -48,11 +49,9 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _FACILITY_ID = "aps-2bm"
 _NEW_HEAD_HASH = "b" * 64
 
-_SEAL_STREAM_NAMESPACE = uuid5(NAMESPACE_URL, "https://cora.dev/federation/seal")
-
 
 def _seal_stream_id(facility_id: str = _FACILITY_ID) -> UUID:
-    return uuid5(_SEAL_STREAM_NAMESPACE, facility_id)
+    return seal_stream_id(facility_id)
 
 
 def _build_deps(

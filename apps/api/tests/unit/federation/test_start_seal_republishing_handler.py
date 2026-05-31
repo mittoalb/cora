@@ -17,13 +17,11 @@ from cora.federation.aggregates.seal import (
     SealCannotStartRepublishingError,
     SealNotFoundError,
 )
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features import start_seal_republishing
 from cora.federation.features.start_seal_republishing import (
     StartSealRepublishing,
-)
-from cora.federation.features.start_seal_republishing.handler import (
-    _seal_stream_id,  # pyright: ignore[reportPrivateUsage]
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
@@ -37,7 +35,7 @@ _T0 = datetime(2026, 5, 30, 10, 0, 0, tzinfo=UTC)
 _T1 = datetime(2026, 5, 30, 11, 0, 0, tzinfo=UTC)
 _T2 = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _FACILITY_ID = "aps-2bm"
-_STREAM_ID = _seal_stream_id(_FACILITY_ID)
+_STREAM_ID = seal_stream_id(_FACILITY_ID)
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed001")
 _REPUBLISHING_STARTED_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed002")
 _NEXT_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed003")

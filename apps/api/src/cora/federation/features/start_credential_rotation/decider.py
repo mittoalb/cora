@@ -63,7 +63,7 @@ def decide(
 
     pending_secret_ref = command.new_secret_ref.strip()
     if not pending_secret_ref:
-        raise InvalidCredentialSecretRefError(command.new_secret_ref)
+        raise InvalidCredentialSecretRefError("new_secret_ref", command.new_secret_ref)
     if pending_secret_ref == state.secret_ref:
         raise CredentialCannotRotateError(state.id, state.status, "start_rotation_same_ref")
 

@@ -18,6 +18,7 @@ from cora.federation.aggregates.seal import (
     SealSequenceNumberRegressionError,
     SealStatus,
 )
+from cora.federation.aggregates.seal.state import InvalidSealHeadHashError
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.sign_seal_pointer.route import (
     _get_handler as _get_sign_handler,  # pyright: ignore[reportPrivateUsage]
@@ -180,6 +181,28 @@ def test_post_sign_seal_pointer_rejects_negative_sequence_number_with_422() -> N
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": -1},
         )
     assert response.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_sign_seal_pointer_returns_400_on_whitespace_only_new_head_hash() -> None:
+    """Whitespace-only new_head_hash slips past Pydantic min_length=1 and
+    surfaces as 400 via the decider's InvalidSealHeadHashError."""
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise InvalidSealHeadHashError(
+            "new_head_hash must be a non-empty string after trimming (got: '   ')"
+        )
+
+    app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(
+            f"/federation/seals/{_FACILITY_ID}/signings",
+            json={"new_head_hash": "   ", "new_sequence_number": 1},
+        )
+    assert response.status_code == 400
+    assert "head_hash" in response.json()["detail"]
 
 
 @pytest.mark.contract

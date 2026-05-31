@@ -28,6 +28,8 @@ from cora.federation.aggregates.seal.read import (
     load_seal_timestamps,
 )
 from cora.federation.aggregates.seal.state import (
+    InvalidSealFacilityIdError,
+    InvalidSealHeadHashError,
     Seal,
     SealAlreadyExistsError,
     SealCannotCompleteRepublishingError,
@@ -42,6 +44,8 @@ from cora.federation.aggregates.seal.state import (
 )
 
 __all__ = [
+    "InvalidSealFacilityIdError",
+    "InvalidSealHeadHashError",
     "Seal",
     "SealAlreadyExistsError",
     "SealCannotCompleteRepublishingError",

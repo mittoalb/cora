@@ -63,6 +63,15 @@ router = APIRouter(tags=["federation"])
     "/federation/seals/{facility_id}/republishing/complete",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": (
+                "Domain invariant violated: head-pair pairing invariant "
+                "(only one of new_head_hash and new_sequence_number was "
+                "supplied), or both were omitted while the Seal has no "
+                "prior head_hash."
+            ),
+        },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
@@ -82,11 +91,9 @@ router = APIRouter(tags=["federation"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ErrorResponse,
             "description": (
-                "Body failed schema validation, only one of new_head_hash "
-                "and new_sequence_number was supplied, the supplied "
+                "Body failed schema validation, or the supplied "
                 "new_sequence_number was not strictly greater than the "
-                "current value, or both were omitted while the Seal has no "
-                "prior head_hash."
+                "current value."
             ),
         },
     },

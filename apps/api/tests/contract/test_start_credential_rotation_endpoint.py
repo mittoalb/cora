@@ -158,7 +158,7 @@ def test_post_start_credential_rotation_returns_400_on_invalid_secret_ref() -> N
 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
-        raise InvalidCredentialSecretRefError("   ")
+        raise InvalidCredentialSecretRefError("new_secret_ref", "   ")
 
     app.dependency_overrides[_get_start_handler] = lambda: fake_handler
     with TestClient(app) as client:

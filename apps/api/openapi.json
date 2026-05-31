@@ -21551,6 +21551,16 @@
           "204": {
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: head-pair pairing invariant (only one of new_head_hash and new_sequence_number was supplied), or both were omitted while the Seal has no prior head_hash."
+          },
           "403": {
             "content": {
               "application/json": {
@@ -21589,7 +21599,7 @@
                 }
               }
             },
-            "description": "Body failed schema validation, only one of new_head_hash and new_sequence_number was supplied, the supplied new_sequence_number was not strictly greater than the current value, or both were omitted while the Seal has no prior head_hash."
+            "description": "Body failed schema validation, or the supplied new_sequence_number was not strictly greater than the current value."
           }
         },
         "summary": "Complete an in-flight Seal republish (Republishing -> Live)",

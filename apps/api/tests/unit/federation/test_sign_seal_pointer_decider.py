@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.federation.aggregates.seal import (
+    InvalidSealHeadHashError,
     Seal,
     SealCannotSignError,
     SealNotFoundError,
@@ -115,26 +116,28 @@ def test_sign_seal_pointer_raises_cannot_sign_when_republishing() -> None:
 def test_sign_seal_pointer_rejects_empty_new_head_hash() -> None:
     """`new_head_hash` must be non-empty after trimming."""
     state = _seal(SealStatus.LIVE)
-    with pytest.raises(ValueError, match="new_head_hash"):
+    with pytest.raises(InvalidSealHeadHashError) as exc:
         sign_seal_pointer.decide(
             state=state,
             command=_command(new_head_hash=""),
             now=_NOW,
             signed_by_actor_id=_PRINCIPAL_ID,
         )
+    assert "new_head_hash" in exc.value.reason
 
 
 @pytest.mark.unit
 def test_sign_seal_pointer_rejects_whitespace_new_head_hash() -> None:
     """Whitespace-only `new_head_hash` is structurally empty after trim."""
     state = _seal(SealStatus.LIVE)
-    with pytest.raises(ValueError, match="new_head_hash"):
+    with pytest.raises(InvalidSealHeadHashError) as exc:
         sign_seal_pointer.decide(
             state=state,
             command=_command(new_head_hash="   \t  "),
             now=_NOW,
             signed_by_actor_id=_PRINCIPAL_ID,
         )
+    assert "new_head_hash" in exc.value.reason
 
 
 @pytest.mark.unit

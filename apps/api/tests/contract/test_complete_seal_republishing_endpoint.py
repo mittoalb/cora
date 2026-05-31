@@ -3,10 +3,11 @@
 The happy-path Republishing -> Live transition is exercised end-to-
 end in the handler tests; here we pin the status-code mappings via
 dependency overrides plus Pydantic-layer rejection (extra fields
-under `extra=forbid`, sequence-without-head pairing surfacing as 422
-via the decider's ValueError). Stage 2c-seal sibling slices ship in
-the same change, so the upstream initialize + republishing-start are
-not chained here.
+under `extra=forbid`). The decider's head-pair / no-prior-head
+structural invariants now surface as 400 via the typed
+InvalidSealHeadHashError. Stage 2c-seal sibling slices ship in the
+same change, so the upstream initialize + republishing-start are not
+chained here.
 """
 
 import pytest
@@ -19,6 +20,7 @@ from cora.federation.aggregates.seal import (
     SealSequenceNumberRegressionError,
     SealStatus,
 )
+from cora.federation.aggregates.seal.state import InvalidSealHeadHashError
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.complete_seal_republishing.route import (
     _get_handler as _get_complete_handler,  # pyright: ignore[reportPrivateUsage]
@@ -158,6 +160,53 @@ def test_post_complete_seal_republishing_returns_403_when_authorize_denies() -> 
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"
+
+
+@pytest.mark.contract
+def test_post_complete_seal_republishing_returns_400_on_pair_invariant_violation() -> None:
+    """Decider-layer pairing invariant violation surfaces as 400 via
+    InvalidSealHeadHashError (sequence-without-head shape)."""
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise InvalidSealHeadHashError(
+            "new_head_hash and new_sequence_number must be supplied "
+            "together or omitted together (new_head_hash=None, "
+            "new_sequence_number=6)"
+        )
+
+    app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(
+            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            json={"new_sequence_number": 6},
+        )
+    assert response.status_code == 400
+    assert "head_hash" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_complete_seal_republishing_returns_400_when_prior_head_missing() -> None:
+    """Decider-layer 'no prior head' rejection surfaces as 400 via
+    InvalidSealHeadHashError when the body omits the head pair."""
+    app = create_app()
+
+    async def fake_handler(*args: object, **kwargs: object) -> None:
+        _ = (args, kwargs)
+        raise InvalidSealHeadHashError(
+            f"Seal for facility {_FACILITY_ID!r}: "
+            "complete_seal_republishing without new_head_hash requires "
+            "a prior signing (current_head_hash is None)"
+        )
+
+    app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(
+            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+        )
+    assert response.status_code == 400
+    assert "current_head_hash is None" in response.json()["detail"]
 
 
 @pytest.mark.contract

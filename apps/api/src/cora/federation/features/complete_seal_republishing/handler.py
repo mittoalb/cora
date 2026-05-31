@@ -8,8 +8,8 @@ use the `make_update_handler` factory (which only forwards `state`,
 load-authorize-fold-decide-append sequence.
 
 The Seal is a per-facility singleton; the handler derives the stream
-UUID deterministically via UUID5 with the federation namespace
-(`_SEAL_STREAM_NAMESPACE`) so every transition slice agrees on the
+UUID deterministically via `seal_stream_id(facility_id)` (UUID5 over
+the canonical federation namespace) so every Seal slice agrees on the
 same stream identity for the same `facility_id`.
 
 Not idempotency-wrapped at wire.py: completing a republish is strict-
@@ -19,7 +19,7 @@ caching adds no value when the decider rejects replays.
 """
 
 from typing import Protocol
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 
 from cora.federation.aggregates.seal import (
     event_type_name,
@@ -27,6 +27,7 @@ from cora.federation.aggregates.seal import (
     from_stored,
     to_payload,
 )
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.complete_seal_republishing.command import (
     CompleteSealRepublishing,
@@ -40,16 +41,6 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Seal"
 _COMMAND_NAME = "CompleteSealRepublishing"
-
-# Deterministic stream-id namespace for the per-facility Seal singleton.
-# Every transition slice MUST use this same namespace so writers and
-# readers agree on the stream UUID for a given `facility_id`.
-_SEAL_STREAM_NAMESPACE = uuid5(NAMESPACE_URL, "https://cora.dev/federation/seal")
-
-
-def _seal_stream_id(facility_id: str) -> UUID:
-    return uuid5(_SEAL_STREAM_NAMESPACE, facility_id)
-
 
 _log = get_logger(__name__)
 
@@ -106,7 +97,7 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        stream_id = _seal_stream_id(command.facility_id)
+        stream_id = seal_stream_id(command.facility_id)
         stored, current_version = await deps.event_store.load(
             stream_type=_STREAM_TYPE,
             stream_id=stream_id,

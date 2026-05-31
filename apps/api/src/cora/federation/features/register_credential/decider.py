@@ -68,15 +68,15 @@ def decide(
 
     facility_id = command.facility_id.strip()
     if not facility_id:
-        raise InvalidCredentialSecretRefError(command.facility_id)
+        raise InvalidCredentialSecretRefError("facility_id", command.facility_id)
 
     audience = command.audience.strip()
     if not audience:
-        raise InvalidCredentialSecretRefError(command.audience)
+        raise InvalidCredentialSecretRefError("audience", command.audience)
 
     secret_ref = command.secret_ref.strip()
     if not secret_ref:
-        raise InvalidCredentialSecretRefError(command.secret_ref)
+        raise InvalidCredentialSecretRefError("secret_ref", command.secret_ref)
 
     if command.expires_at is not None and command.expires_at <= now:
         raise CredentialExpiredError(new_id, command.expires_at)

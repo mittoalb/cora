@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.federation.aggregates.seal import (
+    InvalidSealHeadHashError,
     Seal,
     SealCannotCompleteRepublishingError,
     SealNotFoundError,
@@ -129,28 +130,30 @@ def test_complete_seal_republishing_reuses_prior_head_when_pair_omitted() -> Non
 
 @pytest.mark.unit
 def test_complete_seal_republishing_rejects_head_without_sequence() -> None:
-    """Pairing invariant: head supplied alone -> ValueError."""
+    """Pairing invariant: head supplied alone -> InvalidSealHeadHashError."""
     state = _seal(SealStatus.REPUBLISHING)
-    with pytest.raises(ValueError, match="together or omitted together"):
+    with pytest.raises(InvalidSealHeadHashError) as exc:
         complete_seal_republishing.decide(
             state=state,
             command=_command(new_head_hash=_NEW_HEAD_HASH, new_sequence_number=None),
             now=_NOW,
             completed_by_actor_id=_PRINCIPAL_ID,
         )
+    assert "together or omitted together" in exc.value.reason
 
 
 @pytest.mark.unit
 def test_complete_seal_republishing_rejects_sequence_without_head() -> None:
-    """Pairing invariant: sequence supplied alone -> ValueError."""
+    """Pairing invariant: sequence supplied alone -> InvalidSealHeadHashError."""
     state = _seal(SealStatus.REPUBLISHING)
-    with pytest.raises(ValueError, match="together or omitted together"):
+    with pytest.raises(InvalidSealHeadHashError) as exc:
         complete_seal_republishing.decide(
             state=state,
             command=_command(new_head_hash=None, new_sequence_number=6),
             now=_NOW,
             completed_by_actor_id=_PRINCIPAL_ID,
         )
+    assert "together or omitted together" in exc.value.reason
 
 
 @pytest.mark.unit
@@ -187,13 +190,14 @@ def test_complete_seal_republishing_raises_sequence_regression_on_lower_sequence
 def test_complete_seal_republishing_rejects_omission_when_prior_head_is_none() -> None:
     """Omitting head requires a prior signing to have established a head."""
     state = _seal(SealStatus.REPUBLISHING, current_head_hash=None, current_sequence_number=0)
-    with pytest.raises(ValueError, match="current_head_hash is None"):
+    with pytest.raises(InvalidSealHeadHashError) as exc:
         complete_seal_republishing.decide(
             state=state,
             command=_command(new_head_hash=None, new_sequence_number=None),
             now=_NOW,
             completed_by_actor_id=_PRINCIPAL_ID,
         )
+    assert "current_head_hash is None" in exc.value.reason
 
 
 @pytest.mark.unit
