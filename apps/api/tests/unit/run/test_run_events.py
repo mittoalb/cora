@@ -857,34 +857,34 @@ def test_run_started_campaign_id_round_trips() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_assigned_round_trips() -> None:
-    """RunCampaignAssigned (post-hoc membership-assign event written by
+def test_run_added_to_campaign_round_trips() -> None:
+    """RunAddedToCampaign (post-hoc membership-assign event written by
     add_run_to_campaign) round-trips through the codec."""
-    from cora.run.aggregates.run.events import RunCampaignAssigned
+    from cora.run.aggregates.run.events import RunAddedToCampaign
 
-    original = RunCampaignAssigned(
+    original = RunAddedToCampaign(
         run_id=uuid4(),
         campaign_id=uuid4(),
         occurred_at=_NOW,
     )
-    stored = _stored("RunCampaignAssigned", to_payload(original))
+    stored = _stored("RunAddedToCampaign", to_payload(original))
     assert from_stored(stored) == original
 
 
 @pytest.mark.unit
-def test_run_campaign_unassigned_round_trips_with_reason() -> None:
-    """RunCampaignUnassigned (post-hoc membership-remove event written by
+def test_run_removed_from_campaign_round_trips_with_reason() -> None:
+    """RunRemovedFromCampaign (post-hoc membership-remove event written by
     remove_run_from_campaign) round-trips with the operator-supplied
     reason."""
-    from cora.run.aggregates.run.events import RunCampaignUnassigned
+    from cora.run.aggregates.run.events import RunRemovedFromCampaign
 
-    original = RunCampaignUnassigned(
+    original = RunRemovedFromCampaign(
         run_id=uuid4(),
         campaign_id=uuid4(),
         reason="moved to a follow-on study",
         occurred_at=_NOW,
     )
-    stored = _stored("RunCampaignUnassigned", to_payload(original))
+    stored = _stored("RunRemovedFromCampaign", to_payload(original))
     assert from_stored(stored) == original
 
 
@@ -1129,8 +1129,8 @@ def test_run_started_pinned_calibrations_round_trip() -> None:
         "RunTruncated",
         "RunAdjusted",
         "RunReadingLogbookOpened",
-        "RunCampaignAssigned",
-        "RunCampaignUnassigned",
+        "RunAddedToCampaign",
+        "RunRemovedFromCampaign",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:

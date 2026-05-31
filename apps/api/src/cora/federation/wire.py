@@ -15,7 +15,7 @@ Cross-cutting decorators applied here:
   3. `with_tracing`: OTel span around every handler call. Query
      handlers pass `kind="query"` so the span is tagged accordingly.
 
-The bundle wires five Permit lifecycle slices: `register_permit`
+The bundle wires five Permit lifecycle slices: `define_permit`
 (create-style; idempotency-wrapped) plus the four transitions
 (`activate_permit`, `suspend_permit`, `resume_permit`,
 `revoke_permit`); five Credential lifecycle slices:
@@ -41,6 +41,7 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    define_permit,
     get_credential,
     get_permit,
     get_seal,
@@ -49,7 +50,6 @@ from cora.federation.features import (
     list_permits,
     list_seals,
     register_credential,
-    register_permit,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -70,13 +70,13 @@ _BC = "federation"
 class FederationHandlers:
     """The Federation BC's handler bundle, each closed over Kernel.
 
-    Five Permit lifecycle slices (register + four transitions), five
+    Five Permit lifecycle slices (define + four transitions), five
     Credential lifecycle slices (register + four transitions), five
     Seal lifecycle slices (initialize + four transitions), and six
     read-side slices (three list + three get-by-id).
     """
 
-    register_permit: register_permit.IdempotentHandler
+    define_permit: define_permit.IdempotentHandler
     activate_permit: activate_permit.Handler
     suspend_permit: suspend_permit.Handler
     resume_permit: resume_permit.Handler
@@ -102,16 +102,16 @@ class FederationHandlers:
 def wire_federation(deps: Kernel) -> FederationHandlers:
     """Build the Federation BC handlers from shared dependencies."""
     return FederationHandlers(
-        register_permit=with_tracing(
+        define_permit=with_tracing(
             with_idempotency(
-                register_permit.bind(deps),
+                define_permit.bind(deps),
                 deps.idempotency_store,
-                command_name="RegisterPermit",
+                command_name="DefinePermit",
                 serialize_result=str,
                 deserialize_result=UUID,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
-            command_name="RegisterPermit",
+            command_name="DefinePermit",
             bc=_BC,
         ),
         activate_permit=with_tracing(

@@ -15,8 +15,8 @@ Status mapping per event type:
   - `RunTruncated`          -> TRUNCATED (partial-data terminal)
   - `RunAdjusted`           -> status preserved; mutates effective_parameters
                                           + last_adjusted_at + adjustment_count
-  - `RunCampaignAssigned`   -> status preserved; sets campaign_id
-  - `RunCampaignUnassigned` -> status preserved; clears campaign_id
+  - `RunAddedToCampaign`     -> status preserved; sets campaign_id
+  - `RunRemovedFromCampaign` -> status preserved; clears campaign_id
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -42,13 +42,13 @@ silently WIPE them to defaults (empty dict / None / empty frozenset
 
 `reading_logbook_id` is set by the
 `RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
-by `append_run_reading`); all other arms preserve whatever prior
+by `append_run_readings`); all other arms preserve whatever prior
 state held. Pre-6f-5b streams fold with `reading_logbook_id=None`.
 
 `campaign_id` is set at genesis from `RunStarted.
 campaign_id` (None when StartRun.campaign_id was not provided), set
-to `event.campaign_id` by the `RunCampaignAssigned` arm, and cleared
-to None by the `RunCampaignUnassigned` arm. All other arms preserve
+to `event.campaign_id` by the `RunAddedToCampaign` arm, and cleared
+to None by the `RunRemovedFromCampaign` arm. All other arms preserve
 prior state's campaign_id (membership survives lifecycle transitions
 like running → held → completed). Pre-6i-c streams fold with
 `campaign_id=None` (forward-compat via payload.get in from_stored).
@@ -81,13 +81,13 @@ from typing import assert_never
 from cora.infrastructure.evolver import require_state
 from cora.run.aggregates.run.events import (
     RunAborted,
+    RunAddedToCampaign,
     RunAdjusted,
-    RunCampaignAssigned,
-    RunCampaignUnassigned,
     RunCompleted,
     RunEvent,
     RunHeld,
     RunReadingLogbookOpened,
+    RunRemovedFromCampaign,
     RunResumed,
     RunStarted,
     RunStopped,
@@ -312,13 +312,13 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
-        case RunCampaignAssigned(campaign_id=campaign_id):
+        case RunAddedToCampaign(campaign_id=campaign_id):
             # post-hoc membership assignment from
             # `add_run_to_campaign` slice. One-Campaign-per-Run invariant
             # is enforced at the decider (prior campaign_id must be
             # None); the evolver trusts the event log. Status NOT
             # touched -- membership is orthogonal to lifecycle.
-            prior = require_state(state, "RunCampaignAssigned")
+            prior = require_state(state, "RunAddedToCampaign")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -337,13 +337,13 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 # AsShot invariant: never change after start.
                 pinned_calibrations=prior.pinned_calibrations,
             )
-        case RunCampaignUnassigned():
+        case RunRemovedFromCampaign():
             # post-hoc membership removal from
             # `remove_run_from_campaign` slice. Clears campaign_id back
             # to None. The decider enforces that the prior campaign_id
             # matches the event's campaign_id; the evolver trusts the
             # event log. Status NOT touched.
-            prior = require_state(state, "RunCampaignUnassigned")
+            prior = require_state(state, "RunRemovedFromCampaign")
             return Run(
                 id=prior.id,
                 name=prior.name,

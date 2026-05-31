@@ -38,7 +38,7 @@ from cora.campaign.aggregates.campaign import (
 )
 from cora.campaign.features.remove_run_from_campaign.command import RemoveRunFromCampaign
 from cora.campaign.features.remove_run_from_campaign.context import CampaignMembershipContext
-from cora.run.aggregates.run import RunCampaignUnassigned
+from cora.run.aggregates.run import RunRemovedFromCampaign
 
 _MEMBERSHIP_ELIGIBLE_STATUSES: tuple[CampaignStatus, ...] = (
     CampaignStatus.PLANNED,
@@ -59,7 +59,7 @@ class MembershipEvents:
     """
 
     campaign_events: list[CampaignRunRemoved]
-    run_events: list[RunCampaignUnassigned]
+    run_events: list[RunRemovedFromCampaign]
 
 
 def decide(
@@ -108,7 +108,7 @@ def decide(
             )
         ],
         run_events=[
-            RunCampaignUnassigned(
+            RunRemovedFromCampaign(
                 run_id=command.run_id,
                 campaign_id=campaign.id,
                 reason=trimmed,

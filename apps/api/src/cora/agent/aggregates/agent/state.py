@@ -21,7 +21,7 @@ design lock for CORA-vocabulary-alignment and Actor-collision risk.
 ## VOs (bounded-text pattern reused)
 
 `AgentKind` (1-100 chars), `AgentName` (1-100 chars), `AgentDescription`
-(1-2000 chars), `AgentVersion` (1-50 chars), `AgentCanonicalURI` (1-2000
+(1-2000 chars), `AgentVersion` (1-50 chars), `AgentCanonicalUri` (1-2000
 chars, must start with https://), `AgentCapability` (1-100 chars per
 entry, cardinality cap 32), `AgentDeprecationReason` (1-500 chars).
 All follow the `validate_bounded_text` + `object.__setattr__` pattern
@@ -146,7 +146,7 @@ class InvalidAgentVersionError(ValueError):
         self.value = value
 
 
-class InvalidAgentCanonicalURIError(ValueError):
+class InvalidAgentCanonicalUriError(ValueError):
     """The supplied canonical_uri is empty, whitespace-only, too long, or not https.
 
     Per RFC 8707 audience shape + A2A AgentCard convention: must be a
@@ -542,7 +542,7 @@ class AgentVersion:
 
 
 @dataclass(frozen=True)
-class AgentCanonicalURI:
+class AgentCanonicalUri:
     """Optional canonical https URI. Trimmed; 1-2000 chars; must start with `https://`.
 
     Mirrors RFC 8707 audience + RFC 9728 + PROV-O `@id` + OTel
@@ -556,15 +556,15 @@ class AgentCanonicalURI:
     def __post_init__(self) -> None:
         trimmed = self.value.strip()
         if not trimmed:
-            raise InvalidAgentCanonicalURIError(self.value, "empty or whitespace-only")
+            raise InvalidAgentCanonicalUriError(self.value, "empty or whitespace-only")
         if len(trimmed) > AGENT_CANONICAL_URI_MAX_LENGTH:
-            raise InvalidAgentCanonicalURIError(
+            raise InvalidAgentCanonicalUriError(
                 self.value, f"exceeds {AGENT_CANONICAL_URI_MAX_LENGTH} chars after trim"
             )
         if not trimmed.startswith("https://"):
-            raise InvalidAgentCanonicalURIError(self.value, "must start with `https://`")
+            raise InvalidAgentCanonicalUriError(self.value, "must start with `https://`")
         if "#" in trimmed:
-            raise InvalidAgentCanonicalURIError(self.value, "must not contain a fragment (`#`)")
+            raise InvalidAgentCanonicalUriError(self.value, "must not contain a fragment (`#`)")
         object.__setattr__(self, "value", trimmed)
 
 
@@ -798,7 +798,7 @@ class Agent:
     version: AgentVersion
     model_ref: ModelRef
     description: AgentDescription | None = None
-    canonical_uri: AgentCanonicalURI | None = None
+    canonical_uri: AgentCanonicalUri | None = None
     prompt_template_id: UUID | None = None
     capabilities: frozenset[AgentCapability] = field(default_factory=frozenset[AgentCapability])
     status: AgentStatus = AgentStatus.DEFINED

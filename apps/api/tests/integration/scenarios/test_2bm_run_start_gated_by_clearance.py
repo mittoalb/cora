@@ -214,7 +214,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
@@ -469,7 +469,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
     run_events, _run_version = await deps.event_store.load("Run", _RUN_ID)
     run_event_types = [e.event_type for e in run_events]
     assert "RunStarted" in run_event_types
-    assert "RunCampaignAssigned" in run_event_types
+    assert "RunAddedToCampaign" in run_event_types
     assert "RunCompleted" in run_event_types
 
     # ----- Assert: Campaign FSM exercised cleanly -----

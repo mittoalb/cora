@@ -1,7 +1,7 @@
 """Shared Pydantic wire-format mirror of the `Placement` value object.
 
 Hoisted at the third importer (`register_frame.route`,
-`register_frame.tool`, `update_frame.route`, `update_frame.tool`),
+`register_frame.tool`, `update_frame_placement.route`, `update_frame_placement.tool`),
 satisfying the rule-of-three precedent that landed
 `make_asset_update_handler` and `validate_bounded_text`.
 

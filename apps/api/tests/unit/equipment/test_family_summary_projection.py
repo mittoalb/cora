@@ -43,18 +43,17 @@ def test_projection_metadata() -> None:
     proj = FamilySummaryProjection()
     assert proj.name == "proj_equipment_family_summary"
 
-    # legacy Capability* event types (per Marten/Axon dual-match contract).
-    # Without the legacy subscription, a replay-from-zero on a deployment
-    # with historical data would silently skip legacy events.
+    # SettingsSchemaUpdated keeps its legacy "Capability*" alias because no
+    # sibling BC emits that name. The other lifecycle event-type strings
+    # (*Defined / *Versioned / *Deprecated) are now owned by Recipe BC's
+    # Capability aggregate under its own stream, so equipment.Family no
+    # longer dual-matches them.
     assert proj.subscribed_event_types == frozenset(
         {
             "FamilyDefined",
             "FamilyVersioned",
             "FamilyDeprecated",
             "FamilySettingsSchemaUpdated",
-            "CapabilityDefined",
-            "CapabilityVersioned",
-            "CapabilityDeprecated",
             "CapabilitySettingsSchemaUpdated",
         }
     )
@@ -191,33 +190,6 @@ async def test_family_versioned_replayed_overwrites_versioned_at() -> None:
     second_args = conn.execute.await_args_list[1].args
     assert second_args[2] == "v2.0.0"
     assert second_args[3] == later
-
-
-@pytest.mark.unit
-async def test_legacy_capability_versioned_also_overwrites_versioned_at() -> None:
-    """Dual-match anti-hook: legacy CapabilityVersioned events
-    take the same versioned_at code path as the new FamilyVersioned
-    events. Re-version under the legacy name still writes the latest
-    timestamp."""
-    proj = FamilySummaryProjection()
-    conn = AsyncMock()
-    later = datetime(2026, 6, 1, 9, 30, 0, tzinfo=UTC)
-
-    event = _stored(
-        "CapabilityVersioned",
-        {
-            "capability_id": str(_CAPABILITY_ID),
-            "version_tag": "legacy-2024-Q3",
-            "occurred_at": later.isoformat(),
-        },
-    )
-
-    await proj.apply(event, conn)
-
-    args = conn.execute.await_args
-    assert args is not None
-    assert "versioned_at = $3" in args.args[0]
-    assert args.args[3] == later
 
 
 @pytest.mark.unit
@@ -371,77 +343,6 @@ async def test_capability_defined_inserts_with_schema_present_false() -> None:
 # Capability* event types per the Marten/Axon dual-match contract.
 # These tests pin the apply-arm dual-match so a replay-from-zero on a
 # deployment with historical data populates the summary table correctly.
-
-
-@pytest.mark.unit
-async def test_legacy_capability_defined_inserts_via_family_summary_path() -> None:
-    """Pre-5i CapabilityDefined events use payload key `capability_id`.
-    The projection's `_id()` helper reads new key first, falls back to
-    legacy. INSERT path must populate proj_equipment_family_summary."""
-    proj = FamilySummaryProjection()
-    conn = AsyncMock()
-    event = _stored(
-        "CapabilityDefined",
-        {
-            "capability_id": str(_CAPABILITY_ID),
-            "name": "LegacyTomography",
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-
-    await proj.apply(event, conn)
-
-    args = conn.execute.await_args
-    assert args is not None
-    sql = args.args[0]
-    assert "INSERT INTO proj_equipment_family_summary" in sql
-    assert args.args[1] == _CAPABILITY_ID
-    assert args.args[2] == "LegacyTomography"
-
-
-@pytest.mark.unit
-async def test_legacy_capability_versioned_updates_via_family_summary_path() -> None:
-    proj = FamilySummaryProjection()
-    conn = AsyncMock()
-    event = _stored(
-        "CapabilityVersioned",
-        {
-            "capability_id": str(_CAPABILITY_ID),
-            "version_tag": "v2-legacy",
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-
-    await proj.apply(event, conn)
-
-    args = conn.execute.await_args
-    assert args is not None
-    sql = args.args[0]
-    assert "UPDATE proj_equipment_family_summary" in sql
-    assert "Versioned" in sql
-    assert args.args[1] == _CAPABILITY_ID
-    assert args.args[2] == "v2-legacy"
-
-
-@pytest.mark.unit
-async def test_legacy_capability_deprecated_updates_via_family_summary_path() -> None:
-    proj = FamilySummaryProjection()
-    conn = AsyncMock()
-    event = _stored(
-        "CapabilityDeprecated",
-        {
-            "capability_id": str(_CAPABILITY_ID),
-            "occurred_at": _NOW.isoformat(),
-        },
-    )
-
-    await proj.apply(event, conn)
-
-    args = conn.execute.await_args
-    assert args is not None
-    sql = args.args[0]
-    assert "Deprecated" in sql
-    assert args.args[1] == _CAPABILITY_ID
 
 
 @pytest.mark.unit

@@ -1,25 +1,25 @@
 """Domain events emitted by the Family aggregate, plus the discriminated union.
 
-## Rename + dual-match
+## Rename history
 
-Direct rename of Capability → Family per
+Direct rename of Capability -> Family per
 [[family-affordance-design-phases-5i-5j-lock]]:
 
 - New event type names: `FamilyDefined`, `FamilyVersioned`,
   `FamilyDeprecated`, `FamilySettingsSchemaUpdated`.
-- Dataclass field renamed `capability_id` → `family_id`.
-- Payload key renamed `"capability_id"` → `"family_id"` for new events.
-- `from_stored` dual-matches: BOTH legacy type strings
-  (`"CapabilityDefined"`, etc.) AND new strings produce the new
-  `Family*` dataclass instances. Legacy payloads still carry
-  `"capability_id"` key; new payloads carry `"family_id"`.
+- Dataclass field renamed `capability_id` -> `family_id`.
+- Payload key renamed `"capability_id"` -> `"family_id"` for new events.
 
-Per Marten / Axon / Dudycz consensus on event-sourced rename:
-old events stay in the log forever with original type names;
-the read-time upcaster translates them to the new aggregate
-shape. The dual-match arms stay forever (no later cleanup).
+The lifecycle event-type strings (`*Defined`, `*Versioned`,
+`*Deprecated`) no longer dual-match on `"Capability*"`: those
+strings are now owned by the Recipe BC's `Capability` aggregate.
+The greenfield project has no historical `"Capability*"` Family
+streams to replay, so the dual-match is unnecessary and would
+collide with the sibling aggregate. The legacy
+`CapabilitySettingsSchemaUpdated` alias is retained because it has
+no Recipe-side sibling.
 
-Status is NOT carried in event payloads — the event type itself
+Status is NOT carried in event payloads -- the event type itself
 encodes the state change. The evolver hardcodes the mapping per
 match arm.
 """
@@ -37,12 +37,12 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class FamilyDefined:
     """A new device-class family was defined.
 
-    Status is implicit (`Defined`) — the evolver sets it. `affordances`
+    Status is implicit (`Defined`) -- the evolver sets it. `affordances`
     is the closed-enum set of device-level primitives this Family
     supports (required at define_family time; empty frozenset valid).
-    Defaults to empty frozenset for evolver-level back-compat with
-    legacy `CapabilityDefined` events that don't carry the field
-    (additive-state pattern; see [[project-capability-research]]).
+    Defaults to empty frozenset for evolver-level robustness with
+    payloads that don't carry the field (additive-state pattern; see
+    [[project-capability-research]]).
     """
 
     family_id: UUID
@@ -59,7 +59,7 @@ class FamilyVersioned:
     `version_tag` is operator-supplied free text (1-50 chars).
     `affordances` is the REPLACEMENT affordance set declared at this
     version (a new version IS a new declaration). Defaults to empty
-    frozenset for evolver-level back-compat with legacy events
+    frozenset for evolver-level robustness with sparse payloads
     (additive-state pattern).
     """
 

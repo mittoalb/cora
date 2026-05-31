@@ -57,9 +57,9 @@ from cora.infrastructure.ports import (
 )
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
+    CapabilityDefined,
     CapabilityName,
     ExecutorShape,
-    RecipeCapabilityDefined,
 )
 from cora.recipe.aggregates.capability import (
     event_type_name as capability_event_type_name,
@@ -191,9 +191,9 @@ async def seed_capability(
     )
     # frozenset[object] -> frozenset[Affordance] cast: helper accepts
     # untyped frozensets to avoid an Equipment-BC import in this
-    # module; the actual type is enforced by RecipeCapabilityDefined's
+    # module; the actual type is enforced by CapabilityDefined's
     # dataclass annotation downstream.
-    event = RecipeCapabilityDefined(
+    event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode(code).value,
         name=CapabilityName(name).value,

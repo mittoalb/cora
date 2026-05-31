@@ -8,13 +8,13 @@ Module-as-namespace surface:
     handler = enter_maintenance.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
 
-Naming deviation: this slice (and its sibling `restore_from_maintenance`)
+Naming deviation: this slice (and its sibling `exit_maintenance`)
 break the `<verb>_<aggregate>` convention used elsewhere in Equipment
 (`activate_asset`, `decommission_asset`, `relocate_asset`,
 `register_asset`). The aggregate context is carried by the URL prefix
 `/assets/{asset_id}/...` and the command/event/error names that all
 include `Asset`. Forcing the suffix would yield
-`enter_maintenance_asset` / `restore_asset_from_maintenance`, which
+`enter_maintenance_asset` / `exit_maintenance_asset`, which
 read worse than the deviation.
 """
 

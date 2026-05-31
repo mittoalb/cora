@@ -186,7 +186,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="leftover sandstone core (sample-of-opportunity)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Sample-of-opportunity scan (early-stop)",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"sample_of_opportunity", "tomography", "porous_media"}),
 )
 
@@ -369,7 +369,7 @@ async def test_run_stop_early_lands_as_stopped_terminal(
     run_event_types = [e.event_type for e in run_events]
     assert run_event_types == [
         "RunStarted",
-        "RunCampaignAssigned",
+        "RunAddedToCampaign",
         "RunStopped",
     ]
 

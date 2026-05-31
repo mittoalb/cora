@@ -1,7 +1,7 @@
 """Vertical slice for the `AddRunToCampaign` command.
 
 Cross-aggregate membership-add slice: writes `CampaignRunAdded` to
-the Campaign's stream AND `RunCampaignAssigned` to the Run's stream
+the Campaign's stream AND `RunAddedToCampaign` to the Run's stream
 atomically via `EventStore.append_streams` (mirrors Safety's
 `amend_clearance` shape).
 """

@@ -43,9 +43,9 @@ class RunSummaryItem:
 
     `campaign_id` (Campaign Watch #10) is the Campaign
     this Run is a member of (at-start via `RunStarted.campaign_id`,
-    or post-hoc via `RunCampaignAssigned`). NULL for standalone Runs
+    or post-hoc via `RunAddedToCampaign`). NULL for standalone Runs
     and for Runs whose membership was removed via
-    `RunCampaignUnassigned`. Surfaces the `?campaign_id=` filter on
+    `RunRemovedFromCampaign`. Surfaces the `?campaign_id=` filter on
     `list_runs`.
     """
 

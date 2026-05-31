@@ -95,7 +95,7 @@ class RunReading:
 class ReadingStore(Protocol):
     """Per-category port for RunReading entry writes.
 
-    The `append_run_reading` handler (and any future Run-side reading
+    The `append_run_readings` handler (and any future Run-side reading
     writer, for example a future DAQ adapter) takes a
     `ReadingStore` and calls `append(...)` per batch.
 

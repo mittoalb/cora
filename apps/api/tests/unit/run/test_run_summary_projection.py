@@ -55,8 +55,8 @@ def test_projection_metadata() -> None:
             "RunAborted",
             "RunStopped",
             "RunTruncated",
-            "RunCampaignAssigned",
-            "RunCampaignUnassigned",
+            "RunAddedToCampaign",
+            "RunRemovedFromCampaign",
         }
     )
 
@@ -247,13 +247,13 @@ async def test_run_started_with_campaign_id_inserts_with_membership() -> None:
 
 @pytest.mark.unit
 async def test_run_campaign_assigned_updates_campaign_id() -> None:
-    """Post-hoc add_run_to_campaign writes RunCampaignAssigned to the
+    """Post-hoc add_run_to_campaign writes RunAddedToCampaign to the
     Run stream; the projection sets the campaign_id column to the
     event's campaign_id."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "RunCampaignAssigned",
+        "RunAddedToCampaign",
         {
             "run_id": str(_RUN_ID),
             "campaign_id": str(_CAMPAIGN_ID),
@@ -272,14 +272,14 @@ async def test_run_campaign_assigned_updates_campaign_id() -> None:
 
 @pytest.mark.unit
 async def test_run_campaign_unassigned_clears_campaign_id_to_null() -> None:
-    """remove_run_from_campaign writes RunCampaignUnassigned to the
+    """remove_run_from_campaign writes RunRemovedFromCampaign to the
     Run stream; the projection clears campaign_id to NULL (the prior
     campaign_id stays on the event payload for audit-replay, not in
     the read model)."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
-        "RunCampaignUnassigned",
+        "RunRemovedFromCampaign",
         {
             "run_id": str(_RUN_ID),
             "campaign_id": str(_CAMPAIGN_ID),

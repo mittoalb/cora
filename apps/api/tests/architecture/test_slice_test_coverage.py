@@ -109,7 +109,7 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # allowlist when the contract suite lands.
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
-        "cora.equipment.features.update_frame",
+        "cora.equipment.features.update_frame_placement",
         # Mount slices: same deferral. The 5 Mount slices ship with
         # decider tests but no REST/MCP contract suite; backfill
         # together with Frame's once the integration scenario lands.
@@ -117,7 +117,7 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.install_asset",
         "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
-        "cora.equipment.features.update_placement",
+        "cora.equipment.features.update_mount_placement",
     }
 )
 
@@ -150,13 +150,13 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         # from this allowlist when the contract suite lands.
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
-        "cora.equipment.features.update_frame",
+        "cora.equipment.features.update_frame_placement",
         # Mount slices: same deferral.
         "cora.equipment.features.decommission_mount",
         "cora.equipment.features.install_asset",
         "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
-        "cora.equipment.features.update_placement",
+        "cora.equipment.features.update_mount_placement",
     }
 )
 

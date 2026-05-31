@@ -81,7 +81,7 @@ async def _seed_defined_permit(store: InMemoryEventStore) -> None:
         direction=Direction.OUTBOUND,
         allowed_credentials=frozenset(),
         allowed_payload_types=frozenset({"application/cora.dataset+json"}),
-        permitted_artifact_kinds=frozenset({"dataset"}),
+        allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_DEFINING_PRINCIPAL_ID,
@@ -98,7 +98,7 @@ async def _seed_defined_permit(store: InMemoryEventStore) -> None:
                 payload=to_payload(defined),
                 occurred_at=_DEFINED_AT,
                 event_id=_GENESIS_EVENT_ID,
-                command_name="RegisterPermit",
+                command_name="DefinePermit",
                 correlation_id=_CORRELATION_ID,
                 principal_id=_DEFINING_PRINCIPAL_ID,
             )

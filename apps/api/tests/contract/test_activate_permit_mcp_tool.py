@@ -14,13 +14,13 @@ from cora.api.main import create_app
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
-def _register_permit_arguments() -> dict[str, Any]:
+def _define_permit_arguments() -> dict[str, Any]:
     return {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
         "allowed_credentials": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],
-        "permitted_artifact_kinds": ["dataset"],
+        "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2027-05-30T12:00:00+00:00",
         "terms": {
@@ -32,7 +32,7 @@ def _register_permit_arguments() -> dict[str, Any]:
     }
 
 
-def _register_permit_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
+def _define_permit_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
     response = client.post(
         "/mcp",
         json={
@@ -40,8 +40,8 @@ def _register_permit_via_tool(client: TestClient, headers: dict[str, str]) -> UU
             "id": 2,
             "method": "tools/call",
             "params": {
-                "name": "register_permit",
-                "arguments": _register_permit_arguments(),
+                "name": "define_permit",
+                "arguments": _define_permit_arguments(),
             },
         },
         headers=headers,
@@ -70,7 +70,7 @@ def test_mcp_lists_activate_permit_tool() -> None:
 def test_mcp_activate_permit_tool_succeeds_for_defined_permit() -> None:
     with TestClient(create_app()) as client:
         headers = open_session(client)
-        permit_id = _register_permit_via_tool(client, headers)
+        permit_id = _define_permit_via_tool(client, headers)
         response = client.post(
             "/mcp",
             json={
@@ -118,7 +118,7 @@ def test_mcp_activate_permit_tool_returns_iserror_when_already_active() -> None:
     as the REST 409 response."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
-        permit_id = _register_permit_via_tool(client, headers)
+        permit_id = _define_permit_via_tool(client, headers)
         first = client.post(
             "/mcp",
             json={

@@ -183,7 +183,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
@@ -247,7 +247,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # add_run_to_campaign (cross-aggregate atomic; 2 event ids for the 2 streams)
         e(),  # CampaignRunAdded
-        e(),  # RunCampaignAssigned
+        e(),  # RunAddedToCampaign
         # start_campaign: event_id (explicit Planned -> Active)
         e(),
         # complete_run: event_id
@@ -342,7 +342,7 @@ async def test_tomography_scan_plays_out_end_to_end(
 
     # ----- Campaign BC: add the Run to the Campaign (cross-aggregate atomic) -----
     # Two-stream atomic write: Campaign gets CampaignRunAdded + Run gets
-    # RunCampaignAssigned. The Campaign FSM does NOT auto-promote; Planned
+    # RunAddedToCampaign. The Campaign FSM does NOT auto-promote; Planned
     # accepts Runs but stays Planned until an explicit start_campaign.
 
     await bind_add_run_to_campaign(deps)(
@@ -421,7 +421,7 @@ async def test_tomography_scan_plays_out_end_to_end(
     run_events, run_version = await deps.event_store.load("Run", _RUN_ID)
     run_event_types = [e.event_type for e in run_events]
     assert "RunStarted" in run_event_types
-    assert "RunCampaignAssigned" in run_event_types
+    assert "RunAddedToCampaign" in run_event_types
     assert "RunCompleted" in run_event_types
     # Run version reflects the 3 events that landed on the Run stream
     assert run_version == 3

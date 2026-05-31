@@ -29,7 +29,7 @@ def _row(**overrides: object) -> RunReading:
         "run_id": uuid4(),
         "logbook_id": uuid4(),
         "actor_id": uuid4(),
-        "command_name": "AppendRunReading",
+        "command_name": "AppendRunReadings",
         "channel_name": "T_sample",
         "value": 295.1,
         "units": "K",
@@ -94,11 +94,11 @@ def test_run_reading_accepts_known_sampling_procedures(procedure: str) -> None:
 @pytest.mark.unit
 def test_run_reading_carries_envelope_fields() -> None:
     """Audit trail: actor_id (principal who appended), command_name
-    (always 'AppendRunReading' for this entry kind), correlation_id
+    (always 'AppendRunReadings' for this entry kind), correlation_id
     (request trace), causation_id (chain)."""
     row = _row(actor_id=uuid4(), causation_id=uuid4())
     assert row.actor_id is not None
-    assert row.command_name == "AppendRunReading"
+    assert row.command_name == "AppendRunReadings"
     assert row.correlation_id is not None
     assert row.causation_id is not None
 

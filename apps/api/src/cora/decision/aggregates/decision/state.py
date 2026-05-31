@@ -257,7 +257,7 @@ CAUTION_PROPOSAL_CHOICES: Final = frozenset(
 # Latest-per-actor wins in the projection; audit trail keeps all
 # ratings. See [[project-run-debrief-design]] Locks for the
 # `ConfidenceCalibrator` adoption trigger that consumes the (rating,
-# context, confidence_at_emit_time) corpus this event accrues.
+# context, confidence_at_rating) corpus this event accrues.
 class DecisionRating(StrEnum):
     """How an operator rates a Decision after the fact."""
 

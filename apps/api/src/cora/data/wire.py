@@ -18,7 +18,7 @@ Cross-cutting decorators applied here mirror every other BC
 The transitions (`discard`, `promote`, `demote`) are update-style
 with bare handlers, strict-not-idempotent via their respective
 `DatasetCannot*Error` / `DatasetAlready*Error` errors. `promote_dataset`
-cross-loads peer Datasets via slice-local `PromotionContext` for the
+cross-loads peer Datasets via slice-local `DatasetPromotionContext` for the
 lineage-must-be-Production guard; `demote_dataset` is the compensation
 primitive and does no peer loads (no cross-BC cascade per
 [[project-dataset-demote-design]] lock).

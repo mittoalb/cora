@@ -66,7 +66,7 @@ async def test_get_capability_loads_state_from_real_postgres(
     assert view.capability.code == CapabilityCode("cora.capability.iter_b_4_test")
     assert view.capability.name == CapabilityName("IterB4Test")
     assert view.capability.status is CapabilityStatus.DEFINED
-    # Pre-drain: projection hasn't folded RecipeCapabilityDefined yet -> no row.
+    # Pre-drain: projection hasn't folded CapabilityDefined yet -> no row.
     assert view.timestamps is None
 
     # Post-drain: projection catches up, lifecycle-timestamps surface.

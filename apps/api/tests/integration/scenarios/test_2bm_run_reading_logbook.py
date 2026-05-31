@@ -27,11 +27,11 @@ trichotomy.
 
 ## Why this scenario exists
 
-**First scenario-tier exercise of `append_run_reading`** + the
+**First scenario-tier exercise of `append_run_readings`** + the
 lazy-open `RunReadingLogbookOpened` event + the polymorphic
 `sampling_procedure` discriminator with BOTH `baseline` and
 `monitor` values. The lower-tier integration test
-`test_append_run_reading_handler_postgres.py` covers the
+`test_append_run_readings_handler_postgres.py` covers the
 plumbing (entries land in the projection table; lazy open works;
 PK dedup on retry) against a bypass-seeded `RunStarted` event.
 This scenario is the operator-narrative source-of-truth for
@@ -41,10 +41,10 @@ belong in its audit trail".
 
 This scenario exercises:
 
-  - `append_run_reading` first call: lazy emits
+  - `append_run_readings` first call: lazy emits
     `RunReadingLogbookOpened` on the Run stream + N entries land
     in `entries_run_readings`.
-  - `append_run_reading` second call: skips the open emit + N
+  - `append_run_readings` second call: skips the open emit + N
     more entries land.
   - Both `sampling_procedure="baseline"` (pre-scan one-shot) and
     `sampling_procedure="monitor"` (mid-scan periodic) values.
@@ -58,14 +58,14 @@ This scenario exercises:
   2. Operator starts the tomography Run.
   3. Just before commanding the scan to begin, the operator
      captures pre-scan baseline readings (T_sample, ring
-     current, motor_x) in one `append_run_reading` batch with
+     current, motor_x) in one `append_run_readings` batch with
      `sampling_procedure="baseline"`. The Run's reading
      logbook is lazily opened on this first call
      (`RunReadingLogbookOpened` event emitted on the Run
      stream).
   4. ~600 projections in, the operator captures periodic
      monitor readings (same channels, fresh sampling) in a
-     second `append_run_reading` batch with
+     second `append_run_readings` batch with
      `sampling_procedure="monitor"`. The logbook is already
      open; no `RunReadingLogbookOpened` event is emitted.
   5. Run completes normally. The reading logbook stays
@@ -124,11 +124,11 @@ from cora.campaign.features.close_campaign import bind as bind_close_campaign
 from cora.campaign.features.start_campaign import StartCampaign
 from cora.campaign.features.start_campaign import bind as bind_start_campaign
 from cora.run.aggregates.run import PostgresReadingStore
-from cora.run.features.append_run_reading import (
+from cora.run.features.append_run_readings import (
     AppendRunReadings,
     RunReadingInput,
 )
-from cora.run.features.append_run_reading import bind as bind_append_readings
+from cora.run.features.append_run_readings import bind as bind_append_readings
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
 from cora.run.features.start_run import StartRun
@@ -213,7 +213,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A, with readings)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime (with readings)",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
@@ -269,7 +269,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_campaign
         e(),
-        # First append_run_reading: lazy logbook_id + open event_id
+        # First append_run_readings: lazy logbook_id + open event_id
         _READING_LOGBOOK_ID,
         e(),  # RunReadingLogbookOpened
         # Second append: no open event; just the row inserts (no
@@ -433,12 +433,12 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
 
     run_events, _ = await deps.event_store.load("Run", _RUN_ID)
     run_event_types = [e.event_type for e in run_events]
-    # RunStarted + RunCampaignAssigned + RunReadingLogbookOpened (lazy)
+    # RunStarted + RunAddedToCampaign + RunReadingLogbookOpened (lazy)
     # + RunCompleted = 4. Second append must NOT emit a second
     # RunReadingLogbookOpened.
     assert run_event_types == [
         "RunStarted",
-        "RunCampaignAssigned",
+        "RunAddedToCampaign",
         "RunReadingLogbookOpened",
         "RunCompleted",
     ]

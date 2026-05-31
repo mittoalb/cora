@@ -40,7 +40,7 @@ slices that would justify a typed VO).
 ## Intent enum (4 values closed) + free tags
 
 `CampaignIntent` is closed at 4 abstract intent-shape values: Series /
-Sweep / Coordinated / Block. It describes what KIND of coordination
+Sweep / Coordination / Block. It describes what KIND of coordination
 the Campaign carries, NOT the scientific technique. Technique-specific
 tagging (in-situ, operando, tomography, EDD, etc.) lives on the free
 `tags: frozenset[CampaignTag]` field. Closed enum + free tags yields
@@ -113,18 +113,18 @@ class CampaignIntent(StrEnum):
     yields a reportable shape vocabulary plus a flexible domain-
     vocabulary surface.
 
-      - `Series`      -- multiple measurements coordinated over time on
-                         shared resources
-      - `Sweep`       -- parametric exploration (axes swept across runs)
-      - `Coordinated` -- multi-modal or multi-Subject coordinated
-                         acquisition
-      - `Block`       -- scheduling envelope (proposal / beamtime block /
-                         cycle)
+      - `Series`       -- multiple measurements coordinated over time on
+                          shared resources
+      - `Sweep`        -- parametric exploration (axes swept across runs)
+      - `Coordination` -- multi-modal or multi-Subject coordinated
+                          acquisition
+      - `Block`        -- scheduling envelope (proposal / beamtime block /
+                          cycle)
     """
 
     SERIES = "Series"
     SWEEP = "Sweep"
-    COORDINATED = "Coordinated"
+    COORDINATION = "Coordination"
     BLOCK = "Block"
 
 

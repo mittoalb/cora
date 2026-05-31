@@ -17,15 +17,15 @@ Promotes a Dataset from Trial to Production intent. See
 
 from cora.data.features.promote_dataset import tool
 from cora.data.features.promote_dataset.command import PromoteDataset
-from cora.data.features.promote_dataset.context import PromotionContext
+from cora.data.features.promote_dataset.context import DatasetPromotionContext
 from cora.data.features.promote_dataset.decider import decide
 from cora.data.features.promote_dataset.handler import Handler, bind
 from cora.data.features.promote_dataset.route import router
 
 __all__ = [
+    "DatasetPromotionContext",
     "Handler",
     "PromoteDataset",
-    "PromotionContext",
     "bind",
     "decide",
     "router",

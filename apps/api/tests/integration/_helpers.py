@@ -131,9 +131,9 @@ async def seed_capability_postgres(
     from cora.infrastructure.ports.event_store import ConcurrencyError
     from cora.recipe.aggregates.capability import (
         CapabilityCode,
+        CapabilityDefined,
         CapabilityName,
         ExecutorShape,
-        RecipeCapabilityDefined,
     )
     from cora.recipe.aggregates.capability import (
         event_type_name as capability_event_type_name,
@@ -146,7 +146,7 @@ async def seed_capability_postgres(
     shapes_set: frozenset[ExecutorShape] = shapes or frozenset(  # type: ignore[assignment]
         {ExecutorShape.METHOD, ExecutorShape.PROCEDURE}
     )
-    event = RecipeCapabilityDefined(
+    event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode(code).value,
         name=CapabilityName(name).value,

@@ -11,10 +11,9 @@ Module-as-namespace surface:
 One of three condition-transition slices (degrade / fault /
 restore). Mirror of `degrade_asset` with target Nominal.
 
-Naming distinct from `restore_from_maintenance`: that slice
-restores a lifecycle state (Maintenance -> Active); this slice
-restores a condition state (any -> Nominal). Both verbs share the
-"return to baseline" connotation in different dimensions.
+Naming distinct from `exit_maintenance`: that slice moves a
+lifecycle state (Maintenance -> Active); this slice restores a
+condition state (any -> Nominal).
 """
 
 from cora.equipment.features.restore_asset import tool

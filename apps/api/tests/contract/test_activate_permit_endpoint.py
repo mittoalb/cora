@@ -20,7 +20,7 @@ def _register_body() -> dict[str, Any]:
         "direction": "Outbound",
         "allowed_credentials": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],
-        "permitted_artifact_kinds": ["dataset"],
+        "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2027-05-30T12:00:00+00:00",
         "terms": {
@@ -32,7 +32,7 @@ def _register_body() -> dict[str, Any]:
     }
 
 
-def _register_permit(client: TestClient) -> str:
+def _define_permit(client: TestClient) -> str:
     response = client.post("/federation/permits", json=_register_body())
     assert response.status_code == 201, response.text
     return response.json()["permit_id"]
@@ -41,7 +41,7 @@ def _register_permit(client: TestClient) -> str:
 @pytest.mark.contract
 def test_post_activate_permit_returns_204_on_defined_permit() -> None:
     with TestClient(create_app()) as client:
-        permit_id = _register_permit(client)
+        permit_id = _define_permit(client)
         response = client.post(f"/federation/permits/{permit_id}/activate")
     assert response.status_code == 204, response.text
 
@@ -50,7 +50,7 @@ def test_post_activate_permit_returns_204_on_defined_permit() -> None:
 def test_post_activate_permit_returns_409_on_already_active() -> None:
     """Strict-not-idempotent: re-activating an Active permit -> 409."""
     with TestClient(create_app()) as client:
-        permit_id = _register_permit(client)
+        permit_id = _define_permit(client)
         first = client.post(f"/federation/permits/{permit_id}/activate")
         assert first.status_code == 204, first.text
         response = client.post(f"/federation/permits/{permit_id}/activate")

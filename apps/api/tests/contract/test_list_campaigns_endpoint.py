@@ -73,7 +73,7 @@ def test_get_campaigns_rejects_status_all_mixed_with_explicit_with_422(
 @pytest.mark.contract
 @pytest.mark.parametrize(
     "intent_value",
-    ["Series", "Sweep", "Coordinated", "Block"],
+    ["Series", "Sweep", "Coordination", "Block"],
 )
 def test_get_campaigns_accepts_each_intent(client: TestClient, intent_value: str) -> None:
     with client:

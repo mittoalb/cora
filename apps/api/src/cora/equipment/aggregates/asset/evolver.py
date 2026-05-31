@@ -10,7 +10,7 @@ Lifecycle mapping per event type:
   - `AssetDecommissioned`          -> DECOMMISSIONED  (3-source guard at decider)
   - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
   - `AssetMaintenanceEntered`      -> MAINTENANCE
-  - `AssetRestoredFromMaintenance` -> ACTIVE
+  - `AssetMaintenanceExited`       -> ACTIVE
   - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into families frozenset)
   - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from families frozenset)
   - `AssetDegraded`                -> (lifecycle UNCHANGED; condition -> DEGRADED)
@@ -70,12 +70,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetFamilyRemoved,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetMaintenanceExited,
     AssetPortAdded,
     AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
-    AssetRestoredFromMaintenance,
     AssetSettingsUpdated,
 )
 from cora.equipment.aggregates.asset.state import (
@@ -174,8 +174,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 ports=prior.ports,
                 drawing=prior.drawing,
             )
-        case AssetRestoredFromMaintenance():
-            prior = require_state(state, "AssetRestoredFromMaintenance")
+        case AssetMaintenanceExited():
+            prior = require_state(state, "AssetMaintenanceExited")
             return Asset(
                 id=prior.id,
                 name=prior.name,

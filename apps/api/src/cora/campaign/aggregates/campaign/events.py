@@ -17,11 +17,11 @@ Six events shipped at BC genesis:
 Two events added later for cross-aggregate membership:
 
   - `CampaignRunAdded`   -- run_id unioned into state.run_ids; written
-                            atomically with `RunCampaignAssigned` (or
+                            atomically with `RunAddedToCampaign` (or
                             `RunStarted` on the at-start path) via
                             `EventStore.append_streams`
   - `CampaignRunRemoved` -- run_id removed from state.run_ids; written
-                            atomically with `RunCampaignUnassigned`;
+                            atomically with `RunRemovedFromCampaign`;
                             `reason: str` REQUIRED on the payload as
                             per-membership audit breadcrumb (NOT
                             populated onto `last_status_reason`)
@@ -189,7 +189,7 @@ class CampaignRunAdded:
 
     Written to the Campaign's stream by the cross-aggregate
     `add_run_to_campaign` slice, atomically alongside
-    `RunCampaignAssigned` on the Run's stream (via
+    `RunAddedToCampaign` on the Run's stream (via
     `EventStore.append_streams`). Also written by `start_run` when
     `StartRun.campaign_id` is provided (atomic with `RunStarted` on
     the Run stream).
@@ -211,7 +211,7 @@ class CampaignRunRemoved:
 
     Written to the Campaign's stream by the cross-aggregate
     `remove_run_from_campaign` slice, atomically alongside
-    `RunCampaignUnassigned` on the Run's stream.
+    `RunRemovedFromCampaign` on the Run's stream.
 
     `reason: str` (1-500 chars after trim) is REQUIRED per design memo:
     an operator must say WHY they remove a Run from a Campaign

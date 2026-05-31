@@ -42,7 +42,7 @@ class _InboundTermsOutput(BaseModel):
     """Structured-output sub-shape for inbound terms."""
 
     kind: Literal["Inbound"]
-    allowed_artifact_kinds: list[str]
+    inbound_allowed_artifact_kinds: list[str]
     accepted_canonicalization_versions: list[str]
     required_receipt_kinds: list[str]
     publisher_grant_correlation_handle: str | None = None
@@ -67,7 +67,7 @@ class GetPermitOutput(BaseModel):
     direction: str
     allowed_credentials: list[UUID]
     allowed_payload_types: list[str]
-    permitted_artifact_kinds: list[str]
+    allowed_artifact_kinds: list[str]
     abi_tier_floor: str
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -98,7 +98,7 @@ def _terms_output(view: PermitView) -> _TermsOutput:
         )
     return _InboundTermsOutput(
         kind="Inbound",
-        allowed_artifact_kinds=view.allowed_artifact_kinds or [],
+        inbound_allowed_artifact_kinds=view.inbound_allowed_artifact_kinds or [],
         accepted_canonicalization_versions=view.accepted_canonicalization_versions or [],
         required_receipt_kinds=view.required_receipt_kinds or [],
         publisher_grant_correlation_handle=view.publisher_grant_correlation_handle,
@@ -112,7 +112,7 @@ def _output_from_view(view: PermitView) -> GetPermitOutput:
         direction=view.direction,
         allowed_credentials=list(view.allowed_credentials),
         allowed_payload_types=list(view.allowed_payload_types),
-        permitted_artifact_kinds=list(view.permitted_artifact_kinds),
+        allowed_artifact_kinds=list(view.allowed_artifact_kinds),
         abi_tier_floor=view.abi_tier_floor,
         expires_at=view.expires_at,
         defined_by_actor_id=view.defined_by_actor_id,

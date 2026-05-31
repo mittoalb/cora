@@ -54,7 +54,7 @@ def _permit(status: PermitStatus) -> Permit:
         direction=Direction.OUTBOUND,
         allowed_credentials=frozenset({_CREDENTIAL_ID}),
         allowed_payload_types=frozenset({"application/json"}),
-        permitted_artifact_kinds=frozenset({"dataset"}),
+        allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_DEFINED_BY_ACTOR_ID,

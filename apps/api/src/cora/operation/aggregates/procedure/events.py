@@ -132,10 +132,10 @@ class ProcedureStepsLogbookOpened:
     the entry-noun discriminator upfront. Per
     [[project_logbook_entry_storage]] cross-BC family table.
 
-    Lazy open-on-first-write: emitted by the `append_procedure_step`
+    Lazy open-on-first-write: emitted by the `append_procedure_steps`
     handler the first time a step is appended for this Procedure, NOT by
-    `start_procedure` (mirrors Decision BC's 8c-b precedent for
-    `DecisionLogbookOpened` and Run BC's 6f-5b precedent for
+    `start_procedure` (mirrors Decision BC's precedent for
+    `DecisionLogbookOpened` and Run BC's precedent for
     `RunReadingLogbookOpened`). Subsequent appends find the logbook
     already attached and skip the open-event emission.
 
@@ -150,7 +150,7 @@ class ProcedureStepsLogbookOpened:
 
     No `ProcedureStepsLogbookClosed` event today: Procedure.status
     terminals (Completed | Aborted | Truncated) are the implicit close
-    signal; `append_procedure_step` rejects writes when status is not
+    signal; `append_procedure_steps` rejects writes when status is not
     Running via `ProcedureStepsLogbookClosedError`. Audit fidelity is
     preserved: the open event timestamps the logbook lifecycle start;
     the terminal ProcedureCompleted / ProcedureAborted / etc. event

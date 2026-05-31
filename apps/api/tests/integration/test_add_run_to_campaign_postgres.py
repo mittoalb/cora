@@ -113,7 +113,7 @@ async def test_add_run_to_campaign_writes_both_streams_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Happy-path: Run + Campaign exist standalone; add_run_to_campaign
-    writes CampaignRunAdded on Campaign + RunCampaignAssigned on Run
+    writes CampaignRunAdded on Campaign + RunAddedToCampaign on Run
     via append_streams; both streams reflect the membership."""
     campaign_id = uuid4()
     register_event_id = uuid4()
@@ -176,17 +176,17 @@ async def test_add_run_to_campaign_writes_both_streams_atomically(
     assert state is not None
     assert run_id in state.run_ids
 
-    # Run stream: 2 events (Started + CampaignAssigned).
+    # Run stream: 2 events (Started + AddedToCampaign).
     run_events, run_version = await deps.event_store.load("Run", run_id)
     assert run_version == 2
-    assert run_events[-1].event_type == "RunCampaignAssigned"
+    assert run_events[-1].event_type == "RunAddedToCampaign"
     assert run_events[-1].payload["campaign_id"] == str(campaign_id)
     run_state = run_fold([run_from_stored(s) for s in run_events])
     assert run_state is not None
     assert run_state.campaign_id == campaign_id
 
     # Atomic xid8 invariant: Campaign's CampaignRunAdded + Run's
-    # RunCampaignAssigned share the same transaction_id.
+    # RunAddedToCampaign share the same transaction_id.
     assert campaign_events[-1].transaction_id == run_events[-1].transaction_id
 
 
@@ -554,7 +554,7 @@ async def test_forced_concurrent_add_runs_raises_concurrency_error(
     from cora.infrastructure.event_envelope import to_new_event
     from cora.infrastructure.ports.event_store import ConcurrencyError, StreamAppend
     from cora.run.aggregates.run import (
-        RunCampaignAssigned,
+        RunAddedToCampaign,
     )
     from cora.run.aggregates.run import (
         event_type_name as run_event_type_name,
@@ -604,7 +604,7 @@ async def test_forced_concurrent_add_runs_raises_concurrency_error(
             run_id=run_id,
             occurred_at=_NOW,
         )
-        run_event = RunCampaignAssigned(
+        run_event = RunAddedToCampaign(
             run_id=run_id,
             campaign_id=campaign_id,
             occurred_at=_NOW,

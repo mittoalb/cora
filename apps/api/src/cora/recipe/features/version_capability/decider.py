@@ -6,7 +6,7 @@ are valid sources; only Deprecated is rejected.
 
 Re-attestation: calling version_capability with the same version_tag
 + same declarative contract twice both succeed, producing two
-`RecipeCapabilityVersioned` events. Re-attestation is a legitimate audit
+`CapabilityVersioned` events. Re-attestation is a legitimate audit
 moment ("the operator confirmed v2 again on date X"); the multi-
 source Versioned → Versioned transition permits the operation
 structurally. Same precedent as version_family.
@@ -33,8 +33,8 @@ from cora.recipe.aggregates.capability import (
     CapabilityCannotVersionError,
     CapabilityNotFoundError,
     CapabilityStatus,
+    CapabilityVersioned,
     InvalidCapabilityVersionTagError,
-    RecipeCapabilityVersioned,
     validate_capability_description,
     validate_capability_parameters_schema,
     validate_executor_shapes,
@@ -52,7 +52,7 @@ def decide(
     command: VersionCapability,
     *,
     now: datetime,
-) -> list[RecipeCapabilityVersioned]:
+) -> list[CapabilityVersioned]:
     """Decide the events produced by versioning an existing Capability."""
     if state is None:
         raise CapabilityNotFoundError(command.capability_id)
@@ -66,7 +66,7 @@ def decide(
     if state.status not in _VERSIONABLE_STATUSES:
         raise CapabilityCannotVersionError(state.id, current_status=state.status)
     return [
-        RecipeCapabilityVersioned(
+        CapabilityVersioned(
             capability_id=state.id,
             version_tag=trimmed,
             description=description,

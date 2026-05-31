@@ -44,11 +44,11 @@ _log = get_logger(__name__)
 
 _SELECT_PERMIT_SQL = """
 SELECT permit_id, peer_facility_id, direction,
-       allowed_credentials, allowed_payload_types, permitted_artifact_kinds,
+       allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
        abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
        read_scope, onward_action_scope, scope_set,
        accepted_canonicalization_versions, required_receipt_kinds,
-       publisher_grant_correlation_handle, allowed_artifact_kinds,
+       publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
        defined_at, activated_at, suspended_at, resumed_at, revoked_at
 FROM proj_federation_permit_summary
 WHERE permit_id = $1
@@ -70,7 +70,7 @@ class PermitView:
     direction: str
     allowed_credentials: list[UUID]
     allowed_payload_types: list[str]
-    permitted_artifact_kinds: list[str]
+    allowed_artifact_kinds: list[str]
     abi_tier_floor: str
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -82,7 +82,7 @@ class PermitView:
     accepted_canonicalization_versions: list[str] | None
     required_receipt_kinds: list[str] | None
     publisher_grant_correlation_handle: str | None
-    allowed_artifact_kinds: list[str] | None
+    inbound_allowed_artifact_kinds: list[str] | None
     defined_at: datetime
     activated_at: datetime | None
     suspended_at: datetime | None
@@ -113,7 +113,7 @@ def _row_to_view(row: Any) -> PermitView:
         direction=row["direction"],
         allowed_credentials=[UUID(c) if isinstance(c, str) else c for c in raw_credentials],
         allowed_payload_types=_jsonb_to_list(row["allowed_payload_types"]) or [],
-        permitted_artifact_kinds=_jsonb_to_list(row["permitted_artifact_kinds"]) or [],
+        allowed_artifact_kinds=_jsonb_to_list(row["allowed_artifact_kinds"]) or [],
         abi_tier_floor=row["abi_tier_floor"],
         expires_at=row["expires_at"],
         defined_by_actor_id=row["defined_by_actor_id"],
@@ -127,7 +127,7 @@ def _row_to_view(row: Any) -> PermitView:
         ),
         required_receipt_kinds=_jsonb_to_list(row["required_receipt_kinds"]),
         publisher_grant_correlation_handle=row["publisher_grant_correlation_handle"],
-        allowed_artifact_kinds=_jsonb_to_list(row["allowed_artifact_kinds"]),
+        inbound_allowed_artifact_kinds=_jsonb_to_list(row["inbound_allowed_artifact_kinds"]),
         defined_at=row["defined_at"],
         activated_at=row["activated_at"],
         suspended_at=row["suspended_at"],

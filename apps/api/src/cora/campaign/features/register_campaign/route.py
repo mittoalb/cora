@@ -67,7 +67,7 @@ class RegisterCampaignRequest(BaseModel):
     intent: CampaignIntent = Field(
         ...,
         description=(
-            "Closed intent-shape vocabulary: Series, Sweep, Coordinated, "
+            "Closed intent-shape vocabulary: Series, Sweep, Coordination, "
             "Block. Describes what KIND of coordination the Campaign carries, "
             "not the scientific technique (technique tagging lives on tags)."
         ),

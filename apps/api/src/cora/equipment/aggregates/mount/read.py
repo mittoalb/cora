@@ -2,7 +2,7 @@
 
 `load_mount(event_store, mount_id) -> Mount | None` mirrors
 `load_frame` / `load_asset`. Used by update-style commands
-(`update_placement`, `install_asset`, `uninstall_asset`,
+(`update_mount_placement`, `install_asset`, `uninstall_asset`,
 `decommission_mount`) that need to load + fold before deciding.
 """
 

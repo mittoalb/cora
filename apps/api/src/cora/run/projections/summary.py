@@ -14,9 +14,9 @@ aggregate membership transitions):
   - RunAborted             -> UPDATE status=Aborted     (terminal)
   - RunStopped             -> UPDATE status=Stopped     (terminal)
   - RunTruncated           -> UPDATE status=Truncated   (terminal)
-  - RunCampaignAssigned    -> UPDATE campaign_id = $2
+  - RunAddedToCampaign     -> UPDATE campaign_id = $2
                               (post-hoc add via add_run_to_campaign)
-  - RunCampaignUnassigned  -> UPDATE campaign_id = NULL
+  - RunRemovedFromCampaign -> UPDATE campaign_id = NULL
                               (remove via remove_run_from_campaign)
 
 All branches idempotent. Genesis-event payload values (plan_id,
@@ -102,8 +102,8 @@ class RunSummaryProjection:
             "RunAborted",
             "RunStopped",
             "RunTruncated",
-            "RunCampaignAssigned",
-            "RunCampaignUnassigned",
+            "RunAddedToCampaign",
+            "RunRemovedFromCampaign",
         }
     )
 
@@ -141,14 +141,14 @@ class RunSummaryProjection:
                 pinned_calibrations,
             )
             return
-        if event.event_type == "RunCampaignAssigned":
+        if event.event_type == "RunAddedToCampaign":
             await conn.execute(
                 _UPDATE_CAMPAIGN_SQL,
                 UUID(event.payload["run_id"]),
                 UUID(event.payload["campaign_id"]),
             )
             return
-        if event.event_type == "RunCampaignUnassigned":
+        if event.event_type == "RunRemovedFromCampaign":
             await conn.execute(
                 _UPDATE_CAMPAIGN_SQL,
                 UUID(event.payload["run_id"]),

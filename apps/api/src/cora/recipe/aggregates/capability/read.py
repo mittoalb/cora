@@ -46,10 +46,10 @@ class CapabilityLifecycleTimestamps:
     """Observed wall-clock timestamps of FSM transitions.
 
     Sourced from the Recipe.Capability summary projection, not from
-    aggregate state. `created_at` is set once on `RecipeCapabilityDefined`;
-    `versioned_at` is overwritten on each `RecipeCapabilityVersioned`
+    aggregate state. `created_at` is set once on `CapabilityDefined`;
+    `versioned_at` is overwritten on each `CapabilityVersioned`
     (state-always-holds-latest convention mirrored in the projection);
-    `deprecated_at` is set once on `RecipeCapabilityDeprecated` and is
+    `deprecated_at` is set once on `CapabilityDeprecated` and is
     terminal.
     """
 

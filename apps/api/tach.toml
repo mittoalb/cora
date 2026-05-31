@@ -250,7 +250,7 @@ depends_on = [
 # Planned -> Active <-> Held -> Closed | Abandoned). The cross-
 # aggregate membership slices (`add_run_to_campaign` /
 # `remove_run_from_campaign`) load the Run aggregate at handler-load
-# time and emit `RunCampaignAssigned` / `RunCampaignUnassigned` to the
+# time and emit `RunAddedToCampaign` / `RunRemovedFromCampaign` to the
 # Run stream atomically with `CampaignRunAdded` / `CampaignRunRemoved`
 # on the Campaign stream via `EventStore.append_streams`. Same shape
 # as Safety's `amend_clearance`.

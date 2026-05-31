@@ -25,7 +25,7 @@ def _register_body(**overrides: object) -> dict[str, Any]:
         "direction": "Outbound",
         "allowed_credentials": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],
-        "permitted_artifact_kinds": ["dataset"],
+        "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {

@@ -20,7 +20,7 @@ taxonomy this scenario fits into.
 
 **First scenario-tier exercise of `Campaign.intent=Series`.** The
 Campaign BC was designed with four intent-shape values (Series,
-Sweep, Coordinated, Block); to date only `Coordinated` has been
+Sweep, Coordination, Block); to date only `Coordination` has been
 exercised (proposal Campaign in O-1..O-6). This scenario fills in
 `Series`: a chain of repetitions that share parameters and
 plumbing, with only the Run-instance identity changing.
@@ -375,7 +375,7 @@ async def test_continuous_rotation_sweep_plays_out_end_to_end(
         run_events, _run_version = await deps.event_store.load("Run", run_id)
         run_event_types = [e.event_type for e in run_events]
         assert "RunStarted" in run_event_types
-        assert "RunCampaignAssigned" in run_event_types
+        assert "RunAddedToCampaign" in run_event_types
         assert "RunCompleted" in run_event_types
 
     # ----- Assert: Campaign accumulated N CampaignRunAdded events -----

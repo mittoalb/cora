@@ -37,4 +37,4 @@ def decide(
     """Decide the events produced by forgetting an actor's PII."""
     if state is None:
         raise ActorNotFoundError(command.actor_id)
-    return [ActorProfileForgotten(actor_id=state.id, forgotten_at=now)]
+    return [ActorProfileForgotten(actor_id=state.id, occurred_at=now)]

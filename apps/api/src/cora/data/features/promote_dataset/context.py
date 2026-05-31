@@ -1,6 +1,6 @@
 """Cross-aggregate context the `promote_dataset` decider validates against.
 
-`PromotionContext` is built by the `promote_dataset` handler from
+`DatasetPromotionContext` is built by the `promote_dataset` handler from
 `load_dataset` calls before reaching the pure decider. The decider
 treats the loaded peer Datasets as opaque domain data and validates
 the lineage-must-be-Production guard without performing any I/O.
@@ -24,7 +24,7 @@ from cora.data.aggregates.dataset import Dataset
 
 
 @dataclass(frozen=True)
-class PromotionContext:
+class DatasetPromotionContext:
     """Snapshot of upstream peer-Dataset state at promotion-validation time.
 
     `derived_from` is the loaded set of Datasets keyed by id. Always

@@ -11,10 +11,10 @@ Plan has its own projection module under
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
 from cora.recipe.projections import (
+    CapabilitySummaryProjection,
     MethodSummaryProjection,
     PlanSummaryProjection,
     PracticeSummaryProjection,
-    RecipeCapabilitySummaryProjection,
 )
 
 
@@ -27,7 +27,7 @@ def register_recipe_projections(
     registry.register(MethodSummaryProjection())
     registry.register(PracticeSummaryProjection())
     registry.register(PlanSummaryProjection())
-    registry.register(RecipeCapabilitySummaryProjection())
+    registry.register(CapabilitySummaryProjection())
 
 
 __all__ = ["register_recipe_projections"]

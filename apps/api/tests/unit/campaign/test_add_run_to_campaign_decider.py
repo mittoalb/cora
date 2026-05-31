@@ -24,8 +24,8 @@ from cora.campaign.features.add_run_to_campaign.command import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign.context import CampaignMembershipContext
 from cora.run.aggregates.run import (
     Run,
+    RunAddedToCampaign,
     RunAlreadyAssignedToCampaignError,
-    RunCampaignAssigned,
     RunName,
     RunStatus,
 )
@@ -85,7 +85,7 @@ def test_add_run_returns_paired_events_on_happy_path() -> None:
         CampaignRunAdded(campaign_id=_CAMPAIGN_ID, run_id=_RUN_ID, occurred_at=_NOW)
     ]
     assert events.run_events == [
-        RunCampaignAssigned(run_id=_RUN_ID, campaign_id=_CAMPAIGN_ID, occurred_at=_NOW)
+        RunAddedToCampaign(run_id=_RUN_ID, campaign_id=_CAMPAIGN_ID, occurred_at=_NOW)
     ]
 
 
@@ -150,7 +150,7 @@ def test_decider_accepts_run_with_different_subject_than_campaign() -> None:
     Per `[[project_campaign_design]]` and the BC's design memo
     Anti-hooks section: `subject_id` on Campaign is INFORMATIONAL,
     NOT enforced as a member-Run invariant. Block /
-    Sweep-across-samples / Coordinated use cases all require
+    Sweep-across-samples / Coordination use cases all require
     multi-Subject Campaigns. The decider does NOT compare
     Campaign.subject_id against Run.subject_id (today or ever
     without an explicit policy change per Watch item #3).

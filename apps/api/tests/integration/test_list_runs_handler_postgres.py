@@ -397,7 +397,7 @@ async def test_campaign_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None
         correlation_id=_CORRELATION_ID,
     )
     # add_run_to_campaign consumes 2 event IDs (one per stream:
-    # CampaignRunAdded on the Campaign stream + RunCampaignAssigned
+    # CampaignRunAdded on the Campaign stream + RunAddedToCampaign
     # on the Run stream, atomic via append_streams).
     deps_add = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_add_run(deps_add)(
@@ -408,7 +408,7 @@ async def test_campaign_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None
 
     # Need to also drain the Campaign BC projections (post-hoc
     # add_run_to_campaign writes to BOTH streams; the Run-side
-    # RunCampaignAssigned is what proj_run_summary subscribes to).
+    # RunAddedToCampaign is what proj_run_summary subscribes to).
     from cora.campaign._projections import register_campaign_projections
 
     registry = ProjectionRegistry()

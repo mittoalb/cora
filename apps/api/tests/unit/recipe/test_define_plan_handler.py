@@ -48,10 +48,10 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
+    CapabilityDefined,
     CapabilityName,
     CapabilityNotFoundError,
     ExecutorShape,
-    RecipeCapabilityDefined,
 )
 from cora.recipe.aggregates.capability import (
     event_type_name as capability_event_type_name,
@@ -217,7 +217,7 @@ async def _seed_capability(
     shapes: frozenset[ExecutorShape] = frozenset({ExecutorShape.METHOD}),
 ) -> None:
     """Seed a Recipe Capability stream for cross-BC tests."""
-    event = RecipeCapabilityDefined(
+    event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode("cora.capability.x").value,
         name=CapabilityName("X").value,

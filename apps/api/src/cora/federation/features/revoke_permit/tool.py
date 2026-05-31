@@ -33,7 +33,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Revoke a Permit (terminal: any non-Revoked status -> Revoked). "
             "Accepts Defined, Active, or Suspended. Strict-not-idempotent: "
             "revoking an already-Revoked permit raises. Once Revoked the "
-            "permit cannot be revived; mint a fresh permit via register_permit "
+            "permit cannot be revived; mint a fresh permit via define_permit "
             "if the federation flow must resume."
         ),
     )

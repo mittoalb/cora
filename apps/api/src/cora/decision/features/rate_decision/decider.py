@@ -54,7 +54,7 @@ def decide(
         (via validate_decision_rating_comment)
 
     Captures `state.confidence` into the event's
-    `confidence_at_emit_time` field (gate-review cross-BC P2-4
+    `confidence_at_rating` field (gate-review cross-BC P2-4
     payload-borne denorm; avoids the cross-projection apply-time
     race the earlier projection-side denorm pattern would have
     suffered under rebuild). `rated_at` and `occurred_at` both
@@ -75,6 +75,6 @@ def decide(
             rated_by_actor_id=rated_by_actor_id,
             rated_at=now,
             occurred_at=now,
-            confidence_at_emit_time=state.confidence,
+            confidence_at_rating=state.confidence,
         )
     ]

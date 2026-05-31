@@ -23,12 +23,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetFamilyRemoved,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetMaintenanceExited,
     AssetPortAdded,
     AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
-    AssetRestoredFromMaintenance,
     AssetSettingsUpdated,
 )
 from cora.equipment.aggregates.asset.state import AssetPort, PortDirection
@@ -567,11 +567,11 @@ def test_evolve_asset_maintenance_entered_on_empty_state_raises() -> None:
         evolve(None, AssetMaintenanceEntered(asset_id=uuid4(), occurred_at=_NOW))
 
 
-# ---------- AssetRestoredFromMaintenance ----------
+# ---------- AssetMaintenanceExited ----------
 
 
 @pytest.mark.unit
-def test_evolve_asset_restored_from_maintenance_flips_lifecycle_to_active() -> None:
+def test_evolve_asset_maintenance_exited_flips_lifecycle_to_active() -> None:
     asset_id = uuid4()
     parent_id = uuid4()
     in_maintenance = Asset(
@@ -581,20 +581,20 @@ def test_evolve_asset_restored_from_maintenance_flips_lifecycle_to_active() -> N
         parent_id=parent_id,
         lifecycle=AssetLifecycle.MAINTENANCE,
     )
-    restored = evolve(
+    exited = evolve(
         in_maintenance,
-        AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW),
+        AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
     )
-    assert restored.lifecycle is AssetLifecycle.ACTIVE
-    assert restored.id == asset_id
-    assert restored.name == AssetName("APS-2BM")
-    assert restored.parent_id == parent_id
+    assert exited.lifecycle is AssetLifecycle.ACTIVE
+    assert exited.id == asset_id
+    assert exited.name == AssetName("APS-2BM")
+    assert exited.parent_id == parent_id
 
 
 @pytest.mark.unit
-def test_evolve_asset_restored_from_maintenance_on_empty_state_raises() -> None:
+def test_evolve_asset_maintenance_exited_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW))
+        evolve(None, AssetMaintenanceExited(asset_id=uuid4(), occurred_at=_NOW))
 
 
 @pytest.mark.unit
@@ -619,8 +619,8 @@ def test_fold_register_activate_enter_maintenance_yields_maintenance_asset() -> 
 
 
 @pytest.mark.unit
-def test_fold_register_activate_enter_restore_yields_active_asset() -> None:
-    """Full maintenance round-trip: enter then restore returns to Active."""
+def test_fold_register_activate_enter_exit_yields_active_asset() -> None:
+    """Full maintenance round-trip: enter then exit returns to Active."""
     asset_id = uuid4()
     parent_id = uuid4()
     state = fold(
@@ -634,7 +634,7 @@ def test_fold_register_activate_enter_restore_yields_active_asset() -> None:
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
-            AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
         ]
     )
     assert state is not None
@@ -796,7 +796,7 @@ def test_evolve_asset_capability_removed_on_empty_state_raises() -> None:
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
         ("enter_maintenance", AssetMaintenanceEntered),
-        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+        ("exit_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_capabilities(
@@ -826,7 +826,7 @@ def test_evolve_lifecycle_transition_preserves_capabilities(
             else AssetLifecycle.ACTIVE
             if transition is AssetMaintenanceEntered
             else AssetLifecycle.MAINTENANCE
-            if transition is AssetRestoredFromMaintenance
+            if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE  # decommission accepts any of 3
         ),
         families=frozenset({cap1, cap2}),
@@ -982,7 +982,7 @@ def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> N
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
         ("enter_maintenance", AssetMaintenanceEntered),
-        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+        ("exit_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_condition(
@@ -1005,7 +1005,7 @@ def test_evolve_lifecycle_transition_preserves_condition(
             else AssetLifecycle.ACTIVE
             if transition is AssetMaintenanceEntered
             else AssetLifecycle.MAINTENANCE
-            if transition is AssetRestoredFromMaintenance
+            if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE
         ),
         condition=AssetCondition.FAULTED,
@@ -1178,7 +1178,7 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
         ("enter_maintenance", AssetMaintenanceEntered),
-        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+        ("exit_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_settings(
@@ -1200,7 +1200,7 @@ def test_evolve_lifecycle_transition_preserves_settings(
             else AssetLifecycle.ACTIVE
             if transition is AssetMaintenanceEntered
             else AssetLifecycle.MAINTENANCE
-            if transition is AssetRestoredFromMaintenance
+            if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE
         ),
         settings={"energy": 30, "filter": "Cu"},
@@ -1485,7 +1485,7 @@ def test_evolve_register_without_drawing_yields_none() -> None:
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
         ("enter_maintenance", AssetMaintenanceEntered),
-        ("restore_from_maintenance", AssetRestoredFromMaintenance),
+        ("exit_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_drawing(
@@ -1506,7 +1506,7 @@ def test_evolve_lifecycle_transition_preserves_drawing(
             else AssetLifecycle.ACTIVE
             if transition is AssetMaintenanceEntered
             else AssetLifecycle.MAINTENANCE
-            if transition is AssetRestoredFromMaintenance
+            if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE
         ),
         drawing=_SAMPLE_DRAWING,

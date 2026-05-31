@@ -303,7 +303,7 @@ class Capability:
     `version` is the operator-supplied label of the most recent
     `version_capability` call (None until first version). State holds
     the latest tag — past tags live in the event stream as
-    `RecipeCapabilityVersioned` events.
+    `CapabilityVersioned` events.
 
     `required_affordances` (5j cross-BC): the Family.affordance
     contract any implementer must satisfy. REQUIRED at define time;

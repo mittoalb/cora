@@ -18,7 +18,7 @@
 --   - `comment TEXT NULL` (operator may omit).
 --   - `rated_at TIMESTAMPTZ NOT NULL` is the canonical fold key
 --     (latest wins).
---   - `confidence_at_emit_time DOUBLE PRECISION NULL` denormalizes
+--   - `confidence_at_rating DOUBLE PRECISION NULL` denormalizes
 --     the rated Decision's confidence value at the time the rating
 --     was recorded, so the (rating, confidence) pairs needed by a
 --     future ConfidenceCalibrator (Platt scaling / isotonic
@@ -40,7 +40,7 @@ CREATE TABLE proj_decision_ratings (
                                          CHECK (rating IN ('useful', 'misleading', 'ignored')),
     comment                  TEXT,
     rated_at                 TIMESTAMPTZ NOT NULL,
-    confidence_at_emit_time  DOUBLE PRECISION,
+    confidence_at_rating  DOUBLE PRECISION,
     PRIMARY KEY (decision_id, rated_by_actor_id)
 );
 

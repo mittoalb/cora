@@ -7,14 +7,14 @@ creating a new module here + re-exporting its class + adding it to
 `register_recipe_projections`.
 """
 
-from cora.recipe.projections.capability import RecipeCapabilitySummaryProjection
+from cora.recipe.projections.capability import CapabilitySummaryProjection
 from cora.recipe.projections.method import MethodSummaryProjection
 from cora.recipe.projections.plan import PlanSummaryProjection
 from cora.recipe.projections.practice import PracticeSummaryProjection
 
 __all__ = [
+    "CapabilitySummaryProjection",
     "MethodSummaryProjection",
     "PlanSummaryProjection",
     "PracticeSummaryProjection",
-    "RecipeCapabilitySummaryProjection",
 ]

@@ -128,7 +128,7 @@ class RiskBandDTO(BaseModel):
     band: RiskBand
 
 
-class GHSDTO(BaseModel):
+class GhsDto(BaseModel):
     kind: Literal["GHS"]
     code: str = Field(
         ...,
@@ -151,7 +151,7 @@ class SchemeDTO(BaseModel):
 
 
 ClassificationDTO = Annotated[
-    NFPA704DTO | RiskBandDTO | GHSDTO | SchemeDTO,
+    NFPA704DTO | RiskBandDTO | GhsDto | SchemeDTO,
     Field(discriminator="kind"),
 ]
 
@@ -201,7 +201,7 @@ def classification_from_dto(dto: ClassificationDTO) -> HazardClassification:
         )
     if isinstance(dto, RiskBandDTO):
         return dto.band
-    if isinstance(dto, GHSDTO):
+    if isinstance(dto, GhsDto):
         return GHSPictogram(
             code=dto.code,
             statement_codes=frozenset(dto.statement_codes),
@@ -223,7 +223,6 @@ def declaration_from_dto(dto: HazardDeclarationDTO) -> HazardDeclaration:
 
 
 __all__ = [
-    "GHSDTO",
     "NFPA704DTO",
     "BindingAssetDTO",
     "BindingDTO",
@@ -232,6 +231,7 @@ __all__ = [
     "BindingRunDTO",
     "BindingSubjectDTO",
     "ClassificationDTO",
+    "GhsDto",
     "HazardDeclarationDTO",
     "RiskBandDTO",
     "SchemeDTO",

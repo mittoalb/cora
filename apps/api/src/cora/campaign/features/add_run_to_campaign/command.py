@@ -4,7 +4,7 @@ Adds a Run as a member of a Campaign in a non-terminal status (Planned
 / Active / Held). Atomic two-stream write via `EventStore.append_streams`:
 
   - Campaign stream gets `CampaignRunAdded(campaign_id, run_id, ...)`
-  - Run stream gets `RunCampaignAssigned(run_id, campaign_id, ...)`
+  - Run stream gets `RunAddedToCampaign(run_id, campaign_id, ...)`
 
 Both writes commit together or roll back together per the
 multi-stream OCC contract (same shape as Safety's `amend_clearance`).

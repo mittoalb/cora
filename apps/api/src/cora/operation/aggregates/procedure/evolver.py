@@ -12,7 +12,7 @@ Status mapping per event type:
   - `ProcedureTruncated`          -> TRUNCATED (partial-data terminal; mirrors RunTruncated)
   - `ProcedureStepsLogbookOpened` -> STATUS UNCHANGED (sets steps_logbook_id;
                                      lazy-open envelope event from
-                                     append_procedure_step, orthogonal to lifecycle)
+                                     append_procedure_steps, orthogonal to lifecycle)
 
 The mapping is hardcoded per match arm -- the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -33,7 +33,7 @@ defaults (empty frozenset / None). Pinned by the per-transition
 preserve-fields tests. Same lesson as Run BC's evolver docstring.
 
 `steps_logbook_id` is set by the `ProcedureStepsLogbookOpened` arm
-(lazy open-on-first-write triggered by `append_procedure_step`);
+(lazy open-on-first-write triggered by `append_procedure_steps`);
 all other arms preserve whatever prior state held. Legacy streams
 without the logbook event fold with `steps_logbook_id=None`.
 

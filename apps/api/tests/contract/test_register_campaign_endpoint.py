@@ -40,7 +40,7 @@ def test_post_campaigns_returns_201_with_campaign_id() -> None:
 @pytest.mark.contract
 @pytest.mark.parametrize(
     "intent",
-    ["Series", "Sweep", "Coordinated", "Block"],
+    ["Series", "Sweep", "Coordination", "Block"],
 )
 def test_post_campaigns_accepts_each_intent(intent: str) -> None:
     with TestClient(create_app()) as client:

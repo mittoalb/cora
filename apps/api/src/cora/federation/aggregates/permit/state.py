@@ -39,8 +39,10 @@ lifecycle.
   - `publisher_grant_correlation_handle` is the opaque string the peer
     minted at publish-time for cross-facility audit linkage; NOT a
     UUID foreign key.
-  - `allowed_artifact_kinds` is the free-form string set the peer is
-    authorized to publish for this permit.
+  - `inbound_allowed_artifact_kinds` is the free-form string set the
+    peer is authorized to publish for this permit. The `inbound_*`
+    prefix disambiguates from the Permit root's own
+    `allowed_artifact_kinds` field; same instance carries both.
 
 The tagged-union shape of `terms` structurally enforces direction-
 specific field ownership: an outbound payload cannot smuggle
@@ -207,9 +209,16 @@ class OutboundTerms:
 
 @dataclass(frozen=True, slots=True)
 class InboundTerms:
-    """Direction-specific contractual fields when this facility pulls."""
+    """Direction-specific contractual fields when this facility pulls.
 
-    allowed_artifact_kinds: frozenset[str]
+    `inbound_allowed_artifact_kinds` carries the artifact-kind strings
+    the peer is authorized to publish to this side. The `inbound_`
+    prefix disambiguates from `Permit.allowed_artifact_kinds` on the
+    aggregate root (which narrows artifact kinds across BOTH
+    directions); same Permit instance carries both fields.
+    """
+
+    inbound_allowed_artifact_kinds: frozenset[str]
     accepted_canonicalization_versions: frozenset[str] = field(
         default_factory=lambda: frozenset({"cora/v1"})
     )
@@ -230,12 +239,14 @@ class Permit:
     transition.
 
     `allowed_credentials`, `allowed_payload_types`, and
-    `permitted_artifact_kinds` narrow the permit across both
+    `allowed_artifact_kinds` narrow the permit across both
     directions: only the named Credential ids, payload-type strings,
     and artifact kinds are valid under this permit. Each MUST be
     non-empty; the decider rejects empty frozensets with
     `InvalidPermitScopeError`. There is no wildcard or implicit
-    "no restriction" fallback.
+    "no restriction" fallback. (Distinct from
+    `InboundTerms.inbound_allowed_artifact_kinds`, which scopes the
+    inbound arm specifically.)
 
     `abi_tier_floor` is the lowest tier the permit will honor on
     either side of the relationship.
@@ -250,7 +261,7 @@ class Permit:
     direction: Direction
     allowed_credentials: frozenset[UUID]
     allowed_payload_types: frozenset[str]
-    permitted_artifact_kinds: frozenset[str]
+    allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -267,7 +278,8 @@ class InvalidPermitScopeError(ValueError):
     """The supplied scope dimension is structurally invalid.
 
     Fires when a scope dimension fails its structural contract:
-    empty string in `allowed_artifact_kinds` or `allowed_payload_types`,
+    empty string in `allowed_artifact_kinds` /
+    `inbound_allowed_artifact_kinds` / `allowed_payload_types`,
     inverted validity window, or any other shape problem the decider
     catches before evolution.
     """

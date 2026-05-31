@@ -13,10 +13,10 @@ from cora.recipe.aggregates.capability import (
     CapabilityName,
     CapabilityNotFoundError,
     CapabilityStatus,
+    CapabilityVersioned,
     ExecutorShape,
     InvalidCapabilityVersionTagError,
     InvalidExecutorShapesError,
-    RecipeCapabilityVersioned,
 )
 from cora.recipe.features.version_capability import VersionCapability, decide
 
@@ -49,7 +49,7 @@ def test_decide_versions_from_defined() -> None:
     state = _state(CapabilityStatus.DEFINED)
     events = decide(state=state, command=_cmd(state), now=_NOW)
     assert len(events) == 1
-    assert isinstance(events[0], RecipeCapabilityVersioned)
+    assert isinstance(events[0], CapabilityVersioned)
     assert events[0].version_tag == "v2"
 
 

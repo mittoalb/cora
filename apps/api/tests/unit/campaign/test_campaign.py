@@ -70,13 +70,13 @@ def test_campaign_intent_values_locked() -> None:
     """4 closed intent-shape values day-1; technique-tagging lives on tags."""
     assert CampaignIntent.SERIES.value == "Series"
     assert CampaignIntent.SWEEP.value == "Sweep"
-    assert CampaignIntent.COORDINATED.value == "Coordinated"
+    assert CampaignIntent.COORDINATION.value == "Coordination"
     assert CampaignIntent.BLOCK.value == "Block"
 
 
 @pytest.mark.unit
 def test_campaign_intent_has_exactly_four_members() -> None:
-    """Shape (Series/Sweep/Coordinated/Block) vs purpose-tag separation."""
+    """Shape (Series/Sweep/Coordination/Block) vs purpose-tag separation."""
     assert len(list(CampaignIntent)) == 4
 
 

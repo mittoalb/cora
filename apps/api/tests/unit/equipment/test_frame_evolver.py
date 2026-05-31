@@ -13,9 +13,10 @@ from cora.equipment.aggregates._placement import (
 from cora.equipment.aggregates.frame import (
     Frame,
     FrameDecommissioned,
+    FramePlacementUpdated,
     FrameRegistered,
+    FrameRevisionLink,
     FrameStatus,
-    FrameUpdated,
     evolve,
     fold,
 )
@@ -110,7 +111,7 @@ def test_evolve_frame_updated_changes_only_placement() -> None:
         tol_rz=0.0,
         units=UnitSystem.SI_MM_RAD,
     )
-    event = FrameUpdated(
+    event = FramePlacementUpdated(
         frame_id=frame_id,
         new_placement=new_placement,
         survey=None,
@@ -153,13 +154,13 @@ def test_evolve_frame_decommissioned_sets_terminal_status() -> None:
 def test_evolve_transition_event_on_empty_state_raises() -> None:
     """Non-genesis events on empty state are stream corruption; raise loud."""
     parent = uuid4()
-    event = FrameUpdated(
+    event = FramePlacementUpdated(
         frame_id=uuid4(),
         new_placement=_placement(parent),
         survey=None,
         occurred_at=_NOW,
     )
-    with pytest.raises(ValueError, match="FrameUpdated"):
+    with pytest.raises(ValueError, match="FramePlacementUpdated"):
         evolve(None, event)
 
 
@@ -193,7 +194,7 @@ def test_fold_replays_genesis_then_update_then_decommission() -> None:
             placement_relative_to_parent=initial_placement,
             occurred_at=_NOW,
         ),
-        FrameUpdated(
+        FramePlacementUpdated(
             frame_id=frame_id,
             new_placement=updated_placement,
             survey={"instrument": "Leica AT960", "residual_mm": 0.18},
@@ -215,3 +216,114 @@ def test_fold_replays_genesis_then_update_then_decommission() -> None:
 @pytest.mark.unit
 def test_fold_returns_none_for_empty_history() -> None:
     assert fold([]) is None
+
+
+@pytest.mark.unit
+def test_evolve_genesis_folds_supersedes_link_into_state() -> None:
+    frame_id = uuid4()
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    event = FrameRegistered(
+        frame_id=frame_id,
+        name="centerline_apsu",
+        parent_frame_id=None,
+        placement_relative_to_parent=None,
+        occurred_at=_NOW,
+        supersedes=link,
+    )
+    state = evolve(None, event)
+    assert state.supersedes == link
+    assert state.parent_frame_id is None
+    assert state.placement_relative_to_parent is None
+
+
+@pytest.mark.unit
+def test_evolve_genesis_defaults_supersedes_to_none_for_non_revision_frames() -> None:
+    frame_id = uuid4()
+    event = FrameRegistered(
+        frame_id=frame_id,
+        name="centerline_1p35_mrad",
+        parent_frame_id=None,
+        placement_relative_to_parent=None,
+        occurred_at=_NOW,
+    )
+    state = evolve(None, event)
+    assert state.supersedes is None
+
+
+@pytest.mark.unit
+def test_evolve_frame_updated_preserves_supersedes_from_prior_state() -> None:
+    """update_mount_placement mutates only the parent-relative pose; the
+    supersedes link is immutable across the lifecycle."""
+    frame_id = uuid4()
+    parent = uuid4()
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    prior = Frame(
+        id=frame_id,
+        name=FrameName("child_frame_with_revision_lineage"),
+        parent_frame_id=parent,
+        placement_relative_to_parent=_placement(parent),
+        supersedes=link,
+        status=FrameStatus.ACTIVE,
+    )
+    new_placement = Placement(
+        x=99.0,
+        y=0.0,
+        z=259320.0,
+        rx=0.0,
+        ry=0.0,
+        rz=0.0,
+        parent_frame=parent,
+        reference_surface=ReferenceSurface.SHIELDING_FACE,
+        tol_x=0.25,
+        tol_y=0.25,
+        tol_z=5.0,
+        tol_rx=0.0,
+        tol_ry=0.0,
+        tol_rz=0.0,
+        units=UnitSystem.SI_MM_RAD,
+    )
+    event = FramePlacementUpdated(
+        frame_id=frame_id,
+        new_placement=new_placement,
+        survey=None,
+        occurred_at=_NOW,
+    )
+    state = evolve(prior, event)
+    assert state.placement_relative_to_parent == new_placement
+    assert state.supersedes == link
+
+
+@pytest.mark.unit
+def test_evolve_frame_decommissioned_preserves_supersedes_from_prior_state() -> None:
+    """Lifecycle terminus does not strip supersedes; decommissioned
+    frames retain their revision lineage for audit."""
+    frame_id = uuid4()
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    prior = Frame(
+        id=frame_id,
+        name=FrameName("root_frame_with_revision_lineage"),
+        parent_frame_id=None,
+        placement_relative_to_parent=None,
+        supersedes=link,
+        status=FrameStatus.ACTIVE,
+    )
+    event = FrameDecommissioned(
+        frame_id=frame_id,
+        reason="retired",
+        occurred_at=_NOW,
+    )
+    state = evolve(prior, event)
+    assert state.status is FrameStatus.DECOMMISSIONED
+    assert state.supersedes == link

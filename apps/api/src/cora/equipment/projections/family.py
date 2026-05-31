@@ -2,26 +2,26 @@
 4 events into the `proj_equipment_family_summary` read model
 that backs `GET /families`.
 
-Subscribed events (BOTH new + legacy names per Marten/Axon dual-match
-contract — the aggregate was renamed `Capability` → `Family`, but
-legacy `Capability*` events stay in the log forever; the projection
-must subscribe to both so a replay-from-zero on a deployment with
-historical data produces a correct summary table. The apply path
-reads `family_id` from new payloads and `capability_id` from legacy
-payloads. See [[project_family_affordance_design]] "Locks" section
-+ [[project_capability_research]] dual-match anti-hooks.):
+The aggregate was renamed `Capability` -> `Family` and the
+`SettingsSchemaUpdated` variant retains a legacy alias because no
+sibling BC emits that name. The lifecycle events (`*Defined`,
+`*Versioned`, `*Deprecated`) no longer dual-match on
+`"Capability*"`: the Recipe BC's `Capability` aggregate now owns
+those event-type strings under its own stream, and on a greenfield
+deployment the projection has no historical `"Capability*"` Family
+rows to replay.
 
-  - FamilyDefined / CapabilityDefined        -> INSERT
+  - FamilyDefined                               -> INSERT
         (status=Defined, version_tag=NULL,
          settings_schema_present=FALSE)
-  - FamilyVersioned / CapabilityVersioned    -> UPDATE
+  - FamilyVersioned                             -> UPDATE
         status=Versioned + version_tag from payload
-  - FamilyDeprecated / CapabilityDeprecated  -> UPDATE
+  - FamilyDeprecated                            -> UPDATE
         status=Deprecated (version_tag preserved on purpose; the
         audit trail of "last revised at version X before
         deprecation" stays visible)
   - FamilySettingsSchemaUpdated /
-    CapabilitySettingsSchemaUpdated          -> UPDATE
+    CapabilitySettingsSchemaUpdated             -> UPDATE
         settings_schema_present (TRUE if settings_schema is
         non-NULL; FALSE if cleared via NULL)
 
@@ -94,14 +94,10 @@ class FamilySummaryProjection:
             "FamilyVersioned",
             "FamilyDeprecated",
             "FamilySettingsSchemaUpdated",
-            # Legacy event type names (stay forever per
-            # Marten/Axon dual-match contract). Without these, a
-            # projection replay on a deployment with historical data
-            # would silently skip legacy events and produce an
-            # incomplete summary table.
-            "CapabilityDefined",
-            "CapabilityVersioned",
-            "CapabilityDeprecated",
+            # Legacy SettingsSchemaUpdated alias retained: greenfield
+            # has no historical lifecycle rows, and Recipe.Capability
+            # owns the *Defined/*Versioned/*Deprecated event-type
+            # strings under its own stream.
             "CapabilitySettingsSchemaUpdated",
         }
     )
@@ -112,21 +108,21 @@ class FamilySummaryProjection:
         conn: ConnectionLike,
     ) -> None:
         match event.event_type:
-            case "FamilyDefined" | "CapabilityDefined":
+            case "FamilyDefined":
                 await conn.execute(
                     _INSERT_FAMILY_SQL,
                     _id(event.payload),
                     event.payload["name"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
-            case "FamilyVersioned" | "CapabilityVersioned":
+            case "FamilyVersioned":
                 await conn.execute(
                     _UPDATE_VERSIONED_SQL,
                     _id(event.payload),
                     event.payload["version_tag"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
-            case "FamilyDeprecated" | "CapabilityDeprecated":
+            case "FamilyDeprecated":
                 await conn.execute(
                     _UPDATE_DEPRECATED_SQL,
                     _id(event.payload),

@@ -45,7 +45,7 @@ Lifecycle timestamps (`defined_at`, `versioned_at`, `deprecated_at`) live on the
 | `AgentName` | trimmed string, 1-100 chars | `Agent.name` (display name; mirrors A2A AgentCard.name and OTel `gen_ai.agent.name`) |
 | `AgentDescription` | trimmed string, 1-2000 chars | `Agent.description` (free-form prose) |
 | `AgentVersion` | trimmed string, 1-50 chars | `Agent.version` (semver-like convention; not parsed) |
-| `AgentCanonicalURI` | trimmed string, 1-2000 chars, starts with `https://`, no fragment | `Agent.canonical_uri` (A2A-forward-compat) |
+| `AgentCanonicalUri` | trimmed string, 1-2000 chars, starts with `https://`, no fragment | `Agent.canonical_uri` (A2A-forward-compat) |
 | `AgentCapability` | trimmed string, 1-100 chars per entry; frozenset capped at 32 entries | members of `Agent.capabilities` |
 | `AgentDeprecationReason` | trimmed string, 1-500 chars; optional | `Agent.deprecation_reason` (operator-supplied) |
 | `AgentSuspensionReason` | trimmed string, 1-500 chars; REQUIRED at suspend | `Agent.suspension_reason` |
@@ -131,7 +131,7 @@ stateDiagram-v2
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `DefineAgent`
-: `InvalidAgentKind`, `InvalidAgentName`, `InvalidAgentVersion`, `InvalidAgentDescription`, `InvalidAgentCanonicalURI`, `InvalidAgentCapability`, `InvalidAgentCapabilities` (over cardinality cap), `InvalidModelRef`, `AgentAlreadyExists` (defensive; UUIDv7 makes collision near-impossible), `Unauthorized`
+: `InvalidAgentKind`, `InvalidAgentName`, `InvalidAgentVersion`, `InvalidAgentDescription`, `InvalidAgentCanonicalUri`, `InvalidAgentCapability`, `InvalidAgentCapabilities` (over cardinality cap), `InvalidModelRef`, `AgentAlreadyExists` (defensive; UUIDv7 makes collision near-impossible), `Unauthorized`
 
 `VersionAgent` / `SuspendAgent` / `ResumeAgent` / `DeprecateAgent`
 : `AgentNotFound`, `AgentCannotVersion` / `AgentCannotSuspend` / `AgentCannotResume` / `AgentCannotDeprecate` (source-state guard), `Unauthorized`. `SuspendAgent` additionally raises `InvalidAgentSuspensionReason`; `DeprecateAgent` additionally raises `InvalidAgentDeprecationReason`.

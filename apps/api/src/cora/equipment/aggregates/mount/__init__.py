@@ -19,7 +19,7 @@ preconditions (no implicit eviction, no cascade).
 
 Vertical slices that operate on this aggregate live under
 `cora.equipment.features.<verb>_mount/` (register / decommission /
-update_placement) plus the asset-install pair under
+update_mount_placement) plus the asset-install pair under
 `cora.equipment.features.<verb>_asset/` (install_asset /
 uninstall_asset; these operate on Mount streams to mutate
 `installed_asset_id`).

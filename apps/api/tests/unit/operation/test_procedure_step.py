@@ -29,7 +29,7 @@ def _row(
         procedure_id=uuid4(),
         logbook_id=uuid4(),
         actor_id=uuid4(),
-        command_name="AppendProcedureStep",
+        command_name="AppendProcedureSteps",
         step_kind=step_kind,
         payload=payload or {"channel": "T_oven", "target_value": 423.0},
         sampled_at=_NOW,

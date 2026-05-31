@@ -14,7 +14,7 @@ when cached-success-on-retry semantics are needed.
   1. Authorize the principal for the `PromoteDataset` command.
   2. Load the Dataset stream and fold to current state.
   3. If `state.derived_from` is non-empty, load each peer Dataset
-     into the `PromotionContext`. Skipped (empty context) when
+     into the `DatasetPromotionContext`. Skipped (empty context) when
      state has no derived_from references.
   4. Pass state + context into the pure decider.
   5. Persist the resulting events.
@@ -29,7 +29,7 @@ right now, validate, then commit" pattern.
 
 If `load_dataset` returns None for a peer that's referenced in
 `state.derived_from`, the handler silently drops the peer from
-`PromotionContext.derived_from`. The decider then iterates only
+`DatasetPromotionContext.derived_from`. The decider then iterates only
 the LOADED peers — meaning a peer that vanished from the event
 store is NOT flagged. Two reasons this is operationally safe:
 
@@ -60,7 +60,7 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.errors import UnauthorizedError
 from cora.data.features.promote_dataset.command import PromoteDataset
-from cora.data.features.promote_dataset.context import PromotionContext
+from cora.data.features.promote_dataset.context import DatasetPromotionContext
 from cora.data.features.promote_dataset.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
@@ -157,7 +157,7 @@ def bind(deps: Kernel) -> Handler:
                 # since promotion happens before discard in normal
                 # workflows).
 
-        context = PromotionContext(derived_from=derived_from_loaded)
+        context = DatasetPromotionContext(derived_from=derived_from_loaded)
 
         domain_events = decide(state=state, command=command, context=context, now=now)
 

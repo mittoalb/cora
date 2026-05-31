@@ -2,9 +2,9 @@
 
 New aggregate (no rename history → no dual-match arms). Events:
 
-  - RecipeCapabilityDefined (genesis)
-  - RecipeCapabilityVersioned (declarative replacement at new version)
-  - RecipeCapabilityDeprecated (terminal state; carries optional
+  - CapabilityDefined (genesis)
+  - CapabilityVersioned (declarative replacement at new version)
+  - CapabilityDeprecated (terminal state; carries optional
                           replaced_by pointer per LOINC `MAP_TO`)
 
 Status is NOT carried in event payloads — the event type itself
@@ -15,7 +15,7 @@ encodes the state change. Same precedent as `FamilyStatus` in
 
 Per [[project-capability-aggregate-design]] and the Pattern P lock
 in [[project-family-affordance-design]]: a new version IS a new
-declaration. RecipeCapabilityVersioned carries the FULL declarative
+declaration. CapabilityVersioned carries the FULL declarative
 contract (required_affordances, parameters_schema, executor_shapes)
 — every field REPLACES the prior value wholesale. No diff/merge
 semantics. Matches Method/Plan/Practice/Family replace-on-version
@@ -39,7 +39,7 @@ from cora.recipe.aggregates.capability.executor_shape import ExecutorShape
 
 
 @dataclass(frozen=True)
-class RecipeCapabilityDefined:
+class CapabilityDefined:
     """A new universal Capability template was defined.
 
     Status is implicit (`Defined`) — the evolver sets it. All
@@ -57,7 +57,7 @@ class RecipeCapabilityDefined:
 
 
 @dataclass(frozen=True)
-class RecipeCapabilityVersioned:
+class CapabilityVersioned:
     """A Capability's declarative contract was revised; a new version label was issued.
 
     Multi-source transition: `Defined | Versioned -> Versioned`. The
@@ -75,7 +75,7 @@ class RecipeCapabilityVersioned:
 
 
 @dataclass(frozen=True)
-class RecipeCapabilityDeprecated:
+class CapabilityDeprecated:
     """A Capability was marked as no longer recommended for new bindings.
 
     Multi-source transition: `Defined | Versioned -> Deprecated`.
@@ -91,23 +91,21 @@ class RecipeCapabilityDeprecated:
     replaced_by_capability_id: UUID | None = None
 
 
-RecipeCapabilityEvent = (
-    RecipeCapabilityDefined | RecipeCapabilityVersioned | RecipeCapabilityDeprecated
-)
+CapabilityEvent = CapabilityDefined | CapabilityVersioned | CapabilityDeprecated
 
 
-def event_type_name(event: RecipeCapabilityEvent) -> str:
+def event_type_name(event: CapabilityEvent) -> str:
     """Discriminator string written into StoredEvent.event_type."""
     return type(event).__name__
 
 
-def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
+def to_payload(event: CapabilityEvent) -> dict[str, Any]:
     """Serialize a Capability event to a JSON-friendly dict for jsonb storage.
 
     UUIDs become strings, datetimes ISO-8601, frozensets sorted lists.
     """
     match event:
-        case RecipeCapabilityDefined(
+        case CapabilityDefined(
             capability_id=capability_id,
             code=code,
             name=name,
@@ -127,7 +125,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
                 "parameters_schema": parameters_schema,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RecipeCapabilityVersioned(
+        case CapabilityVersioned(
             capability_id=capability_id,
             version_tag=version_tag,
             required_affordances=required_affordances,
@@ -145,7 +143,7 @@ def to_payload(event: RecipeCapabilityEvent) -> dict[str, Any]:
                 "parameters_schema": parameters_schema,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RecipeCapabilityDeprecated(
+        case CapabilityDeprecated(
             capability_id=capability_id,
             replaced_by_capability_id=replaced_by_capability_id,
             occurred_at=occurred_at,
@@ -185,7 +183,7 @@ def _load_executor_shapes(payload: dict[str, Any]) -> frozenset[ExecutorShape]:
     return frozenset(ExecutorShape(v) for v in raw)
 
 
-def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
+def from_stored(stored: StoredEvent) -> CapabilityEvent:
     """Rebuild a Capability event from a StoredEvent loaded from the event store.
 
     Single-match arms, no legacy/dual-match (this aggregate is new,
@@ -193,9 +191,9 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
     """
     payload = stored.payload
     match stored.event_type:
-        case "RecipeCapabilityDefined":
+        case "CapabilityDefined":
             try:
-                return RecipeCapabilityDefined(
+                return CapabilityDefined(
                     capability_id=UUID(payload["capability_id"]),
                     code=payload["code"],
                     name=payload["name"],
@@ -206,11 +204,11 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RecipeCapabilityDefined payload {payload!r}: {exc}"
+                msg = f"Malformed CapabilityDefined payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "RecipeCapabilityVersioned":
+        case "CapabilityVersioned":
             try:
-                return RecipeCapabilityVersioned(
+                return CapabilityVersioned(
                     capability_id=UUID(payload["capability_id"]),
                     version_tag=payload["version_tag"],
                     description=payload.get("description"),
@@ -220,12 +218,12 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RecipeCapabilityVersioned payload {payload!r}: {exc}"
+                msg = f"Malformed CapabilityVersioned payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "RecipeCapabilityDeprecated":
+        case "CapabilityDeprecated":
             try:
                 replaced_raw = payload.get("replaced_by_capability_id")
-                return RecipeCapabilityDeprecated(
+                return CapabilityDeprecated(
                     capability_id=UUID(payload["capability_id"]),
                     replaced_by_capability_id=(
                         UUID(replaced_raw) if replaced_raw is not None else None
@@ -233,18 +231,18 @@ def from_stored(stored: StoredEvent) -> RecipeCapabilityEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RecipeCapabilityDeprecated payload {payload!r}: {exc}"
+                msg = f"Malformed CapabilityDeprecated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case _:
-            msg = f"Unknown RecipeCapabilityEvent event_type: {stored.event_type!r}"
+            msg = f"Unknown CapabilityEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
-    "RecipeCapabilityDefined",
-    "RecipeCapabilityDeprecated",
-    "RecipeCapabilityEvent",
-    "RecipeCapabilityVersioned",
+    "CapabilityDefined",
+    "CapabilityDeprecated",
+    "CapabilityEvent",
+    "CapabilityVersioned",
     "event_type_name",
     "from_stored",
     "to_payload",

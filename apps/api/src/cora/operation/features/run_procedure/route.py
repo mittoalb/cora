@@ -65,7 +65,7 @@ from cora.operation.features.run_procedure.command import (
 from cora.operation.features.run_procedure.handler import Handler
 
 _STEP_BATCH_MAX = 500
-"""Mirror of `append_procedure_step`'s batch cap. A single
+"""Mirror of `append_procedure_steps`'s batch cap. A single
 `RunProcedure` request never carries more than this many steps;
 larger procedures split client-side via multiple sequential runs."""
 

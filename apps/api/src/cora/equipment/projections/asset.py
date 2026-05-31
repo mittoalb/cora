@@ -9,7 +9,7 @@ Subscribed events:
   - AssetActivated             -> UPDATE lifecycle=Active
   - AssetDecommissioned        -> UPDATE lifecycle=Decommissioned
   - AssetMaintenanceEntered    -> UPDATE lifecycle=Maintenance
-  - AssetRestoredFromMaintenance -> UPDATE lifecycle=Active
+  - AssetMaintenanceExited     -> UPDATE lifecycle=Active
   - AssetRelocated             -> UPDATE parent_id=to_parent_id
   - AssetDegraded              -> UPDATE condition=Degraded
   - AssetFaulted               -> UPDATE condition=Faulted
@@ -76,7 +76,7 @@ class AssetSummaryProjection:
             "AssetActivated",
             "AssetDecommissioned",
             "AssetMaintenanceEntered",
-            "AssetRestoredFromMaintenance",
+            "AssetMaintenanceExited",
             "AssetRelocated",
             "AssetDegraded",
             "AssetFaulted",
@@ -111,7 +111,7 @@ class AssetSummaryProjection:
                     drawing_revision,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
-            case "AssetActivated" | "AssetRestoredFromMaintenance":
+            case "AssetActivated" | "AssetMaintenanceExited":
                 await self._update_lifecycle(event, conn, "Active")
             case "AssetDecommissioned":
                 await self._update_lifecycle(event, conn, "Decommissioned")

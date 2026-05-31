@@ -107,8 +107,8 @@ stateDiagram-v2
 | `RunTruncated` | `run_id`, `reason`, `interrupted_at?`, `occurred_at` | `truncate_run` succeeds |
 | `RunAdjusted` | `run_id`, `parameter_patch`, `effective_parameters`, `reason`, `decided_by_decision_id?`, `occurred_at` | `adjust_run` succeeds; carries both the RFC 7396 patch and the post-merge snapshot |
 | `RunReadingLogbookOpened` | `run_id`, `logbook_id`, `schema`, `occurred_at` | `append_run_reading` first write per Run (lazy open) |
-| `RunCampaignAssigned` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership write (see Campaign module) |
-| `RunCampaignUnassigned` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership removal |
+| `RunAddedToCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership write (see Campaign module) |
+| `RunRemovedFromCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership removal |
 
 Individual reading rows do not emit per-row events on the Run stream; they are written directly to `entries_run_readings` via the `ReadingStore` port. The row's `event_id`, `correlation_id`, and `causation_id` constitute the audit trail without bloating the main event log.
 
@@ -224,7 +224,7 @@ Clock skew between the sensor (`sampled_at`) and the handler (`occurred_at`) is 
 | Safety | reads-from | `ClearanceLookup.find_referencing_run(run_id, subject_id, asset_ids)` returns clearances whose bindings cover the Run scope; ≥1 must be `Active` |
 | Supply | reads-from (load-bearing) | `SupplyLookup.find_supplies_by_kind(kinds=method.needed_supplies)` returns every non-`Decommissioned` Supply grouped by kind; the decider refuses to start unless every required kind has ≥1 Supply in `Available` (raises `RunRequiresAvailableSupply` or `RunSupplyCoverageMismatch`, 409). `Available`-only by design; `Degraded` does not pass. |
 | Caution | reads-from | `CautionLookup` returns Active Cautions for the Run scope; non-blocking, surfaced as a banner on the response, never refuses start |
-| Campaign | shared-id-with | `Run.campaign_id` (single-Campaign-per-Run invariant); the post-hoc `add_run_to_campaign` / `remove_run_from_campaign` slices are owned by the Campaign module and atomically write `RunCampaignAssigned` / `RunCampaignUnassigned` plus the Campaign-side membership event via `EventStore.append_streams` |
+| Campaign | shared-id-with | `Run.campaign_id` (single-Campaign-per-Run invariant); the post-hoc `add_run_to_campaign` / `remove_run_from_campaign` slices are owned by the Campaign module and atomically write `RunAddedToCampaign` / `RunRemovedFromCampaign` plus the Campaign-side membership event via `EventStore.append_streams` |
 | Decision | shared-id-with | `RunAdjusted.decided_by_decision_id` cites the Decision that justified a mid-flight adjustment; no existence check at write time (eventual-consistency stance) |
 | Calibration | reads-from | `Run.pinned_calibrations` is a frozen set of `CalibrationRevision.id`s captured at `start_run` and **immutable** for the life of the Run; every FSM transition preserves the set verbatim, and downstream consumers cite this set to answer "what calibration was this scan acquired against?" deterministically |
 | Agent | writes-to | Terminal Run events (`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`) are subscribed by the RunDebriefer agent, which emits an advisory `Decision` per terminal Run |

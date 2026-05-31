@@ -3,7 +3,7 @@
 Pins two parallel declarations against drift:
 
   - `cora.operation.aggregates.procedure.state.STEP_KIND_VALUES` (the
-    frozenset the `append_procedure_step` handler validates entries
+    frozenset the `append_procedure_steps` handler validates entries
     against)
   - the per-kind `_STEP_KIND_*` constants in `cora.operation.conductor`
     (the strings the Conductor stamps into each recorded step's
@@ -11,7 +11,7 @@ Pins two parallel declarations against drift:
 
 If someone adds a new `WaitStep` to the Conductor's `Step` union
 without extending `STEP_KIND_VALUES` (or vice-versa), runtime
-calls to `append_procedure_step` start failing validation with
+calls to `append_procedure_steps` start failing validation with
 no CI signal. This test catches the divergence at fitness time.
 """
 
@@ -39,7 +39,7 @@ def test_conductor_step_kind_constants_match_procedure_step_kind_values() -> Non
         f"Conductor _STEP_KIND_* constants {sorted(conductor_kinds)} drift from "
         f"Procedure STEP_KIND_VALUES {sorted(STEP_KIND_VALUES)}. Add or remove "
         f"the missing constant to keep the Conductor's recorded step_kinds "
-        f"in sync with what append_procedure_step accepts."
+        f"in sync with what append_procedure_steps accepts."
     )
 
 

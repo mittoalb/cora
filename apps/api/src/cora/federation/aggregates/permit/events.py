@@ -19,8 +19,10 @@ discriminator; unknown discriminators raise tagged `ValueError`.
 
 `scope_set` on OutboundTerms is serialized as a sorted list of
 `[kind, name, qualifier]` triples for jsonb stability;
-`allowed_credentials`, `allowed_payload_types`, and the inbound-side
-frozenset fields ride through as sorted string lists.
+`allowed_credentials`, `allowed_payload_types`,
+`allowed_artifact_kinds`, and the inbound-side
+`inbound_allowed_artifact_kinds` frozenset fields ride through as
+sorted string lists.
 
 Each transition event carries an `<verb>_by_actor_id: UUID` denorm
 of the envelope `principal_id` (matches CalibrationDefined /
@@ -72,14 +74,14 @@ def serialize_terms(terms: OutboundTerms | InboundTerms) -> dict[str, Any]:
                 "onward_action_scope": onward_action_scope.value,
             }
         case InboundTerms(
-            allowed_artifact_kinds=allowed_artifact_kinds,
+            inbound_allowed_artifact_kinds=inbound_allowed_artifact_kinds,
             accepted_canonicalization_versions=accepted_canonicalization_versions,
             required_receipt_kinds=required_receipt_kinds,
             publisher_grant_correlation_handle=publisher_grant_correlation_handle,
         ):
             return {
                 "kind": "Inbound",
-                "allowed_artifact_kinds": sorted(allowed_artifact_kinds),
+                "inbound_allowed_artifact_kinds": sorted(inbound_allowed_artifact_kinds),
                 "accepted_canonicalization_versions": sorted(accepted_canonicalization_versions),
                 "required_receipt_kinds": sorted(r.value for r in required_receipt_kinds),
                 "publisher_grant_correlation_handle": publisher_grant_correlation_handle,
@@ -99,7 +101,7 @@ def deserialize_terms(raw: dict[str, Any]) -> OutboundTerms | InboundTerms:
             )
         case "Inbound":
             return InboundTerms(
-                allowed_artifact_kinds=frozenset(raw["allowed_artifact_kinds"]),
+                inbound_allowed_artifact_kinds=frozenset(raw["inbound_allowed_artifact_kinds"]),
                 accepted_canonicalization_versions=frozenset(
                     raw["accepted_canonicalization_versions"]
                 ),
@@ -120,7 +122,7 @@ class PermitDefined:
     direction: Direction
     allowed_credentials: frozenset[UUID]
     allowed_payload_types: frozenset[str]
-    permitted_artifact_kinds: frozenset[str]
+    allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -174,7 +176,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
             direction=direction,
             allowed_credentials=allowed_credentials,
             allowed_payload_types=allowed_payload_types,
-            permitted_artifact_kinds=permitted_artifact_kinds,
+            allowed_artifact_kinds=allowed_artifact_kinds,
             abi_tier_floor=abi_tier_floor,
             expires_at=expires_at,
             defined_by_actor_id=defined_by_actor_id,
@@ -187,7 +189,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
                 "direction": direction.value,
                 "allowed_credentials": sorted(str(c) for c in allowed_credentials),
                 "allowed_payload_types": sorted(allowed_payload_types),
-                "permitted_artifact_kinds": sorted(permitted_artifact_kinds),
+                "allowed_artifact_kinds": sorted(allowed_artifact_kinds),
                 "abi_tier_floor": abi_tier_floor.value,
                 "expires_at": expires_at.isoformat(),
                 "defined_by_actor_id": str(defined_by_actor_id),
@@ -259,7 +261,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     direction=Direction(payload["direction"]),
                     allowed_credentials=frozenset(UUID(c) for c in payload["allowed_credentials"]),
                     allowed_payload_types=frozenset(payload["allowed_payload_types"]),
-                    permitted_artifact_kinds=frozenset(payload["permitted_artifact_kinds"]),
+                    allowed_artifact_kinds=frozenset(payload["allowed_artifact_kinds"]),
                     abi_tier_floor=AbiTier(payload["abi_tier_floor"]),
                     expires_at=datetime.fromisoformat(payload["expires_at"]),
                     defined_by_actor_id=UUID(payload["defined_by_actor_id"]),

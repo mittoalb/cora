@@ -155,7 +155,7 @@ def test_decision_rated_event_type_name() -> None:
         rated_by_actor_id=uuid4(),
         rated_at=_T0,
         occurred_at=_T0,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     assert event_type_name(e) == "DecisionRated"
 
@@ -171,7 +171,7 @@ def test_decision_rated_to_payload_with_comment_and_confidence() -> None:
         rated_by_actor_id=actor_id,
         rated_at=_T0,
         occurred_at=_T0,
-        confidence_at_emit_time=0.82,
+        confidence_at_rating=0.82,
     )
     assert to_payload(e) == {
         "decision_id": str(decision_id),
@@ -180,7 +180,7 @@ def test_decision_rated_to_payload_with_comment_and_confidence() -> None:
         "rated_by_actor_id": str(actor_id),
         "rated_at": _T0.isoformat(),
         "occurred_at": _T0.isoformat(),
-        "confidence_at_emit_time": 0.82,
+        "confidence_at_rating": 0.82,
     }
 
 
@@ -193,7 +193,7 @@ def test_decision_rated_to_payload_without_comment() -> None:
         rated_by_actor_id=uuid4(),
         rated_at=_T0,
         occurred_at=_T0,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     assert to_payload(e)["comment"] is None
 
@@ -207,7 +207,7 @@ def test_decision_rated_round_trip() -> None:
         rated_by_actor_id=uuid4(),
         rated_at=_T0,
         occurred_at=_T0,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     stored = _stored("DecisionRated", to_payload(original))
     assert from_stored(stored) == original
@@ -222,7 +222,7 @@ def test_decision_rated_round_trip_null_comment() -> None:
         rated_by_actor_id=uuid4(),
         rated_at=_T0,
         occurred_at=_T0,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     stored = _stored("DecisionRated", to_payload(original))
     assert from_stored(stored) == original
@@ -262,7 +262,7 @@ def test_genesis_then_rated_folds_to_state_with_rating() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     state = fold([e1, e2])
     assert state is not None
@@ -286,7 +286,7 @@ def test_latest_per_actor_wins() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     e3 = DecisionRated(
         decision_id=decision_id,
@@ -295,7 +295,7 @@ def test_latest_per_actor_wins() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T2,
         occurred_at=_T2,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     state = fold([e1, e2, e3])
     assert state is not None
@@ -318,7 +318,7 @@ def test_out_of_order_replay_preserves_newer_rating() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T2,
         occurred_at=_T2,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     older = DecisionRated(
         decision_id=decision_id,
@@ -327,7 +327,7 @@ def test_out_of_order_replay_preserves_newer_rating() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     state = fold([e1, newer, older])
     assert state is not None
@@ -348,7 +348,7 @@ def test_ratings_from_different_actors_independent() -> None:
         rated_by_actor_id=rater_a,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     e3 = DecisionRated(
         decision_id=decision_id,
@@ -357,7 +357,7 @@ def test_ratings_from_different_actors_independent() -> None:
         rated_by_actor_id=rater_b,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     state = fold([e1, e2, e3])
     assert state is not None
@@ -379,7 +379,7 @@ def test_rated_event_preserves_other_aggregate_fields() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     state = fold([e1, e2])
     assert state is not None
@@ -399,7 +399,7 @@ def test_from_stored_unknown_rating_value_raises() -> None:
             "rated_by_actor_id": str(uuid4()),
             "rated_at": _T0.isoformat(),
             "occurred_at": _T0.isoformat(),
-            "confidence_at_emit_time": None,
+            "confidence_at_rating": None,
         },
     )
     with pytest.raises(ValueError):
@@ -435,7 +435,7 @@ def test_logbook_opened_after_rated_preserves_ratings() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T1,
         occurred_at=_T1,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     e_opened = DecisionLogbookOpened(
         decision_id=decision_id,
@@ -482,7 +482,7 @@ def test_logbook_closed_after_rated_preserves_ratings() -> None:
         rated_by_actor_id=rater_id,
         rated_at=_T2,
         occurred_at=_T2,
-        confidence_at_emit_time=None,
+        confidence_at_rating=None,
     )
     e_closed = DecisionLogbookClosed(
         decision_id=decision_id,

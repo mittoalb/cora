@@ -13,7 +13,9 @@ from cora.equipment.aggregates._placement import (
 from cora.equipment.aggregates.frame import (
     Frame,
     FrameAlreadyExistsError,
+    FrameCannotSupersedeError,
     FrameRegistered,
+    FrameRevisionLink,
     FrameStatus,
     InvalidFrameRootError,
 )
@@ -185,3 +187,78 @@ def test_decide_rejects_whitespace_only_name() -> None:
             now=_NOW,
             new_id=uuid4(),
         )
+
+
+@pytest.mark.unit
+def test_decide_emits_supersedes_link_into_frame_registered_event() -> None:
+    """When the command carries a supersedes link, the emitted
+    FrameRegistered event carries it through unchanged. Successor is
+    registered as a root frame (sibling of predecessor); transform
+    captures the coordinate shift."""
+    new_id = uuid4()
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    events = register_frame.decide(
+        state=None,
+        command=RegisterFrame(
+            name="centerline_apsu",
+            parent_frame_id=None,
+            placement_relative_to_parent=None,
+            supersedes=link,
+        ),
+        now=_NOW,
+        new_id=new_id,
+    )
+    assert len(events) == 1
+    event = events[0]
+    assert isinstance(event, FrameRegistered)
+    assert event.supersedes == link
+    assert event.parent_frame_id is None
+    assert event.placement_relative_to_parent is None
+
+
+@pytest.mark.unit
+def test_decide_defaults_supersedes_to_none_when_command_omits_it() -> None:
+    """RegisterFrame.supersedes defaults to None; non-revision frames
+    register exactly as before."""
+    events = register_frame.decide(
+        state=None,
+        command=RegisterFrame(
+            name="centerline_1p35_mrad",
+            parent_frame_id=None,
+            placement_relative_to_parent=None,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert isinstance(events[0], FrameRegistered)
+    assert events[0].supersedes is None
+
+
+@pytest.mark.unit
+def test_decide_rejects_self_supersession() -> None:
+    """A frame cannot supersede itself: predecessor_frame_id == new_id
+    raises FrameCannotSupersedeError with the offending id in the
+    reason."""
+    new_id = uuid4()
+    self_link = FrameRevisionLink(
+        predecessor_frame_id=new_id,  # same as new_id => self-supersession
+        transform_from_predecessor=_placement(new_id),
+    )
+    with pytest.raises(FrameCannotSupersedeError) as info:
+        register_frame.decide(
+            state=None,
+            command=RegisterFrame(
+                name="self_revising",
+                parent_frame_id=None,
+                placement_relative_to_parent=None,
+                supersedes=self_link,
+            ),
+            now=_NOW,
+            new_id=new_id,
+        )
+    assert info.value.frame_id == new_id
+    assert "self-supersession" in info.value.reason

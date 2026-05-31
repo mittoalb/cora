@@ -78,9 +78,9 @@ Schema and wiring updates (`update_method_parameters_schema`, `update_plan_defau
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `RecipeCapabilityDefined` | `capability_id`, `code`, `name`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `define_capability` succeeds (genesis) |
-| `RecipeCapabilityVersioned` | `capability_id`, `version_tag`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `version_capability` succeeds; the full declarative contract replaces wholesale |
-| `RecipeCapabilityDeprecated` | `capability_id`, `replaced_by_capability_id?`, `occurred_at` | `deprecate_capability` succeeds; the optional pointer marks a successor |
+| `CapabilityDefined` | `capability_id`, `code`, `name`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `define_capability` succeeds (genesis) |
+| `CapabilityVersioned` | `capability_id`, `version_tag`, `required_affordances`, `executor_shapes`, `parameters_schema?`, `description?`, `occurred_at` | `version_capability` succeeds; the full declarative contract replaces wholesale |
+| `CapabilityDeprecated` | `capability_id`, `replaced_by_capability_id?`, `occurred_at` | `deprecate_capability` succeeds; the optional pointer marks a successor |
 
 ### Method
 

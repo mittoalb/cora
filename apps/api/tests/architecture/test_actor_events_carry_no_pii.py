@@ -71,7 +71,7 @@ def test_actor_event_payloads_carry_no_pii() -> None:
 
     PII lives in the `actor_profile` vault accessed via
     `ProfileStore`; events carry only `actor_id` references plus
-    audit-relevant primitives (kind, occurred_at, forgotten_at).
+    audit-relevant primitives (kind, occurred_at).
     A regression here usually means someone re-added `name` or
     introduced an email / phone / etc. field on an event; move the
     field to actor_profile (and update the vault schema) instead.

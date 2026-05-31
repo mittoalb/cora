@@ -26,7 +26,7 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
   - `complete_procedure` (transition; via `make_procedure_update_handler` factory)
   - `abort_procedure` (transition; via factory)
   - `truncate_procedure` (transition; via factory; partial-data terminal)
-  - `append_procedure_step` (entry-shape; lazy-open + batch append)
+  - `append_procedure_steps` (entry-shape; lazy-open + batch append)
   - `get_procedure` (query; fold-on-read)
   - `list_procedures` (query; reads from `proj_operation_procedure_summary`)
 
@@ -41,7 +41,7 @@ Run BC's `_update_handler.make_run_update_handler`.
 
 ## BC-internal StepStore wiring (mirrors Run BC's ReadingStore)
 
-The `append_procedure_step` slice needs a `StepStore` adapter.
+The `append_procedure_steps` slice needs a `StepStore` adapter.
 Per the per-category-writer pattern locked at gate-review L8/L9
 (Conduit's TraversalStore), the store is built LOCALLY here
 from `deps.pool` (Postgres in production) or as
@@ -65,7 +65,7 @@ from cora.operation.aggregates.procedure import (
 from cora.operation.conductor import Conductor
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_step,
+    append_procedure_steps,
     complete_procedure,
     get_procedure,
     list_procedures,
@@ -85,7 +85,7 @@ class OperationHandlers:
 
     Initial slices: register_procedure + get_procedure. Three FSM-
     closure transitions follow (start / complete / abort). The
-    entry-shape append_procedure_step slice arrives next (with
+    entry-shape append_procedure_steps slice arrives next (with
     BC-internal StepStore adapter for the per-step logbook).
     """
 
@@ -94,7 +94,7 @@ class OperationHandlers:
     complete_procedure: complete_procedure.Handler
     abort_procedure: abort_procedure.Handler
     truncate_procedure: truncate_procedure.Handler
-    append_procedure_step: append_procedure_step.Handler
+    append_procedure_steps: append_procedure_steps.Handler
     get_procedure: get_procedure.Handler
     list_procedures: list_procedures.Handler
     run_procedure: run_procedure.Handler
@@ -111,7 +111,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
 
     Note on the run_procedure / Conductor wire-up: the Conductor needs
     the FINAL (post-tracing) versions of start / complete / abort /
-    append_procedure_step so its internal calls land with the same
+    append_procedure_steps so its internal calls land with the same
     observability shape as direct REST / MCP calls. We hoist those
     four bindings into locals, build the Conductor, then assemble
     the bundle. The ControlPort is materialised from
@@ -142,8 +142,8 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         bc=_BC,
     )
     append_step_handler = with_tracing(
-        append_procedure_step.bind(deps, step_store=step_store),
-        command_name="AppendProcedureStep",
+        append_procedure_steps.bind(deps, step_store=step_store),
+        command_name="AppendProcedureSteps",
         bc=_BC,
     )
     control_port = build_control_port(deps.settings.control_port_routes)
@@ -179,7 +179,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             command_name="TruncateProcedure",
             bc=_BC,
         ),
-        append_procedure_step=append_step_handler,
+        append_procedure_steps=append_step_handler,
         get_procedure=with_tracing(
             get_procedure.bind(deps),
             command_name="GetProcedure",

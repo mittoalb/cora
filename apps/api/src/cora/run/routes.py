@@ -91,7 +91,7 @@ from cora.run.errors import UnauthorizedError
 from cora.run.features import (
     abort_run,
     adjust_run,
-    append_run_reading,
+    append_run_readings,
     complete_run,
     get_run,
     hold_run,
@@ -169,7 +169,7 @@ def register_run_routes(app: FastAPI) -> None:
     app.include_router(stop_run.router)
     app.include_router(truncate_run.router)
     app.include_router(adjust_run.router)
-    app.include_router(append_run_reading.router)
+    app.include_router(append_run_readings.router)
     app.include_router(get_run.router)
     app.include_router(list_runs.router)
     for validation_cls in (

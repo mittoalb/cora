@@ -6,7 +6,7 @@ Postgres. Constructs the Conductor with:
   - `EpicsCaControlPort` against the shared softIOC subprocess
     fixture (per [[project_control_port_test_isolation_research]])
   - real `start_procedure` / `complete_procedure` / `abort_procedure` /
-    `append_procedure_step` handlers bound against a real
+    `append_procedure_steps` handlers bound against a real
     `PostgresEventStore` + `PostgresStepStore` (per-test database
     cloned from the migrated template)
 
@@ -45,7 +45,7 @@ from cora.operation.conductor import (
     WithinTolerance,
 )
 from cora.operation.features.abort_procedure import bind as bind_abort
-from cora.operation.features.append_procedure_step import bind as bind_append
+from cora.operation.features.append_procedure_steps import bind as bind_append
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.start_procedure import bind as bind_start
 from tests.integration._helpers import build_postgres_deps

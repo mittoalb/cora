@@ -6,7 +6,7 @@ event on the Credential stream AND a `DecisionRegistered` audit
 event on the Decision stream in ONE transaction via
 `EventStore.append_streams`.
 
-Mirrors the `register_permit` cross-BC precedent (`PermitDefined` +
+Mirrors the `define_permit` cross-BC precedent (`PermitDefined` +
 `DecisionRegistered`). Cross-stream correlation lands in
 `DecisionRegistered.choice = str(credential_id)`.
 """

@@ -18,7 +18,7 @@ def _register_args(**overrides: object) -> dict[str, Any]:
         "direction": "Outbound",
         "allowed_credentials": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],
-        "permitted_artifact_kinds": ["dataset"],
+        "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {
@@ -59,7 +59,7 @@ def _register_and_activate(client: TestClient, headers: dict[str, str]) -> str:
         client,
         headers=headers,
         request_id=10,
-        name="register_permit",
+        name="define_permit",
         arguments=_register_args(),
     )
     assert register["result"]["isError"] is False, register
@@ -136,7 +136,7 @@ def test_mcp_suspend_permit_tool_returns_iserror_on_defined_permit() -> None:
             client,
             headers=session_headers,
             request_id=30,
-            name="register_permit",
+            name="define_permit",
             arguments=_register_args(),
         )
         permit_id = register["result"]["structuredContent"]["permit_id"]

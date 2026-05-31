@@ -47,7 +47,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "(series of measurements over time, parametric sweep, "
             "coordinated multi-modal or multi-Subject acquisition, "
             "scheduling block). Closed intent-shape vocabulary "
-            "(Series / Sweep / Coordinated / Block); free tags carry "
+            "(Series / Sweep / Coordination / Block); free tags carry "
             "scientific-technique vocabulary; optional external refs "
             "(proposal/btr/visit/cycle)."
         ),
@@ -64,7 +64,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ],
         intent: Annotated[
             CampaignIntent,
-            Field(description="Closed intent-shape vocabulary (Series/Sweep/Coordinated/Block)."),
+            Field(description="Closed intent-shape vocabulary (Series/Sweep/Coordination/Block)."),
         ],
         lead_actor_id: Annotated[
             UUID,

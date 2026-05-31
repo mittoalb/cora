@@ -9,7 +9,7 @@ ValueError per `project_from_stored_wrap_convention`.
 
 Event catalog:
   - `FrameRegistered` (genesis)
-  - `FrameUpdated` (placement mutation; no-op on equal at the
+  - `FramePlacementUpdated` (placement mutation; no-op on equal at the
     decider via `make_asset_update_handler`)
   - `FrameDecommissioned` (terminal lifecycle)
 
@@ -25,15 +25,22 @@ and Subject.
 string.
 
 `placement_relative_to_parent` IS carried in both `FrameRegistered`
-(initial value) and `FrameUpdated` (new value) payloads. Serialized
+(initial value) and `FramePlacementUpdated` (new value) payloads. Serialized
 as the Placement VO's full 15-field shape (or `None` for root frames
 in `FrameRegistered`).
+
+`supersedes` IS carried in the `FrameRegistered` payload as
+`FrameRevisionLink | None`. Set only when this frame revises an
+older frame (e.g., post-upgrade re-survey of an origin); `None` for
+non-revision frames. Serialized as a two-field dict
+(`predecessor_frame_id` + a nested Placement payload for
+`transform_from_predecessor`).
 
 `reason` on `FrameDecommissioned` is operator-supplied free text;
 validated 1-500 chars at the API boundary, the decider trusts the
 input. Mirrors `AssetDegraded.reason` precedent.
 
-`survey` on `FrameUpdated` is an optional structured payload
+`survey` on `FramePlacementUpdated` is an optional structured payload
 (instrument + technician + residual) when the update is a re-survey
 rather than a nominal-from-drawing initial set. The VO shape is
 intentionally left open until the first survey adapter lands; the
@@ -47,6 +54,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.equipment.aggregates._placement import Placement, ReferenceSurface, UnitSystem
+from cora.equipment.aggregates.frame.state import FrameRevisionLink
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -97,6 +105,27 @@ def _placement_from_payload(payload: dict[str, Any]) -> Placement:
     )
 
 
+def _frame_revision_link_to_payload(link: FrameRevisionLink) -> dict[str, Any]:
+    """Serialize a FrameRevisionLink VO to a JSON-friendly dict."""
+    return {
+        "predecessor_frame_id": str(link.predecessor_frame_id),
+        "transform_from_predecessor": _placement_to_payload(link.transform_from_predecessor),
+    }
+
+
+def _frame_revision_link_from_payload(payload: dict[str, Any]) -> FrameRevisionLink:
+    """Reconstruct a FrameRevisionLink VO from its JSON payload.
+
+    Raises KeyError / TypeError / AttributeError on malformed input;
+    callers wrap these into tagged ValueError per the from_stored
+    convention.
+    """
+    return FrameRevisionLink(
+        predecessor_frame_id=UUID(payload["predecessor_frame_id"]),
+        transform_from_predecessor=_placement_from_payload(payload["transform_from_predecessor"]),
+    )
+
+
 @dataclass(frozen=True)
 class FrameRegistered:
     """A new frame was registered.
@@ -105,6 +134,12 @@ class FrameRegistered:
     `parent_frame_id` and `placement_relative_to_parent` go together:
     both None for root frames, both non-None for child frames. The
     decider's `InvalidFrameRootError` guard enforces the invariant.
+    `supersedes` is None for non-revision frames; when present, marks
+    this frame as a revision of the predecessor with the geometric
+    transform between the two coordinate systems. Field appears last
+    in the dataclass declaration because it carries a default
+    (additive-schema convention); semantically it pairs with the
+    parent/placement fields above.
     """
 
     frame_id: UUID
@@ -112,10 +147,11 @@ class FrameRegistered:
     parent_frame_id: UUID | None
     placement_relative_to_parent: Placement | None
     occurred_at: datetime
+    supersedes: FrameRevisionLink | None = None
 
 
 @dataclass(frozen=True)
-class FrameUpdated:
+class FramePlacementUpdated:
     """A frame's `placement_relative_to_parent` was updated.
 
     Used both for nominal-from-drawing initial corrections and for
@@ -131,7 +167,7 @@ class FrameUpdated:
     Root frames cannot be updated via this event (their
     `placement_relative_to_parent` is None by invariant; updating
     would violate the root-vs-child invariant). The decider rejects
-    `FrameUpdated` on root frames.
+    `FramePlacementUpdated` on root frames.
     """
 
     frame_id: UUID
@@ -160,7 +196,7 @@ class FrameDecommissioned:
     occurred_at: datetime
 
 
-FrameEvent = FrameRegistered | FrameUpdated | FrameDecommissioned
+FrameEvent = FrameRegistered | FramePlacementUpdated | FrameDecommissioned
 
 
 def event_type_name(event: FrameEvent) -> str:
@@ -176,6 +212,7 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
             name=name,
             parent_frame_id=parent_frame_id,
             placement_relative_to_parent=placement,
+            supersedes=supersedes,
             occurred_at=occurred_at,
         ):
             return {
@@ -185,9 +222,12 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
                 "placement_relative_to_parent": (
                     _placement_to_payload(placement) if placement is not None else None
                 ),
+                "supersedes": (
+                    _frame_revision_link_to_payload(supersedes) if supersedes is not None else None
+                ),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case FrameUpdated(
+        case FramePlacementUpdated(
             frame_id=frame_id,
             new_placement=new_placement,
             survey=survey,
@@ -228,6 +268,7 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
             try:
                 raw_parent = payload["parent_frame_id"]
                 raw_placement = payload["placement_relative_to_parent"]
+                raw_supersedes = payload.get("supersedes")
                 return FrameRegistered(
                     frame_id=UUID(payload["frame_id"]),
                     name=payload["name"],
@@ -237,21 +278,26 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
                         if raw_placement is not None
                         else None
                     ),
+                    supersedes=(
+                        _frame_revision_link_from_payload(raw_supersedes)
+                        if raw_supersedes is not None
+                        else None
+                    ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed FrameRegistered payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "FrameUpdated":
+        case "FramePlacementUpdated":
             try:
-                return FrameUpdated(
+                return FramePlacementUpdated(
                     frame_id=UUID(payload["frame_id"]),
                     new_placement=_placement_from_payload(payload["new_placement"]),
                     survey=payload.get("survey"),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed FrameUpdated payload {payload!r}: {exc}"
+                msg = f"Malformed FramePlacementUpdated payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case "FrameDecommissioned":
             try:
@@ -271,8 +317,8 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
 __all__ = [
     "FrameDecommissioned",
     "FrameEvent",
+    "FramePlacementUpdated",
     "FrameRegistered",
-    "FrameUpdated",
     "event_type_name",
     "from_stored",
     "to_payload",

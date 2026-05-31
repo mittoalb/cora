@@ -9,7 +9,7 @@ from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.aggregates.capability import (
-    RecipeCapabilityEvent,
+    CapabilityEvent,
     event_type_name,
     fold,
     from_stored,
@@ -88,7 +88,7 @@ def bind(deps: Kernel) -> Handler:
             stream_type=_STREAM_TYPE,
             stream_id=command.capability_id,
         )
-        history: list[RecipeCapabilityEvent] = [from_stored(s) for s in stored]
+        history: list[CapabilityEvent] = [from_stored(s) for s in stored]
         state = fold(history)
 
         domain_events = decide(state=state, command=command, now=now)

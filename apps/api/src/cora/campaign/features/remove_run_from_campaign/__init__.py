@@ -1,7 +1,7 @@
 """Vertical slice for the `RemoveRunFromCampaign` command.
 
 Cross-aggregate membership-remove slice: writes `CampaignRunRemoved`
-to the Campaign's stream AND `RunCampaignUnassigned` to the Run's
+to the Campaign's stream AND `RunRemovedFromCampaign` to the Run's
 stream atomically via `EventStore.append_streams` (mirrors Safety's
 `amend_clearance` shape).
 """

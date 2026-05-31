@@ -18,7 +18,7 @@ from cora.agent.aggregates.agent import (
     MODEL_REF_PROVIDER_MAX_LENGTH,
     MODEL_REF_SNAPSHOT_PIN_MAX_LENGTH,
     Agent,
-    AgentCanonicalURI,
+    AgentCanonicalUri,
     AgentCapability,
     AgentDeprecationReason,
     AgentDescription,
@@ -26,7 +26,7 @@ from cora.agent.aggregates.agent import (
     AgentName,
     AgentStatus,
     AgentVersion,
-    InvalidAgentCanonicalURIError,
+    InvalidAgentCanonicalUriError,
     InvalidAgentCapabilityError,
     InvalidAgentDeprecationReasonError,
     InvalidAgentDescriptionError,
@@ -127,42 +127,42 @@ def test_agent_description_rejects_over_cap() -> None:
         AgentDescription("x" * (AGENT_DESCRIPTION_MAX_LENGTH + 1))
 
 
-# ---------- AgentCanonicalURI (https + no fragment) ----------
+# ---------- AgentCanonicalUri (https + no fragment) ----------
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_accepts_https() -> None:
-    uri = AgentCanonicalURI("https://example.org/agents/run-debrief")
+    uri = AgentCanonicalUri("https://example.org/agents/run-debrief")
     assert uri.value == "https://example.org/agents/run-debrief"
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_trims_whitespace() -> None:
-    assert AgentCanonicalURI("  https://example.org  ").value == "https://example.org"
+    assert AgentCanonicalUri("  https://example.org  ").value == "https://example.org"
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_rejects_http() -> None:
-    with pytest.raises(InvalidAgentCanonicalURIError, match="must start with `https://`"):
-        AgentCanonicalURI("http://example.org")
+    with pytest.raises(InvalidAgentCanonicalUriError, match="must start with `https://`"):
+        AgentCanonicalUri("http://example.org")
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_rejects_fragment() -> None:
-    with pytest.raises(InvalidAgentCanonicalURIError, match="must not contain a fragment"):
-        AgentCanonicalURI("https://example.org/agents#frag")
+    with pytest.raises(InvalidAgentCanonicalUriError, match="must not contain a fragment"):
+        AgentCanonicalUri("https://example.org/agents#frag")
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_rejects_empty() -> None:
-    with pytest.raises(InvalidAgentCanonicalURIError):
-        AgentCanonicalURI("")
+    with pytest.raises(InvalidAgentCanonicalUriError):
+        AgentCanonicalUri("")
 
 
 @pytest.mark.unit
 def test_agent_canonical_uri_rejects_over_cap() -> None:
-    with pytest.raises(InvalidAgentCanonicalURIError):
-        AgentCanonicalURI("https://" + "x" * AGENT_CANONICAL_URI_MAX_LENGTH)
+    with pytest.raises(InvalidAgentCanonicalUriError):
+        AgentCanonicalUri("https://" + "x" * AGENT_CANONICAL_URI_MAX_LENGTH)
 
 
 # ---------- AgentCapability + AgentDeprecationReason ----------

@@ -451,7 +451,7 @@ async def test_list_filters_by_intent_lead_actor_subject_and_tag(
     sweep_with_subject_id = uuid4()
 
     seeded: list[tuple[UUID, CampaignIntent, UUID, UUID | None, frozenset[str]]] = [
-        (in_situ_a_id, CampaignIntent.COORDINATED, lead_a, None, frozenset({"alpha"})),
+        (in_situ_a_id, CampaignIntent.COORDINATION, lead_a, None, frozenset({"alpha"})),
         (
             operando_a_id,
             CampaignIntent.SERIES,

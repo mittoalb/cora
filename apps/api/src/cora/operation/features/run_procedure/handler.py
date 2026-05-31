@@ -3,7 +3,7 @@
 Thin orchestrator that delegates to `Conductor.conduct()`. The
 handler's job is the application-layer concerns the Conductor
 itself does not own: command-level authorization (the per-step
-`append_procedure_step` calls already authz internally, but the
+`append_procedure_steps` calls already authz internally, but the
 RunProcedure entry point gates the entire invocation), envelope
 threading, and result conversion from `ConductorResult` to the
 slice's `RunProcedureResult` contract.
@@ -12,7 +12,7 @@ slice's `RunProcedureResult` contract.
 
 Unlike CQRS slices that compute events from state, `run_procedure`
 records no new events on the Procedure stream directly: the wrapped
-`start_procedure` / `append_procedure_step` / `complete_procedure` /
+`start_procedure` / `append_procedure_steps` / `complete_procedure` /
 `abort_procedure` handlers are the things that write. The slice is
 an orchestration entry point, NOT an aggregate-state-mutating
 decider. Therefore no `decider.py`, no `context.py`.

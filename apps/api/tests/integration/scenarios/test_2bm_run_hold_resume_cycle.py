@@ -196,7 +196,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A, beam-trip pause)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime (with mid-flight pause)",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
@@ -370,10 +370,10 @@ async def test_run_hold_and_resume_cycle_completes_normally(
 
     run_events, _run_version = await deps.event_store.load("Run", _RUN_ID)
     run_event_types = [e.event_type for e in run_events]
-    # RunStarted + RunCampaignAssigned + RunHeld + RunResumed + RunCompleted = 5
+    # RunStarted + RunAddedToCampaign + RunHeld + RunResumed + RunCompleted = 5
     assert run_event_types == [
         "RunStarted",
-        "RunCampaignAssigned",
+        "RunAddedToCampaign",
         "RunHeld",
         "RunResumed",
         "RunCompleted",

@@ -7,14 +7,14 @@ import pytest
 
 from cora.agent.aggregates.agent import (
     AGENT_CAPABILITIES_MAX_COUNT,
-    AgentCanonicalURI,
+    AgentCanonicalUri,
     AgentCapability,
     AgentDefined,
     AgentKind,
     AgentName,
     AgentStatus,
     AgentVersion,
-    InvalidAgentCanonicalURIError,
+    InvalidAgentCanonicalUriError,
     InvalidAgentCapabilitiesError,
     InvalidAgentCapabilityError,
     InvalidAgentDescriptionError,
@@ -125,7 +125,7 @@ def test_invalid_description_raises() -> None:
 
 @pytest.mark.unit
 def test_invalid_canonical_uri_raises() -> None:
-    with pytest.raises(InvalidAgentCanonicalURIError):
+    with pytest.raises(InvalidAgentCanonicalUriError):
         decide(
             state=None,
             command=_command(canonical_uri="http://no-https.example.org"),
@@ -183,7 +183,7 @@ def test_event_uses_handler_supplied_now_and_new_id() -> None:
 
 @pytest.mark.unit
 def test_canonical_uri_value_object_trim_propagates() -> None:
-    """`AgentCanonicalURI(...)` trims; the decider passes the trimmed value."""
+    """`AgentCanonicalUri(...)` trims; the decider passes the trimmed value."""
     events = decide(
         state=None,
         command=_command(canonical_uri="  https://example.org/agent  "),
@@ -191,8 +191,8 @@ def test_canonical_uri_value_object_trim_propagates() -> None:
         new_id=_NEW_ID,
     )
     assert events[0].canonical_uri == "https://example.org/agent"
-    # And construction of an `AgentCanonicalURI` from the wire would round-trip.
-    assert AgentCanonicalURI(events[0].canonical_uri).value == "https://example.org/agent"
+    # And construction of an `AgentCanonicalUri` from the wire would round-trip.
+    assert AgentCanonicalUri(events[0].canonical_uri).value == "https://example.org/agent"
 
 
 @pytest.mark.unit

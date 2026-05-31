@@ -107,7 +107,7 @@ class AssetLifecycle(StrEnum):
       - 5c: Commissioned -> Active        (activate_asset)
       - 5c: (Commissioned | Active) -> Decommissioned   (decommission_asset)
       - 5e: Active -> Maintenance         (enter_maintenance)
-      - 5e: Maintenance -> Active         (restore_from_maintenance)
+      - 5e: Maintenance -> Active         (exit_maintenance)
       - 5e (extends 5c): decommission accepts Maintenance as third source
 
     `Commissioned` is the genesis state set by `register_asset`. The
@@ -357,18 +357,18 @@ class AssetCannotEnterMaintenanceError(Exception):
         self.current_lifecycle = current_lifecycle
 
 
-class AssetCannotRestoreFromMaintenanceError(Exception):
-    """Attempted to restore-from-maintenance on an asset not in `Maintenance`.
+class AssetCannotExitMaintenanceError(Exception):
+    """Attempted to exit-maintenance on an asset not in `Maintenance`.
 
-    Strict semantics: restoring an already-`Active` asset also raises
-    (the maintenance window has already ended). Mirrors
+    Strict semantics: exiting maintenance on an already-`Active` asset
+    also raises (the maintenance window has already ended). Mirrors
     AssetCannotEnterMaintenanceError. Single-source guard like activate.
     """
 
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
-            f"Asset {asset_id} cannot be restored from maintenance: currently in lifecycle "
-            f"{current_lifecycle.value}, restore_from_maintenance requires "
+            f"Asset {asset_id} cannot exit maintenance: currently in lifecycle "
+            f"{current_lifecycle.value}, exit_maintenance requires "
             f"{AssetLifecycle.MAINTENANCE.value}"
         )
         self.asset_id = asset_id

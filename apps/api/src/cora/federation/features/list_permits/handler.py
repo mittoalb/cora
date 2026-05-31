@@ -8,9 +8,10 @@ Cursor pagination keyed on `(defined_at, permit_id)`.
 List output deliberately OMITS the per-arc terms detail
 (read_scope / onward_action_scope / scope_set / accepted_canonicalization_versions /
 required_receipt_kinds / publisher_grant_correlation_handle /
-allowed_artifact_kinds) to keep the list payload thin; surfaces only
-the discriminator `terms_kind` + the cross-direction shared scope
-sets. Fetch `get_permit` for the full polymorphic terms VO.
+inbound_allowed_artifact_kinds) to keep the list payload thin;
+surfaces only the discriminator `terms_kind` + the cross-direction
+shared scope sets. Fetch `get_permit` for the full polymorphic terms
+VO.
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 per [[project_authz_future]].
@@ -39,7 +40,7 @@ class PermitSummaryItem:
     direction: str
     allowed_credentials: list[Any]
     allowed_payload_types: list[Any]
-    permitted_artifact_kinds: list[Any]
+    allowed_artifact_kinds: list[Any]
     abi_tier_floor: str
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -75,7 +76,7 @@ class Handler(Protocol):
 
 _SELECT_COLUMNS = (
     "permit_id, peer_facility_id, direction, "
-    "allowed_credentials, allowed_payload_types, permitted_artifact_kinds, "
+    "allowed_credentials, allowed_payload_types, allowed_artifact_kinds, "
     "abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind, "
     "defined_at, activated_at, suspended_at, resumed_at, revoked_at"
 )
@@ -88,7 +89,7 @@ def _row_to_item(row: Any) -> PermitSummaryItem:
         direction=str(row["direction"]),
         allowed_credentials=list(row["allowed_credentials"]),
         allowed_payload_types=list(row["allowed_payload_types"]),
-        permitted_artifact_kinds=list(row["permitted_artifact_kinds"]),
+        allowed_artifact_kinds=list(row["allowed_artifact_kinds"]),
         abi_tier_floor=str(row["abi_tier_floor"]),
         expires_at=row["expires_at"],
         defined_by_actor_id=row["defined_by_actor_id"],

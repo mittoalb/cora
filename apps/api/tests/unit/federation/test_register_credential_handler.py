@@ -3,7 +3,7 @@
 Pins the cross-BC atomic write: every successful `register_credential`
 call writes ONE `CredentialRegistered` event on the Credential stream
 AND ONE `DecisionRegistered` audit event on the Decision stream via
-`EventStore.append_streams`. Mirrors the `register_permit` precedent
+`EventStore.append_streams`. Mirrors the `define_permit` precedent
 (`PermitDefined` + `DecisionRegistered`) with distinct stream-id
 semantics: register_credential mints a separate Decision id and
 `choice` carries `str(credential_id)` for cross-stream correlation.

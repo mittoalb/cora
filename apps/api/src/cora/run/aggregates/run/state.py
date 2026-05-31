@@ -1055,8 +1055,8 @@ class Run:
     # optional Campaign membership. None means the Run is
     # standalone (not part of any Campaign). Set on RunStarted (when
     # `StartRun.campaign_id` was provided) or via the post-hoc
-    # `add_run_to_campaign` slice (RunCampaignAssigned event); cleared
-    # by `remove_run_from_campaign` (RunCampaignUnassigned event). One
+    # `add_run_to_campaign` slice (RunAddedToCampaign event); cleared
+    # by `remove_run_from_campaign` (RunRemovedFromCampaign event). One
     # Campaign per Run invariant: never N (per
     # [[project_campaign_design]] lock). Forward-compat additive field;
     # legacy streams without the field fold via `payload.get("campaign_id")`
@@ -1077,7 +1077,7 @@ class Run:
     # IMMUTABLE after start_run by aggregate-level invariant — every
     # transition arm in the evolver (RunHeld / RunResumed /
     # RunCompleted / RunAborted / RunStopped / RunTruncated /
-    # RunAdjusted / RunCampaignAssigned / RunCampaignUnassigned /
+    # RunAdjusted / RunAddedToCampaign / RunRemovedFromCampaign /
     # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
     # reconstruction in the Data BC, RunDebriefer AI advisories) answer "what

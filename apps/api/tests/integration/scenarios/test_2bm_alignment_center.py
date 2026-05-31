@@ -105,11 +105,11 @@ from cora.equipment.features.update_family_settings_schema import (
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
 from cora.operation.aggregates.procedure import ProcedureStatus
-from cora.operation.features.append_procedure_step import (
+from cora.operation.features.append_procedure_steps import (
     AppendProcedureSteps,
     ProcedureStepInput,
 )
-from cora.operation.features.append_procedure_step import (
+from cora.operation.features.append_procedure_steps import (
     bind as bind_append_step,
 )
 from cora.operation.features.complete_procedure import (
@@ -408,7 +408,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_step (lazy-open on first call): logbook_id, open_event_id
+        # append_procedure_steps (lazy-open on first call): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # complete_procedure: event_id

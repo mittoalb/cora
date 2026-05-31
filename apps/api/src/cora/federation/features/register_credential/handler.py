@@ -3,7 +3,7 @@
 Cross-BC atomic genesis: writes `CredentialRegistered` on the
 Federation Credential stream AND a `DecisionRegistered` audit on
 the Decision BC stream in ONE Postgres transaction via
-`EventStore.append_streams`. Mirrors `register_permit` (which writes
+`EventStore.append_streams`. Mirrors `define_permit` (which writes
 `PermitDefined` on the Federation Permit stream the same way) and
 `define_agent` before it.
 

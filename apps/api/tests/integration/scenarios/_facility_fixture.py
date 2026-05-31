@@ -201,7 +201,7 @@ _AGENT_COMMANDS: frozenset[str] = frozenset(
     {
         "RegisterDecision",
         "RateDecision",
-        "AppendReasoningEntry",
+        "AppendReasoningEntries",
     }
 )
 

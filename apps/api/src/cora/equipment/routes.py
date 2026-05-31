@@ -45,10 +45,10 @@ from cora.equipment.aggregates.asset import (
     AssetCannotAddPortError,
     AssetCannotDecommissionError,
     AssetCannotEnterMaintenanceError,
+    AssetCannotExitMaintenanceError,
     AssetCannotRelocateError,
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
-    AssetCannotRestoreFromMaintenanceError,
     AssetNotFoundError,
     InvalidAssetNameError,
     InvalidAssetParentError,
@@ -69,10 +69,12 @@ from cora.equipment.aggregates.family import (
 from cora.equipment.aggregates.frame import (
     FrameAlreadyExistsError,
     FrameCannotDecommissionError,
+    FrameCannotSupersedeError,
     FrameCannotUpdateError,
     FrameInUseError,
     FrameNotFoundError,
     InvalidFrameNameError,
+    InvalidFrameRevisionError,
     InvalidFrameRootError,
 )
 from cora.equipment.aggregates.mount import (
@@ -101,6 +103,7 @@ from cora.equipment.features import (
     degrade_asset,
     deprecate_family,
     enter_maintenance,
+    exit_maintenance,
     fault_asset,
     get_asset,
     get_asset_integration_view,
@@ -115,12 +118,11 @@ from cora.equipment.features import (
     remove_asset_family,
     remove_asset_port,
     restore_asset,
-    restore_from_maintenance,
     uninstall_asset,
     update_asset_settings,
     update_family_settings_schema,
-    update_frame,
-    update_placement,
+    update_frame_placement,
+    update_mount_placement,
     version_family,
 )
 
@@ -200,7 +202,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(decommission_asset.router)
     app.include_router(relocate_asset.router)
     app.include_router(enter_maintenance.router)
-    app.include_router(restore_from_maintenance.router)
+    app.include_router(exit_maintenance.router)
     app.include_router(add_asset_family.router)
     app.include_router(remove_asset_family.router)
     app.include_router(degrade_asset.router)
@@ -213,10 +215,10 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(get_asset_integration_view.router)
     app.include_router(list_assets.router)
     app.include_router(register_frame.router)
-    app.include_router(update_frame.router)
+    app.include_router(update_frame_placement.router)
     app.include_router(decommission_frame.router)
     app.include_router(register_mount.router)
-    app.include_router(update_placement.router)
+    app.include_router(update_mount_placement.router)
     app.include_router(decommission_mount.router)
     app.include_router(install_asset.router)
     app.include_router(uninstall_asset.router)
@@ -231,6 +233,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidAssetPortSignalTypeError,
         InvalidAssetSettingsError,
         InvalidFrameNameError,
+        InvalidFrameRevisionError,
         InvalidFrameRootError,
         InvalidPlacementError,
         InvalidDrawingError,
@@ -257,7 +260,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotDecommissionError,
         AssetCannotRelocateError,
         AssetCannotEnterMaintenanceError,
-        AssetCannotRestoreFromMaintenanceError,
+        AssetCannotExitMaintenanceError,
         AssetCannotAddFamilyError,
         AssetCannotRemoveFamilyError,
         AssetCannotAddPortError,
@@ -266,6 +269,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         FamilyCannotDeprecateError,
         FrameCannotUpdateError,
         FrameCannotDecommissionError,
+        FrameCannotSupersedeError,
         FrameInUseError,
         MountCannotUpdateError,
         MountCannotDecommissionError,

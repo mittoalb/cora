@@ -84,8 +84,8 @@ stateDiagram-v2
 | `CampaignResumed` | `campaign_id, occurred_at` | `resume_campaign` accepted (Held → Active). |
 | `CampaignClosed` | `campaign_id, occurred_at` | `close_campaign` accepted (Active or Held → Closed). |
 | `CampaignAbandoned` | `campaign_id, reason, occurred_at` | `abandon_campaign` accepted (Planned, Active, or Held → Abandoned). |
-| `CampaignRunAdded` | `campaign_id, run_id, occurred_at` | `add_run_to_campaign` accepted, OR `start_run` accepted with `campaign_id` set. Written atomically with `RunCampaignAssigned` (or `RunStarted`) on the Run stream. |
-| `CampaignRunRemoved` | `campaign_id, run_id, reason, occurred_at` | `remove_run_from_campaign` accepted. Written atomically with `RunCampaignUnassigned` on the Run stream. |
+| `CampaignRunAdded` | `campaign_id, run_id, occurred_at` | `add_run_to_campaign` accepted, OR `start_run` accepted with `campaign_id` set. Written atomically with `RunAddedToCampaign` (or `RunStarted`) on the Run stream. |
+| `CampaignRunRemoved` | `campaign_id, run_id, reason, occurred_at` | `remove_run_from_campaign` accepted. Written atomically with `RunRemovedFromCampaign` on the Run stream. |
 
 Transitioning-actor identity lives only on `StoredEvent.principal_id`; the genesis payload's `lead_actor_id` is the operator-asserted campaign lead, which may differ from the registering actor (a beamline scientist registering on behalf of a visiting PI).
 
@@ -175,7 +175,7 @@ The Run module's summary projection carries the inverse pointer (a `campaign_id 
 | Module | Relationship | What's exchanged |
 |---|---|---|
 | `Trust` | gated-by | Every write-side Campaign slice is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs. |
-| `Run` | writes-to via `append_streams` | `CampaignRunAdded` paired with `RunCampaignAssigned` on `add_run_to_campaign`; with `RunStarted` on `start_run` when `campaign_id` is set at start time. `CampaignRunRemoved` paired with `RunCampaignUnassigned` on `remove_run_from_campaign`. Atomic two-stream commit. |
+| `Run` | writes-to via `append_streams` | `CampaignRunAdded` paired with `RunAddedToCampaign` on `add_run_to_campaign`; with `RunStarted` on `start_run` when `campaign_id` is set at start time. `CampaignRunRemoved` paired with `RunRemovedFromCampaign` on `remove_run_from_campaign`. Atomic two-stream commit. |
 | `Run` | reads-from | Inverse `campaign_id` column on `proj_run_summary` powers `list_runs?campaign_id=...`. |
 | `Access` | shared-id-with | `lead_actor_id` references the Actor aggregate's id, and every Campaign event envelope carries `actor_id` for principal attribution. The Campaign module does not validate the reference (LOOSE policy); operator-dashboard reads denormalise the actor display name via the Access read model. |
 | `Subject` | reads-from | Optional `subject_id` references a Subject. Validation is intentionally not enforced at the Campaign aggregate so multi-Subject Coordinated and Block intents stay expressible. |
@@ -262,7 +262,7 @@ The four examples below follow the canonical Campaign path: register a Planned C
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
     ```
 
-    A successful call returns `204 No Content`. `CampaignRunAdded` is written to the Campaign stream atomically with `RunCampaignAssigned` on the Run stream; both `proj_campaign_summary.run_count` and `proj_run_summary.campaign_id` update on the next projection tick.
+    A successful call returns `204 No Content`. `CampaignRunAdded` is written to the Campaign stream atomically with `RunAddedToCampaign` on the Run stream; both `proj_campaign_summary.run_count` and `proj_run_summary.campaign_id` update on the next projection tick.
 
 === "MCP"
 

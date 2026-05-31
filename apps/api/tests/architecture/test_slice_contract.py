@@ -42,9 +42,9 @@ _ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
 )
 _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
     {
-        "cora.decision.features.append_reasoning_entry",
-        "cora.run.features.append_run_reading",
-        "cora.operation.features.append_procedure_step",
+        "cora.decision.features.append_reasoning_entries",
+        "cora.run.features.append_run_readings",
+        "cora.operation.features.append_procedure_steps",
     }
 )
 # Orchestration slices: command-shaped but no decider; the handler
@@ -52,7 +52,7 @@ _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
 # slices. Same file set as entry-append (no decider.py).
 _ORCHESTRATION_SLICES: frozenset[str] = frozenset(
     {
-        # Conductor entry: delegates start_procedure / append_procedure_step /
+        # Conductor entry: delegates start_procedure / append_procedure_steps /
         # complete_procedure / abort_procedure handlers; no direct event
         # emission. See [[project_edge_runtime_design]].
         "cora.operation.features.run_procedure",

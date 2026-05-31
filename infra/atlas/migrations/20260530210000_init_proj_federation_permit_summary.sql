@@ -33,7 +33,7 @@ CREATE TABLE proj_federation_permit_summary (
     ),
     allowed_credentials                    JSONB       NOT NULL,
     allowed_payload_types                  JSONB       NOT NULL,
-    permitted_artifact_kinds               JSONB       NOT NULL,
+    allowed_artifact_kinds                 JSONB       NOT NULL,
     abi_tier_floor                         TEXT        NOT NULL,
     expires_at                             TIMESTAMPTZ,
     defined_by_actor_id                    UUID        NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE proj_federation_permit_summary (
     accepted_canonicalization_versions     JSONB,
     required_receipt_kinds                 JSONB,
     publisher_grant_correlation_handle     TEXT,
-    allowed_artifact_kinds                 JSONB,
+    inbound_allowed_artifact_kinds         JSONB,
 
     defined_at                             TIMESTAMPTZ NOT NULL,
     activated_at                           TIMESTAMPTZ,
@@ -69,12 +69,12 @@ CREATE TABLE proj_federation_permit_summary (
          AND accepted_canonicalization_versions IS NULL
          AND required_receipt_kinds IS NULL
          AND publisher_grant_correlation_handle IS NULL
-         AND allowed_artifact_kinds IS NULL)
+         AND inbound_allowed_artifact_kinds IS NULL)
         OR
         (terms_kind = 'Inbound'
          AND accepted_canonicalization_versions IS NOT NULL
          AND required_receipt_kinds IS NOT NULL
-         AND allowed_artifact_kinds IS NOT NULL
+         AND inbound_allowed_artifact_kinds IS NOT NULL
          AND read_scope IS NULL
          AND onward_action_scope IS NULL
          AND scope_set IS NULL)

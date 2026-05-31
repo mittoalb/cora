@@ -27,7 +27,7 @@ def test_decide_emits_actor_profile_forgotten_for_existing_actor() -> None:
         now=_NOW,
     )
 
-    assert events == [ActorProfileForgotten(actor_id=actor_id, forgotten_at=_NOW)]
+    assert events == [ActorProfileForgotten(actor_id=actor_id, occurred_at=_NOW)]
 
 
 @pytest.mark.unit
@@ -45,7 +45,7 @@ def test_decide_emits_event_even_for_already_deactivated_actor() -> None:
         now=_NOW,
     )
 
-    assert events == [ActorProfileForgotten(actor_id=actor_id, forgotten_at=_NOW)]
+    assert events == [ActorProfileForgotten(actor_id=actor_id, occurred_at=_NOW)]
 
 
 @pytest.mark.unit

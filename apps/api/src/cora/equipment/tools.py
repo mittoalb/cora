@@ -25,6 +25,9 @@ from cora.equipment.features.deprecate_family import (
     tool as deprecate_family_tool,
 )
 from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
+from cora.equipment.features.exit_maintenance import (
+    tool as exit_maintenance_tool,
+)
 from cora.equipment.features.fault_asset import tool as fault_asset_tool
 from cora.equipment.features.get_asset import tool as get_asset_tool
 from cora.equipment.features.get_asset_integration_view import (
@@ -43,9 +46,6 @@ from cora.equipment.features.remove_asset_family import (
 )
 from cora.equipment.features.remove_asset_port import tool as remove_asset_port_tool
 from cora.equipment.features.restore_asset import tool as restore_asset_tool
-from cora.equipment.features.restore_from_maintenance import (
-    tool as restore_from_maintenance_tool,
-)
 from cora.equipment.features.uninstall_asset import tool as uninstall_asset_tool
 from cora.equipment.features.update_asset_settings import (
     tool as update_asset_settings_tool,
@@ -53,8 +53,8 @@ from cora.equipment.features.update_asset_settings import (
 from cora.equipment.features.update_family_settings_schema import (
     tool as update_family_settings_schema_tool,
 )
-from cora.equipment.features.update_frame import tool as update_frame_tool
-from cora.equipment.features.update_placement import tool as update_placement_tool
+from cora.equipment.features.update_frame_placement import tool as update_frame_placement_tool
+from cora.equipment.features.update_mount_placement import tool as update_mount_placement_tool
 from cora.equipment.features.version_family import tool as version_family_tool
 from cora.equipment.wire import EquipmentHandlers
 
@@ -105,9 +105,9 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().enter_maintenance,
     )
-    restore_from_maintenance_tool.register(
+    exit_maintenance_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().restore_from_maintenance,
+        get_handler=lambda: get_handlers().exit_maintenance,
     )
     add_asset_family_tool.register(
         mcp,
@@ -161,9 +161,9 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().register_frame,
     )
-    update_frame_tool.register(
+    update_frame_placement_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().update_frame,
+        get_handler=lambda: get_handlers().update_frame_placement,
     )
     decommission_frame_tool.register(
         mcp,
@@ -173,9 +173,9 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().register_mount,
     )
-    update_placement_tool.register(
+    update_mount_placement_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().update_placement,
+        get_handler=lambda: get_handlers().update_mount_placement,
     )
     decommission_mount_tool.register(
         mcp,

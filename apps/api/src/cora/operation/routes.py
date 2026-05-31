@@ -56,7 +56,7 @@ from cora.operation.aggregates.procedure import (
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_step,
+    append_procedure_steps,
     complete_procedure,
     get_procedure,
     list_procedures,
@@ -139,7 +139,7 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
     app.include_router(truncate_procedure.router)
-    app.include_router(append_procedure_step.router)
+    app.include_router(append_procedure_steps.router)
     app.include_router(get_procedure.router)
     app.include_router(list_procedures.router)
     app.include_router(run_procedure.router)

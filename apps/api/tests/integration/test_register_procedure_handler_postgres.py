@@ -23,9 +23,9 @@ from cora.operation.features.register_procedure import RegisterProcedure
 from cora.operation.features.register_procedure import bind as bind_register_procedure
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
+    CapabilityDefined,
     CapabilityName,
     ExecutorShape,
-    RecipeCapabilityDefined,
 )
 from cora.recipe.aggregates.capability import (
     event_type_name as capability_event_type_name,
@@ -157,7 +157,7 @@ async def test_register_procedure_persists_bound_capability_id_to_postgres(
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[procedure_id, event_id])
 
     # Seed a Procedure-shaped Capability via the event-store API.
-    cap_event = RecipeCapabilityDefined(
+    cap_event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode("cora.capability.x").value,
         name=CapabilityName("X").value,

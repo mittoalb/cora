@@ -26,8 +26,8 @@ don't recompute).
   - `description` wrapped via `AgentDescription(...)` when not None;
     1-2000 chars after trim -> `InvalidAgentDescriptionError`. None
     is allowed (means no description).
-  - `canonical_uri` wrapped via `AgentCanonicalURI(...)` when not
-    None; https-only + 1-2000 chars -> `InvalidAgentCanonicalURIError`.
+  - `canonical_uri` wrapped via `AgentCanonicalUri(...)` when not
+    None; https-only + 1-2000 chars -> `InvalidAgentCanonicalUriError`.
     None is allowed.
   - Each `capability` wrapped via `AgentCapability(...)`; 1-100
     chars per entry -> `InvalidAgentCapabilityError`. Cardinality
@@ -47,7 +47,7 @@ from cora.agent.aggregates.agent import (
     AGENT_CAPABILITIES_MAX_COUNT,
     Agent,
     AgentAlreadyExistsError,
-    AgentCanonicalURI,
+    AgentCanonicalUri,
     AgentCapability,
     AgentDefined,
     AgentDescription,
@@ -77,7 +77,7 @@ def decide(
       - Description (when set) must be valid
         -> InvalidAgentDescriptionError (via AgentDescription VO)
       - Canonical URI (when set) must be https + within length bound
-        -> InvalidAgentCanonicalURIError (via AgentCanonicalURI VO)
+        -> InvalidAgentCanonicalUriError (via AgentCanonicalUri VO)
       - Capabilities count must not exceed AGENT_CAPABILITIES_MAX_COUNT
         -> InvalidAgentCapabilitiesError
       - Each capability must be valid -> InvalidAgentCapabilityError
@@ -95,9 +95,9 @@ def decide(
     if command.description is not None:
         description = AgentDescription(command.description)
 
-    canonical_uri: AgentCanonicalURI | None = None
+    canonical_uri: AgentCanonicalUri | None = None
     if command.canonical_uri is not None:
-        canonical_uri = AgentCanonicalURI(command.canonical_uri)
+        canonical_uri = AgentCanonicalUri(command.canonical_uri)
 
     # Validate capability cardinality + per-entry shape.
     if len(command.capabilities) > AGENT_CAPABILITIES_MAX_COUNT:

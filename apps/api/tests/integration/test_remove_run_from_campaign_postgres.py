@@ -147,10 +147,10 @@ async def test_remove_run_from_campaign_writes_both_streams_atomically(
     assert state is not None
     assert run_id not in state.run_ids
 
-    # Run: 3 events (Started + CampaignAssigned + CampaignUnassigned).
+    # Run: 3 events (Started + AddedToCampaign + RemovedFromCampaign).
     run_events, run_version = await deps.event_store.load("Run", run_id)
     assert run_version == 3
-    assert run_events[-1].event_type == "RunCampaignUnassigned"
+    assert run_events[-1].event_type == "RunRemovedFromCampaign"
     assert run_events[-1].payload["reason"] == "reassigned to a follow-on campaign"
     run_state = run_fold([run_from_stored(s) for s in run_events])
     assert run_state is not None

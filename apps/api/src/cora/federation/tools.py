@@ -26,6 +26,7 @@ from cora.federation.features.complete_credential_rotation import (
 from cora.federation.features.complete_seal_republishing import (
     tool as complete_seal_republishing_tool,
 )
+from cora.federation.features.define_permit import tool as define_permit_tool
 from cora.federation.features.get_credential import tool as get_credential_tool
 from cora.federation.features.get_permit import tool as get_permit_tool
 from cora.federation.features.get_seal import tool as get_seal_tool
@@ -36,7 +37,6 @@ from cora.federation.features.list_seals import tool as list_seals_tool
 from cora.federation.features.register_credential import (
     tool as register_credential_tool,
 )
-from cora.federation.features.register_permit import tool as register_permit_tool
 from cora.federation.features.resume_permit import tool as resume_permit_tool
 from cora.federation.features.revoke_credential import tool as revoke_credential_tool
 from cora.federation.features.revoke_permit import tool as revoke_permit_tool
@@ -62,9 +62,9 @@ def register_federation_tools(
     get_handlers: Callable[[], FederationHandlers],
 ) -> None:
     """Register every Federation slice's MCP tool on the FastMCP server."""
-    register_permit_tool.register(
+    define_permit_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().register_permit,
+        get_handler=lambda: get_handlers().define_permit,
     )
     activate_permit_tool.register(
         mcp,

@@ -9,7 +9,7 @@ JSONResponse is used (not HTTPException) per FastAPI guidance to
 avoid nested-exception pitfalls.
 
 Attached routers cover the five Permit lifecycle slices
-(`register_permit` + `activate_permit` + `suspend_permit` +
+(`define_permit` + `activate_permit` + `suspend_permit` +
 `resume_permit` + `revoke_permit`), the five Credential lifecycle
 slices (`register_credential` + `start_credential_rotation` +
 `complete_credential_rotation` + `abort_credential_rotation` +
@@ -69,6 +69,7 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    define_permit,
     get_credential,
     get_permit,
     get_seal,
@@ -77,7 +78,6 @@ from cora.federation.features import (
     list_permits,
     list_seals,
     register_credential,
-    register_permit,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -151,7 +151,7 @@ async def _handle_federation_error(request: Request, exc: Exception) -> JSONResp
 def register_federation_routes(app: FastAPI) -> None:
     """Attach Federation slice routers and exception handlers to the FastAPI app."""
     app.include_router(federation_router)
-    app.include_router(register_permit.router)
+    app.include_router(define_permit.router)
     app.include_router(activate_permit.router)
     app.include_router(suspend_permit.router)
     app.include_router(resume_permit.router)

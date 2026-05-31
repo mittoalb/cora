@@ -50,7 +50,7 @@ def test_projection_metadata() -> None:
             "AssetActivated",
             "AssetDecommissioned",
             "AssetMaintenanceEntered",
-            "AssetRestoredFromMaintenance",
+            "AssetMaintenanceExited",
             "AssetRelocated",
             "AssetDegraded",
             "AssetFaulted",
@@ -189,14 +189,14 @@ async def test_asset_registered_with_null_parent_for_enterprise_root() -> None:
         ("AssetActivated", "Active"),
         ("AssetDecommissioned", "Decommissioned"),
         ("AssetMaintenanceEntered", "Maintenance"),
-        ("AssetRestoredFromMaintenance", "Active"),
+        ("AssetMaintenanceExited", "Active"),
     ],
 )
 async def test_lifecycle_transition_updates_lifecycle_field(
     event_type: str, expected_lifecycle: str
 ) -> None:
     """Each lifecycle event writes its expected lifecycle string.
-    Note that AssetActivated and AssetRestoredFromMaintenance both
+    Note that AssetActivated and AssetMaintenanceExited both
     map to 'Active' — the projection collapses both to the same
     state since the audit history of "how did we get here?" lives
     in the events themselves."""

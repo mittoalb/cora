@@ -35,7 +35,7 @@ def _outbound_view() -> PermitView:
         direction="Outbound",
         allowed_credentials=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
-        permitted_artifact_kinds=["dataset"],
+        allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_ACTOR_ID,
@@ -47,7 +47,7 @@ def _outbound_view() -> PermitView:
         accepted_canonicalization_versions=None,
         required_receipt_kinds=None,
         publisher_grant_correlation_handle=None,
-        allowed_artifact_kinds=None,
+        inbound_allowed_artifact_kinds=None,
         defined_at=_T_DEFINED,
         activated_at=_T_ACTIVATED,
         suspended_at=None,
@@ -63,7 +63,7 @@ def _inbound_view() -> PermitView:
         direction="Inbound",
         allowed_credentials=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
-        permitted_artifact_kinds=["dataset"],
+        allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_ACTOR_ID,
@@ -75,7 +75,7 @@ def _inbound_view() -> PermitView:
         accepted_canonicalization_versions=["v1"],
         required_receipt_kinds=["signed"],
         publisher_grant_correlation_handle="grant-abc",
-        allowed_artifact_kinds=["dataset"],
+        inbound_allowed_artifact_kinds=["dataset"],
         defined_at=_T_DEFINED,
         activated_at=None,
         suspended_at=None,
@@ -133,7 +133,7 @@ def test_get_federation_permit_returns_200_with_inbound_terms() -> None:
     assert body["terms"]["accepted_canonicalization_versions"] == ["v1"]
     assert body["terms"]["required_receipt_kinds"] == ["signed"]
     assert body["terms"]["publisher_grant_correlation_handle"] == "grant-abc"
-    assert body["terms"]["allowed_artifact_kinds"] == ["dataset"]
+    assert body["terms"]["inbound_allowed_artifact_kinds"] == ["dataset"]
     assert body["activated_at"] is None
 
 

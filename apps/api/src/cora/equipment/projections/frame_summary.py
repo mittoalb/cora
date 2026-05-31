@@ -2,10 +2,10 @@
 placement events into the `proj_equipment_frame_summary` read model.
 
 Subscribed events:
-  - FrameRegistered     -> INSERT (status=Active; name, parent_frame_id,
-                           placement_relative_to_parent from payload)
-  - FrameUpdated        -> UPDATE placement_relative_to_parent
-  - FrameDecommissioned -> UPDATE status=Decommissioned
+  - FrameRegistered        -> INSERT (status=Active; name, parent_frame_id,
+                              placement_relative_to_parent from payload)
+  - FramePlacementUpdated  -> UPDATE placement_relative_to_parent
+  - FrameDecommissioned    -> UPDATE status=Decommissioned
 
 All branches idempotent (INSERT uses ON CONFLICT DO NOTHING; UPDATEs
 write fixed values per event type so re-application is a no-op).
@@ -47,7 +47,7 @@ class FrameSummaryProjection:
     subscribed_event_types = frozenset(
         {
             "FrameRegistered",
-            "FrameUpdated",
+            "FramePlacementUpdated",
             "FrameDecommissioned",
         }
     )
@@ -71,7 +71,7 @@ class FrameSummaryProjection:
                     placement_json,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
-            case "FrameUpdated":
+            case "FramePlacementUpdated":
                 await conn.execute(
                     _UPDATE_PLACEMENT_SQL,
                     UUID(event.payload["frame_id"]),

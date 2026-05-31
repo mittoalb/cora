@@ -81,7 +81,7 @@ from cora.operation.conductor import (
     SetpointStep,
     WithinTolerance,
 )
-from cora.operation.features.append_procedure_step.command import AppendProcedureSteps
+from cora.operation.features.append_procedure_steps.command import AppendProcedureSteps
 from cora.operation.ports.control_port import ControlTimeoutError, Reading
 
 _FIXED_NOW = datetime(2026, 5, 30, 9, 0, 0, tzinfo=UTC)
@@ -100,7 +100,7 @@ class _AppendCall:
 
 @dataclass
 class _FakeAppendStep:
-    """Fake `Handler` for the append_procedure_step slice.
+    """Fake `Handler` for the append_procedure_steps slice.
 
     Records every call; returns the entry count to match the real
     handler's `int` return type. Tests assert against `calls`.

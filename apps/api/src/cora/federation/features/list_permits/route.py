@@ -41,7 +41,7 @@ class PermitSummaryDTO(BaseModel):
     direction: Direction
     allowed_credentials: list[UUID] = Field(default_factory=list[UUID])
     allowed_payload_types: list[str] = Field(default_factory=list[str])
-    permitted_artifact_kinds: list[str] = Field(default_factory=list[str])
+    allowed_artifact_kinds: list[str] = Field(default_factory=list[str])
     abi_tier_floor: AbiTier
     expires_at: datetime
     defined_by_actor_id: UUID
@@ -145,7 +145,7 @@ async def list_permits(
                 direction=Direction(item.direction),
                 allowed_credentials=[UUID(str(c)) for c in item.allowed_credentials],
                 allowed_payload_types=[str(p) for p in item.allowed_payload_types],
-                permitted_artifact_kinds=[str(k) for k in item.permitted_artifact_kinds],
+                allowed_artifact_kinds=[str(k) for k in item.allowed_artifact_kinds],
                 abi_tier_floor=AbiTier(item.abi_tier_floor),
                 expires_at=item.expires_at,
                 defined_by_actor_id=item.defined_by_actor_id,

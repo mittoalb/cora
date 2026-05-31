@@ -24,7 +24,7 @@ FSM closes via four terminal transitions (`complete` / `abort` /
 strict-not-idempotent (the guard rejects double-application and
 ConcurrencyError catches the persistence-layer double-submit case).
 
-`append_run_reading` writes the polymorphic sensor / motor reading
+`append_run_readings` writes the polymorphic sensor / motor reading
 logbook (SOSA `sampling_procedure` discriminator; lazy open-on-first-
 write). Not idempotency-wrapped: natural idempotence via the
 at-most-one-open-logbook invariant + entry-store PK.
@@ -39,7 +39,7 @@ cross-loads Plan → Practice → Method to surface the Method's
 
 ## BC-internal ReadingStore wiring
 
-`append_run_reading` needs a `ReadingStore` adapter. Per the
+`append_run_readings` needs a `ReadingStore` adapter. Per the
 per-category-writer pattern (mirrors Decision BC's ReasoningStore
 and Conduit's TraversalStore), the store is built LOCALLY here from
 `deps.pool` (Postgres in production) or as `InMemoryReadingStore`
@@ -64,7 +64,7 @@ from cora.run.aggregates.run import (
 from cora.run.features import (
     abort_run,
     adjust_run,
-    append_run_reading,
+    append_run_readings,
     complete_run,
     get_run,
     hold_run,
@@ -90,7 +90,7 @@ class RunHandlers:
     stop_run: stop_run.Handler
     truncate_run: truncate_run.Handler
     adjust_run: adjust_run.IdempotentHandler
-    append_run_reading: append_run_reading.Handler
+    append_run_readings: append_run_readings.Handler
     get_run: get_run.Handler
     list_runs: list_runs.Handler
 
@@ -161,9 +161,9 @@ def wire_run(deps: Kernel) -> RunHandlers:
             command_name="AdjustRun",
             bc=_BC,
         ),
-        append_run_reading=with_tracing(
-            append_run_reading.bind(deps, reading_store=reading_store),
-            command_name="AppendRunReading",
+        append_run_readings=with_tracing(
+            append_run_readings.bind(deps, reading_store=reading_store),
+            command_name="AppendRunReadings",
             bc=_BC,
         ),
         get_run=with_tracing(

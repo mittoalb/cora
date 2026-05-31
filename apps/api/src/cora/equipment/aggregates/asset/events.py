@@ -7,7 +7,7 @@ lives at `cora.infrastructure.event_envelope.to_new_event`.
 
 Event catalog: `AssetRegistered` (genesis), the lifecycle transitions
 (`AssetActivated`, `AssetDecommissioned`, `AssetMaintenanceEntered`,
-`AssetRestoredFromMaintenance`), the hierarchy mutation
+`AssetMaintenanceExited`), the hierarchy mutation
 (`AssetRelocated` — the first event whose payload carries source
 AND target state, `from_parent_id` + `to_parent_id`, since `parent_id`
 is mutable and the audit log should record both sides without
@@ -129,16 +129,14 @@ class AssetMaintenanceEntered:
 
 
 @dataclass(frozen=True)
-class AssetRestoredFromMaintenance:
+class AssetMaintenanceExited:
     """An asset was returned to active service after maintenance.
 
     Lifecycle transition: `Maintenance -> Active` (single-source).
     The evolver sets the new lifecycle; no lifecycle field in the
-    payload (event TYPE encodes the change). The verbose verb-prep-
-    noun naming is deliberate: the symmetric `AssetMaintenanceRestored`
-    reads ambiguously (sounds like maintenance was restored), so the
-    longer form unambiguously captures the asset's direction of
-    change.
+    payload (event TYPE encodes the change). Mirrors
+    `AssetMaintenanceEntered` shape exactly with symmetric
+    enter/exit preposition.
     """
 
     asset_id: UUID
@@ -325,7 +323,7 @@ AssetEvent = (
     | AssetDecommissioned
     | AssetRelocated
     | AssetMaintenanceEntered
-    | AssetRestoredFromMaintenance
+    | AssetMaintenanceExited
     | AssetFamilyAdded
     | AssetFamilyRemoved
     | AssetDegraded
@@ -400,7 +398,7 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=occurred_at):
+        case AssetMaintenanceExited(asset_id=asset_id, occurred_at=occurred_at):
             return {
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
@@ -547,14 +545,14 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed AssetMaintenanceEntered payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "AssetRestoredFromMaintenance":
+        case "AssetMaintenanceExited":
             try:
-                return AssetRestoredFromMaintenance(
+                return AssetMaintenanceExited(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed AssetRestoredFromMaintenance payload {payload!r}: {exc}"
+                msg = f"Malformed AssetMaintenanceExited payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         # dual-match: legacy Asset events used "AssetCapabilityAdded"
         # / "AssetCapabilityRemoved" type strings with "capability_id" payload
@@ -679,12 +677,12 @@ __all__ = [
     "AssetFamilyRemoved",
     "AssetFaulted",
     "AssetMaintenanceEntered",
+    "AssetMaintenanceExited",
     "AssetPortAdded",
     "AssetPortRemoved",
     "AssetRegistered",
     "AssetRelocated",
     "AssetRestored",
-    "AssetRestoredFromMaintenance",
     "AssetSettingsUpdated",
     "event_type_name",
     "from_stored",

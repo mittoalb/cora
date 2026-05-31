@@ -68,9 +68,9 @@ Transitions:
                            still installed AND by MountHasActiveChildren
                            if any child Mount is still Active)
 
-`update_placement`, `install_asset`, `uninstall_asset` do NOT
+`update_mount_placement`, `install_asset`, `uninstall_asset` do NOT
 change status; they mutate the Placement / `installed_asset_id`
-fields respectively. `update_placement` is no-op-on-equal via the
+fields respectively. `update_mount_placement` is no-op-on-equal via the
 make_mount_update_handler factory; `install_asset` is strict-not-
 idempotent (re-installing into an occupied slot raises
 MountAlreadyOccupied per the design's no-implicit-eviction anti-
@@ -172,7 +172,7 @@ class MountHasActiveChildrenError(Exception):
 
 
 class MountCannotUpdateError(Exception):
-    """Attempted to mutate (update_placement / install_asset /
+    """Attempted to mutate (update_mount_placement / install_asset /
     uninstall_asset) a decommissioned mount.
 
     Strict semantics: a Decommissioned mount is terminal; no further
@@ -350,7 +350,7 @@ class Mount:
     provides the reverse lookup.
 
     `status` transitions only `Active -> Decommissioned`. The
-    install / uninstall / update_placement slices do NOT change
+    install / uninstall / update_mount_placement slices do NOT change
     status.
     """
 

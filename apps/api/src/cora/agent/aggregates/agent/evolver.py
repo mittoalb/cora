@@ -45,7 +45,7 @@ from cora.agent.aggregates.agent.events import (
 from cora.agent.aggregates.agent.state import (
     Agent,
     AgentBudget,
-    AgentCanonicalURI,
+    AgentCanonicalUri,
     AgentCapability,
     AgentDeprecationReason,
     AgentDescription,
@@ -88,7 +88,7 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 model_ref=model_ref,
                 description=AgentDescription(description) if description is not None else None,
                 canonical_uri=(
-                    AgentCanonicalURI(canonical_uri) if canonical_uri is not None else None
+                    AgentCanonicalUri(canonical_uri) if canonical_uri is not None else None
                 ),
                 prompt_template_id=prompt_template_id,
                 capabilities=frozenset(AgentCapability(c) for c in capabilities),

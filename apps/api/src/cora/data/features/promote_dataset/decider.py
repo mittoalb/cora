@@ -30,14 +30,14 @@ from cora.data.aggregates.dataset import (
     PromotionReason,
 )
 from cora.data.features.promote_dataset.command import PromoteDataset
-from cora.data.features.promote_dataset.context import PromotionContext
+from cora.data.features.promote_dataset.context import DatasetPromotionContext
 
 
 def decide(
     state: Dataset | None,
     command: PromoteDataset,
     *,
-    context: PromotionContext,
+    context: DatasetPromotionContext,
     now: datetime,
 ) -> list[DatasetPromoted]:
     """Decide the events produced by promoting a Dataset to Production.

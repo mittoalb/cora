@@ -617,7 +617,7 @@ def test_legacy_stream_without_reading_logbook_folds_with_none_reading_logbook_i
     assert state.status is RunStatus.COMPLETED
 
 
-# ---------- campaign_id field + RunCampaignAssigned/Unassigned arms ----------
+# ---------- campaign_id field + RunAddedToCampaign / RunRemovedFromCampaign arms ----------
 
 
 @pytest.mark.unit
@@ -649,17 +649,17 @@ def test_run_started_default_campaign_id_is_none() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_assigned_sets_campaign_id() -> None:
-    """Post-hoc add_run_to_campaign writes RunCampaignAssigned to the
+def test_run_added_to_campaign_sets_campaign_id() -> None:
+    """Post-hoc add_run_to_campaign writes RunAddedToCampaign to the
     Run stream. Evolver sets campaign_id."""
-    from cora.run.aggregates.run.events import RunCampaignAssigned
+    from cora.run.aggregates.run.events import RunAddedToCampaign
 
     run_id = uuid4()
     campaign_id = uuid4()
     state = fold(
         [
             _run_started(run_id=run_id),
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=run_id,
                 campaign_id=campaign_id,
                 occurred_at=_NOW,
@@ -673,15 +673,15 @@ def test_run_campaign_assigned_sets_campaign_id() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_assigned_on_empty_state_raises() -> None:
-    """RunCampaignAssigned requires prior state (Run must have been
+def test_run_added_to_campaign_on_empty_state_raises() -> None:
+    """RunAddedToCampaign requires prior state (Run must have been
     started first; the slice's decider enforces this)."""
-    from cora.run.aggregates.run.events import RunCampaignAssigned
+    from cora.run.aggregates.run.events import RunAddedToCampaign
 
     with pytest.raises(ValueError):
         evolve(
             None,
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=uuid4(),
                 campaign_id=uuid4(),
                 occurred_at=_NOW,
@@ -690,12 +690,12 @@ def test_run_campaign_assigned_on_empty_state_raises() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_unassigned_clears_campaign_id() -> None:
-    """remove_run_from_campaign writes RunCampaignUnassigned. Evolver
+def test_run_removed_from_campaign_clears_campaign_id() -> None:
+    """remove_run_from_campaign writes RunRemovedFromCampaign. Evolver
     clears campaign_id back to None."""
     from cora.run.aggregates.run.events import (
-        RunCampaignAssigned,
-        RunCampaignUnassigned,
+        RunAddedToCampaign,
+        RunRemovedFromCampaign,
     )
 
     run_id = uuid4()
@@ -703,12 +703,12 @@ def test_run_campaign_unassigned_clears_campaign_id() -> None:
     state = fold(
         [
             _run_started(run_id=run_id),
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=run_id,
                 campaign_id=campaign_id,
                 occurred_at=_NOW,
             ),
-            RunCampaignUnassigned(
+            RunRemovedFromCampaign(
                 run_id=run_id,
                 campaign_id=campaign_id,
                 reason="removed",
@@ -721,13 +721,13 @@ def test_run_campaign_unassigned_clears_campaign_id() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_unassigned_on_empty_state_raises() -> None:
-    from cora.run.aggregates.run.events import RunCampaignUnassigned
+def test_run_removed_from_campaign_on_empty_state_raises() -> None:
+    from cora.run.aggregates.run.events import RunRemovedFromCampaign
 
     with pytest.raises(ValueError):
         evolve(
             None,
-            RunCampaignUnassigned(
+            RunRemovedFromCampaign(
                 run_id=uuid4(),
                 campaign_id=uuid4(),
                 reason="x",
@@ -1151,10 +1151,10 @@ def test_reading_logbook_opened_preserves_pinned_calibrations() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
+def test_run_added_to_campaign_preserves_pinned_calibrations() -> None:
     """Orthogonal arm: post-hoc Campaign membership assignment MUST
     preserve the AsShot anchor."""
-    from cora.run.aggregates.run.events import RunCampaignAssigned
+    from cora.run.aggregates.run.events import RunAddedToCampaign
 
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
     run_id = uuid4()
@@ -1168,7 +1168,7 @@ def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
                 occurred_at=_NOW,
                 pinned_calibrations=(pin_a,),
             ),
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=run_id,
                 campaign_id=uuid4(),
                 occurred_at=_NOW,
@@ -1180,12 +1180,12 @@ def test_run_campaign_assigned_preserves_pinned_calibrations() -> None:
 
 
 @pytest.mark.unit
-def test_run_campaign_unassigned_preserves_pinned_calibrations() -> None:
+def test_run_removed_from_campaign_preserves_pinned_calibrations() -> None:
     """Orthogonal arm: post-hoc Campaign membership removal MUST
     preserve the AsShot anchor."""
     from cora.run.aggregates.run.events import (
-        RunCampaignAssigned,
-        RunCampaignUnassigned,
+        RunAddedToCampaign,
+        RunRemovedFromCampaign,
     )
 
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1201,12 +1201,12 @@ def test_run_campaign_unassigned_preserves_pinned_calibrations() -> None:
                 occurred_at=_NOW,
                 pinned_calibrations=(pin_a,),
             ),
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=run_id,
                 campaign_id=campaign_id,
                 occurred_at=_NOW,
             ),
-            RunCampaignUnassigned(
+            RunRemovedFromCampaign(
                 run_id=run_id,
                 campaign_id=campaign_id,
                 reason="removed",

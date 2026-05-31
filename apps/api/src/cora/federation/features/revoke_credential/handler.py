@@ -3,7 +3,7 @@
 Cross-BC atomic terminal transition: writes `CredentialRevoked` on
 the Federation Credential stream AND a `DecisionRegistered` audit on
 the Decision BC stream in ONE Postgres transaction via
-`EventStore.append_streams`. Mirrors `register_permit` /
+`EventStore.append_streams`. Mirrors `define_permit` /
 `register_credential` (genesis cross-BC writes) but for a TERMINAL
 transition: the Credential stream's expected version is the current
 loaded version, not zero; the Decision stream is fresh (expected

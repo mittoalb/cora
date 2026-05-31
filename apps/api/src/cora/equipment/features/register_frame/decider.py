@@ -26,11 +26,22 @@ Three failure modes folded into `InvalidFrameRootError`:
   3. Both non-None but `placement.parent_frame != parent_frame_id`
      (placement points at a different frame than the Frame declares).
 
+## Supersession invariant
+
+When `command.supersedes` is non-None, the link's
+`predecessor_frame_id` MUST NOT equal the new frame's own id
+(self-supersession is rejected via `FrameCannotSupersedeError`). The
+within-VO invariant (`transform.parent_frame == predecessor_frame_id`)
+is enforced by the `FrameRevisionLink.__post_init__` and surfaces
+as `InvalidFrameRevisionError` before the decider runs.
+
 Eventual-consistency stance: the decider does NOT verify the
-referenced parent Frame exists in the event store. Cycle defense
-(walking the parent chain for cycles) lives at the handler level
-when a `frame_children` projection is available; the decider trusts
-its inputs.
+referenced parent Frame OR the referenced predecessor Frame exists
+in the event store. Cycle defense (walking the parent chain for
+cycles) lives at the handler level when a `frame_children`
+projection is available; supersedes has no cycle-defense need (the
+new frame has no in-edges at register time and supersedes is
+immutable post-register). The decider trusts its inputs.
 
 Name uniqueness within parent scope (`(parent_frame_id, name)`) is
 enforced by the handler's projection precondition, NOT by this
@@ -43,6 +54,7 @@ from uuid import UUID
 from cora.equipment.aggregates.frame import (
     Frame,
     FrameAlreadyExistsError,
+    FrameCannotSupersedeError,
     FrameName,
     FrameRegistered,
     InvalidFrameRootError,
@@ -67,6 +79,8 @@ def decide(
         -> InvalidFrameRootError
       - When child: `placement.parent_frame == parent_frame_id`
         -> InvalidFrameRootError
+      - When `supersedes` is set: `supersedes.predecessor_frame_id !=
+        new_id` (no self-supersession) -> FrameCannotSupersedeError
     """
     if state is not None:
         raise FrameAlreadyExistsError(state.id)
@@ -99,12 +113,21 @@ def decide(
         )
         raise InvalidFrameRootError(msg)
 
+    supersedes = command.supersedes
+    if supersedes is not None and supersedes.predecessor_frame_id == new_id:
+        raise FrameCannotSupersedeError(
+            new_id,
+            f"predecessor_frame_id ({supersedes.predecessor_frame_id!s}) "
+            "cannot equal the new frame's own id (self-supersession)",
+        )
+
     return [
         FrameRegistered(
             frame_id=new_id,
             name=name.value,
             parent_frame_id=parent_frame_id,
             placement_relative_to_parent=placement,
+            supersedes=supersedes,
             occurred_at=now,
         )
     ]

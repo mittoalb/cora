@@ -34,7 +34,7 @@ single id generator).
 Note: `MountPlacementUpdated` is NOT subscribed today. If a future
 slice ever allows changing `placement.parent_frame` post-registration,
 the projection must subscribe MountPlacementUpdated and re-key the
-referenced_frame_id; not in v1 since update_placement keeps the
+referenced_frame_id; not in v1 since update_mount_placement keeps the
 parent_frame fixed (the decider validates new_placement.parent_frame
 matches the existing parent_frame_id).
 """

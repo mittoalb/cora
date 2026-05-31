@@ -4,7 +4,7 @@ Pins the full write+read cycle under real Postgres:
 
   1. register_decision -> rate_decision -> drain projection.
   2. proj_decision_ratings row reflects latest-per-actor wins.
-  3. confidence_at_emit_time denorm flows from proj_decision_summary.
+  3. confidence_at_rating denorm flows from proj_decision_summary.
   4. Re-rating the same Decision from the same actor UPDATEs (not
      inserts a duplicate row); audit-trail keeps both events on the
      stream.
@@ -121,11 +121,11 @@ async def test_rate_decision_end_to_end_persists_and_projects(
     assert decision.ratings[_PRINCIPAL_ID].rating is DecisionRating.USEFUL
     assert decision.ratings[_PRINCIPAL_ID].comment == "exactly what was needed"
 
-    # Projection has the row with confidence_at_emit_time denorm.
+    # Projection has the row with confidence_at_rating denorm.
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT rating, comment, confidence_at_emit_time
+            SELECT rating, comment, confidence_at_rating
               FROM proj_decision_ratings
              WHERE decision_id = $1 AND rated_by_actor_id = $2
             """,
@@ -135,7 +135,7 @@ async def test_rate_decision_end_to_end_persists_and_projects(
     assert row is not None
     assert row["rating"] == "useful"
     assert row["comment"] == "exactly what was needed"
-    assert row["confidence_at_emit_time"] == pytest.approx(0.82)
+    assert row["confidence_at_rating"] == pytest.approx(0.82)
 
 
 @pytest.mark.integration

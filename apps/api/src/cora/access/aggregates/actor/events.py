@@ -88,7 +88,7 @@ class ActorProfileForgotten:
     """
 
     actor_id: UUID
-    forgotten_at: datetime
+    occurred_at: datetime
 
 
 # Discriminated union of every event the Actor aggregate emits. Add new
@@ -126,10 +126,10 @@ def to_payload(event: ActorEvent) -> dict[str, Any]:
                 "actor_id": str(actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case ActorProfileForgotten(actor_id=actor_id, forgotten_at=forgotten_at):
+        case ActorProfileForgotten(actor_id=actor_id, occurred_at=occurred_at):
             return {
                 "actor_id": str(actor_id),
-                "forgotten_at": forgotten_at.isoformat(),
+                "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -195,7 +195,7 @@ def from_stored(stored: StoredEvent) -> ActorEvent:
             try:
                 return ActorProfileForgotten(
                     actor_id=UUID(payload["actor_id"]),
-                    forgotten_at=datetime.fromisoformat(payload["forgotten_at"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError, ValueError) as exc:
                 msg = f"Malformed ActorProfileForgotten payload {payload!r}: {exc}"

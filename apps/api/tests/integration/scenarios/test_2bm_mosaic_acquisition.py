@@ -7,7 +7,7 @@ bc_touches: Campaign, Data, Equipment, Recipe, Run, Subject
 
 Scenario test for a 2x2 spatial-mosaic acquisition: a Subject too
 wide for the camera FOV is imaged as four tile Runs at different
-sample-stage positions, all under a single `Coordinated` Campaign
+sample-stage positions, all under a single `Coordination` Campaign
 so the downstream stitch step has a stable parent grouping.
 
 Sourced from 2-BM operator practice: when the Subject footprint
@@ -24,9 +24,9 @@ taxonomy. See [[project_campaign_design]] for the four
 
 ## Why this scenario exists
 
-The `Campaign(Coordinated)` intent is the third of four intent
+The `Campaign(Coordination)` intent is the third of four intent
 shapes ([[project_campaign_design]]); `Series` is exercised by
-`test_2bm_continuous_rotation_sweep.py`. `Coordinated` differs
+`test_2bm_continuous_rotation_sweep.py`. `Coordination` differs
 from `Series` in that the child Runs are not independent
 replicates: each one carries a tile-grid coordinate, and the
 downstream value comes from stitching all N together. Losing
@@ -37,7 +37,7 @@ This scenario exercises:
 
   - Per-Run spatial-coordinate overrides on a shared Plan
     (`tile_x_mm` / `tile_y_mm` / `tile_index`)
-  - A Campaign whose `intent=Coordinated` and whose member Run
+  - A Campaign whose `intent=Coordination` and whose member Run
     count is fixed by the tile grid (N=4 for a 2x2)
   - One Dataset per tile-Run, each referencing the same Subject
     but a distinct producing Run
@@ -48,12 +48,12 @@ This scenario exercises:
      for a single FOV.
   2. Operator pre-plans a 2x2 tile grid (positions chosen so
      adjacent tiles overlap ~10% for the stitch).
-  3. Coordinated Campaign opens; the four tile Runs will all
+  3. Coordination Campaign opens; the four tile Runs will all
      attach to it.
   4. For each tile (i, j) in {(0,0), (0,1), (1,0), (1,1)}:
        - Start a Run with override_parameters carrying tile_x_mm,
          tile_y_mm, tile_index.
-       - Add the Run to the Coordinated Campaign.
+       - Add the Run to the Coordination Campaign.
        - Complete the Run.
        - Register the tile's raw projection Dataset.
   5. After all four tiles complete, Subject reaches Measured
@@ -66,19 +66,19 @@ and the continuous-rotation series share the multi-Run-per-Subject
 structure but differ on `CampaignIntent`, on the parameter-sweep
 shape (spatial-grid vs replicate), and on the downstream
 processing assumption (stitch vs average). Bundling them would
-hide the design intent of distinguishing `Coordinated` from
+hide the design intent of distinguishing `Coordination` from
 `Series`.
 
 ## What this scenario surfaces (gap-finding intent)
 
-  - **Coordinated intent has no aggregate-side enforcement of
-    tile-completeness.** `Campaign(Coordinated)` does not (today)
+  - **Coordination intent has no aggregate-side enforcement of
+    tile-completeness.** `Campaign(Coordination)` does not (today)
     refuse to `close` if one of its expected tiles is missing.
     Whether a future `expected_run_count` constraint should land
     on Campaign is a watch item; for now the contract is
     operator-discipline + Dataset-side validation downstream.
   - **No "tile manifest" projection yet.** A downstream stitch
-    consumer would benefit from a projection over the Coordinated
+    consumer would benefit from a projection over the Coordination
     Campaign that lists each member Run's `tile_index` for fast
     lookup. Not built; `tile_index` lives in each Run's
     `effective_parameters` snapshot.
@@ -199,7 +199,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="wide sandstone slab (Proposal 2026-1236, mosaic acquisition)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1236 2x2 tile mosaic",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "mosaic", "tomography", "porous_media"}),
 )
 
@@ -281,7 +281,7 @@ def _id_queue() -> list[UUID]:
 async def test_mosaic_acquisition_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Seed full imaging chain + activate, open Coordinated Campaign,
+    """Seed full imaging chain + activate, open Coordination Campaign,
     mount wide Subject once, run N=4 tile Runs at distinct (x, y)
     grid positions each producing its own Dataset, then measure
     the Subject. Assert all tiles landed cleanly and the Campaign
@@ -402,10 +402,10 @@ async def test_mosaic_acquisition_plays_out_end_to_end(
         run_events, _ = await deps.event_store.load("Run", run_id)
         run_event_types = [e.event_type for e in run_events]
         assert "RunStarted" in run_event_types
-        assert "RunCampaignAssigned" in run_event_types
+        assert "RunAddedToCampaign" in run_event_types
         assert "RunCompleted" in run_event_types
 
-    # ----- Assert: Coordinated Campaign accumulated N CampaignRunAdded events -----
+    # ----- Assert: Coordination Campaign accumulated N CampaignRunAdded events -----
 
     campaign_events, _ = await deps.event_store.load("Campaign", _CAMPAIGN_ID)
     campaign_event_types = [e.event_type for e in campaign_events]

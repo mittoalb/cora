@@ -74,7 +74,7 @@ Personal data on Actors lives in a separate mutable `actor_profile` table, not i
 - **Actor aggregate state** holds `id` and `is_active`; no `name`, no `email`. The event payloads carry the same fields.
 - **`actor_profile` table** holds `actor_id PRIMARY KEY`, `name`, optional contact fields, `created_at`, `updated_at`. Written in the same transaction as `ActorRegistered`. The table has `FORCE ROW LEVEL SECURITY` enabled so even superuser sessions go through the policy.
 - **Load path** left-joins `actor_profile` and falls back to `<deleted user>` when the row is absent.
-- **`forget_actor` slice** scrubs-then-deletes the profile row and emits `ActorProfileForgotten(actor_id, forgotten_at)` in a single transaction. The audit event carries no personal data.
+- **`forget_actor` slice** scrubs-then-deletes the profile row and emits `ActorProfileForgotten(actor_id, occurred_at)` in a single transaction. The audit event carries no personal data.
 
 The same pattern applies to any future field that may contain personal data: add it as a nullable column on `actor_profile`, or stand up a parallel vault table when the new field belongs to a different aggregate. The infrastructure is one table, not a key-management system.
 

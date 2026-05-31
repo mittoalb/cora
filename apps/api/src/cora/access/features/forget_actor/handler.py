@@ -165,7 +165,7 @@ def bind(deps: Kernel) -> Handler:
             to_new_event(
                 event_type=event_type_name(event),
                 payload=to_payload(event),
-                occurred_at=event.forgotten_at,
+                occurred_at=event.occurred_at,
                 event_id=deps.id_generator.new_id(),
                 command_name=_COMMAND_NAME,
                 correlation_id=correlation_id,

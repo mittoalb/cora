@@ -56,10 +56,10 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.recipe import UnauthorizedError
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
+    CapabilityDefined,
     CapabilityName,
     CapabilityNotFoundError,
     ExecutorShape,
-    RecipeCapabilityDefined,
 )
 from cora.recipe.aggregates.capability import (
     event_type_name as capability_event_type_name,
@@ -187,7 +187,7 @@ async def _seed_capability(
     *,
     required_affordances: frozenset[Affordance] = frozenset(),
 ) -> None:
-    event = RecipeCapabilityDefined(
+    event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode("cora.capability.test").value,
         name=CapabilityName("Test").value,

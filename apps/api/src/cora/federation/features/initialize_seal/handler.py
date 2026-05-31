@@ -4,7 +4,7 @@ Cross-BC atomic genesis: writes `SealInitialized` on the Federation
 Seal stream AND a `DecisionRegistered` audit on the Decision BC
 stream in ONE Postgres transaction via
 `EventStore.append_streams`. Mirrors `register_credential` and
-`register_permit` before it.
+`define_permit` before it.
 
 The decider builds only the Seal BC event (`SealInitialized`);
 this handler additionally builds the Decision BC audit event

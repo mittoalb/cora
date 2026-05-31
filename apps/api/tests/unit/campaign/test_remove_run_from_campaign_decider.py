@@ -26,8 +26,8 @@ from cora.campaign.features.remove_run_from_campaign.context import (
 )
 from cora.run.aggregates.run import (
     Run,
-    RunCampaignUnassigned,
     RunName,
+    RunRemovedFromCampaign,
     RunStatus,
 )
 
@@ -94,7 +94,7 @@ def test_remove_run_returns_paired_events_on_happy_path() -> None:
         )
     ]
     assert events.run_events == [
-        RunCampaignUnassigned(
+        RunRemovedFromCampaign(
             run_id=_RUN_ID,
             campaign_id=_CAMPAIGN_ID,
             reason="operator removed",

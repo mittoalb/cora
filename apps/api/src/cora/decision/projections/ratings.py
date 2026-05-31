@@ -12,7 +12,7 @@ older one does not overwrite (defensive; production at-least-once
 delivery is in-order per stream, but rebuild-from-scratch crosses
 streams via the projection-worker advance loop).
 
-`confidence_at_emit_time` is captured at write time on the
+`confidence_at_rating` is captured at write time on the
 `DecisionRated` event payload (gate-review cross-BC P2-4: the
 earlier projection-side denorm pattern would have read
 `proj_decision_summary` at apply() time, which races under
@@ -36,13 +36,13 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _UPSERT_RATING_SQL = """
 INSERT INTO proj_decision_ratings
-    (decision_id, rated_by_actor_id, rating, comment, rated_at, confidence_at_emit_time)
+    (decision_id, rated_by_actor_id, rating, comment, rated_at, confidence_at_rating)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (decision_id, rated_by_actor_id) DO UPDATE
    SET rating                   = EXCLUDED.rating,
        comment                  = EXCLUDED.comment,
        rated_at                 = EXCLUDED.rated_at,
-       confidence_at_emit_time  = EXCLUDED.confidence_at_emit_time
+       confidence_at_rating  = EXCLUDED.confidence_at_rating
  WHERE EXCLUDED.rated_at > proj_decision_ratings.rated_at
 """
 
@@ -70,7 +70,7 @@ class DecisionRatingsProjection:
         # `Decision.state.confidence`; null when the rated Decision
         # had no confidence value. No cross-projection read; the
         # payload is the single source of truth.
-        confidence = payload.get("confidence_at_emit_time")
+        confidence = payload.get("confidence_at_rating")
 
         await conn.execute(
             _UPSERT_RATING_SQL,

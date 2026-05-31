@@ -77,7 +77,7 @@ async def test_handler_scrubs_profile_and_appends_audit_event() -> None:
     forgotten = events[1]
     assert forgotten.payload == {
         "actor_id": str(_ACTOR_ID),
-        "forgotten_at": _NOW.isoformat(),
+        "occurred_at": _NOW.isoformat(),
     }
     assert forgotten.metadata == {"command": "ForgetActor"}
     assert forgotten.correlation_id == _CORRELATION_ID

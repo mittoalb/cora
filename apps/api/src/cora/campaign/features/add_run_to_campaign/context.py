@@ -29,7 +29,7 @@ precedent has separate contexts per slice).
     raises `RunNotFoundError` before constructing).
   - `run_version`: the Run stream's current event-store version at
     load time. Used as the expected_version for the Run's
-    `RunCampaignAssigned` append.
+    `RunAddedToCampaign` append.
 """
 
 from dataclasses import dataclass

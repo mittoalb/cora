@@ -28,13 +28,13 @@ multiple events at once); single-element lists work for the
 "one trace at a time" case. Locked at gate-review G4 for the
 entry-store pattern. Empty lists are a no-op.
 
-## Why `messages_jsonb` is the only jsonb column
+## Why `messages` is the only jsonb column
 
 OTel itself models prompt / completion message bodies as a
 separate **event** payload (gated for PII), not span attributes.
 Following that split: typed columns hold the high-signal
 attributes (one row = one client/agent span); a single optional
-`messages_jsonb` carries the variable-shape message-body
+`messages` carries the variable-shape message-body
 payload when the producer opts in (PII / large prompts are
 opt-in, not always-on).
 
@@ -54,7 +54,7 @@ operator queries.
   - `prompt_tokens` / `completion_tokens` are **deprecated**;
     we use `input_tokens` / `output_tokens`.
   - `gen_ai.prompt` / `gen_ai.completion` span attrs are
-    **deprecated**; message bodies go in `messages_jsonb`.
+    **deprecated**; message bodies go in `messages`.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -76,12 +76,12 @@ DecisionReasoningToolType = Literal["Extension", "Function", "Datastore"]
 # OTel gen_ai.operation.name well-known values per v1.38. Open
 # string at the storage layer; new operation names from future OTel
 # spec versions arrive without schema changes.
-DECISION_REASONING_OP_CHAT = "chat"
-DECISION_REASONING_OP_TEXT_COMPLETION = "text_completion"
-DECISION_REASONING_OP_EMBEDDINGS = "embeddings"
-DECISION_REASONING_OP_EXECUTE_TOOL = "execute_tool"
-DECISION_REASONING_OP_INVOKE_AGENT = "invoke_agent"
-DECISION_REASONING_OP_CREATE_AGENT = "create_agent"
+DECISION_REASONING_OPERATION_CHAT = "chat"
+DECISION_REASONING_OPERATION_TEXT_COMPLETION = "text_completion"
+DECISION_REASONING_OPERATION_EMBEDDINGS = "embeddings"
+DECISION_REASONING_OPERATION_EXECUTE_TOOL = "execute_tool"
+DECISION_REASONING_OPERATION_INVOKE_AGENT = "invoke_agent"
+DECISION_REASONING_OPERATION_CREATE_AGENT = "create_agent"
 
 
 @dataclass(frozen=True)
@@ -134,7 +134,7 @@ class DecisionReasoning:
     tool_call_id: str | None  # gen_ai.tool.call.id
     tool_type: str | None  # gen_ai.tool.type
     # --- OTel event payload (PII-gated; opt-in by producer) ---
-    messages_jsonb: dict[str, Any] | None
+    messages: dict[str, Any] | None
 
 
 # Schema declared on DecisionLogbookOpened payloads when a
@@ -190,7 +190,7 @@ REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
         "AI-decider reasoning trace per OpenTelemetry GenAI semantic conventions "
         "v1.38 (gen_ai.* attribute family). One entry = one LLM client span / "
         "agent span / tool invocation. Message bodies (prompt + completion) are "
-        "gated to an optional messages_jsonb event-payload column for PII control."
+        "gated to an optional messages event-payload column for PII control."
     ),
 )
 
@@ -223,7 +223,7 @@ INSERT INTO entries_decision_reasonings (
     input_tokens, output_tokens,
     agent_id, agent_name, agent_description, conversation_id,
     tool_name, tool_call_id, tool_type,
-    messages_jsonb
+    messages
 ) VALUES (
     $1, $2, $3, $4, $5,
     $6, $7,
@@ -255,7 +255,7 @@ class PostgresReasoningStore:
     `INSERT ... VALUES (...), (...)` statement.
     Deferred-with-trigger.
 
-    `messages_jsonb` is pre-encoded to a JSON string via
+    `messages` is pre-encoded to a JSON string via
     `json.dumps(...)` rather than relying on asyncpg's auto
     dict -> jsonb codec. Defensive: asyncpg's codec registration
     varies across versions; explicit pre-encoding is version-
@@ -276,7 +276,7 @@ class PostgresReasoningStore:
             return
         # asyncpg encodes Python list -> Postgres array natively;
         # finish_reasons is text[] (matches the column type).
-        # messages_jsonb gets json.dumps()-encoded by the connection
+        # messages gets json.dumps()-encoded by the connection
         # via a registered codec or by passing as JSON-encoded string.
         # We pre-encode to be explicit and avoid asyncpg-version drift.
         import json
@@ -312,7 +312,7 @@ class PostgresReasoningStore:
                         row.tool_name,
                         row.tool_call_id,
                         row.tool_type,
-                        json.dumps(row.messages_jsonb) if row.messages_jsonb is not None else None,
+                        json.dumps(row.messages) if row.messages is not None else None,
                     )
                     for row in rows
                 ],
@@ -342,12 +342,12 @@ class InMemoryReasoningStore:
 
 
 __all__ = [
-    "DECISION_REASONING_OP_CHAT",
-    "DECISION_REASONING_OP_CREATE_AGENT",
-    "DECISION_REASONING_OP_EMBEDDINGS",
-    "DECISION_REASONING_OP_EXECUTE_TOOL",
-    "DECISION_REASONING_OP_INVOKE_AGENT",
-    "DECISION_REASONING_OP_TEXT_COMPLETION",
+    "DECISION_REASONING_OPERATION_CHAT",
+    "DECISION_REASONING_OPERATION_CREATE_AGENT",
+    "DECISION_REASONING_OPERATION_EMBEDDINGS",
+    "DECISION_REASONING_OPERATION_EXECUTE_TOOL",
+    "DECISION_REASONING_OPERATION_INVOKE_AGENT",
+    "DECISION_REASONING_OPERATION_TEXT_COMPLETION",
     "REASONING_LOGBOOK_SCHEMA",
     "DecisionReasoning",
     "DecisionReasoningToolType",

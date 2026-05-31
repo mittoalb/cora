@@ -20,7 +20,7 @@ one per BC) is documented at the Asset wrapper.
 
 ## Used by
 
-  - `update_placement` (single-stream update; idempotent on equal
+  - `update_mount_placement` (single-stream update; idempotent on equal
     placement at the decider).
   - `uninstall_asset` (single-stream update; state-based precondition
     only, no projection lookup).

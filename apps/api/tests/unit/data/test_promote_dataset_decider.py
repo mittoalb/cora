@@ -36,7 +36,7 @@ from cora.data.aggregates.dataset import (
     InvalidPromotionReasonError,
 )
 from cora.data.features import promote_dataset
-from cora.data.features.promote_dataset import PromoteDataset, PromotionContext
+from cora.data.features.promote_dataset import DatasetPromotionContext, PromoteDataset
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -72,7 +72,7 @@ def test_decide_raises_dataset_not_found_when_state_is_none() -> None:
         promote_dataset.decide(
             state=None,
             command=PromoteDataset(dataset_id=uuid4(), reason="passed peer review"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
 
@@ -84,7 +84,7 @@ def test_decide_raises_cannot_promote_when_discarded() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="trying to revive"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
     assert "discarded" in exc_info.value.reason.lower()
@@ -98,7 +98,7 @@ def test_decide_raises_already_promoted_when_intent_is_production() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="re-promote attempt"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
     assert exc_info.value.current_intent is Intent.PRODUCTION
@@ -116,7 +116,7 @@ def test_decide_raises_cannot_promote_when_producing_run_aborted() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="trying"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
     assert "Aborted" in exc_info.value.reason
@@ -135,7 +135,7 @@ def test_decide_rejects_all_non_completed_run_end_states(end_state: str) -> None
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="trying"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
 
@@ -148,7 +148,7 @@ def test_decide_skips_run_guard_when_no_producing_run() -> None:
     events = promote_dataset.decide(
         state=state,
         command=PromoteDataset(dataset_id=state.id, reason="reference dataset"),
-        context=PromotionContext(derived_from={}),
+        context=DatasetPromotionContext(derived_from={}),
         now=_NOW,
     )
     assert len(events) == 1
@@ -170,7 +170,7 @@ def test_decide_raises_cannot_promote_when_lineage_has_trial_dataset() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="trying"),
-            context=PromotionContext(derived_from={upstream_id: upstream}),
+            context=DatasetPromotionContext(derived_from={upstream_id: upstream}),
             now=_NOW,
         )
     assert "Trial" in exc_info.value.reason
@@ -191,7 +191,7 @@ def test_decide_passes_when_lineage_all_production() -> None:
     events = promote_dataset.decide(
         state=state,
         command=PromoteDataset(dataset_id=state.id, reason="passed peer review"),
-        context=PromotionContext(derived_from={up1: upstream1, up2: upstream2}),
+        context=DatasetPromotionContext(derived_from={up1: upstream1, up2: upstream2}),
         now=_NOW,
     )
     assert events == [
@@ -214,7 +214,7 @@ def test_decide_skips_lineage_guard_when_derived_from_empty() -> None:
     events = promote_dataset.decide(
         state=state,
         command=PromoteDataset(dataset_id=state.id, reason="raw acquisition"),
-        context=PromotionContext(derived_from={}),
+        context=DatasetPromotionContext(derived_from={}),
         now=_NOW,
     )
     assert len(events) == 1
@@ -230,7 +230,7 @@ def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="   "),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
 
@@ -246,7 +246,7 @@ def test_decide_raises_invalid_reason_for_too_long() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason=overlong),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
 
@@ -258,7 +258,7 @@ def test_decide_emits_event_with_trimmed_reason() -> None:
     events = promote_dataset.decide(
         state=state,
         command=PromoteDataset(dataset_id=state.id, reason="  passed review  "),
-        context=PromotionContext(derived_from={}),
+        context=DatasetPromotionContext(derived_from={}),
         now=_NOW,
     )
     assert events[0].reason == "passed review"
@@ -278,7 +278,7 @@ def test_decide_validates_status_before_intent_guard() -> None:
         promote_dataset.decide(
             state=state,
             command=PromoteDataset(dataset_id=state.id, reason="trying"),
-            context=PromotionContext(derived_from={}),
+            context=DatasetPromotionContext(derived_from={}),
             now=_NOW,
         )
     # Verify the discard-related message wins, not the already-promoted message

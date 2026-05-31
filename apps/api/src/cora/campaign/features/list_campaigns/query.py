@@ -41,7 +41,7 @@ from uuid import UUID
 CampaignIntentFilter = Literal[
     "Series",
     "Sweep",
-    "Coordinated",
+    "Coordination",
     "Block",
 ]
 

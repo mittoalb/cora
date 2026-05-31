@@ -199,7 +199,7 @@ async def test_actor_profile_forgotten_rewrites_cached_name_to_tombstone() -> No
     conn = AsyncMock()
     event = _stored(
         "ActorProfileForgotten",
-        {"actor_id": str(_ACTOR_ID), "forgotten_at": _NOW.isoformat()},
+        {"actor_id": str(_ACTOR_ID), "occurred_at": _NOW.isoformat()},
     )
 
     await proj.apply(event, conn)
@@ -224,7 +224,7 @@ async def test_actor_profile_forgotten_apply_is_idempotent() -> None:
     conn = AsyncMock()
     event = _stored(
         "ActorProfileForgotten",
-        {"actor_id": str(_ACTOR_ID), "forgotten_at": _NOW.isoformat()},
+        {"actor_id": str(_ACTOR_ID), "occurred_at": _NOW.isoformat()},
     )
 
     await proj.apply(event, conn)

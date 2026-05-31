@@ -180,7 +180,7 @@ class RunStarted:
     acknowledged_cautions: tuple[CautionAcknowledgement, ...] = ()
     # optional Campaign membership stamped at Run-start.
     # None when the Run is standalone or when membership is established
-    # post-hoc (via `add_run_to_campaign` → RunCampaignAssigned). When
+    # post-hoc (via `add_run_to_campaign` → RunAddedToCampaign). When
     # `StartRun.campaign_id` is provided the handler atomically writes
     # this event AND `CampaignRunAdded` to the Campaign stream via
     # `EventStore.append_streams` (mirrors amend_clearance shape).
@@ -214,7 +214,7 @@ class RunStarted:
 
 
 @dataclass(frozen=True)
-class RunCampaignAssigned:
+class RunAddedToCampaign:
     """A Run was added to a Campaign post-hoc.
 
     Written by the cross-aggregate `add_run_to_campaign` slice on the
@@ -222,7 +222,7 @@ class RunCampaignAssigned:
     Campaign's stream (via `EventStore.append_streams`). Distinct from
     `RunStarted.campaign_id`, which covers the at-start membership
     path. Splitting the two paths keeps the evolver's state-derivation
-    clean: RunStarted is the genesis arm; RunCampaignAssigned is a
+    clean: RunStarted is the genesis arm; RunAddedToCampaign is a
     post-genesis transition that requires prior state.
 
     Invariants enforced at the cross-aggregate decider (NOT here at
@@ -237,7 +237,7 @@ class RunCampaignAssigned:
 
 
 @dataclass(frozen=True)
-class RunCampaignUnassigned:
+class RunRemovedFromCampaign:
     """A Run was removed from its Campaign.
 
     Written by the cross-aggregate `remove_run_from_campaign` slice on
@@ -363,7 +363,7 @@ class RunReadingLogbookOpened:
     follow the `<Aggregate><EntryNoun>LogbookOpened` skeleton then.
     Per [[project_logbook_entry_storage]] cross-BC family table.
 
-    Lazy open-on-first-write: emitted by the `append_run_reading`
+    Lazy open-on-first-write: emitted by the `append_run_readings`
     handler the first time a reading is appended for this Run, NOT
     by `start_run` (mirrors Decision BC's 8c-b precedent for
     `DecisionLogbookOpened`). Subsequent appends find the logbook
@@ -387,7 +387,7 @@ class RunReadingLogbookOpened:
 
     No `RunReadingLogbookClosed` event today: Run.status terminals
     (Completed | Aborted | Stopped | Truncated) are the implicit
-    close signal; `append_run_reading` rejects writes when status is
+    close signal; `append_run_readings` rejects writes when status is
     terminal via `RunReadingLogbookClosedError`. Audit fidelity is
     preserved: the open event timestamps the logbook lifecycle start;
     the terminal RunCompleted / RunAborted / etc. event timestamps
@@ -492,8 +492,8 @@ RunEvent = (
     | RunTruncated
     | RunAdjusted
     | RunReadingLogbookOpened
-    | RunCampaignAssigned
-    | RunCampaignUnassigned
+    | RunAddedToCampaign
+    | RunRemovedFromCampaign
 )
 
 
@@ -638,7 +638,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "schema": schema.to_dict(),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RunCampaignAssigned(
+        case RunAddedToCampaign(
             run_id=run_id,
             campaign_id=campaign_id,
             occurred_at=occurred_at,
@@ -648,7 +648,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "campaign_id": str(campaign_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RunCampaignUnassigned(
+        case RunRemovedFromCampaign(
             run_id=run_id,
             campaign_id=campaign_id,
             reason=reason,
@@ -824,26 +824,26 @@ def from_stored(stored: StoredEvent) -> RunEvent:
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed RunReadingLogbookOpened payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "RunCampaignAssigned":
+        case "RunAddedToCampaign":
             try:
-                return RunCampaignAssigned(
+                return RunAddedToCampaign(
                     run_id=UUID(payload["run_id"]),
                     campaign_id=UUID(payload["campaign_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunCampaignAssigned payload {payload!r}: {exc}"
+                msg = f"Malformed RunAddedToCampaign payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
-        case "RunCampaignUnassigned":
+        case "RunRemovedFromCampaign":
             try:
-                return RunCampaignUnassigned(
+                return RunRemovedFromCampaign(
                     run_id=UUID(payload["run_id"]),
                     campaign_id=UUID(payload["campaign_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
-                msg = f"Malformed RunCampaignUnassigned payload {payload!r}: {exc}"
+                msg = f"Malformed RunRemovedFromCampaign payload {payload!r}: {exc}"
                 raise ValueError(msg) from exc
         case _:
             msg = f"Unknown RunEvent event_type: {stored.event_type!r}"
@@ -853,13 +853,13 @@ def from_stored(stored: StoredEvent) -> RunEvent:
 __all__ = [
     "CautionAcknowledgement",
     "RunAborted",
+    "RunAddedToCampaign",
     "RunAdjusted",
-    "RunCampaignAssigned",
-    "RunCampaignUnassigned",
     "RunCompleted",
     "RunEvent",
     "RunHeld",
     "RunReadingLogbookOpened",
+    "RunRemovedFromCampaign",
     "RunResumed",
     "RunStarted",
     "RunStopped",

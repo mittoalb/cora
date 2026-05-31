@@ -14,12 +14,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetFamilyRemoved,
     AssetFaulted,
     AssetMaintenanceEntered,
+    AssetMaintenanceExited,
     AssetPortAdded,
     AssetPortRemoved,
     AssetRegistered,
     AssetRelocated,
     AssetRestored,
-    AssetRestoredFromMaintenance,
     AssetSettingsUpdated,
     event_type_name,
     from_stored,
@@ -509,19 +509,19 @@ def test_to_payload_then_from_stored_round_trips_for_asset_maintenance_entered()
     assert from_stored(stored) == original
 
 
-# ---------- AssetRestoredFromMaintenance ----------
+# ---------- AssetMaintenanceExited ----------
 
 
 @pytest.mark.unit
-def test_event_type_name_returns_asset_restored_from_maintenance_class_name() -> None:
-    event = AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW)
-    assert event_type_name(event) == "AssetRestoredFromMaintenance"
+def test_event_type_name_returns_asset_maintenance_exited_class_name() -> None:
+    event = AssetMaintenanceExited(asset_id=uuid4(), occurred_at=_NOW)
+    assert event_type_name(event) == "AssetMaintenanceExited"
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_asset_restored_from_maintenance_to_primitives() -> None:
+def test_to_payload_serializes_asset_maintenance_exited_to_primitives() -> None:
     asset_id = uuid4()
-    event = AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW)
+    event = AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW)
     payload = to_payload(event)
     assert payload == {
         "asset_id": str(asset_id),
@@ -531,23 +531,23 @@ def test_to_payload_serializes_asset_restored_from_maintenance_to_primitives() -
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_asset_restored_from_maintenance() -> None:
+def test_from_stored_rebuilds_asset_maintenance_exited() -> None:
     asset_id = uuid4()
     stored = _stored(
-        "AssetRestoredFromMaintenance",
+        "AssetMaintenanceExited",
         {
             "asset_id": str(asset_id),
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == AssetRestoredFromMaintenance(asset_id=asset_id, occurred_at=_NOW)
+    assert rebuilt == AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW)
 
 
 @pytest.mark.unit
-def test_to_payload_then_from_stored_round_trips_for_asset_restored_from_maintenance() -> None:
-    original = AssetRestoredFromMaintenance(asset_id=uuid4(), occurred_at=_NOW)
-    stored = _stored("AssetRestoredFromMaintenance", to_payload(original))
+def test_to_payload_then_from_stored_round_trips_for_asset_maintenance_exited() -> None:
+    original = AssetMaintenanceExited(asset_id=uuid4(), occurred_at=_NOW)
+    stored = _stored("AssetMaintenanceExited", to_payload(original))
     assert from_stored(stored) == original
 
 
@@ -973,7 +973,7 @@ def test_from_stored_upcasts_legacy_asset_capability_removed_to_asset_family_rem
         "AssetDecommissioned",
         "AssetRelocated",
         "AssetMaintenanceEntered",
-        "AssetRestoredFromMaintenance",
+        "AssetMaintenanceExited",
         "AssetCapabilityAdded",
         "AssetCapabilityRemoved",
         "AssetFamilyAdded",

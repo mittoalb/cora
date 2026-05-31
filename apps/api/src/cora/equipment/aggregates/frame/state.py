@@ -45,7 +45,7 @@ Transitions:
                                    active child Frame references this
                                    frame)
 
-`update_frame` does NOT change status; it updates
+`update_frame_placement` does NOT change status; it updates
 `placement_relative_to_parent` and is a no-op when the new placement
 equals the current one (idempotent contract via
 `make_asset_update_handler`).
@@ -197,6 +197,47 @@ class FrameInUseError(Exception):
         self.consumer_ids = consumer_ids
 
 
+class InvalidFrameRevisionError(ValueError):
+    """A FrameRevisionLink VO failed its within-VO invariant.
+
+    The link carries a predecessor frame id plus a transform expressing
+    where this frame's origin sits relative to the predecessor's. The
+    transform's `parent_frame` field MUST equal `predecessor_frame_id`
+    so the transform unambiguously names which frame it transforms
+    from. Mirrors `Placement.__post_init__`'s within-VO validation
+    precedent (finiteness, non-negative tolerance).
+
+    Cross-Frame invariants (self-supersession, predecessor existence)
+    live in the decider, not here.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid FrameRevisionLink: {reason}")
+        self.reason = reason
+
+
+class FrameCannotSupersedeError(Exception):
+    """Attempted to register a frame whose `supersedes` link is rejected
+    by decider-layer cross-Frame rules.
+
+    Reason-bearing shape mirrors `FrameCannotUpdateError` /
+    `FrameCannotDecommissionError`. v1 fires on one case:
+      - Self-supersession: `supersedes.predecessor_frame_id` equals
+        the frame's own `frame_id`.
+
+    Predecessor existence is NOT checked here. The codebase follows
+    eventual-consistency for cross-Frame references (per the
+    Mount.placement.parent_frame precedent), so a supersedes pointer
+    at a non-existent predecessor frame is data-integrity, not write-
+    time rejection.
+    """
+
+    def __init__(self, frame_id: UUID, reason: str) -> None:
+        super().__init__(f"Frame {frame_id} cannot supersede: {reason}")
+        self.frame_id = frame_id
+        self.reason = reason
+
+
 @dataclass(frozen=True)
 class FrameName:
     """Display name for a frame. Trimmed; 1-200 chars.
@@ -219,6 +260,39 @@ class FrameName:
 
 
 @dataclass(frozen=True)
+class FrameRevisionLink:
+    """Links a Frame to the predecessor it revises.
+
+    The predecessor is an older revision of the same physical
+    coordinate system. Concrete example: APSU shifted the storage-ring
+    reference origin, so a new `F_2BM_apsu` root frame supersedes
+    the prior `F_2BM_pre_apsu` root frame. Both stay as root frames
+    (siblings under the facility origin); revision and spatial
+    hierarchy are deliberately separated.
+
+    `transform_from_predecessor` is the Placement that maps a
+    position expressed in the predecessor's coordinates to this
+    frame's coordinates. The transform's `parent_frame` field MUST
+    equal `predecessor_frame_id`; the within-VO invariant is enforced
+    in `__post_init__` (mirror of `Placement.__post_init__`'s
+    finiteness/tolerance checks).
+
+    Cross-Frame invariants (self-supersession, predecessor existence)
+    are decider/handler concerns, not VO concerns.
+    """
+
+    predecessor_frame_id: UUID
+    transform_from_predecessor: Placement
+
+    def __post_init__(self) -> None:
+        if self.transform_from_predecessor.parent_frame != self.predecessor_frame_id:
+            raise InvalidFrameRevisionError(
+                f"transform.parent_frame ({self.transform_from_predecessor.parent_frame!s}) "
+                f"must equal predecessor_frame_id ({self.predecessor_frame_id!s})"
+            )
+
+
+@dataclass(frozen=True)
 class Frame:
     """Aggregate root: a named coordinate frame in the placement tree.
 
@@ -233,13 +307,22 @@ class Frame:
     `placement.parent_frame == parent_frame_id` is enforced at the
     decider.
 
+    `supersedes` marks this frame as a revision of an older frame
+    (typically same physical coordinate system, e.g., post-upgrade
+    re-survey of an origin). `None` for non-revision frames. Carries
+    both the lineage pointer (predecessor_frame_id) and the geometric
+    transform between the two coordinate systems. Set at registration
+    only; immutable thereafter.
+
     `status` is `Active` at registration and transitions only to
-    `Decommissioned` (terminal). The `update_frame` slice mutates
-    `placement_relative_to_parent` but leaves status unchanged.
+    `Decommissioned` (terminal). The `update_frame_placement` slice mutates
+    `placement_relative_to_parent` but leaves status and supersedes
+    unchanged.
     """
 
     id: UUID
     name: FrameName
     parent_frame_id: UUID | None
     placement_relative_to_parent: Placement | None
+    supersedes: FrameRevisionLink | None = None
     status: FrameStatus = FrameStatus.ACTIVE

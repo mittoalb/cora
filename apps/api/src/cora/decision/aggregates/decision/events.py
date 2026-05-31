@@ -140,7 +140,7 @@ class DecisionRated:
     domain-aware queries and `occurred_at` for envelope-bound
     audit / ordering.
 
-    `confidence_at_emit_time` captures the rated Decision's
+    `confidence_at_rating` captures the rated Decision's
     `confidence` value at the instant the rating was recorded
     (gate-review cross-BC P2-4: payload-borne avoids the cross-
     projection read race that the original projection-side denorm
@@ -162,7 +162,7 @@ class DecisionRated:
     rated_by_actor_id: UUID
     rated_at: datetime
     occurred_at: datetime
-    confidence_at_emit_time: float | None
+    confidence_at_rating: float | None
 
 
 # 8c-a expands the union with the two logbook lifecycle events.
@@ -244,7 +244,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
             rated_by_actor_id=rated_by_actor_id,
             rated_at=rated_at,
             occurred_at=occurred_at,
-            confidence_at_emit_time=confidence_at_emit_time,
+            confidence_at_rating=confidence_at_rating,
         ):
             return {
                 "decision_id": str(decision_id),
@@ -253,7 +253,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 "rated_by_actor_id": str(rated_by_actor_id),
                 "rated_at": rated_at.isoformat(),
                 "occurred_at": occurred_at.isoformat(),
-                "confidence_at_emit_time": confidence_at_emit_time,
+                "confidence_at_rating": confidence_at_rating,
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -318,7 +318,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                 # `occurred_at` defaults to `rated_at` for forward-compat
                 # with pre-cleanup payloads (none exist in production but
                 # the .get() pattern is the cross-BC additive-evolution
-                # convention). Same for `confidence_at_emit_time` -> None.
+                # convention). Same for `confidence_at_rating` -> None.
                 rated_at = datetime.fromisoformat(payload["rated_at"])
                 occurred_at_raw = payload.get("occurred_at")
                 return DecisionRated(
@@ -332,7 +332,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                         if occurred_at_raw is not None
                         else rated_at
                     ),
-                    confidence_at_emit_time=payload.get("confidence_at_emit_time"),
+                    confidence_at_rating=payload.get("confidence_at_rating"),
                 )
             except (KeyError, TypeError, AttributeError) as exc:
                 msg = f"Malformed DecisionRated payload {payload!r}: {exc}"

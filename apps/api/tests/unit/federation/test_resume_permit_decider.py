@@ -51,7 +51,7 @@ def _existing_permit(*, status: PermitStatus) -> Permit:
         direction=Direction.OUTBOUND,
         allowed_credentials=frozenset(),
         allowed_payload_types=frozenset({"application/cora.dataset+json"}),
-        permitted_artifact_kinds=frozenset({"dataset"}),
+        allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_DEFINING_PRINCIPAL_ID,

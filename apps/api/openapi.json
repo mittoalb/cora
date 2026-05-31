@@ -1609,11 +1609,11 @@
         "type": "object"
       },
       "CampaignIntent": {
-        "description": "Intent-shape vocabulary; what KIND of coordination this Campaign carries.\n\nFour abstract shape categories: what the operator is coordinating,\nnot the scientific technique. Technique-specific tagging (in-situ,\noperando, tomography, EDD, etc.) goes on the free\n`tags: frozenset[CampaignTag]` field. Closed enum + free tags\nyields a reportable shape vocabulary plus a flexible domain-\nvocabulary surface.\n\n  - `Series`      -- multiple measurements coordinated over time on\n                     shared resources\n  - `Sweep`       -- parametric exploration (axes swept across runs)\n  - `Coordinated` -- multi-modal or multi-Subject coordinated\n                     acquisition\n  - `Block`       -- scheduling envelope (proposal / beamtime block /\n                     cycle)",
+        "description": "Intent-shape vocabulary; what KIND of coordination this Campaign carries.\n\nFour abstract shape categories: what the operator is coordinating,\nnot the scientific technique. Technique-specific tagging (in-situ,\noperando, tomography, EDD, etc.) goes on the free\n`tags: frozenset[CampaignTag]` field. Closed enum + free tags\nyields a reportable shape vocabulary plus a flexible domain-\nvocabulary surface.\n\n  - `Series`       -- multiple measurements coordinated over time on\n                      shared resources\n  - `Sweep`        -- parametric exploration (axes swept across runs)\n  - `Coordination` -- multi-modal or multi-Subject coordinated\n                      acquisition\n  - `Block`        -- scheduling envelope (proposal / beamtime block /\n                      cycle)",
         "enum": [
           "Series",
           "Sweep",
-          "Coordinated",
+          "Coordination",
           "Block"
         ],
         "title": "CampaignIntent",
@@ -4104,6 +4104,106 @@
         "title": "DefineMethodResponse",
         "type": "object"
       },
+      "DefinePermitRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/permits`.",
+        "properties": {
+          "abi_tier_floor": {
+            "$ref": "#/components/schemas/AbiTier",
+            "description": "Lowest tier the permit honors on either side."
+          },
+          "allowed_artifact_kinds": {
+            "description": "Artifact-kind strings honored on either side of the relationship.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Artifact Kinds",
+            "type": "array"
+          },
+          "allowed_credentials": {
+            "description": "Bounded set of Credential ids permitted under this permit.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Credentials",
+            "type": "array"
+          },
+          "allowed_payload_types": {
+            "description": "Payload-type strings honored on either side of the relationship.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Payload Types",
+            "type": "array"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/Direction",
+            "description": "Query-convenience discriminator mirroring `type(terms)`. Must match the `terms.kind` arm; the decider rejects mismatches."
+          },
+          "expires_at": {
+            "description": "Contractual upper bound; must lie strictly after the server's now.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "peer_facility_id": {
+            "description": "Opaque string id of the peer facility. Federation peers are external entities; CORA does NOT mint their ids.",
+            "minLength": 1,
+            "title": "Peer Facility Id",
+            "type": "string"
+          },
+          "terms": {
+            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scope_set` + `read_scope` + `onward_action_scope`; `Inbound` carries `inbound_allowed_artifact_kinds` + optional canonicalization / receipt config.",
+            "discriminator": {
+              "mapping": {
+                "Inbound": "#/components/schemas/_InboundTermsRequest",
+                "Outbound": "#/components/schemas/_OutboundTermsRequest"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/_OutboundTermsRequest"
+              },
+              {
+                "$ref": "#/components/schemas/_InboundTermsRequest"
+              }
+            ],
+            "title": "Terms"
+          }
+        },
+        "required": [
+          "peer_facility_id",
+          "direction",
+          "allowed_credentials",
+          "allowed_payload_types",
+          "allowed_artifact_kinds",
+          "abi_tier_floor",
+          "expires_at",
+          "terms"
+        ],
+        "title": "DefinePermitRequest",
+        "type": "object"
+      },
+      "DefinePermitResponse": {
+        "description": "Response body for `POST /federation/permits`.",
+        "properties": {
+          "permit_id": {
+            "format": "uuid",
+            "title": "Permit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "permit_id"
+        ],
+        "title": "DefinePermitResponse",
+        "type": "object"
+      },
       "DefinePlanRequest": {
         "description": "Body for `POST /plans`.",
         "properties": {
@@ -4928,7 +5028,7 @@
         "title": "FederationErrorDTO",
         "type": "object"
       },
-      "GHSDTO": {
+      "GhsDto": {
         "properties": {
           "code": {
             "description": "GHS pictogram code; one of ['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07', 'GHS08', 'GHS09'].",
@@ -4953,7 +5053,7 @@
           "kind",
           "code"
         ],
-        "title": "GHSDTO",
+        "title": "GhsDto",
         "type": "object"
       },
       "GrantToolToAgentRequest": {
@@ -4992,7 +5092,7 @@
             "items": {
               "discriminator": {
                 "mapping": {
-                  "GHS": "#/components/schemas/GHSDTO",
+                  "GHS": "#/components/schemas/GhsDto",
                   "NFPA704": "#/components/schemas/NFPA704DTO",
                   "RiskBand": "#/components/schemas/RiskBandDTO",
                   "Scheme": "#/components/schemas/SchemeDTO"
@@ -5007,7 +5107,7 @@
                   "$ref": "#/components/schemas/RiskBandDTO"
                 },
                 {
-                  "$ref": "#/components/schemas/GHSDTO"
+                  "$ref": "#/components/schemas/GhsDto"
                 },
                 {
                   "$ref": "#/components/schemas/SchemeDTO"
@@ -5773,6 +5873,13 @@
             ],
             "title": "Activated At"
           },
+          "allowed_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Artifact Kinds",
+            "type": "array"
+          },
           "allowed_credentials": {
             "items": {
               "format": "uuid",
@@ -5815,13 +5922,6 @@
           "peer_facility_id": {
             "title": "Peer Facility Id",
             "type": "string"
-          },
-          "permitted_artifact_kinds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Permitted Artifact Kinds",
-            "type": "array"
           },
           "resumed_at": {
             "anyOf": [
@@ -5888,7 +5988,7 @@
           "direction",
           "allowed_credentials",
           "allowed_payload_types",
-          "permitted_artifact_kinds",
+          "allowed_artifact_kinds",
           "abi_tier_floor",
           "expires_at",
           "defined_by_actor_id",
@@ -5927,6 +6027,13 @@
               }
             ],
             "title": "Activated At"
+          },
+          "allowed_artifact_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Artifact Kinds",
+            "type": "array"
           },
           "allowed_credentials": {
             "items": {
@@ -5970,13 +6077,6 @@
             "format": "uuid",
             "title": "Permit Id",
             "type": "string"
-          },
-          "permitted_artifact_kinds": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Permitted Artifact Kinds",
-            "type": "array"
           },
           "resumed_at": {
             "anyOf": [
@@ -6674,7 +6774,7 @@
         "type": "object"
       },
       "ProcedureStatus": {
-        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; legacy events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure. Step events accepted\n                      via append_procedure_step.\n  - `Completed`   -- happy path via complete_procedure.\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure.\n  - `Truncated`   -- retroactive cleanup via truncate_procedure.\n                      Mirrors RunTruncated.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field). Held / Resumed\ndeferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
+        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; legacy events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure. Step events accepted\n                      via append_procedure_steps.\n  - `Completed`   -- happy path via complete_procedure.\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure.\n  - `Truncated`   -- retroactive cleanup via truncate_procedure.\n                      Mirrors RunTruncated.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field). Held / Resumed\ndeferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
         "enum": [
           "Defined",
           "Running",
@@ -6962,7 +7062,7 @@
       },
       "ReasoningEntryRequest": {
         "additionalProperties": false,
-        "description": "One reasoning entry's input payload (OTel gen_ai.* shape).\n\nRequired: provider_name + operation_name + request_model\n(NOT NULL discriminators per OTel semconv v1.38). Rest are\noptional; messages_jsonb is the opt-in PII-gated payload.",
+        "description": "One reasoning entry's input payload (OTel gen_ai.* shape).\n\nRequired: provider_name + operation_name + request_model\n(NOT NULL discriminators per OTel semconv v1.38). Rest are\noptional; messages is the opt-in PII-gated payload.",
         "properties": {
           "agent_description": {
             "anyOf": [
@@ -7052,7 +7152,7 @@
             ],
             "title": "Input Tokens"
           },
-          "messages_jsonb": {
+          "messages": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -7063,7 +7163,7 @@
               }
             ],
             "description": "Opt-in PII-gated payload: prompt + completion message bodies (OTel event-payload split). Producer responsible for JSON-roundtrippability.",
-            "title": "Messages Jsonb"
+            "title": "Messages"
           },
           "occurred_at": {
             "description": "Domain time (ISO-8601 with timezone) of the trace event.",
@@ -7388,7 +7488,7 @@
           },
           "intent": {
             "$ref": "#/components/schemas/CampaignIntent",
-            "description": "Closed intent-shape vocabulary: Series, Sweep, Coordinated, Block. Describes what KIND of coordination the Campaign carries, not the scientific technique (technique tagging lives on tags)."
+            "description": "Closed intent-shape vocabulary: Series, Sweep, Coordination, Block. Describes what KIND of coordination the Campaign carries, not the scientific technique (technique tagging lives on tags)."
           },
           "lead_actor_id": {
             "description": "REQUIRED. The Campaign's PI / lead operator. Operator-asserted; may differ from the registering principal (LIMS Study Director precedent).",
@@ -8150,106 +8250,6 @@
           "mount_id"
         ],
         "title": "RegisterMountResponse",
-        "type": "object"
-      },
-      "RegisterPermitRequest": {
-        "additionalProperties": false,
-        "description": "Body for `POST /federation/permits`.",
-        "properties": {
-          "abi_tier_floor": {
-            "$ref": "#/components/schemas/AbiTier",
-            "description": "Lowest tier the permit honors on either side."
-          },
-          "allowed_credentials": {
-            "description": "Bounded set of Credential ids permitted under this permit.",
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Allowed Credentials",
-            "type": "array"
-          },
-          "allowed_payload_types": {
-            "description": "Payload-type strings honored on either side of the relationship.",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Allowed Payload Types",
-            "type": "array"
-          },
-          "direction": {
-            "$ref": "#/components/schemas/Direction",
-            "description": "Query-convenience discriminator mirroring `type(terms)`. Must match the `terms.kind` arm; the decider rejects mismatches."
-          },
-          "expires_at": {
-            "description": "Contractual upper bound; must lie strictly after the server's now.",
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
-          },
-          "peer_facility_id": {
-            "description": "Opaque string id of the peer facility. Federation peers are external entities; CORA does NOT mint their ids.",
-            "minLength": 1,
-            "title": "Peer Facility Id",
-            "type": "string"
-          },
-          "permitted_artifact_kinds": {
-            "description": "Artifact-kind strings honored on either side of the relationship.",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Permitted Artifact Kinds",
-            "type": "array"
-          },
-          "terms": {
-            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scope_set` + `read_scope` + `onward_action_scope`; `Inbound` carries `allowed_artifact_kinds` + optional canonicalization / receipt config.",
-            "discriminator": {
-              "mapping": {
-                "Inbound": "#/components/schemas/_InboundTermsRequest",
-                "Outbound": "#/components/schemas/_OutboundTermsRequest"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/_OutboundTermsRequest"
-              },
-              {
-                "$ref": "#/components/schemas/_InboundTermsRequest"
-              }
-            ],
-            "title": "Terms"
-          }
-        },
-        "required": [
-          "peer_facility_id",
-          "direction",
-          "allowed_credentials",
-          "allowed_payload_types",
-          "permitted_artifact_kinds",
-          "abi_tier_floor",
-          "expires_at",
-          "terms"
-        ],
-        "title": "RegisterPermitRequest",
-        "type": "object"
-      },
-      "RegisterPermitResponse": {
-        "description": "Response body for `POST /federation/permits`.",
-        "properties": {
-          "permit_id": {
-            "format": "uuid",
-            "title": "Permit Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "permit_id"
-        ],
-        "title": "RegisterPermitResponse",
         "type": "object"
       },
       "RegisterProcedureRequest": {
@@ -10482,7 +10482,7 @@
         "type": "object"
       },
       "UpdateFramePlacementRequest": {
-        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FrameUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
+        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame_placement); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FramePlacementUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
         "properties": {
           "new_placement": {
             "$ref": "#/components/schemas/PlacementBody",
@@ -10531,7 +10531,7 @@
         "title": "UpdateMethodParametersSchemaRequest",
         "type": "object"
       },
-      "UpdatePlacementRequest": {
+      "UpdateMountPlacementRequest": {
         "properties": {
           "new_placement": {
             "$ref": "#/components/schemas/PlacementBody",
@@ -10554,7 +10554,7 @@
         "required": [
           "new_placement"
         ],
-        "title": "UpdatePlacementRequest",
+        "title": "UpdateMountPlacementRequest",
         "type": "object"
       },
       "UpdatePlanDefaultParametersRequest": {
@@ -11070,12 +11070,12 @@
             ],
             "title": "Accepted Canonicalization Versions"
           },
-          "allowed_artifact_kinds": {
+          "inbound_allowed_artifact_kinds": {
             "items": {
               "type": "string"
             },
             "minItems": 1,
-            "title": "Allowed Artifact Kinds",
+            "title": "Inbound Allowed Artifact Kinds",
             "type": "array"
           },
           "kind": {
@@ -11104,7 +11104,7 @@
         },
         "required": [
           "kind",
-          "allowed_artifact_kinds"
+          "inbound_allowed_artifact_kinds"
         ],
         "title": "_InboundTermsRequest",
         "type": "object"
@@ -11119,11 +11119,11 @@
             "title": "Accepted Canonicalization Versions",
             "type": "array"
           },
-          "allowed_artifact_kinds": {
+          "inbound_allowed_artifact_kinds": {
             "items": {
               "type": "string"
             },
-            "title": "Allowed Artifact Kinds",
+            "title": "Inbound Allowed Artifact Kinds",
             "type": "array"
           },
           "kind": {
@@ -11152,7 +11152,7 @@
         },
         "required": [
           "kind",
-          "allowed_artifact_kinds",
+          "inbound_allowed_artifact_kinds",
           "accepted_canonicalization_versions",
           "required_receipt_kinds"
         ],
@@ -13743,6 +13743,93 @@
         ]
       }
     },
+    "/assets/{asset_id}/exit_maintenance": {
+      "post": {
+        "operationId": "post_assets_exit_maintenance_assets__asset_id__exit_maintenance_post",
+        "parameters": [
+          {
+            "description": "Target asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No asset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset is not in `Maintenance` lifecycle (exit_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Return an existing (Maintenance) asset to active service",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/assets/{asset_id}/fault": {
       "post": {
         "operationId": "post_assets_fault_assets__asset_id__fault_post",
@@ -14265,93 +14352,6 @@
           }
         },
         "summary": "Mark an existing asset as Nominal (fully repaired)",
-        "tags": [
-          "equipment"
-        ]
-      }
-    },
-    "/assets/{asset_id}/restore_from_maintenance": {
-      "post": {
-        "operationId": "post_assets_restore_from_maintenance_assets__asset_id__restore_from_maintenance_post",
-        "parameters": [
-          {
-            "description": "Target asset's id.",
-            "in": "path",
-            "name": "asset_id",
-            "required": true,
-            "schema": {
-              "description": "Target asset's id.",
-              "format": "uuid",
-              "title": "Asset Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-            "in": "header",
-            "name": "X-Principal-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-              "title": "X-Principal-Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authorize port denied the command."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No asset exists with the given id."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Asset is not in `Maintenance` lifecycle (restore_from_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Return an existing (Maintenance) asset to active service",
         "tags": [
           "equipment"
         ]
@@ -15001,7 +15001,7 @@
                   "enum": [
                     "Series",
                     "Sweep",
-                    "Coordinated",
+                    "Coordination",
                     "Block"
                   ],
                   "type": "string"
@@ -20999,7 +20999,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegisterPermitRequest"
+                "$ref": "#/components/schemas/DefinePermitRequest"
               }
             }
           },
@@ -21010,7 +21010,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RegisterPermitResponse"
+                  "$ref": "#/components/schemas/DefinePermitResponse"
                 }
               }
             },
@@ -21057,7 +21057,7 @@
             "description": "Request body failed schema validation (missing field, invalid enum value, malformed UUID, OutboundTerms scope collapse, unknown canonicalization version), OR Idempotency-Key was reused with a different request body."
           }
         },
-        "summary": "Register a new federation Permit (cross-BC atomic; emits DecisionRegistered audit)",
+        "summary": "Define a new federation Permit (cross-BC atomic; emits DecisionRegistered audit)",
         "tags": [
           "federation"
         ]
@@ -23522,7 +23522,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdatePlacementRequest"
+                "$ref": "#/components/schemas/UpdateMountPlacementRequest"
               }
             }
           },

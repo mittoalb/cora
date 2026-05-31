@@ -118,7 +118,7 @@ class ProcedureStep:
 class StepStore(Protocol):
     """Per-category port for ProcedureStep entry writes.
 
-    The `append_procedure_step` handler (and any future Procedure-side
+    The `append_procedure_steps` handler (and any future Procedure-side
     step writer, for example an EPICS adapter that auto-records a step
     per StepRecord PV update) takes a `StepStore` and calls
     `append(...)` per batch.

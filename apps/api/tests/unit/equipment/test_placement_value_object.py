@@ -121,7 +121,7 @@ def test_placement_rejects_negative_tolerance(field: str) -> None:
 )
 def test_placement_rejects_nan_on_any_numeric_field(field: str) -> None:
     """NaN must be caught at the VO. An unguarded NaN breaks the
-    update_placement no-op-on-equal idempotency (NaN != NaN) and
+    update_mount_placement no-op-on-equal idempotency (NaN != NaN) and
     serializes as a JSON literal that asyncpg's jsonb codec rejects
     at write time as a 500."""
     with pytest.raises(InvalidPlacementError) as info:

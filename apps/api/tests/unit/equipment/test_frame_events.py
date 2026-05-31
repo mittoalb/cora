@@ -23,8 +23,9 @@ from cora.equipment.aggregates._placement import (
 )
 from cora.equipment.aggregates.frame import (
     FrameDecommissioned,
+    FramePlacementUpdated,
     FrameRegistered,
-    FrameUpdated,
+    FrameRevisionLink,
     event_type_name,
     from_stored,
     to_payload,
@@ -89,14 +90,14 @@ def test_event_type_name_returns_class_name_per_event_kind() -> None:
     parent = uuid4()
     assert (
         event_type_name(
-            FrameUpdated(
+            FramePlacementUpdated(
                 frame_id=uuid4(),
                 new_placement=_placement(parent),
                 survey=None,
                 occurred_at=_NOW,
             )
         )
-        == "FrameUpdated"
+        == "FramePlacementUpdated"
     )
     assert (
         event_type_name(FrameDecommissioned(frame_id=uuid4(), reason="x", occurred_at=_NOW))
@@ -146,14 +147,14 @@ def test_frame_registered_round_trip_for_child_frame_preserves_placement_fields(
 def test_frame_updated_round_trip_with_survey_payload() -> None:
     frame_id = uuid4()
     parent = uuid4()
-    event = FrameUpdated(
+    event = FramePlacementUpdated(
         frame_id=frame_id,
         new_placement=_placement(parent),
         survey={"instrument": "Leica AT960", "residual_mm": 0.18},
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    rebuilt = from_stored(_stored("FrameUpdated", payload))
+    rebuilt = from_stored(_stored("FramePlacementUpdated", payload))
     assert rebuilt == event
 
 
@@ -162,18 +163,18 @@ def test_frame_updated_round_trip_with_no_survey() -> None:
     """Additive-evolution: payload.get('survey') tolerates missing key."""
     frame_id = uuid4()
     parent = uuid4()
-    event = FrameUpdated(
+    event = FramePlacementUpdated(
         frame_id=frame_id,
         new_placement=_placement(parent),
         survey=None,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    rebuilt = from_stored(_stored("FrameUpdated", payload))
+    rebuilt = from_stored(_stored("FramePlacementUpdated", payload))
     assert rebuilt == event
     # Pre-survey-field legacy payloads (dropped survey key) still fold:
     legacy_payload = {k: v for k, v in payload.items() if k != "survey"}
-    rebuilt_legacy = from_stored(_stored("FrameUpdated", legacy_payload))
+    rebuilt_legacy = from_stored(_stored("FramePlacementUpdated", legacy_payload))
     assert rebuilt_legacy == event
 
 
@@ -199,7 +200,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 @pytest.mark.unit
 @pytest.mark.parametrize(
     "event_type",
-    ["FrameRegistered", "FrameUpdated", "FrameDecommissioned"],
+    ["FrameRegistered", "FramePlacementUpdated", "FrameDecommissioned"],
 )
 def test_from_stored_wraps_malformed_payload_into_tagged_value_error(event_type: str) -> None:
     """Per project_from_stored_wrap_convention: every arm wraps
@@ -228,12 +229,90 @@ def test_from_stored_raises_on_malformed_uuid_in_frame_registered_payload() -> N
 
 
 @pytest.mark.unit
+def test_frame_registered_round_trip_carries_supersedes_link() -> None:
+    """Successor frames register with a FrameRevisionLink; both the
+    predecessor pointer and the transform Placement must round-trip
+    structurally."""
+    frame_id = uuid4()
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    event = FrameRegistered(
+        frame_id=frame_id,
+        name="centerline_apsu",
+        parent_frame_id=None,
+        placement_relative_to_parent=None,
+        occurred_at=_NOW,
+        supersedes=link,
+    )
+    payload = to_payload(event)
+    assert isinstance(payload["supersedes"], dict)
+    assert payload["supersedes"]["predecessor_frame_id"] == str(predecessor)
+    rebuilt = from_stored(_stored("FrameRegistered", payload))
+    assert rebuilt == event
+    assert isinstance(rebuilt, FrameRegistered)
+    assert rebuilt.supersedes == link
+
+
+@pytest.mark.unit
+def test_frame_registered_round_trip_tolerates_legacy_payload_without_supersedes_key() -> None:
+    """Additive evolution: pre-supersedes payloads (no `supersedes`
+    key at all) deserialize to supersedes=None. Matches the
+    `payload.get('survey')` pattern in FramePlacementUpdated."""
+    frame_id = uuid4()
+    legacy_payload: dict[str, object] = {
+        "frame_id": str(frame_id),
+        "name": "legacy_root_frame",
+        "parent_frame_id": None,
+        "placement_relative_to_parent": None,
+        "occurred_at": _NOW.isoformat(),
+        # NO supersedes key
+    }
+    rebuilt = from_stored(_stored("FrameRegistered", legacy_payload))
+    assert isinstance(rebuilt, FrameRegistered)
+    assert rebuilt.supersedes is None
+    assert rebuilt.frame_id == frame_id
+
+
+@pytest.mark.unit
+def test_supersedes_payload_carries_predecessor_and_transform_fields() -> None:
+    """The supersedes sub-payload must serialize both fields; a typo
+    would silently drop one."""
+    predecessor = uuid4()
+    link = FrameRevisionLink(
+        predecessor_frame_id=predecessor,
+        transform_from_predecessor=_placement(predecessor),
+    )
+    event = FrameRegistered(
+        frame_id=uuid4(),
+        name="successor",
+        parent_frame_id=None,
+        placement_relative_to_parent=None,
+        occurred_at=_NOW,
+        supersedes=link,
+    )
+    payload = to_payload(event)
+    supersedes_payload = payload["supersedes"]
+    assert isinstance(supersedes_payload, dict)
+    keys: set[str] = set(supersedes_payload.keys())  # pyright: ignore[reportUnknownArgumentType]
+    assert keys == {"predecessor_frame_id", "transform_from_predecessor"}
+    transform_payload = supersedes_payload["transform_from_predecessor"]  # pyright: ignore[reportUnknownVariableType]
+    assert isinstance(transform_payload, dict)
+    # Transform Placement must serialize all 15 fields just like any
+    # other Placement payload; the same _placement_to_payload helper
+    # is reused.
+    assert len(transform_payload) == 15  # pyright: ignore[reportUnknownArgumentType]
+
+
+@pytest.mark.unit
 def test_placement_payload_carries_all_15_fields() -> None:
     """The Placement payload helper must serialize every field; a
     typo would silently drop one."""
     parent = uuid4()
     placement = _placement(parent)
-    event = FrameUpdated(
+    event = FramePlacementUpdated(
         frame_id=uuid4(),
         new_placement=placement,
         survey=None,

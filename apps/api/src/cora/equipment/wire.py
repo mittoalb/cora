@@ -42,6 +42,7 @@ from cora.equipment.features import (
     degrade_asset,
     deprecate_family,
     enter_maintenance,
+    exit_maintenance,
     fault_asset,
     get_asset,
     get_asset_integration_view,
@@ -56,12 +57,11 @@ from cora.equipment.features import (
     remove_asset_family,
     remove_asset_port,
     restore_asset,
-    restore_from_maintenance,
     uninstall_asset,
     update_asset_settings,
     update_family_settings_schema,
-    update_frame,
-    update_placement,
+    update_frame_placement,
+    update_mount_placement,
     version_family,
 )
 from cora.infrastructure.idempotency import with_idempotency
@@ -93,7 +93,7 @@ class EquipmentHandlers:
     decommission_asset: decommission_asset.Handler
     relocate_asset: relocate_asset.Handler
     enter_maintenance: enter_maintenance.Handler
-    restore_from_maintenance: restore_from_maintenance.Handler
+    exit_maintenance: exit_maintenance.Handler
     add_asset_family: add_asset_family.Handler
     remove_asset_family: remove_asset_family.Handler
     degrade_asset: degrade_asset.Handler
@@ -107,10 +107,10 @@ class EquipmentHandlers:
     list_assets: list_assets.Handler
     list_families: list_families.Handler
     register_frame: register_frame.IdempotentHandler
-    update_frame: update_frame.Handler
+    update_frame_placement: update_frame_placement.Handler
     decommission_frame: decommission_frame.Handler
     register_mount: register_mount.IdempotentHandler
-    update_placement: update_placement.Handler
+    update_mount_placement: update_mount_placement.Handler
     decommission_mount: decommission_mount.Handler
     install_asset: install_asset.Handler
     uninstall_asset: uninstall_asset.Handler
@@ -186,9 +186,9 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="EnterMaintenance",
             bc=_BC,
         ),
-        restore_from_maintenance=with_tracing(
-            restore_from_maintenance.bind(deps),
-            command_name="RestoreFromMaintenance",
+        exit_maintenance=with_tracing(
+            exit_maintenance.bind(deps),
+            command_name="ExitMaintenance",
             bc=_BC,
         ),
         add_asset_family=with_tracing(
@@ -267,9 +267,9 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="RegisterFrame",
             bc=_BC,
         ),
-        update_frame=with_tracing(
-            update_frame.bind(deps),
-            command_name="UpdateFrame",
+        update_frame_placement=with_tracing(
+            update_frame_placement.bind(deps),
+            command_name="UpdateFramePlacement",
             bc=_BC,
         ),
         decommission_frame=with_tracing(
@@ -289,9 +289,9 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="RegisterMount",
             bc=_BC,
         ),
-        update_placement=with_tracing(
-            update_placement.bind(deps),
-            command_name="UpdatePlacement",
+        update_mount_placement=with_tracing(
+            update_mount_placement.bind(deps),
+            command_name="UpdateMountPlacement",
             bc=_BC,
         ),
         decommission_mount=with_tracing(

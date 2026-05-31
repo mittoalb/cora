@@ -113,11 +113,11 @@ from cora.equipment.features.restore_asset import RestoreAsset
 from cora.equipment.features.restore_asset import bind as bind_restore_asset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
-from cora.operation.features.append_procedure_step import (
+from cora.operation.features.append_procedure_steps import (
     AppendProcedureSteps,
     ProcedureStepInput,
 )
-from cora.operation.features.append_procedure_step import bind as bind_append_step
+from cora.operation.features.append_procedure_steps import bind as bind_append_step
 from cora.operation.features.complete_procedure import CompleteProcedure
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.register_procedure import RegisterProcedure
@@ -204,7 +204,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_step (lazy open on first call): logbook_id, open_event_id
+        # append_procedure_steps (lazy open on first call): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # restore_asset (after reboot succeeds): event_id

@@ -167,7 +167,7 @@ class Placement:
         # are not encodable in the type itself.
         #
         # NaN/Inf rejection at the boundary: an unguarded NaN propagates
-        # through the equality + comparison logic in update_placement's
+        # through the equality + comparison logic in update_mount_placement's
         # no-op-on-equal path (NaN != NaN, so every retry would re-emit
         # an event) and serializes as a JSON literal that asyncpg's
         # jsonb codec rejects at write time as a 500. Catch at the VO.

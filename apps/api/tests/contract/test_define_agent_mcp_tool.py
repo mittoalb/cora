@@ -64,7 +64,7 @@ def test_mcp_define_agent_returns_structured_agent_id() -> None:
 @pytest.mark.contract
 def test_mcp_define_agent_returns_iserror_on_invalid_https() -> None:
     """http:// canonical_uri trips the domain VO; FastMCP wraps the
-    raised InvalidAgentCanonicalURIError as isError: true."""
+    raised InvalidAgentCanonicalUriError as isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(

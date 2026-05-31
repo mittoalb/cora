@@ -194,7 +194,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A, overnight outage)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime (outage truncated)",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
 
@@ -353,7 +353,7 @@ async def test_run_truncate_after_outage_lands_with_interrupted_at(
     run_event_types = [e.event_type for e in run_events]
     assert run_event_types == [
         "RunStarted",
-        "RunCampaignAssigned",
+        "RunAddedToCampaign",
         "RunTruncated",
     ]
 

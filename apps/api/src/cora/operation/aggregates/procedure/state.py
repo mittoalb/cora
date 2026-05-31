@@ -189,7 +189,7 @@ class ProcedureStatus(StrEnum):
                           review (future Decision BC integration).
                           Cannot accept step events yet.
       - `Running`     -- post-start_procedure. Step events accepted
-                          via append_procedure_step.
+                          via append_procedure_steps.
       - `Completed`   -- happy path via complete_procedure.
                           Strict-not-idempotent.
       - `Aborted`     -- emergency exit via abort_procedure.
@@ -495,7 +495,7 @@ class ProcedureStepsLogbookClosedError(Exception):
     Per [[project_operation_design]] the Procedure FSM's terminals
     (Completed | Aborted | Truncated) implicitly close the steps
     logbook; no explicit `ProcedureStepsLogbookClosed` event is
-    emitted. The `append_procedure_step` handler raises this when
+    emitted. The `append_procedure_steps` handler raises this when
     a writer attempts to append after the Procedure has terminated.
     Mirrors `RunReadingLogbookClosedError` from Run BC. Mapped to
     HTTP 409.
@@ -650,7 +650,7 @@ class Procedure:
     status: ProcedureStatus = ProcedureStatus.DEFINED
     parent_run_id: UUID | None = None
     steps_logbook_id: UUID | None = None
-    """Lazy-opened on first `append_procedure_step`.
+    """Lazy-opened on first `append_procedure_steps`.
 
     None until the first step is appended; populated by the
     `ProcedureStepsLogbookOpened` envelope event the handler emits

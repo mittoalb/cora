@@ -2,25 +2,26 @@
 event types coexist in a single event store without their
 `event_type` discriminators tangling.
 
-Recipe Capability events were renamed from `CapabilityDefined` to
-`RecipeCapabilityDefined` to avoid collision with Equipment Family's
-legacy dual-match arm (which still accepts the legacy
-`"CapabilityDefined"` event type for older streams). This test pins
-that the three aggregate event-type namespaces stay distinct:
+Recipe Capability emits unprefixed events (`CapabilityDefined`,
+`CapabilityVersioned`, `CapabilityDeprecated`) per R2 symmetry with
+Method/Plan/Practice. The (bc, aggregate, event_type) triple
+disambiguates on the wire — the stream_type routes loads to the
+right aggregate's `from_stored`, so `"CapabilityDefined"` payloads
+in the `Capability` stream rebuild as Recipe Capability events and
+never reach Equipment Family's evolver.
 
   - Equipment Family: `FamilyDefined` (legacy `CapabilityDefined`
-    accepted via dual-match in Family.from_stored)
-  - Recipe Capability: `RecipeCapabilityDefined` (NOT collision-prone)
+    accepted via dual-match in Family.from_stored, but reachable
+    only via the `Family` stream)
+  - Recipe Capability: `CapabilityDefined` (reachable only via the
+    `Capability` stream)
   - Recipe Method: `MethodDefined`
   - Operation Procedure: `ProcedureRegistered`
 
-A regression that re-flattens any of these (for example dropping the
-`Recipe` prefix from the Capability event types) would silently
-route Recipe Capability events into Equipment Family's evolver
-and corrupt fold-on-read. This smoke test catches that by writing
-all four event types to the same in-memory event store and
-asserting each stream folds to the right aggregate type with the
-right payload — no cross-contamination.
+This smoke test pins the routing by writing all four event types to
+the same in-memory event store and asserting each stream folds to
+the right aggregate type with the right payload — no
+cross-contamination.
 """
 
 from datetime import UTC, datetime
@@ -41,9 +42,9 @@ from cora.operation.aggregates.procedure import to_payload as procedure_to_paylo
 from cora.recipe.aggregates.capability import (
     Capability,
     CapabilityCode,
+    CapabilityDefined,
     CapabilityName,
     ExecutorShape,
-    RecipeCapabilityDefined,
 )
 from cora.recipe.aggregates.capability import (
     event_type_name as capability_event_type_name,
@@ -89,15 +90,16 @@ async def _append(
 @pytest.mark.unit
 async def test_recipe_capability_method_procedure_events_coexist_on_replay() -> None:
     """All four aggregate types' genesis events live in the same store
-    without `from_stored` cross-contamination. Pinned because Capability
-    events are explicitly renamed to RecipeCapability* to avoid this
-    collision; a regression that drops the prefix would route Recipe
-    Capability events into Equipment Family's evolver."""
+    without `from_stored` cross-contamination. The stream_type
+    discriminator routes each load to the right aggregate, so
+    `CapabilityDefined` in the `Capability` stream rebuilds via
+    Recipe Capability and never reaches Equipment Family's
+    legacy-aware evolver."""
     store = InMemoryEventStore()
 
     # Recipe Capability
     capability_id = uuid4()
-    cap_event = RecipeCapabilityDefined(
+    cap_event = CapabilityDefined(
         capability_id=capability_id,
         code=CapabilityCode("cora.capability.cohabit").value,
         name=CapabilityName("CohabitCapability").value,

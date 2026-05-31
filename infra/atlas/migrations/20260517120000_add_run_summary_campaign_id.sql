@@ -27,8 +27,8 @@
 -- returns None on the legacy shape, mapping to SQL NULL.
 --
 -- Subscribes to two additional event types post-migration:
---   - RunCampaignAssigned   -> UPDATE campaign_id = $2 (post-hoc add)
---   - RunCampaignUnassigned -> UPDATE campaign_id = NULL (remove)
+--   - RunAddedToCampaign   -> UPDATE campaign_id = $2 (post-hoc add)
+--   - RunRemovedFromCampaign -> UPDATE campaign_id = NULL (remove)
 -- RunStarted already covered (at-start campaign_id via payload).
 --
 -- Pure ADD COLUMN with safe NULL backfill; greenfield-friendly.

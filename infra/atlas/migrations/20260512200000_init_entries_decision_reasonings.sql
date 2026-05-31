@@ -15,7 +15,7 @@
 --   - Optional response identity, hyperparameters, usage counts.
 --   - Optional agent context for OTel multi-agent correlation.
 --   - Optional tool-call context (only populated for execute_tool ops).
---   - messages_jsonb is the ONE jsonb column, carrying the OTel event
+--   - messages is the ONE jsonb column, carrying the OTel event
 --     payload (prompt/completion bodies). Opt-in for PII gating.
 --
 -- Storage layout follows the per-category typed-table pattern locked
@@ -95,7 +95,7 @@ CREATE TABLE entries_decision_reasonings (
     tool_type           text,
 
     -- OTel event payload (prompt/completion message bodies; PII-gated opt-in)
-    messages_jsonb      jsonb,
+    messages      jsonb,
 
     recorded_at         timestamptz       NOT NULL DEFAULT now()
 );

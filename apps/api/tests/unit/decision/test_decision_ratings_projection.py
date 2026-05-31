@@ -1,6 +1,6 @@
 """Unit tests for DecisionRatingsProjection.
 
-Post-cleanup: `confidence_at_emit_time` is captured at write time
+Post-cleanup: `confidence_at_rating` is captured at write time
 on the DecisionRated event payload (gate-review cross-BC P2-4); the
 projection no longer reads `proj_decision_summary` at apply() time.
 """
@@ -50,7 +50,7 @@ def _decision_rated_event(
             "rated_by_actor_id": str(_RATER_ID),
             "rated_at": _T0.isoformat(),
             "occurred_at": _T0.isoformat(),
-            "confidence_at_emit_time": confidence,
+            "confidence_at_rating": confidence,
         },
     )
 
@@ -64,7 +64,7 @@ def test_projection_metadata() -> None:
 
 @pytest.mark.unit
 async def test_apply_upserts_rating_with_payload_borne_confidence() -> None:
-    """Apply UPSERTs the row with `confidence_at_emit_time` taken from
+    """Apply UPSERTs the row with `confidence_at_rating` taken from
     the event payload (NOT a cross-projection lookup)."""
     proj = DecisionRatingsProjection()
     conn = AsyncMock()
@@ -103,9 +103,9 @@ async def test_apply_null_comment_passes_through() -> None:
 
 
 @pytest.mark.unit
-async def test_apply_null_confidence_at_emit_time_passes_through() -> None:
+async def test_apply_null_confidence_at_rating_passes_through() -> None:
     """When the rated Decision had no confidence value (or the event
-    payload omits it for backward-compat), confidence_at_emit_time
+    payload omits it for backward-compat), confidence_at_rating
     lands NULL."""
     proj = DecisionRatingsProjection()
     conn = AsyncMock()
@@ -115,12 +115,12 @@ async def test_apply_null_confidence_at_emit_time_passes_through() -> None:
 
     args = conn.execute.await_args
     assert args is not None
-    assert args.args[6] is None  # confidence_at_emit_time
+    assert args.args[6] is None  # confidence_at_rating
 
 
 @pytest.mark.unit
 async def test_apply_missing_confidence_field_falls_back_to_none() -> None:
-    """Forward-compat: a payload missing `confidence_at_emit_time`
+    """Forward-compat: a payload missing `confidence_at_rating`
     entirely (pre-cleanup shape, not in production) lands NULL."""
     proj = DecisionRatingsProjection()
     conn = AsyncMock()
@@ -133,7 +133,7 @@ async def test_apply_missing_confidence_field_falls_back_to_none() -> None:
             "rated_by_actor_id": str(_RATER_ID),
             "rated_at": _T0.isoformat(),
             "occurred_at": _T0.isoformat(),
-            # No "confidence_at_emit_time"
+            # No "confidence_at_rating"
         },
     )
 

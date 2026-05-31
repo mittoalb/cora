@@ -40,11 +40,11 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_PERMIT_SQL = """
 INSERT INTO proj_federation_permit_summary
     (permit_id, peer_facility_id, direction,
-     allowed_credentials, allowed_payload_types, permitted_artifact_kinds,
+     allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
      abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
      read_scope, onward_action_scope, scope_set,
      accepted_canonicalization_versions, required_receipt_kinds,
-     publisher_grant_correlation_handle, allowed_artifact_kinds,
+     publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
      defined_at)
 VALUES ($1, $2, $3,
         $4::jsonb, $5::jsonb, $6::jsonb,
@@ -106,7 +106,7 @@ def _split_terms(terms: dict[str, Any]) -> dict[str, Any]:
             "accepted_canonicalization_versions": None,
             "required_receipt_kinds": None,
             "publisher_grant_correlation_handle": None,
-            "allowed_artifact_kinds": None,
+            "inbound_allowed_artifact_kinds": None,
         }
     if kind == "Inbound":
         return {
@@ -119,7 +119,7 @@ def _split_terms(terms: dict[str, Any]) -> dict[str, Any]:
             ),
             "required_receipt_kinds": json.dumps(terms["required_receipt_kinds"]),
             "publisher_grant_correlation_handle": terms.get("publisher_grant_correlation_handle"),
-            "allowed_artifact_kinds": json.dumps(terms["allowed_artifact_kinds"]),
+            "inbound_allowed_artifact_kinds": json.dumps(terms["inbound_allowed_artifact_kinds"]),
         }
     msg = f"Unknown Permit terms kind discriminator in payload: {kind!r}"
     raise ValueError(msg)
@@ -160,7 +160,7 @@ class PermitSummaryProjection:
                     payload["direction"],
                     json.dumps(payload["allowed_credentials"]),
                     json.dumps(payload["allowed_payload_types"]),
-                    json.dumps(payload["permitted_artifact_kinds"]),
+                    json.dumps(payload["allowed_artifact_kinds"]),
                     payload["abi_tier_floor"],
                     datetime.fromisoformat(payload["expires_at"]),
                     UUID(payload["defined_by_actor_id"]),
@@ -171,7 +171,7 @@ class PermitSummaryProjection:
                     terms_cols["accepted_canonicalization_versions"],
                     terms_cols["required_receipt_kinds"],
                     terms_cols["publisher_grant_correlation_handle"],
-                    terms_cols["allowed_artifact_kinds"],
+                    terms_cols["inbound_allowed_artifact_kinds"],
                     defined_at,
                 )
             return

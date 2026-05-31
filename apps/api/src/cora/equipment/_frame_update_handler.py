@@ -12,7 +12,7 @@ one per BC) is documented there.
 
   - `stream_type = "Frame"`.
   - `target_id_attr = "frame_id"` - every targeted Frame transition
-    command exposes `frame_id: UUID` (UpdateFrame at v1; future
+    command exposes `frame_id: UUID` (UpdateFramePlacement at v1; future
     reparent_frame if it ever lands).
   - `unauthorized_error = UnauthorizedError` from the Equipment BC.
   - The four codec functions imported from

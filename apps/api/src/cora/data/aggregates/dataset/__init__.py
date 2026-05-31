@@ -6,7 +6,7 @@ and event types. Two slice-local cross-aggregate context VOs:
   - `DatasetRegistrationContext` at
     `cora.data.features.register_dataset.context` — Run + Subject +
     derived_from peers loaded at registration.
-  - `PromotionContext` at
+  - `DatasetPromotionContext` at
     `cora.data.features.promote_dataset.context` — derived_from
     peers loaded at promotion-time for the lineage-must-be-Production
     guard.

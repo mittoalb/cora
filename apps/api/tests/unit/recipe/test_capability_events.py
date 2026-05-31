@@ -8,10 +8,10 @@ import pytest
 from cora.equipment.aggregates.family import Affordance
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.capability import (
+    CapabilityDefined,
+    CapabilityDeprecated,
+    CapabilityVersioned,
     ExecutorShape,
-    RecipeCapabilityDefined,
-    RecipeCapabilityDeprecated,
-    RecipeCapabilityVersioned,
     event_type_name,
     from_stored,
     to_payload,
@@ -40,7 +40,7 @@ def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
 @pytest.mark.unit
 def test_event_type_names() -> None:
     cid = uuid4()
-    defn = RecipeCapabilityDefined(
+    defn = CapabilityDefined(
         capability_id=cid,
         code="cora.capability.x",
         name="X",
@@ -48,10 +48,10 @@ def test_event_type_names() -> None:
         executor_shapes=frozenset({ExecutorShape.METHOD}),
         occurred_at=_NOW,
     )
-    assert event_type_name(defn) == "RecipeCapabilityDefined"
+    assert event_type_name(defn) == "CapabilityDefined"
     assert (
         event_type_name(
-            RecipeCapabilityVersioned(
+            CapabilityVersioned(
                 capability_id=cid,
                 version_tag="v2",
                 required_affordances=frozenset(),
@@ -59,18 +59,18 @@ def test_event_type_names() -> None:
                 occurred_at=_NOW,
             )
         )
-        == "RecipeCapabilityVersioned"
+        == "CapabilityVersioned"
     )
     assert (
-        event_type_name(RecipeCapabilityDeprecated(capability_id=cid, occurred_at=_NOW))
-        == "RecipeCapabilityDeprecated"
+        event_type_name(CapabilityDeprecated(capability_id=cid, occurred_at=_NOW))
+        == "CapabilityDeprecated"
     )
 
 
 @pytest.mark.unit
 def test_to_payload_capability_defined_sorts_affordances_and_shapes() -> None:
     cid = uuid4()
-    event = RecipeCapabilityDefined(
+    event = CapabilityDefined(
         capability_id=cid,
         code="cora.capability.flyscan",
         name="FlyScan",
@@ -96,7 +96,7 @@ def test_to_payload_capability_defined_sorts_affordances_and_shapes() -> None:
 
 @pytest.mark.unit
 def test_round_trip_capability_defined() -> None:
-    original = RecipeCapabilityDefined(
+    original = CapabilityDefined(
         capability_id=uuid4(),
         code="cora.capability.tomo",
         name="Tomo",
@@ -106,13 +106,13 @@ def test_round_trip_capability_defined() -> None:
         parameters_schema=None,
         occurred_at=_NOW,
     )
-    stored = _stored("RecipeCapabilityDefined", to_payload(original))
+    stored = _stored("CapabilityDefined", to_payload(original))
     assert from_stored(stored) == original
 
 
 @pytest.mark.unit
 def test_round_trip_capability_versioned() -> None:
-    original = RecipeCapabilityVersioned(
+    original = CapabilityVersioned(
         capability_id=uuid4(),
         version_tag="v2",
         description="updated",
@@ -121,37 +121,37 @@ def test_round_trip_capability_versioned() -> None:
         parameters_schema={"$schema": "https://json-schema.org/draft/2020-12/schema"},
         occurred_at=_NOW,
     )
-    stored = _stored("RecipeCapabilityVersioned", to_payload(original))
+    stored = _stored("CapabilityVersioned", to_payload(original))
     assert from_stored(stored) == original
 
 
 @pytest.mark.unit
 def test_round_trip_capability_deprecated_without_replacement() -> None:
-    original = RecipeCapabilityDeprecated(
+    original = CapabilityDeprecated(
         capability_id=uuid4(),
         replaced_by_capability_id=None,
         occurred_at=_NOW,
     )
-    stored = _stored("RecipeCapabilityDeprecated", to_payload(original))
+    stored = _stored("CapabilityDeprecated", to_payload(original))
     assert from_stored(stored) == original
 
 
 @pytest.mark.unit
 def test_round_trip_capability_deprecated_with_replacement() -> None:
     replaced_by = uuid4()
-    original = RecipeCapabilityDeprecated(
+    original = CapabilityDeprecated(
         capability_id=uuid4(),
         replaced_by_capability_id=replaced_by,
         occurred_at=_NOW,
     )
-    stored = _stored("RecipeCapabilityDeprecated", to_payload(original))
+    stored = _stored("CapabilityDeprecated", to_payload(original))
     assert from_stored(stored) == original
 
 
 @pytest.mark.unit
 def test_from_stored_raises_on_unknown_event_type() -> None:
     stored = _stored("ActorRegistered", {})
-    with pytest.raises(ValueError, match="Unknown RecipeCapabilityEvent event_type"):
+    with pytest.raises(ValueError, match="Unknown CapabilityEvent event_type"):
         from_stored(stored)
 
 
@@ -161,7 +161,7 @@ def test_from_stored_capability_defined_with_empty_optional_fields() -> None:
     fold cleanly via additive-state defaults."""
     cid = uuid4()
     stored = _stored(
-        "RecipeCapabilityDefined",
+        "CapabilityDefined",
         {
             "capability_id": str(cid),
             "code": "cora.capability.x",
@@ -172,7 +172,7 @@ def test_from_stored_capability_defined_with_empty_optional_fields() -> None:
         },
     )
     rebuilt = from_stored(stored)
-    assert isinstance(rebuilt, RecipeCapabilityDefined)
+    assert isinstance(rebuilt, CapabilityDefined)
     assert rebuilt.description is None
     assert rebuilt.parameters_schema is None
 
@@ -181,7 +181,7 @@ def test_from_stored_capability_defined_with_empty_optional_fields() -> None:
 def test_from_stored_rejects_unknown_affordance_string() -> None:
     """Defensive replay guard: a corrupted payload with bogus affordance fails loud."""
     stored = _stored(
-        "RecipeCapabilityDefined",
+        "CapabilityDefined",
         {
             "capability_id": str(uuid4()),
             "code": "cora.capability.x",
@@ -198,7 +198,7 @@ def test_from_stored_rejects_unknown_affordance_string() -> None:
 @pytest.mark.unit
 def test_from_stored_rejects_unknown_executor_shape_string() -> None:
     stored = _stored(
-        "RecipeCapabilityDefined",
+        "CapabilityDefined",
         {
             "capability_id": str(uuid4()),
             "code": "cora.capability.x",
@@ -216,9 +216,9 @@ def test_from_stored_rejects_unknown_executor_shape_string() -> None:
 @pytest.mark.parametrize(
     "event_type",
     [
-        "RecipeCapabilityDefined",
-        "RecipeCapabilityVersioned",
-        "RecipeCapabilityDeprecated",
+        "CapabilityDefined",
+        "CapabilityVersioned",
+        "CapabilityDeprecated",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:

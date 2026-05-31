@@ -44,7 +44,7 @@ This scenario exercises:
     the two energies considered, `inputs` carrying the
     observed-contrast / required-edge metadata that drove the
     pivot.
-  - Two child Runs in the same `Coordinated` Campaign sharing
+  - Two child Runs in the same `Coordination` Campaign sharing
     Subject + Method but bound to different Plans.
 
 ## Domain shape (operator narrative)
@@ -215,7 +215,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="iron-bearing sandstone core (Proposal 2026-1237, energy-pivot study)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1237 multi-energy contrast study",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "multi_energy", "porous_media"}),
 )
 
@@ -278,7 +278,7 @@ def _id_queue() -> list[UUID]:
 async def test_energy_change_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Seed full imaging chain + activate, open Coordinated Campaign,
+    """Seed full imaging chain + activate, open Coordination Campaign,
     mount Subject, define two Plans differing on default energy,
     run Plan A's Run, register an EnergyChange Decision (operator
     pivot), run Plan B's Run, measure Subject. Assert the Decision
@@ -597,7 +597,7 @@ async def test_energy_change_plays_out_end_to_end(
         run_events, _ = await deps.event_store.load("Run", run_id)
         run_event_types = [e.event_type for e in run_events]
         assert "RunStarted" in run_event_types
-        assert "RunCampaignAssigned" in run_event_types
+        assert "RunAddedToCampaign" in run_event_types
         assert "RunCompleted" in run_event_types
 
     # ----- Assert: Campaign carries both member-add events -----

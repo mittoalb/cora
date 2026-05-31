@@ -27,7 +27,7 @@ operator's narrative for a proposal-driven beamtime:
   3. The sample arriving with the proposal is registered as a
      Subject (lands in `Received` state per Subject BC genesis).
   4. A Campaign is opened with PI as `lead_actor_id`, intent
-     `Coordinated`, tagged `proposal` + technique (`tomography`).
+     `Coordination`, tagged `proposal` + technique (`tomography`).
   5. Future scenarios (mount, scan, debrief, publish) consume this
      beamtime context via reuse fixtures.
 
@@ -146,7 +146,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
 ) -> None:
     """Seed facility hierarchy, register the PI Actor (operator
     acting on PI's behalf), register the incoming Subject (lands in
-    Received), open a proposal-scoped Coordinated Campaign with the
+    Received), open a proposal-scoped Coordination Campaign with the
     PI as lead. Assert the auditable record carries the full intake
     arc and the cross-aggregate references (Campaign.lead_actor_id ->
     PI, Campaign.subject_id -> Subject) resolve correctly."""
@@ -189,7 +189,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     )
 
     # ----- Campaign BC: open a proposal-scoped Campaign with PI as lead -----
-    # intent=Coordinated (proposal-scoped acquisitions across multiple Runs);
+    # intent=Coordination (proposal-scoped acquisitions across multiple Runs);
     # subject_id pins this Campaign to the registered Subject (LOOSE policy
     # allows None or other Subjects in later Runs); tags carry the proposal
     # tag + technique vocabulary (tomography).
@@ -197,7 +197,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     await bind_register_campaign(deps)(
         RegisterCampaign(
             name="Proposal 2026-1234 beamtime",
-            intent=CampaignIntent.COORDINATED,
+            intent=CampaignIntent.COORDINATION,
             lead_actor_id=_PI_ACTOR_ID,
             subject_id=_SUBJECT_ID,
             description=(
@@ -238,7 +238,7 @@ async def test_beamtime_intake_plays_out_end_to_end(
     assert [e.event_type for e in campaign_events] == ["CampaignRegistered"]
     campaign_payload = campaign_events[0].payload
     assert campaign_payload["name"] == "Proposal 2026-1234 beamtime"
-    assert campaign_payload["intent"] == "Coordinated"
+    assert campaign_payload["intent"] == "Coordination"
     assert UUID(campaign_payload["lead_actor_id"]) == _PI_ACTOR_ID
     assert UUID(campaign_payload["subject_id"]) == _SUBJECT_ID
     assert "proposal" in campaign_payload["tags"]

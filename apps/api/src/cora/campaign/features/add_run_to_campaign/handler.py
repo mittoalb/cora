@@ -7,7 +7,7 @@ calls the pure decider, then writes BOTH event streams atomically via
 shape).
 
 All-or-nothing: either both streams commit (Campaign gets
-`CampaignRunAdded`, Run gets `RunCampaignAssigned`) or a
+`CampaignRunAdded`, Run gets `RunAddedToCampaign`) or a
 `ConcurrencyError` rolls back the whole batch.
 
 No idempotency wrap at this layer: the slice is idempotent by domain

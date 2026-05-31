@@ -56,7 +56,7 @@ def _permit(status: PermitStatus) -> Permit:
         direction=Direction.OUTBOUND,
         allowed_credentials=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
         allowed_payload_types=frozenset({"application/vnd.cora.dataset+json"}),
-        permitted_artifact_kinds=frozenset({"dataset"}),
+        allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=_PRINCIPAL_ID,

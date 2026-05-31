@@ -185,7 +185,7 @@ _BEAMTIME = BeamtimeSpec(
     subject_name="porous sandstone core (Proposal 2026-1234, sample A)",
     campaign_id=_CAMPAIGN_ID,
     campaign_name="Proposal 2026-1234 beamtime",
-    campaign_intent=CampaignIntent.COORDINATED,
+    campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "streaming_tomography", "porous_media"}),
 )
 
@@ -386,7 +386,7 @@ async def test_streaming_tomography_with_adjust_run(
     assert "RunStarted" in run_event_types
     assert "RunAdjusted" in run_event_types
     assert "RunCompleted" in run_event_types
-    # RunStarted + RunCampaignAssigned + RunAdjusted + RunCompleted = 4
+    # RunStarted + RunAddedToCampaign + RunAdjusted + RunCompleted = 4
     assert run_version == 4
 
     adjust_events = [e for e in run_events if e.event_type == "RunAdjusted"]

@@ -1,7 +1,7 @@
 """Read repository for the Frame aggregate.
 
 `load_frame(event_store, frame_id) -> Frame | None` mirrors
-`load_asset`. Used by update-style commands (`update_frame`,
+`load_asset`. Used by update-style commands (`update_frame_placement`,
 `decommission_frame`) that need to load + fold before deciding.
 """
 

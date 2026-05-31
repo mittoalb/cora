@@ -24,7 +24,7 @@ gets which event. Atomic two-stream write happens at the handler via
 If all guards pass, returns `MembershipEvents` carrying:
 
   - `campaign_events`: `[CampaignRunAdded(campaign_id, run_id, ...)]`
-  - `run_events`:      `[RunCampaignAssigned(run_id, campaign_id, ...)]`
+  - `run_events`:      `[RunAddedToCampaign(run_id, campaign_id, ...)]`
 """
 
 from dataclasses import dataclass
@@ -40,8 +40,8 @@ from cora.campaign.aggregates.campaign import (
 from cora.campaign.features.add_run_to_campaign.command import AddRunToCampaign
 from cora.campaign.features.add_run_to_campaign.context import CampaignMembershipContext
 from cora.run.aggregates.run import (
+    RunAddedToCampaign,
     RunAlreadyAssignedToCampaignError,
-    RunCampaignAssigned,
 )
 
 _MEMBERSHIP_ELIGIBLE_STATUSES: tuple[CampaignStatus, ...] = (
@@ -63,7 +63,7 @@ class MembershipEvents:
     """
 
     campaign_events: list[CampaignRunAdded]
-    run_events: list[RunCampaignAssigned]
+    run_events: list[RunAddedToCampaign]
 
 
 def decide(
@@ -116,7 +116,7 @@ def decide(
             )
         ],
         run_events=[
-            RunCampaignAssigned(
+            RunAddedToCampaign(
                 run_id=command.run_id,
                 campaign_id=campaign.id,
                 occurred_at=now,

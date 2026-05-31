@@ -22,7 +22,7 @@ def _register_args() -> dict[str, Any]:
         "direction": "Outbound",
         "allowed_credentials": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
-        "permitted_artifact_kinds": ["dataset"],
+        "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {
@@ -34,14 +34,14 @@ def _register_args() -> dict[str, Any]:
     }
 
 
-def _register_permit_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
+def _define_permit_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
     response = client.post(
         "/mcp",
         json={
             "jsonrpc": "2.0",
             "id": 100,
             "method": "tools/call",
-            "params": {"name": "register_permit", "arguments": _register_args()},
+            "params": {"name": "define_permit", "arguments": _register_args()},
         },
         headers=headers,
     )
@@ -74,7 +74,7 @@ def _call_tool(
 
 
 def _drive_to_suspended(client: TestClient, headers: dict[str, str]) -> UUID:
-    permit_id = _register_permit_via_tool(client, headers)
+    permit_id = _define_permit_via_tool(client, headers)
     activate = _call_tool(
         client,
         headers,
@@ -131,7 +131,7 @@ def test_mcp_resume_permit_tool_is_strict_not_idempotent_from_active() -> None:
     """Resuming an already-Active permit surfaces as isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
-        permit_id = _register_permit_via_tool(client, session_headers)
+        permit_id = _define_permit_via_tool(client, session_headers)
         activate = _call_tool(
             client,
             session_headers,
@@ -155,7 +155,7 @@ def test_mcp_resume_permit_tool_returns_iserror_when_defined() -> None:
     """`Defined` permits need `activate_permit`; resume returns isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
-        permit_id = _register_permit_via_tool(client, session_headers)
+        permit_id = _define_permit_via_tool(client, session_headers)
         body = _call_tool(
             client,
             session_headers,

@@ -25,14 +25,14 @@ from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.decommission_asset import bind as bind_decommission
 from cora.equipment.features.enter_maintenance import EnterMaintenance
 from cora.equipment.features.enter_maintenance import bind as bind_enter_maintenance
+from cora.equipment.features.exit_maintenance import ExitMaintenance
+from cora.equipment.features.exit_maintenance import bind as bind_exit
 from cora.equipment.features.list_assets import ListAssets
 from cora.equipment.features.list_assets import bind as bind_list
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.equipment.features.relocate_asset import bind as bind_relocate
-from cora.equipment.features.restore_from_maintenance import RestoreFromMaintenance
-from cora.equipment.features.restore_from_maintenance import bind as bind_restore
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
@@ -89,8 +89,8 @@ async def test_register_emits_commissioned_lifecycle(
 async def test_lifecycle_round_trip_active_maintenance_active(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Activate -> Active; enter_maintenance -> Maintenance; restore
-    -> Active. Pin: AssetRestoredFromMaintenance writes 'Active'
+    """Activate -> Active; enter_maintenance -> Maintenance; exit
+    -> Active. Pin: AssetMaintenanceExited writes 'Active'
     just like AssetActivated does (the projection collapses both
     paths to the same target state)."""
     asset_id = uuid4()
@@ -116,8 +116,8 @@ async def test_lifecycle_round_trip_active_maintenance_active(
     await _drain(db_pool)
     await _assert_lifecycle(db_pool, asset_id, "Maintenance")
 
-    await bind_restore(deps)(
-        RestoreFromMaintenance(asset_id=asset_id),
+    await bind_exit(deps)(
+        ExitMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
