@@ -229,10 +229,13 @@ class Permit:
     discriminator; the decider enforces the invariant on every
     transition.
 
-    `allowed_credentials` and `allowed_payload_types` narrow the
-    permit across both directions: only the named Credential ids and
-    payload-type strings are valid under this permit. Empty frozenset
-    means "no restriction at this dimension".
+    `allowed_credentials`, `allowed_payload_types`, and
+    `permitted_artifact_kinds` narrow the permit across both
+    directions: only the named Credential ids, payload-type strings,
+    and artifact kinds are valid under this permit. Each MUST be
+    non-empty; the decider rejects empty frozensets with
+    `InvalidPermitScopeError`. There is no wildcard or implicit
+    "no restriction" fallback.
 
     `abi_tier_floor` is the lowest tier the permit will honor on
     either side of the relationship.
