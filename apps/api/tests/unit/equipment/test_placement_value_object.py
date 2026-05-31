@@ -111,6 +111,49 @@ def test_placement_rejects_negative_tolerance(field: str) -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    "field",
+    ["x", "y", "z", "rx", "ry", "rz", "tol_x", "tol_y", "tol_z", "tol_rx", "tol_ry", "tol_rz"],
+)
+def test_placement_rejects_nan_on_any_numeric_field(field: str) -> None:
+    """NaN must be caught at the VO. An unguarded NaN breaks the
+    update_placement no-op-on-equal idempotency (NaN != NaN) and
+    serializes as a JSON literal that asyncpg's jsonb codec rejects
+    at write time as a 500."""
+    with pytest.raises(InvalidPlacementError) as info:
+        _make_placement(**{field: float("nan")})
+    assert field in info.value.reason
+    assert "finite" in info.value.reason
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "field",
+    ["x", "y", "z", "rx", "ry", "rz", "tol_x", "tol_y", "tol_z", "tol_rx", "tol_ry", "tol_rz"],
+)
+def test_placement_rejects_positive_infinity_on_any_numeric_field(field: str) -> None:
+    with pytest.raises(InvalidPlacementError) as info:
+        _make_placement(**{field: float("inf")})
+    assert field in info.value.reason
+    assert "finite" in info.value.reason
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "field",
+    ["x", "y", "z", "rx", "ry", "rz"],
+)
+def test_placement_rejects_negative_infinity_on_position_field(field: str) -> None:
+    """Negative infinity hits the finiteness check before the
+    tolerance non-negativity check; the error message names the
+    position field, not 'must be non-negative'."""
+    with pytest.raises(InvalidPlacementError) as info:
+        _make_placement(**{field: float("-inf")})
+    assert field in info.value.reason
+    assert "finite" in info.value.reason
+
+
+@pytest.mark.unit
 def test_invalid_placement_error_carries_reason() -> None:
     """`reason` surfaces in the route's 400 body; pin the attribute."""
     err = InvalidPlacementError("tol_x must be non-negative (got: -1.0)")

@@ -82,7 +82,8 @@ router = APIRouter(tags=["equipment"])
             "model": ErrorResponse,
             "description": (
                 "Domain invariant violated: whitespace-only slot_code, "
-                "negative tolerance via Placement VO, or invalid Drawing."
+                "non-finite (NaN / Inf) or negative-tolerance Placement "
+                "value, or invalid Drawing."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -93,6 +94,12 @@ router = APIRouter(tags=["equipment"])
             "model": ErrorResponse,
             "description": (
                 "Mount with the requested slot_code already exists (MountAlreadyExistsError)."
+            ),
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": (
+                "Request body failed schema validation OR Idempotency-Key "
+                "was reused with a different request body."
             ),
         },
     },

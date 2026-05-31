@@ -29,6 +29,8 @@ import asyncpg
 import pytest
 
 from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.features.activate_asset import ActivateAsset
+from cora.equipment.features.activate_asset import bind as bind_activate_asset
 from cora.equipment.features.install_asset import InstallAsset
 from cora.equipment.features.install_asset import bind as bind_install_asset
 from cora.equipment.features.register_asset import RegisterAsset
@@ -62,9 +64,10 @@ async def _seed_frame_mount_and_asset(
     asset_id: UUID,
     slot_code: str,
 ) -> None:
-    """Register a Frame, a Mount referencing it, and an Asset.
-    Drains projections so the install_asset handler's asset_exists
-    precondition succeeds against the read model."""
+    """Register a Frame, a Mount referencing it, and an Asset; then
+    activate the Asset (install_asset requires Active lifecycle).
+    Drains projections so install_asset's projection preconditions
+    (asset_lifecycle + asset_location back-lookup) succeed."""
     deps = _build_deps(pool, [frame_id, uuid4()])
     await bind_register_frame(deps)(
         RegisterFrame(
@@ -95,6 +98,13 @@ async def _seed_frame_mount_and_asset(
             level=AssetLevel.DEVICE,
             parent_id=uuid4(),
         ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    deps = _build_deps(pool, [uuid4()])
+    await bind_activate_asset(deps)(
+        ActivateAsset(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -278,3 +288,142 @@ async def test_uninstall_then_reinstall_on_other_mount_relocates_row(
     assert row is not None
     assert row["mount_id"] == mount_b
     assert row["installed_at"] == _LATER
+
+
+@pytest.mark.integration
+async def test_install_rejects_cross_mount_collision_via_back_lookup(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Load-bearing fitness: an Asset installed in Mount A cannot be
+    installed in Mount B without first being uninstalled from A. The
+    handler reads the asset_location projection BEFORE deciding;
+    AssetAlreadyInstalledElsewhereError carries the conflicting Mount
+    so the operator can target an uninstall."""
+    from cora.equipment.aggregates.mount import AssetAlreadyInstalledElsewhereError
+
+    frame_id = uuid4()
+    mount_a, mount_b, asset_id = uuid4(), uuid4(), uuid4()
+    await _seed_frame_mount_and_asset(
+        db_pool,
+        frame_id=frame_id,
+        mount_id=mount_a,
+        asset_id=asset_id,
+        slot_code="02-BM-X-K-uniq-a",
+    )
+    deps = _build_deps(db_pool, [mount_b, uuid4()])
+    await bind_register_mount(deps)(
+        RegisterMount(
+            slot_code="02-BM-X-K-uniq-b",
+            parent_mount_id=None,
+            placement=placement(frame_id),
+            drawing=None,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    deps = _build_deps(db_pool, [uuid4()], now=_NOW)
+    await bind_install_asset(deps)(
+        InstallAsset(mount_id=mount_a, asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+    assert await load_asset_location(db_pool, asset_id) == mount_a
+
+    deps = _build_deps(db_pool, [uuid4()], now=_LATER)
+    with pytest.raises(AssetAlreadyInstalledElsewhereError) as info:
+        await bind_install_asset(deps)(
+            InstallAsset(mount_id=mount_b, asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert info.value.asset_id == asset_id
+    assert info.value.currently_at_mount_id == mount_a
+    assert info.value.attempted_mount_id == mount_b
+
+    # Asset still in Mount A; Mount B got no event.
+    assert await load_asset_location(db_pool, asset_id) == mount_a
+    stored, version = await deps.event_store.load("Mount", mount_b)
+    assert [s.event_type for s in stored] == ["MountRegistered"]
+    assert version == 1
+
+
+@pytest.mark.integration
+async def test_install_same_asset_in_same_mount_is_idempotent_no_op(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """PUT /mounts/{id}/installed-asset is idempotent per RFC 9110: a
+    second call with the same asset_id against the same Mount returns
+    success without emitting a duplicate event. Pin the end-to-end
+    behavior; the decider returns [] and the handler appends no events."""
+    frame_id, mount_id, asset_id = uuid4(), uuid4(), uuid4()
+    await _seed_frame_mount_and_asset(
+        db_pool,
+        frame_id=frame_id,
+        mount_id=mount_id,
+        asset_id=asset_id,
+        slot_code="02-BM-Y-K-idem",
+    )
+
+    deps = _build_deps(db_pool, [uuid4()], now=_NOW)
+    await bind_install_asset(deps)(
+        InstallAsset(mount_id=mount_id, asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    deps = _build_deps(db_pool, [uuid4()], now=_LATER)
+    await bind_install_asset(deps)(
+        InstallAsset(mount_id=mount_id, asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    # Mount stream got one MountAssetInstalled (the first call); the
+    # second was a no-op.
+    stored, _ = await deps.event_store.load("Mount", mount_id)
+    install_events = [s for s in stored if s.event_type == "MountAssetInstalled"]
+    assert len(install_events) == 1
+
+
+@pytest.mark.integration
+async def test_install_rejects_non_active_asset(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Load-bearing fitness for Fix #2: an Asset not in Active
+    lifecycle cannot be installed. Registers + decommissions an Asset,
+    then attempts install; handler raises AssetNotInstallableError
+    carrying the actual lifecycle."""
+    from cora.equipment.aggregates.mount import AssetNotInstallableError
+    from cora.equipment.features.decommission_asset import DecommissionAsset
+    from cora.equipment.features.decommission_asset import bind as bind_decommission_asset
+
+    frame_id, mount_id, asset_id = uuid4(), uuid4(), uuid4()
+    await _seed_frame_mount_and_asset(
+        db_pool,
+        frame_id=frame_id,
+        mount_id=mount_id,
+        asset_id=asset_id,
+        slot_code="02-BM-Z-K-lifecycle",
+    )
+    deps = _build_deps(db_pool, [uuid4()], now=_NOW)
+    await bind_decommission_asset(deps)(
+        DecommissionAsset(asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    deps = _build_deps(db_pool, [uuid4()], now=_LATER)
+    with pytest.raises(AssetNotInstallableError) as info:
+        await bind_install_asset(deps)(
+            InstallAsset(mount_id=mount_id, asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert info.value.asset_id == asset_id
+    assert info.value.current_lifecycle == "Decommissioned"

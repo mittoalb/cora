@@ -1,10 +1,8 @@
 """Shared helpers for Equipment BC PG integration tests.
 
-Hoisted at the rule-of-three threshold (Phase E's commit body
-acknowledged the trigger; this module honors it). The five Mount/Frame
-PG integration test files share an identical `placement(parent_frame_id)`
-constructor and projection-drain wrapper; per-file boilerplate kept
-each test independently readable but doubled work on every new file.
+The Mount/Frame PG integration test files share an identical
+`placement(parent_frame_id)` constructor and projection-drain wrapper;
+hoisted here so per-file boilerplate stays short.
 
 Per-file helpers that vary (the `_seed_*` family, scenario-specific
 fixtures) stay local to each test file. Only the genuinely-identical

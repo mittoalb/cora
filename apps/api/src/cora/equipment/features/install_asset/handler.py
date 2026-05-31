@@ -1,8 +1,10 @@
 """Application handler for the `install_asset` slice.
 
-Longhand handler. Loads asset_lookup projection (does the Asset
-exist?) BEFORE calling the pure decider. Single-stream-write +
-projection-precondition pattern (mirrors decommission_mount).
+Longhand handler. Loads two projection facets BEFORE calling the
+pure decider: the Asset's current lifecycle (from asset_summary) and
+the Asset's current Mount-installation back-lookup (from
+asset_location). Single-stream-write + projection-precondition
+pattern (mirrors decommission_mount).
 """
 
 from typing import Protocol
@@ -18,7 +20,8 @@ from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.install_asset.command import InstallAsset
 from cora.equipment.features.install_asset.context import InstallAssetContext
 from cora.equipment.features.install_asset.decider import decide
-from cora.equipment.projections.asset import load_asset_exists
+from cora.equipment.projections.asset import load_asset_lifecycle
+from cora.equipment.projections.asset_location import load_asset_location
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -87,9 +90,17 @@ def bind(deps: Kernel) -> Handler:
         history = [from_stored(s) for s in stored]
         state = fold(history)
 
-        # Projection precondition: does the Asset exist?
-        asset_exists = await load_asset_exists(deps.pool, command.asset_id)
-        context = InstallAssetContext(asset_exists=asset_exists)
+        # Projection preconditions: (1) Asset's current lifecycle
+        # (None when no row), (2) which Mount currently holds this
+        # Asset (None when uninstalled). The decider folds both into
+        # AssetNotFoundForMountError / AssetNotInstallableError /
+        # AssetAlreadyInstalledElsewhereError as appropriate.
+        asset_lifecycle = await load_asset_lifecycle(deps.pool, command.asset_id)
+        currently_at = await load_asset_location(deps.pool, command.asset_id)
+        context = InstallAssetContext(
+            asset_lifecycle=asset_lifecycle,
+            currently_installed_at_mount_id=currently_at,
+        )
 
         domain_events = decide(
             state=state,

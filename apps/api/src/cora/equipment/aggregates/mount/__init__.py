@@ -40,7 +40,9 @@ from cora.equipment.aggregates.mount.evolver import evolve, fold
 from cora.equipment.aggregates.mount.read import load_mount
 from cora.equipment.aggregates.mount.state import (
     SLOT_CODE_MAX_LENGTH,
+    AssetAlreadyInstalledElsewhereError,
     AssetNotFoundForMountError,
+    AssetNotInstallableError,
     InvalidSlotCodeError,
     Mount,
     MountAlreadyExistsError,
@@ -57,7 +59,9 @@ from cora.equipment.aggregates.mount.state import (
 
 __all__ = [
     "SLOT_CODE_MAX_LENGTH",
+    "AssetAlreadyInstalledElsewhereError",
     "AssetNotFoundForMountError",
+    "AssetNotInstallableError",
     "InvalidSlotCodeError",
     "Mount",
     "MountAlreadyExistsError",

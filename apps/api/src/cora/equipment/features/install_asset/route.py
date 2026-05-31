@@ -41,9 +41,14 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Mount cannot accept install: already Decommissioned "
-                "OR slot is already occupied by another Asset (uninstall "
-                "first; no implicit eviction)."
+                "One of: Mount is Decommissioned, Asset is not in "
+                "Active lifecycle (Commissioned / Maintenance / "
+                "Decommissioned), Asset is already installed in a "
+                "different Mount (uninstall from the current Mount "
+                "first), or slot is already occupied by a different "
+                "Asset (no implicit eviction). Repeating the SAME "
+                "asset_id against an occupied slot is an idempotent "
+                "no-op per PUT's RFC 9110 contract (204)."
             ),
         },
     },

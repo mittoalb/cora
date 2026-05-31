@@ -18,10 +18,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="install_asset",
         description=(
-            "Install an Asset specimen into a Mount slot. Rejected if "
-            "the Asset does not exist (AssetNotFoundForMountError), the "
-            "Mount is Decommissioned (MountCannotUpdateError), or the "
-            "slot is already occupied (MountAlreadyOccupiedError; "
+            "Install an Asset specimen into a Mount slot. Idempotent "
+            "on the SAME asset_id (a repeat call against an already-"
+            "occupied-by-this-Asset slot succeeds as a no-op). "
+            "Rejected if the Asset does not exist "
+            "(AssetNotFoundForMountError), the Asset is not in Active "
+            "lifecycle (AssetNotInstallableError; Commissioned / "
+            "Maintenance / Decommissioned all reject), the Asset is "
+            "already installed in a different Mount "
+            "(AssetAlreadyInstalledElsewhereError; uninstall from the "
+            "current Mount first), the Mount is Decommissioned "
+            "(MountCannotUpdateError), or the slot is already occupied "
+            "by a different Asset (MountAlreadyOccupiedError; "
             "uninstall first, no implicit eviction)."
         ),
     )

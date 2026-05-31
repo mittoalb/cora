@@ -70,14 +70,15 @@ from cora.equipment.aggregates.frame import (
     FrameAlreadyExistsError,
     FrameCannotDecommissionError,
     FrameCannotUpdateError,
-    FrameCycleError,
     FrameInUseError,
     FrameNotFoundError,
     InvalidFrameNameError,
     InvalidFrameRootError,
 )
 from cora.equipment.aggregates.mount import (
+    AssetAlreadyInstalledElsewhereError,
     AssetNotFoundForMountError,
+    AssetNotInstallableError,
     InvalidSlotCodeError,
     MountAlreadyExistsError,
     MountAlreadyOccupiedError,
@@ -266,13 +267,14 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameCannotUpdateError,
         FrameCannotDecommissionError,
         FrameInUseError,
-        FrameCycleError,
         MountCannotUpdateError,
         MountCannotDecommissionError,
         MountHasInstalledAssetError,
         MountHasActiveChildrenError,
         MountAlreadyOccupiedError,
         MountIsEmptyError,
+        AssetNotInstallableError,
+        AssetAlreadyInstalledElsewhereError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

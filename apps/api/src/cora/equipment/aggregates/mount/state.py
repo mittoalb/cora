@@ -253,6 +253,60 @@ class AssetNotFoundForMountError(Exception):
         self.asset_id = asset_id
 
 
+class AssetNotInstallableError(Exception):
+    """Attempted to install an Asset whose lifecycle disallows installation.
+
+    Only `Active` Assets can be installed. `Commissioned` Assets are
+    pre-service (the operator must activate them first); `Maintenance`
+    Assets are pulled for repair; `Decommissioned` Assets are retired
+    and must not occupy live equipment slots. Mirrors Subject's
+    mount-onto-Active-Asset-only precedent.
+
+    Loaded by the install_asset handler via the asset_status projection
+    precondition BEFORE calling the pure decider. `current_lifecycle`
+    is the AssetLifecycle value carried on the projection row.
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: str) -> None:
+        super().__init__(
+            f"Cannot install Asset {asset_id}: currently in lifecycle "
+            f"{current_lifecycle}, install requires Active"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
+class AssetAlreadyInstalledElsewhereError(Exception):
+    """Attempted to install an Asset that is already installed in a
+    different Mount.
+
+    Single-source-of-truth invariant: an Asset can occupy AT MOST ONE
+    Mount slot at a time. The Mount aggregate's `installed_asset_id`
+    is the write-side authority for the slot's occupant; the
+    asset_location projection (`asset_id -> mount_id`) is the read-side
+    back-lookup. This error fires when the back-lookup says the Asset
+    is somewhere else.
+
+    Operators must `uninstall_asset` from the current Mount first if
+    they want to relocate.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        currently_at_mount_id: UUID,
+        attempted_mount_id: UUID,
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be installed in Mount "
+            f"{attempted_mount_id}: already installed in Mount "
+            f"{currently_at_mount_id}; uninstall from the current Mount first"
+        )
+        self.asset_id = asset_id
+        self.currently_at_mount_id = currently_at_mount_id
+        self.attempted_mount_id = attempted_mount_id
+
+
 @dataclass(frozen=True)
 class SlotCode:
     """External alias for a mount (e.g., APS 2-BM `02-BM-A-K-01`).

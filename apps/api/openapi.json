@@ -13112,7 +13112,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only name OR hierarchy rule (Enterprise must have null parent_id; other levels must have non-null parent_id)."
+            "description": "Domain invariant violated: whitespace-only name, hierarchy rule (Enterprise must have null parent_id; other levels must have non-null parent_id), or invalid Drawing (empty number, overlong revision, etc.)."
           },
           "403": {
             "content": {
@@ -23168,7 +23168,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only slot_code, negative tolerance via Placement VO, or invalid Drawing."
+            "description": "Domain invariant violated: whitespace-only slot_code, non-finite (NaN / Inf) or negative-tolerance Placement value, or invalid Drawing."
           },
           "403": {
             "content": {
@@ -23191,14 +23191,7 @@
             "description": "Mount with the requested slot_code already exists (MountAlreadyExistsError)."
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
           }
         },
         "summary": "Register a new mount (slot) in the beamline",
@@ -23471,7 +23464,7 @@
                 }
               }
             },
-            "description": "Mount cannot accept install: already Decommissioned OR slot is already occupied by another Asset (uninstall first; no implicit eviction)."
+            "description": "One of: Mount is Decommissioned, Asset is not in Active lifecycle (Commissioned / Maintenance / Decommissioned), Asset is already installed in a different Mount (uninstall from the current Mount first), or slot is already occupied by a different Asset (no implicit eviction). Repeating the SAME asset_id against an occupied slot is an idempotent no-op per PUT's RFC 9110 contract (204)."
           },
           "422": {
             "content": {
@@ -23546,7 +23539,7 @@
                 }
               }
             },
-            "description": "Bad Request"
+            "description": "Placement VO rejection: non-finite (NaN / Inf) coordinate or tolerance, or negative tolerance on any axis."
           },
           "403": {
             "content": {
@@ -23556,7 +23549,7 @@
                 }
               }
             },
-            "description": "Forbidden"
+            "description": "Authorize port denied the command."
           },
           "404": {
             "content": {
@@ -23566,7 +23559,7 @@
                 }
               }
             },
-            "description": "Not Found"
+            "description": "Mount does not exist (MountNotFoundError)."
           },
           "409": {
             "content": {
@@ -23576,7 +23569,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "Mount is Decommissioned (MountCannotUpdateError) OR the new placement attempts to reparent to a different Frame (reparenting requires a separate slice; not in v1). Submitting a placement equal to the current value is an idempotent no-op (204)."
           },
           "422": {
             "content": {

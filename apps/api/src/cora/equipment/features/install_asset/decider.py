@@ -5,10 +5,21 @@
   - State must not be None -> MountNotFoundError.
   - Status must be Active -> MountCannotUpdateError (decommissioned
     mounts cannot accept new specimens).
-  - context.asset_exists must be True -> AssetNotFoundForMountError
-    (the Asset has no event-store stream / projection row). Checked
-    before occupancy so the more diagnostic failure surfaces first
-    when the operator's chosen asset_id is bogus on an occupied slot.
+  - If the slot already holds the same Asset the caller is trying to
+    install, the call is an idempotent no-op (return []). This
+    matches PUT's RFC 9110 idempotency contract; without it a
+    flaky-network retry surfaces 409 on the second attempt.
+  - context.asset_lifecycle must be non-None -> AssetNotFoundForMountError
+    (the Asset has no event-store stream / projection row).
+  - context.asset_lifecycle must be 'Active' -> AssetNotInstallableError
+    (Commissioned Assets are pre-service; Maintenance are pulled;
+    Decommissioned are retired; none belong in a live equipment slot).
+  - context.currently_installed_at_mount_id must be None OR equal to
+    state.id -> AssetAlreadyInstalledElsewhereError. Enforces the
+    single-source-of-truth invariant: an Asset can occupy AT MOST
+    ONE Mount slot at a time. (state.id is the Mount we're installing
+    into; if the Asset is already in THIS Mount we'd have returned
+    [] above as a no-op idempotent path.)
   - Mount.installed_asset_id must be None -> MountAlreadyOccupiedError
     (no implicit eviction per the design anti-hook; operator must
     uninstall_asset first).
@@ -23,6 +34,9 @@ atomically (Watch in the design memo).
 from datetime import datetime
 
 from cora.equipment.aggregates.mount import (
+    AssetAlreadyInstalledElsewhereError,
+    AssetNotFoundForMountError,
+    AssetNotInstallableError,
     Mount,
     MountAlreadyOccupiedError,
     MountAssetInstalled,
@@ -30,9 +44,10 @@ from cora.equipment.aggregates.mount import (
     MountNotFoundError,
     MountStatus,
 )
-from cora.equipment.aggregates.mount.state import AssetNotFoundForMountError
 from cora.equipment.features.install_asset.command import InstallAsset
 from cora.equipment.features.install_asset.context import InstallAssetContext
+
+_ACTIVE_LIFECYCLE = "Active"
 
 
 def decide(
@@ -51,8 +66,24 @@ def decide(
             f"install_asset requires {MountStatus.ACTIVE.value}"
         )
         raise MountCannotUpdateError(state.id, msg)
-    if not context.asset_exists:
+    if state.installed_asset_id == command.asset_id:
+        # Same Asset already installed in this Mount: idempotent no-op
+        # per PUT's RFC 9110 contract. Skip downstream projection checks
+        # since the requested state is already true.
+        return []
+    if context.asset_lifecycle is None:
         raise AssetNotFoundForMountError(command.asset_id)
+    if context.asset_lifecycle != _ACTIVE_LIFECYCLE:
+        raise AssetNotInstallableError(command.asset_id, context.asset_lifecycle)
+    if (
+        context.currently_installed_at_mount_id is not None
+        and context.currently_installed_at_mount_id != state.id
+    ):
+        raise AssetAlreadyInstalledElsewhereError(
+            command.asset_id,
+            context.currently_installed_at_mount_id,
+            state.id,
+        )
     if state.installed_asset_id is not None:
         raise MountAlreadyOccupiedError(
             state.id,

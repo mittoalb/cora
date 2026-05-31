@@ -94,9 +94,10 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
-                "Domain invariant violated: whitespace-only name OR "
+                "Domain invariant violated: whitespace-only name, "
                 "hierarchy rule (Enterprise must have null parent_id; "
-                "other levels must have non-null parent_id)."
+                "other levels must have non-null parent_id), or invalid "
+                "Drawing (empty number, overlong revision, etc.)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {

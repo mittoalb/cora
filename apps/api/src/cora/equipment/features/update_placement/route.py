@@ -38,10 +38,31 @@ router = APIRouter(tags=["equipment"])
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
-        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
-        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
-        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": (
+                "Placement VO rejection: non-finite (NaN / Inf) coordinate "
+                "or tolerance, or negative tolerance on any axis."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Authorize port denied the command.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Mount does not exist (MountNotFoundError).",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": (
+                "Mount is Decommissioned (MountCannotUpdateError) OR the "
+                "new placement attempts to reparent to a different Frame "
+                "(reparenting requires a separate slice; not in v1). "
+                "Submitting a placement equal to the current value is "
+                "an idempotent no-op (204)."
+            ),
+        },
     },
     summary="Update a mount's placement relative to its parent frame",
 )

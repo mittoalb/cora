@@ -197,31 +197,6 @@ class FrameInUseError(Exception):
         self.consumer_ids = consumer_ids
 
 
-class FrameCycleError(Exception):
-    """Attempted to register a frame whose parent chain forms a cycle.
-
-    Defensive check at register time, scoped to `register_frame`
-    only (no `reparent_frame` slice in v1). The check walks the parent
-    chain from the proposed `parent_frame_id` up to a maximum depth
-    of 16; a revisit or depth overflow raises this error.
-
-    Cycle introduction via register is theoretically impossible in a
-    consistent store (the new frame doesn't exist yet, so it can't
-    appear in any existing chain), but the check protects against
-    data corruption or manual SQL edits. When (if) a
-    `reparent_frame` slice ever lands, the same check moves to update
-    time.
-    """
-
-    def __init__(self, frame_id: UUID, parent_chain: tuple[UUID, ...]) -> None:
-        super().__init__(
-            f"Frame {frame_id} cannot be registered: parent chain forms a cycle "
-            f"or exceeds max depth ({list(parent_chain)!r})"
-        )
-        self.frame_id = frame_id
-        self.parent_chain = parent_chain
-
-
 @dataclass(frozen=True)
 class FrameName:
     """Display name for a frame. Trimmed; 1-200 chars.

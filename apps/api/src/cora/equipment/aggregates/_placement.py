@@ -43,6 +43,7 @@ carrier-owns-dict); validation lives in field shape + enum
 membership + `__post_init__` checks.
 """
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
@@ -158,9 +159,21 @@ class Placement:
     def __post_init__(self) -> None:
         # Pure validation, no normalization (no trim or
         # `object.__setattr__` dance): all fields are typed
-        # primitives or enums; only tolerance non-negativity is
-        # not encodable in the type itself.
+        # primitives or enums; only finiteness + tolerance non-negativity
+        # are not encodable in the type itself.
+        #
+        # NaN/Inf rejection at the boundary: an unguarded NaN propagates
+        # through the equality + comparison logic in update_placement's
+        # no-op-on-equal path (NaN != NaN, so every retry would re-emit
+        # an event) and serializes as a JSON literal that asyncpg's
+        # jsonb codec rejects at write time as a 500. Catch at the VO.
         for axis_name, value in (
+            ("x", self.x),
+            ("y", self.y),
+            ("z", self.z),
+            ("rx", self.rx),
+            ("ry", self.ry),
+            ("rz", self.rz),
             ("tol_x", self.tol_x),
             ("tol_y", self.tol_y),
             ("tol_z", self.tol_z),
@@ -168,9 +181,19 @@ class Placement:
             ("tol_ry", self.tol_ry),
             ("tol_rz", self.tol_rz),
         ):
-            if value < 0:
+            if not math.isfinite(value):
+                raise InvalidPlacementError(f"{axis_name!s} must be finite (got: {value!r})")
+        for tol_name, tol_value in (
+            ("tol_x", self.tol_x),
+            ("tol_y", self.tol_y),
+            ("tol_z", self.tol_z),
+            ("tol_rx", self.tol_rx),
+            ("tol_ry", self.tol_ry),
+            ("tol_rz", self.tol_rz),
+        ):
+            if tol_value < 0:
                 raise InvalidPlacementError(
-                    f"tolerance {axis_name!s} must be non-negative (got: {value!r})"
+                    f"tolerance {tol_name!s} must be non-negative (got: {tol_value!r})"
                 )
 
 
