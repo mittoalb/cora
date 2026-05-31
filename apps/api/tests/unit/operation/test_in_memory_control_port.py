@@ -206,8 +206,8 @@ async def test_subscribe_cleanup_removes_queue_after_iteration_and_close() -> No
 async def test_consumer_cancellation_removes_subscriber_queue() -> None:
     """Cancellation mid-`anext` runs the generator's `finally` and unregisters.
 
-    Pins the cancellation-safety invariant the production adapters at
-    Stage-1b through Stage-1d must preserve.
+    Pins the cancellation-safety invariant the production adapters
+    must preserve.
     """
     port = _port()
     port.set_reading("2bm:rot:rbv", _reading(0.0))
@@ -291,9 +291,9 @@ async def test_image_reading_round_trips_through_port() -> None:
 
     The headline supersession item (new ReadingKind) gets behavioural
     coverage, not just dataclass-literal acceptance. Production
-    adapters at Stage-1b through Stage-1d (especially EpicsPvaControlPort
-    for NTNDArray and a future TangoControlPort for IMAGE attributes)
-    must preserve this round-trip.
+    adapters (especially EpicsPvaControlPort for NTNDArray and a
+    future TangoControlPort for IMAGE attributes) must preserve this
+    round-trip.
     """
     port = _port()
     image = ((1, 2, 3), (4, 5, 6))

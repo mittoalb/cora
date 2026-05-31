@@ -8,7 +8,7 @@ concrete adapters; the executor never touches substrate-specific
 symbols directly.
 
 Per [[project_control_port_generalization_research]] this supersedes
-the earlier `PvDriver` Stage-1a lock. The supersession was driven by
+the earlier `PvDriver` design. The supersession was driven by
 a three-substrate stress test (EPICS + Tango + OPC UA sanity check)
 showing that value-IO genuinely generalises across all three when
 the port owns its vocabulary; RPC and typed events do NOT generalise
@@ -244,7 +244,7 @@ class NoAdapterForAddressError(Exception):
     new IOC / Tango device server / OPC UA server was added without
     extending the registry routes). Lives here, alongside the port,
     so adapters that construct registries can raise it; the registry
-    class itself ships in Stage-1e.
+    class itself lives in `cora.operation.adapters.control_port_registry`.
     """
 
     def __init__(self, address: str) -> None:
@@ -271,8 +271,8 @@ class ControlPort(Protocol):
 
     The executor that consumes this Protocol stays open at v1:
     `ControlPort` composes with fixed-rate-tick, async event-driven,
-    and plain-async executor architectures. Stage-2 picks an initial
-    executor shape; `ControlPort` is not coupled to that pick.
+    and plain-async executor architectures. The executor arc picks
+    an initial shape; `ControlPort` is not coupled to that pick.
 
     RPC (Tango Commands, OPC UA Methods) and typed events (Tango
     `DATA_READY` / `INTERFACE_CHANGE`, OPC UA `EventNotificationList`)

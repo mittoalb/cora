@@ -3,7 +3,7 @@
 The happy-path Rotating -> Active transition cannot be exercised end-
 to-end through the REST API in this slice because the upstream
 `register_credential` + `start_credential_rotation` slice routes are
-landed in sibling subtasks of Stage 2c-credential. These tests pin
+landed as sibling Credential rotation slices. These tests pin
 the status-code mappings via dependency overrides; the handler-level
 happy path is exercised by `test_complete_credential_rotation_handler`.
 """

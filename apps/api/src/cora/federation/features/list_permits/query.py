@@ -16,10 +16,10 @@ columns; each filter renders as `column = $N` via the
 
 ## Expiry-range filters deferred
 
-The Stage-2c-queries study sketched `expires_before` and
-`expires_after` filters. They do NOT fit the closed set of
-`list_query` filter primitives (Scalar / ArrayContains / ColumnIn)
-which only express equality / membership, not range comparisons.
+`expires_before` and `expires_after` filters were sketched but do
+NOT fit the closed set of `list_query` filter primitives (Scalar /
+ArrayContains / ColumnIn) which only express equality / membership,
+not range comparisons.
 
 Per the factory's growth-rule discipline: force-conformance unless a
 second consumer demands the same range shape. Ship v1 with three

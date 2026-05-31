@@ -95,9 +95,9 @@ async def test_complete_credential_rotation_handler_appends_event_to_rotating_cr
 
 @pytest.mark.unit
 async def test_complete_credential_rotation_handler_event_payload_is_identity_only() -> None:
-    """Stage 2c-credential posture: `CredentialRotationCompleted` carries
-    only credential_id + rotation_completed_by_actor_id + occurred_at
-    on its payload; pending refs and current refs do NOT appear."""
+    """`CredentialRotationCompleted` carries only credential_id +
+    rotation_completed_by_actor_id + occurred_at on its payload;
+    pending refs and current refs do NOT appear."""
     store = InMemoryEventStore()
     await seed_rotating_credential(
         store,

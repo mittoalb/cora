@@ -31,6 +31,10 @@ The forbidden patterns and the rationale for each:
   - `P<n>-<Section>-<n>` gate-review section tag (`P0-Sec-2`,
     `P2-Design-3`); the bare `P<n>#<n>` priority-issue form is
     caught by a separate arm.
+  - `Stage <n><letter>` and `Stage-<n><letter>` planning markers
+    (`Stage 2a`, `Stage 2c-credential`, `Stage-1c`, `Stage 3b`);
+    the optional `-<lowercase-suffix>` arm catches the
+    sub-stage-with-name forms.
 
 ## Allowed uses (false positives we explicitly skip)
 
@@ -39,8 +43,12 @@ The forbidden patterns and the rationale for each:
     in `cora.operation.aggregates.procedure.state`. The regex would
     match `Phase I` because `I` is `[A-Z]`; we filter those.
   - Wiki-link references to design memos with phase-numbered slugs
-    like `[[family-affordance-design-phases-5i-5j-lock]]`: memo
-    filenames are external and not in scope for this rule.
+    like `[[family-affordance-design-phases-5i-5j-lock]]` or
+    `[[stage-2a-foo]]`: memo filenames are external and not in
+    scope for this rule. The `_WIKI_LINK` strip removes the entire
+    `[[...]]` span before the forbidden-pattern search, so any
+    lowercase, hyphenated, bracket-bounded stage slug inside a
+    wiki-link is invisible to the check.
   - This file itself: it must name the forbidden patterns in its
     own regex and docstring. The walk skips it by basename.
 
@@ -89,6 +97,14 @@ _FORBIDDEN = re.compile(
     # form that lives in design-memo bodies.
     r"\bP[0-9]+-[A-Z][a-z]+-[0-9]+\b"
     r"|"
+    # Capitalized planning marker `Stage 2a`, `Stage-1c`, `Stage 3b`,
+    # plus the sub-stage-with-name forms (`Stage 2c-credential`,
+    # `Stage-2c-seal`). The trailing `(?:-[a-z]+)?` is optional so the
+    # bare digit-letter form still matches. Wiki-link-bounded slugs
+    # like `[[stage-2a-foo]]` are case-skipped by `_WIKI_LINK` before
+    # this regex sees the line.
+    r"\bStage[ -][0-9][a-z]?(?:-[a-z]+)?\b"
+    r"|"
     # Implicit phase reference: prep word followed by a hyphenated phase
     # tag like `pre-7e`, `post-6g-c`, `from 6f-1`, `in 11a-c-3`. The
     # first chunk is bounded to 1-2 letters so directory paths like
@@ -132,6 +148,43 @@ def _violations_for_line(line: str) -> str | None:
         if domain_match and domain_match.start() == match.start():
             return None
     return span
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        # Stage arm: bare digit + lowercase letter.
+        ("Stage 2a holds the wiring.", "Stage 2a"),
+        # Stage arm: hyphenated form (`Stage-1c`).
+        ("Stage-1c production CA adapter.", "Stage-1c"),
+        # Stage arm: digit-letter-name suffix.
+        ("Stage 2c-credential lands the rotation slices.", "Stage 2c-credential"),
+        # Stage arm: bare digit (no letter).
+        ("Picked per Stage 0 corpus survey.", "Stage 0"),
+    ],
+)
+def test_stage_arm_matches_planning_markers(line: str, expected: str) -> None:
+    """The Stage arm catches both spaced and hyphenated planning markers."""
+    assert _violations_for_line(line) == expected
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    "line",
+    [
+        # Wiki-link slug containing a stage tag is stripped before search.
+        "See [[stage-2a-foo]] for the lock.",
+        "Refer to [[project-control-port-design]] (no stage tag).",
+        # Capitalized "Stage" outside the marker shape (no digit) is fine.
+        "Stage left to drop off the prop.",
+        # Domain noun: ISA-88 Phase is allowed.
+        "Phase IS a Procedure in ISA-88 terms.",
+    ],
+)
+def test_allowed_lines_are_not_flagged(line: str) -> None:
+    """Wiki-link-bounded stage slugs and non-marker uses must not trip the regex."""
+    assert _violations_for_line(line) is None
 
 
 @pytest.mark.architecture

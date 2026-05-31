@@ -4,8 +4,8 @@ A `Surface` is a process-level arrival point — the protocol-bound
 socket through which a request entered CORA's process. v1 values:
 HTTP, MCP stdio, MCP streamable-http. Distinct from `Conduit` (which
 is an ISA-99/IEC-62443 inter-zone topology primitive); v2 memo
-locked the decomposition after the Stage 1 v1 conflation was caught
-by R2C, see memory/project_conduit_injection_design.md.
+locked the decomposition after the v1 conflation was caught by R2C,
+see memory/project_conduit_injection_design.md.
 
 Status FSM (`Defined → Versioned → Deprecated`) matches the
 Capability / Family / Practice / Method / Plan / Agent template

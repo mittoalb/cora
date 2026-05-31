@@ -7,19 +7,18 @@
 
 `load_seal(event_store, stream_id) -> Seal | None`
 mirrors `load_clearance` / `load_calibration`. The Seal is a
-per-facility singleton; the Stage-2 handler derives a deterministic
-stream UUID from the facility_id (UUID5 with the federation namespace)
-so this helper retains the UUID-keyed signature shared across CORA
+per-facility singleton; the handler derives a deterministic stream
+UUID from the facility_id (UUID5 with the federation namespace) so
+this helper retains the UUID-keyed signature shared across CORA
 aggregate read repos. The domain identity that matters
 (`Seal.facility_id`) is carried inside the aggregate state.
 
-`SealLifecycleTimestamps` + `load_seal_timestamps`
-mirror the Calibration Path C precedent
+`SealLifecycleTimestamps` + `load_seal_timestamps` mirror the
+Calibration Path C precedent
 (`project_template_aggregate_timestamps`): lifecycle bookkeeping
-timestamps live on the projection, not on the aggregate state, and
-read-side surfaces compose Seal + timestamps into a view DTO
-at the handler layer. Stage 2 introduces the projection table
-(`proj_federation_seal`) that backs this view.
+timestamps live on the `proj_federation_seal` projection table, not
+on the aggregate state, and read-side surfaces compose Seal +
+timestamps into a view DTO at the handler layer.
 """
 
 from dataclasses import dataclass

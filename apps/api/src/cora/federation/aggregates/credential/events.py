@@ -76,8 +76,8 @@ class CredentialRotationCompleted:
 
     Moves the aggregate from `Rotating` back to `Active`. The pending
     refs become the current refs; the prior current refs are
-    discarded (Stage 2 deciders are responsible for telling the
-    SecretStore adapter to revoke the prior material).
+    discarded (deciders are responsible for telling the SecretStore
+    adapter to revoke the prior material).
     """
 
     credential_id: UUID

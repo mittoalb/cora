@@ -53,7 +53,7 @@ def _is_exempt_path(path: Path) -> bool:
     # cora/<bc>/ports/... mirrors cora/infrastructure/ports/...: port-tier
     # exception classes (wire-protocol errors caught by the executor's
     # decider per project_non_determinism_principle) co-locate with the
-    # Protocol they belong to; first instance is ControlPort at Stage-1a'.
+    # Protocol they belong to; first instance is ControlPort.
     if len(parts) >= 2 and parts[1] == "ports":
         return True
     # cora/infrastructure/...

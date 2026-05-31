@@ -1,20 +1,20 @@
 """aioca-backed `ControlPort` adapter for production EPICS Channel Access.
 
-Stage-1c of the control-port arc per [[project_control_port_design]] +
+Sits in the control-port arc per [[project_control_port_design]] +
 [[project_control_port_generalization_research]]. CORA's production
 CA client; talks EPICS Channel Access via Diamond Light Source's
 `aioca` library (libca via ctypes). Diamond production-uses-it across
 their full stack.
 
-`CaprotoControlPort` (Stage-1b) remains as a parallel test-tier CA
-client adapter. Both adapters are integration-tested against the same
+`CaprotoControlPort` remains as a parallel test-tier CA client
+adapter. Both adapters are integration-tested against the same
 `epicscorelibs.ioc` subprocess (see
 [[project_control_port_test_isolation_research]]); the test surface
 unification lets us verify aioca + caproto behave identically against
 real CA wire framing.
 
-PVA goes through p4p at Stage-1d (`EpicsPvaControlPort`); CA does not
-natively carry NTNDArray (production image streams are PVA-only).
+PVA goes through p4p (`EpicsPvaControlPort`); CA does not natively
+carry NTNDArray (production image streams are PVA-only).
 
 ## Connection model
 

@@ -200,7 +200,7 @@ RUN_DEBRIEF_CHOICES: Final = frozenset(
 # Open-ended convention identical to `DECISION_CONTEXT_RUN_DEBRIEF`;
 # the closed choice vocabulary lives in the `CautionProposalChoice`
 # Literal below. See [[project-caution-drafter-design]] for the full
-# round-1+2 Stage 0 grounding.
+# grounding.
 DECISION_CONTEXT_CAUTION_PROPOSAL = "CautionProposal"
 
 

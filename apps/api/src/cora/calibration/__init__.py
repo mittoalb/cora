@@ -2,8 +2,7 @@
 
 Empirical instrument-value records keyed by `(target_id,
 CalibrationQuantity, operating_point)` with append-only revision
-history. Sibling to Safety (11a) + Caution (11b) per
-[[project_calibration_design]] Stage 1 lock.
+history. Sibling to Safety + Caution per [[project_calibration_design]].
 
 The Calibration aggregate captures what the alignment Procedure
 *measured* (Measured source), what numerical methods *computed* from

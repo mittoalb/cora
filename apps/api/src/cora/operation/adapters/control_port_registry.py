@@ -1,10 +1,10 @@
 """Prefix-routed `ControlPort` composite for multi-substrate deployments.
 
-Per [[project_control_port_design]] § Address space and the Stage-1e
-placeholder in [[project_control_port_generalization_research]],
-production deployments will run more than one substrate adapter side
-by side: 2-BM's CA-only IOCs alongside detector PVs served via PVA,
-plus eventually Tango device servers and OPC UA endpoints in other
+Per [[project_control_port_design]] § Address space and
+[[project_control_port_generalization_research]], production
+deployments will run more than one substrate adapter side by side:
+2-BM's CA-only IOCs alongside detector PVs served via PVA, plus
+eventually Tango device servers and OPC UA endpoints in other
 facilities. The executor needs ONE `ControlPort` to talk to; the
 registry is that one.
 

@@ -1,15 +1,16 @@
 """Integration tests: `EpicsPvaControlPort` (p4p) against the shared softIOC.
 
-Stage-1d of the control-port arc per [[project_control_port_design]] +
+Production PVA adapter of the control-port arc per
+[[project_control_port_design]] +
 [[project_control_port_generalization_research]] +
 [[project_control_port_test_isolation_research]]. Production PVA client
 (p4p / pvxs; EPICS Base official) against the same
-`epicscorelibs.ioc` subprocess Stage-1c uses for CA. The IOC auto-
-loads qsrv + pvAccessIOC so every CA record is also exposed via PVA
-(verified empirically in the Stage-1d Stage-0 sketch).
+`epicscorelibs.ioc` subprocess `EpicsCaControlPort` uses for CA. The
+IOC auto-loads qsrv + pvAccessIOC so every CA record is also
+exposed via PVA (verified empirically during the design sketch).
 
-The headline coverage for Stage-1d: `Reading(kind="Image")`
-end-to-end via the NTNDArray PV defined in `_softioc.py`'s db
+The headline coverage: `Reading(kind="Image")` end-to-end via the
+NTNDArray PV defined in `_softioc.py`'s db
 template. CA cannot carry NTNDArray; PVA can. This is the first
 adapter that exercises the `Image` ReadingKind on real wire.
 
@@ -27,15 +28,16 @@ adapter that exercises the `Image` ReadingKind on real wire.
 
 Out of scope:
 
-  - `ControlTimeoutError` on the read path: per Stage-1c precedent
-    (softIOC has no slow-getter equivalent); covered at unit tier
-    with mocked p4p in `test_epics_pva_control_port_acl.py` (TODO at
-    follow-up if needed; the EpicsCa unit ACL test serves as the
-    pattern).
+  - `ControlTimeoutError` on the read path: per the CA adapter
+    precedent (softIOC has no slow-getter equivalent); covered at
+    unit tier with mocked p4p in
+    `test_epics_pva_control_port_acl.py` (TODO at follow-up if
+    needed; the EpicsCa unit ACL test serves as the pattern).
   - `Tabular` ReadingKind: no NTTable record on the test IOC today;
     extend when first NTTable consumer lands.
   - `Uncertain` quality (MINOR_ALARM): same defer-to-MINOR-trigger
-    rationale as Stage-1c; add a calc record when concretely needed.
+    rationale as the CA adapter; add a calc record when concretely
+    needed.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
@@ -138,8 +140,8 @@ async def test_read_enum_returns_categorical_with_label(softioc: str) -> None:
 async def test_read_image_returns_image_kind_with_3x2_shape(softioc: str) -> None:
     """NTNDArray lands as Reading(kind='Image') with the expected shape.
 
-    Headline Stage-1d coverage: the `Image` ReadingKind is unreachable
-    via CA (Stage-1c) and must be exercised via PVA. The softIOC's
+    Headline PVA coverage: the `Image` ReadingKind is unreachable
+    via CA and must be exercised via PVA. The softIOC's
     `image` PV is qsrv-composed from `image:data` (waveform UCHAR x 6)
     + `image:dim0_size` (longout = 2 cols, fast-varying) +
     `image:dim1_size` (longout = 3 rows, slow-varying). EPICS V4

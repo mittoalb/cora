@@ -66,8 +66,8 @@ def _pin_epics_env() -> Iterator[None]:
     invocation, each picks its own ephemeral port. The `softioc`
     fixture binds an IOC to that port.
 
-    Originally set via `monkeypatch` per-test (Stage-1b pattern); that
-    works for caproto's per-`Context()` client (no shared state) but
+    Originally set via `monkeypatch` per-test (caproto-era pattern);
+    that works for caproto's per-`Context()` client (no shared state) but
     breaks for aioca (process-global state). Session-scope is the only
     pattern that satisfies both clients without subprocess-per-test
     overhead. See [[project_control_port_test_isolation_research]] for
@@ -77,14 +77,14 @@ def _pin_epics_env() -> Iterator[None]:
     pva_port = free_localhost_port()
     pva_bcast = free_localhost_port()
     pinned = {
-        # CA env (Stage-1c): server + client both pinned to a single port
+        # CA env: server + client both pinned to a single port
         "EPICS_CA_SERVER_PORT": str(ca_port),
         "EPICS_CAS_INTF_ADDR_LIST": "127.0.0.1",
         "EPICS_CAS_BEACON_ADDR_LIST": "127.0.0.1",
         "EPICS_CAS_AUTO_BEACON_ADDR_LIST": "NO",
         "EPICS_CA_ADDR_LIST": f"127.0.0.1:{ca_port}",
         "EPICS_CA_AUTO_ADDR_LIST": "NO",
-        # PVA env (Stage-1d): server's TCP port + UDP broadcast pinned;
+        # PVA env: server's TCP port + UDP broadcast pinned;
         # client's ADDR_LIST is loopback host only (NO port) so it
         # broadcasts to the server's bound UDP port to discover the
         # TCP service.

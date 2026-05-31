@@ -30,7 +30,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "Promote a CautionProposal Decision (authored by CautionDrafter) "
             "into a real Caution via Caution BC's register_caution or "
             "supersede_caution slice. Operator-triggered curation gate; "
-            "Decision-mediated workflow per Stage 0 unanimous propose-via-"
+            "Decision-mediated workflow per the unanimous propose-via-"
             "Decision verdict. Returns the new caution_id."
         ),
     )

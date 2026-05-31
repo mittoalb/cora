@@ -3,9 +3,9 @@
 Hoisted at design-lock time per `project_content_addressed_identity_design`
 (2026-05-23). Used by:
 
-  - Method / Plan / CalibrationRevision / Trajectory VO (Stage-1 design
-    lock; per-aggregate implementation lands when each next-touch
-    happens).
+  - Method / Plan / CalibrationRevision / Trajectory VO (per the
+    design lock; per-aggregate implementation lands when each
+    next-touch happens).
   - Candidate F signed events (`signing.py`): the `pae_bytes` output is
     the byte sequence the Ed25519 signer signs. Sharing one
     canonicalization profile across hashing and signing means one
@@ -13,7 +13,7 @@ Hoisted at design-lock time per `project_content_addressed_identity_design`
 
 ## Why this exact pipeline
 
-Stage-0 corpus survey (`project_canonicalization_research`) ruled out:
+The corpus survey (`project_canonicalization_research`) ruled out:
 
   - JCS via `rfc8785` library (1-year silence, bus-factor risk)
   - Binary canonicalization (CBOR / msgpack / protobuf): 10% win on a
@@ -27,7 +27,7 @@ Locked: stdlib json sort-keys recipe + DSSE PAE wrap + SHA-256.
 ## The non-obvious safeguards
 
 Three implementation details that are NOT obvious from the design lock
-alone, surfaced by Stage-0 implementation research:
+alone, surfaced by implementation research:
 
   1. NFC normalization MUST recurse into keys and values. The only
      defense against composed-vs-decomposed Unicode drift (Latin

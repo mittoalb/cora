@@ -44,8 +44,8 @@ class RotateSealOnlineKeyBody(BaseModel):
         description=(
             "Operator affirmation that the offline (cold) root "
             "countersigned this rotation. Required for the audit denorm; "
-            "the offline-signature verification itself is out of Stage-1 "
-            "scope."
+            "the offline-signature verification itself is out of scope "
+            "for this slice."
         ),
     )
 

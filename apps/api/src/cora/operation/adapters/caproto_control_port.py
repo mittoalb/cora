@@ -1,19 +1,19 @@
 """caproto-backed `ControlPort` adapter for the integration test tier.
 
-Per [[project_control_port_design]] § Test surface and the Stage-1b
-plan in [[project_control_port_generalization_research]], caproto is
-CORA's integration-tier substrate ONLY. The same Python package
-serves both client and server roles: this adapter is the CA client;
-the `caproto_ioc` pytest fixture spins up the IOC. Both run in-process
+Per [[project_control_port_design]] § Test surface and
+[[project_control_port_generalization_research]], caproto is CORA's
+integration-tier substrate ONLY. The same Python package serves both
+client and server roles: this adapter is the CA client; the
+`caproto_ioc` pytest fixture spins up the IOC. Both run in-process
 inside the same pytest worker.
 
 The maintainers' own README warns: "applications requiring battle-
 tested reliability (their example: running an accelerator) should
 steer well clear." Production CA traffic goes through aioca
-(Stage-1c, `EpicsCaControlPort`); PVA goes through p4p (Stage-1d,
-`EpicsPvaControlPort`). This adapter exists to exercise the
-`ControlPort` Protocol against real CA wire framing without
-testcontainers / softIOC binaries / EPICS Base system installation.
+(`EpicsCaControlPort`); PVA goes through p4p (`EpicsPvaControlPort`).
+This adapter exists to exercise the `ControlPort` Protocol against
+real CA wire framing without testcontainers / softIOC binaries /
+EPICS Base system installation.
 
 ## Connection model
 
@@ -62,8 +62,8 @@ carrying `data` (numpy array, shape `(count,)` even for scalars),
 declared in the port but not yet triggered by this adapter: CA
 Access Security isn't configured on the test IOC, and the closed
 ReadingKind set covers every type our test IOC exposes. Both stay
-in the exception family for parity with future production adapters
-where they DO fire (Stage-1c / Stage-1d).
+in the exception family for parity with production adapters where
+they DO fire (`EpicsCaControlPort` / `EpicsPvaControlPort`).
 
 ## Subscribe lifecycle
 
@@ -111,7 +111,8 @@ if TYPE_CHECKING:
 _DEFAULT_TIMEOUT_S = 2.0
 """Default per-operation timeout. Integration tests run on loopback
 inside the same process as the IOC; 2 seconds is generous. Production
-adapters (Stage-1c, Stage-1d) pick deployment-appropriate defaults."""
+adapters (`EpicsCaControlPort`, `EpicsPvaControlPort`) pick
+deployment-appropriate defaults."""
 
 
 _SEVERITY_TO_QUALITY: dict[AlarmSeverity, Quality] = {

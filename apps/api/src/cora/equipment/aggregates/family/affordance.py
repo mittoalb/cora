@@ -1,7 +1,7 @@
 """Affordance closed StrEnum: device-level operational primitives a Family supports.
 
 Per [[family-affordance-design-phases-5i-5j-lock]] and the 4-round
-Stage 0 research [[project-capability-research]]:
+research in [[project-capability-research]]:
 
 - An Affordance is a CLAIM about what the device can do, set-membership-
   shaped (a Family `affords` Rotatable iff Rotatable is in

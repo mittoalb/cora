@@ -3,7 +3,7 @@
 The happy-path Rotating -> Active transition cannot be exercised end-
 to-end through the MCP surface in this slice because the upstream
 `register_credential` + `start_credential_rotation` slice tools are
-landed in sibling subtasks of Stage 2c-credential. These tests pin
+landed as sibling Credential rotation slices. These tests pin
 tool listing, structured-content shape on the happy path (via REST
 dependency override), and the `isError: true` mapping for the
 decider-layer FSM rejection plus the unknown-credential branch.

@@ -23,7 +23,7 @@ import pytest
 
 from tests.architecture.conftest import CORA_ROOT
 
-# 13 Visit command names locked by the Stage-1 AuthZ matrix (9
+# 13 Visit command names locked by the AuthZ matrix (9
 # lifecycle + 2 presence + 2 Surface-control).
 _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
     {
@@ -72,7 +72,7 @@ def _wire_command_name_literals() -> set[str]:
 @pytest.mark.architecture
 @pytest.mark.parametrize("expected", sorted(_VISIT_COMMAND_NAMES))
 def test_visit_command_name_is_wired_under_locked_string(expected: str) -> None:
-    """Each Stage-1 AuthZ-matrix string appears in trust/wire.py.
+    """Each AuthZ-matrix string appears in trust/wire.py.
 
     Catches the case where a slice gets renamed (e.g. `RegisterVisit`
     becomes `CreateVisit`) without the design memo + deployed Policies

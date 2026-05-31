@@ -4,9 +4,9 @@ Public surface: status enum + aggregate root + 9 error classes + 5
 events + evolver + load helpers + lifecycle-timestamps view +
 key-separation guard. Pattern matches
 `cora.calibration.aggregates.calibration.__init__` and
-`cora.safety.aggregates.clearance.__init__`. Stage 1 scaffolds the
-aggregate only; deciders, projections, slices, routes, MCP tools, and
-the wire module land in Stage 2.
+`cora.safety.aggregates.clearance.__init__`. The aggregate's
+deciders, projections, slices, routes, MCP tools, and wire module
+live alongside this module.
 """
 
 from cora.federation.aggregates.seal._key_separation import verify_key_separation

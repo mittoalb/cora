@@ -24,7 +24,7 @@ one refetch then resumes from cache.
 
 Cache TTL is governed by PyJWT's internal `lifespan` (default 5 min);
 we leave it at the default. The kid-miss refetch is the real
-safety net per the Cloudflare discipline (Stage 0 OAuth corpus).
+safety net per the Cloudflare discipline (OAuth corpus survey).
 
 ## What `verify()` checks (in order)
 

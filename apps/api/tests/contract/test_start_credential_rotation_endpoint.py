@@ -4,7 +4,7 @@ The happy-path Active -> Rotating transition is exercised end-to-end
 in the handler tests; here we pin the status-code mappings via
 dependency overrides plus Pydantic-layer rejection (missing
 `new_secret_ref`, whitespace-only `new_secret_ref`, invalid UUID
-path, extra fields under `extra=forbid`). Stage 2c-credential
+path, extra fields under `extra=forbid`). Credential rotation
 sibling slices ship in the same change, so the upstream genesis is
 not chained here.
 """

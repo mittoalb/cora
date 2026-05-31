@@ -25,7 +25,7 @@ populated from event envelope `occurred_at` and from the
 Source-state guards and key-separation checks live at the decider,
 NOT here; the evolver trusts the event log (folded events have
 already passed their decider). The `_key_separation` helper module
-exists so Stage-2 deciders can invoke it before commit.
+exists so transition deciders can invoke it before commit.
 
 Transition events applied to empty state raise `ValueError` via the
 shared `require_state` helper at `cora.infrastructure.evolver`.

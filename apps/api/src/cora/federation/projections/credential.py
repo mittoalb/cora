@@ -1,6 +1,6 @@
 """CredentialSummaryProjection: folds the Credential aggregate's events
 into the `proj_federation_credential_summary` read model that backs
-the list / get slices shipped in Stage 2b/2c.
+the Credential list / get slices.
 
 Subscribed events:
   - CredentialRegistered          -> INSERT (status='Active',

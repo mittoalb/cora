@@ -15,24 +15,22 @@ Cross-cutting decorators applied here:
   3. `with_tracing`: OTel span around every handler call. Query
      handlers pass `kind="query"` so the span is tagged accordingly.
 
-Stage 2b lands the five Permit lifecycle slices: `register_permit`
+The bundle wires five Permit lifecycle slices: `register_permit`
 (create-style; idempotency-wrapped) plus the four transitions
 (`activate_permit`, `suspend_permit`, `resume_permit`,
-`revoke_permit`). Stage 2c-credential lands the five Credential
-lifecycle slices: `register_credential` (create-style;
-idempotency-wrapped) plus the four transitions
-(`start_credential_rotation`, `complete_credential_rotation`,
-`abort_credential_rotation`, `revoke_credential`). Stage 2c-seal
-lands the five Seal lifecycle slices: `initialize_seal` (genesis;
-idempotency-wrapped; cross-BC) plus the four transitions
+`revoke_permit`); five Credential lifecycle slices:
+`register_credential` (create-style; idempotency-wrapped) plus the
+four transitions (`start_credential_rotation`,
+`complete_credential_rotation`, `abort_credential_rotation`,
+`revoke_credential`); five Seal lifecycle slices: `initialize_seal`
+(genesis; idempotency-wrapped; cross-BC) plus the four transitions
 (`sign_seal_pointer`, `rotate_seal_online_key`,
-`start_seal_republishing`, `complete_seal_republishing`).
-Stage 2c-queries lands the six read-side slices: three list
-queries (`list_permits`, `list_credentials`, `list_seals`) backed
-by the shared `list_query` factory, and three by-id queries
-(`get_permit`, `get_credential`, `get_seal`) that compose
-`load_X` (event-store fold) with `load_X_timestamps` (projection
-fold) into a `XView` bundle.
+`start_seal_republishing`, `complete_seal_republishing`); and six
+read-side slices: three list queries (`list_permits`,
+`list_credentials`, `list_seals`) backed by the shared `list_query`
+factory, and three by-id queries (`get_permit`, `get_credential`,
+`get_seal`) that compose `load_X` (event-store fold) with
+`load_X_timestamps` (projection fold) into a `XView` bundle.
 """
 
 from dataclasses import dataclass
@@ -72,11 +70,10 @@ _BC = "federation"
 class FederationHandlers:
     """The Federation BC's handler bundle, each closed over Kernel.
 
-    Stage 2b: five Permit lifecycle slices (register + four
-    transitions). Stage 2c-credential: five Credential lifecycle
-    slices (register + four transitions). Stage 2c-seal: five Seal
-    lifecycle slices (initialize + four transitions). Stage 2c-queries:
-    six read-side slices (three list + three get-by-id).
+    Five Permit lifecycle slices (register + four transitions), five
+    Credential lifecycle slices (register + four transitions), five
+    Seal lifecycle slices (initialize + four transitions), and six
+    read-side slices (three list + three get-by-id).
     """
 
     register_permit: register_permit.IdempotentHandler

@@ -19,7 +19,7 @@ problem: the IOC outlives the test loop (it's a subprocess), and
 between-test `purge_channel_caches()` is enough to reset client
 state without trying to call the unsafe `ca_context_destroy`.
 
-## PV menu (same names as the prior Stage-1b in-process CoraTestIOC)
+## PV menu (same names as the prior in-process CoraTestIOC)
 
   - `double_value` (DBR_DOUBLE, `ao` record) -> `Reading(kind="Scalar")`
   - `long_value`   (DBR_LONG,   `longout`)   -> `Reading(kind="Scalar")`
@@ -42,7 +42,7 @@ declarative consequence of the field values.
 
 ## Slow / timeout PV is intentionally absent
 
-Stage-1b's `slow_value` (caproto `@getter` with `asyncio.sleep`) has
+The original `slow_value` (caproto `@getter` with `asyncio.sleep`) has
 no clean softIOC equivalent : EPICS records process synchronously in
 C. The `pv.read` timeout ACL arm is exercised via aioca unit tests
 with mocked `caget` (separate from this fixture) per
@@ -122,7 +122,7 @@ record(ao, "$(P)bad_quality_value") {
   field(PINI, "YES")
 }
 
-# NTNDArray Q:group for Stage-1d EpicsPvaControlPort. Exposes a 2x3
+# NTNDArray Q:group for the PVA adapter (EpicsPvaControlPort). Exposes a 2x3
 # uint8 image at $(P)image via PVA. CA cannot carry NTNDArray.
 #
 # Q:group composition shape:

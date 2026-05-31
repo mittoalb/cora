@@ -5,9 +5,9 @@ end in the handler tests; here we pin the status-code mappings via
 dependency overrides plus Pydantic-layer rejection (extra fields
 under `extra=forbid`). The decider's head-pair / no-prior-head
 structural invariants now surface as 400 via the typed
-InvalidSealHeadHashError. Stage 2c-seal sibling slices ship in the
-same change, so the upstream initialize + republishing-start are not
-chained here.
+InvalidSealHeadHashError. Seal-republishing sibling slices ship in
+the same change, so the upstream initialize + republishing-start
+are not chained here.
 """
 
 import pytest

@@ -17,8 +17,8 @@ the Permit `suspend_permit` precedent (decider needs
 `suspended_by_actor_id`, so the handler stays longhand). A
 Credential-flavored factory variant that threads
 `<verb>_by_actor_id` may emerge at rule-of-three once the other
-Credential transition handlers (start / complete) ship in
-sibling slices of Stage 2c-credential.
+Credential transition handlers (start / complete) ship as sibling
+slices.
 """
 
 from typing import Protocol

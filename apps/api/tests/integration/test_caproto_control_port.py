@@ -1,8 +1,8 @@
 """Integration tests: `CaprotoControlPort` against a shared softIOC subprocess.
 
-Originally Stage-1b ran caproto-client against an in-process caproto
-IOC. Stage-1c moved the test surface to an `epicscorelibs.ioc`
-subprocess (see [[project_control_port_test_isolation_research]]):
+Originally the caproto-client ran against an in-process caproto IOC.
+The test surface later moved to an `epicscorelibs.ioc` subprocess
+(see [[project_control_port_test_isolation_research]]):
 that change is the corpus-unanimous pattern across Diamond aioca,
 ophyd-async, fastcs, and caproto's own client tests. The same
 fixture serves `EpicsCaControlPort` tests; one surface for all
@@ -39,9 +39,9 @@ Out of scope here:
     getter equivalent; covered at unit tier with mocked client per
     [[project_control_port_test_isolation_research]] watch item 4.
   - `Image` / `Tabular` `ReadingKind` : CA does not natively carry
-    NTNDArray; lands with EpicsPvaControlPort at Stage-1d.
+    NTNDArray; lands with `EpicsPvaControlPort`.
   - `Uncertain` quality : no convenient MINOR-alarm trigger on this
-    softIOC PV menu without a calc record; defer to Stage-1d.
+    softIOC PV menu without a calc record; defer to the PVA adapter.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false

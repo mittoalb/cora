@@ -2,7 +2,7 @@
 
 Publish-pull cross-facility federation: governs Permit /
 Credential / Seal aggregates per
-[[project_federation_port_design]] (Stage 1 lock).
+[[project_federation_port_design]].
 
 Permit unifies the two sides of a bilateral publish-pull
 relationship through a `direction`-tagged terms union: an outbound
@@ -16,9 +16,9 @@ seal-offline-root) per facility and audience. Seal is the
 per-facility singleton that signs the head pointer over the
 published registry tree.
 
-Stage 2a scaffolds BC wiring (errors, routes, tools, wire,
-projection / subscriber registration entry points); slices and
-projection modules land in Stage 2b/2c.
+The BC's wiring surface exposes errors, routes, tools, the wire
+factory, and the projection / subscriber registration entry points;
+slices and projection modules attach to those entry points.
 """
 
 from cora.federation._projections import register_federation_projections

@@ -182,7 +182,7 @@ class VisitTookControlOfSurface:
     """The Visit took operational control of the Surface.
 
     SINGLE-stream Visit write -- Surface aggregate state is NOT mutated
-    (Surface remains infrastructure-stable per Stage-0 finding). The
+    (Surface remains infrastructure-stable per the design research). The
     `proj_surface_active_visit` projection materializes "who drives
     now": this event triggers a 2-statement transaction that marks the
     prior holder's row released_at + INSERTs a new holder row.

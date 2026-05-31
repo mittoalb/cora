@@ -2,9 +2,8 @@
 
 Locks the surface promises the production adapters (CaprotoControlPort,
 EpicsCaControlPort, EpicsPvaControlPort, future TangoControlPort /
-OpcUaControlPort) will inherit at Stage-1b through Stage-1d.
-Behavioural tests for `InMemoryControlPort` live in
-`test_in_memory_control_port.py`.
+OpcUaControlPort) inherit. Behavioural tests for `InMemoryControlPort`
+live in `test_in_memory_control_port.py`.
 """
 
 from dataclasses import FrozenInstanceError

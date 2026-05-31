@@ -1,6 +1,7 @@
 """Integration tests: `EpicsCaControlPort` (aioca) against a shared softIOC.
 
-Stage-1c of the control-port arc per [[project_control_port_design]] +
+Production CA adapter of the control-port arc per
+[[project_control_port_design]] +
 [[project_control_port_generalization_research]] +
 [[project_control_port_test_isolation_research]]. Production CA client
 (aioca / libca via ctypes; Diamond production-uses-it) talking to the
@@ -34,9 +35,9 @@ Out of scope:
     getter equivalent; covered at unit tier with mocked client per
     [[project_control_port_test_isolation_research]] watch item 4.
   - `Image` / `Tabular` `ReadingKind` : CA does not natively carry
-    NTNDArray; lands with EpicsPvaControlPort at Stage-1d.
-  - `Uncertain` quality : defer to Stage-1d (no convenient MINOR
-    trigger on this PV menu without a calc record).
+    NTNDArray; lands with `EpicsPvaControlPort`.
+  - `Uncertain` quality : defer to the PVA adapter (no convenient
+    MINOR trigger on this PV menu without a calc record).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false

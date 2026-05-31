@@ -1316,7 +1316,7 @@ async def test_conduct_check_failure_after_setpoint_triggers_abort_with_check_ta
 async def test_conduct_reraises_unauthorized_error_from_start_procedure() -> None:
     """UnauthorizedError from start_procedure propagates so the route maps it to 403.
 
-    The conduct() lifecycle catch is narrowed (Stage-2 cleanup) so
+    The conduct() lifecycle catch is narrowed so
     authz / not-found / concurrency errors surface as exceptions
     rather than as 200-OK structured failures. The route layer's
     existing exception handlers (`cora/operation/routes.py`) map them

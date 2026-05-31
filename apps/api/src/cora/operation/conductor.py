@@ -64,7 +64,7 @@ the in-flight transition).
 
 ## Out of scope at this iteration
 
-The Stage-2 arc continues. The following land in subsequent iters:
+The executor arc continues; the following land in subsequent iters:
 
   - pre-write reading capture (`verify` only does post-write today;
     a `capture_pre` flag would land additively when an undo / rollback
@@ -828,9 +828,8 @@ class Conductor:
 
         The payload merges the kind-specific `body` with the
         Conductor-local `result` discriminator (plus `error_class` +
-        `message` on failure). Future Stage-2 iterations may extend
-        the body shape (pre/post readings, retry counts, etc.)
-        additively.
+        `message` on failure). Future iterations may extend the body
+        shape (pre/post readings, retry counts, etc.) additively.
         """
         payload: dict[str, Any] = {**body, "result": result}
         if error_class is not None:

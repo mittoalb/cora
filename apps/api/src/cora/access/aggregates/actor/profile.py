@@ -1,8 +1,8 @@
 """Actor display-surface helper + tombstone constant.
 
 Per [[project_pii_vault]] strategic lock and
-[[project_pii_vault_implementation_design]] Stage-1: human-facing
-Actor PII lives in the mutable `actor_profile` side table. The
+[[project_pii_vault_implementation_design]]: human-facing Actor PII
+lives in the mutable `actor_profile` side table. The
 `ProfileStore` Protocol + `Profile` dataclass live in
 `cora.infrastructure.ports.profile_store` because BOTH Access BC
 and Agent BC consume the contract; the adapters live alongside

@@ -1,6 +1,6 @@
 """PermitSummaryProjection: folds the Permit aggregate's events into
 the `proj_federation_permit_summary` read model that backs the
-list / get slices shipped in Stage 2b/2c.
+Permit list / get slices.
 
 Subscribed events:
   - PermitDefined    -> INSERT (status='Defined', defined_at=occurred_at)

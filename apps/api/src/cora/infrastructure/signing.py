@@ -1,9 +1,9 @@
 """Signature verification + signed-event-type registry.
 
-Stage-1 design lock implementation for Candidate F (signed events) per
-[[project_signed_events_design]]. Iteration 2 ships the verification
-path and the closed registry of event types that must be signed at
-write time; the `Signer` port lives next door at
+Implementation of Candidate F (signed events) per
+[[project_signed_events_design]]. Ships the verification path and
+the closed registry of event types that must be signed at write
+time; the `Signer` port lives next door at
 `cora.infrastructure.ports.signer`.
 
 No production signer adapter ships in this iteration. The verification
@@ -14,7 +14,7 @@ content hashing. One canonicalization profile, two consumers.
 
 ## Algorithm
 
-EdDSA over Ed25519. Picked per Stage-0 corpus survey: modal across
+EdDSA over Ed25519. Picked per the corpus survey: modal across
 modern attestation ecosystems (Sigstore, in-toto, SLSA, age, Tailscale),
 smaller signatures (64 bytes) than RSA-2048 (256 bytes), faster sign
 (~50us) and verify (~150us) than RSA at typical CORA append rates.

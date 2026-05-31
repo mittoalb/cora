@@ -6,8 +6,8 @@ Five events shipped at BC genesis:
   - `SealPointerSigned`: a new head pointer was signed by the
     online key.
   - `SealOnlineKeyRotated`: the online key was swapped (the
-    offline root authorizes this; the Stage-2 decider checks purpose
-    binding and key separation).
+    offline root authorizes this; the decider checks purpose binding
+    and key separation).
   - `SealRepublishingStarted`: Live to Republishing.
   - `SealRepublishingCompleted`: Republishing to Live, with a
     fresh head hash and bumped sequence number.
@@ -78,15 +78,15 @@ class SealPointerSigned:
 class SealOnlineKeyRotated:
     """The online (warm) signing key was rotated to a fresh Credential.
 
-    The Stage-2 decider has verified that the new `online_key_ref`
-    differs from the existing `offline_key_ref` (key separation) and
-    that the new credential's purpose is `SealOnlineSigning`. The
-    offline root is unchanged by this event; rotating the offline
-    root is a separate slice not in Stage 1 scope.
+    The decider has verified that the new `online_key_ref` differs
+    from the existing `offline_key_ref` (key separation) and that the
+    new credential's purpose is `SealOnlineSigning`. The offline root
+    is unchanged by this event; rotating the offline root is a
+    separate slice and is out of scope here.
 
     `signed_by_offline_root` records the operator gesture that the
     offline root authorised this rotation (audit-only; verification of
-    the offline signature itself is out of Stage-1 scope).
+    the offline signature itself is out of scope here).
     """
 
     facility_id: str

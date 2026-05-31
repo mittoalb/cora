@@ -13,10 +13,9 @@ before the decider.
 `PermitLifecycleTimestamps` + `load_permit_timestamps` mirror the
 Calibration Path C precedent
 (`project_template_aggregate_timestamps`): lifecycle bookkeeping
-timestamps live on the projection populated from each event's
-envelope `occurred_at`, not on the aggregate state. Stage 2 lands
-the `proj_permit_summary` projection table and replaces the stub
-with the real query.
+timestamps live on the `proj_permit_summary` projection populated
+from each event's envelope `occurred_at`, not on the aggregate
+state.
 
 `is_active` / `is_revoked` / `is_outbound` / `is_inbound` are pure
 projection helpers usable without the event store.
@@ -88,10 +87,10 @@ async def load_permit_timestamps(
 ) -> PermitLifecycleTimestamps | None:
     """Read the lifecycle-timestamp tuple from the projection.
 
-    Stage 2 lands `proj_permit_summary` and the real fetch; this Stage 1
-    stub returns `None` so update-style handlers can compose against
-    the eventual surface without yet depending on a projection table
-    that does not exist.
+    Stub: returns `None` so update-style handlers can compose against
+    the eventual surface without depending on a `proj_permit_summary`
+    table that does not yet exist; the real query lands when that
+    projection table does.
     """
     _ = pool
     _ = permit_id

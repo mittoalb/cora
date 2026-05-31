@@ -8,22 +8,21 @@ construction.
 JSONResponse is used (not HTTPException) per FastAPI guidance to
 avoid nested-exception pitfalls.
 
-Stage 2b attaches the five Permit lifecycle slice routers
+Attached routers cover the five Permit lifecycle slices
 (`register_permit` + `activate_permit` + `suspend_permit` +
-`resume_permit` + `revoke_permit`). Stage 2c-credential attaches
-the five Credential lifecycle slice routers (`register_credential`
-+ `start_credential_rotation` + `complete_credential_rotation` +
-`abort_credential_rotation` + `revoke_credential`). Stage 2c-seal
-attaches the five Seal lifecycle slice routers (`initialize_seal`
-+ `sign_seal_pointer` + `rotate_seal_online_key` +
-`start_seal_republishing` + `complete_seal_republishing`). The
-Seal domain-error handlers were wired alongside the Credential
-slices, so the arch-fitness
-`test_every_domain_error_registered_as_http_handler` passed
-day-one. Stage 2c-queries attaches the six read-side routers
+`resume_permit` + `revoke_permit`), the five Credential lifecycle
+slices (`register_credential` + `start_credential_rotation` +
+`complete_credential_rotation` + `abort_credential_rotation` +
+`revoke_credential`), the five Seal lifecycle slices
+(`initialize_seal` + `sign_seal_pointer` +
+`rotate_seal_online_key` + `start_seal_republishing` +
+`complete_seal_republishing`), and the six read-side slices
 (`list_permits` + `get_permit` + `list_credentials` +
 `get_credential` + `list_seals` + `get_seal`); queries surface
-404 on miss through the existing `*NotFoundError` handlers.
+404 on miss through the existing `*NotFoundError` handlers. The
+Seal domain-error handlers are wired alongside the Credential
+handlers so the arch-fitness
+`test_every_domain_error_registered_as_http_handler` stays green.
 """
 
 from fastapi import APIRouter, FastAPI, Request, status

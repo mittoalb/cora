@@ -1,6 +1,6 @@
 """End-to-end integration test: Conductor + EpicsCaControlPort + Postgres.
 
-Proves the full Stage-2 stack against real EPICS wire framing + real
+Proves the full executor stack against real EPICS wire framing + real
 Postgres. Constructs the Conductor with:
 
   - `EpicsCaControlPort` against the shared softIOC subprocess

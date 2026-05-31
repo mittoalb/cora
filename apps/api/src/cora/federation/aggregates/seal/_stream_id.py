@@ -11,10 +11,10 @@ band, and it lets `load_seal(event_store, stream_id)` retain its
 UUID-keyed signature.
 
 `_FEDERATION_SEAL_NAMESPACE` is a fixed UUID4-shaped sentinel chosen
-once and frozen; it MUST NOT change after Stage 2c-seal ships, or
-existing Seal streams become unreachable. Mirrors the
-`_RUN_DEBRIEF_DECISION_NAMESPACE` / `_CAUTION_DRAFTER_DECISION_NAMESPACE`
-precedent in `cora.agent.subscribers`.
+once and frozen; it MUST NOT change, or existing Seal streams become
+unreachable. Mirrors the `_RUN_DEBRIEF_DECISION_NAMESPACE` /
+`_CAUTION_DRAFTER_DECISION_NAMESPACE` precedent in
+`cora.agent.subscribers`.
 """
 
 from uuid import UUID, uuid5

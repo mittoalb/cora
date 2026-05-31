@@ -100,7 +100,7 @@ class InvalidCredentialSecretRefError(ValueError):
     not lie about which input was bad.
 
     The aggregate does not validate any pointer's resolvability (that
-    is the SecretStore adapter's concern at Stage 2); it only rejects
+    is the SecretStore adapter's concern); it only rejects
     structurally empty handles which would silently bind nothing.
     """
 
@@ -115,10 +115,10 @@ class InvalidCredentialSecretRefError(ValueError):
 class CredentialExpiredError(Exception):
     """A transition was attempted on a credential past its expires_at.
 
-    Raised by deciders (Stage 2) before allowing rotation, signing, or
-    other purpose-specific use. Revocation is still valid past expiry
-    so an expired credential can be terminally retired without first
-    being restored.
+    Raised by deciders before allowing rotation, signing, or other
+    purpose-specific use. Revocation is still valid past expiry so an
+    expired credential can be terminally retired without first being
+    restored.
     """
 
     def __init__(self, credential_id: UUID, expires_at: datetime) -> None:

@@ -2,8 +2,8 @@
 
 Reserved for federation-specific subscribers (for example, a
 grant-counter on `PermitDefined` for ABI-tier-floor audit, or a
-publish-pull pump on `SealPointerSigned`). Empty in Stage 2a; the
-first subscriber lands when its driving slice ships in Stage 2b/2c.
+publish-pull pump on `SealPointerSigned`). Empty today; subscribers
+attach here when their driving slices ship.
 """
 
 from __future__ import annotations

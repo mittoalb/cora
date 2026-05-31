@@ -6,12 +6,10 @@ callable returning the `FederationHandlers` bundle wired during the
 FastAPI lifespan; it is invoked per tool call so the latest wiring
 is always used.
 
-Stage 2b registers the five Permit lifecycle slice tools.
-Stage 2c-credential registers the five Credential lifecycle slice
-tools. Stage 2c-seal registers the five Seal lifecycle slice
-tools. Stage 2c-queries registers the six read-side slice tools
-(`list_permits` + `get_permit` + `list_credentials` +
-`get_credential` + `list_seals` + `get_seal`).
+Registered tools cover the five Permit lifecycle slices, the five
+Credential lifecycle slices, the five Seal lifecycle slices, and the
+six read-side slices (`list_permits` + `get_permit` +
+`list_credentials` + `get_credential` + `list_seals` + `get_seal`).
 """
 
 from collections.abc import Callable

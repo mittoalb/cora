@@ -10,9 +10,9 @@ Naming: leading underscore on the filename marks this as BC-private
 public-within-the-BC so importing slices reference them without the
 underscore (`FederationErrorDTO`, etc.).
 
-Stage 2a holds only the shared error DTO. Per-aggregate input /
+This module holds only the shared error DTO. Per-aggregate input /
 output DTOs (Permit terms-union, Credential rotation pointers, Seal
-pointer-sign body) land with their owning slices in Stage 2b/2c.
+pointer-sign body) live with their owning slices.
 """
 
 from pydantic import BaseModel, Field

@@ -1,8 +1,9 @@
 """Federation BC bootstrap reservation.
 
 Reserved for federation-specific startup work (for example,
-seeding the per-facility Seal singleton at deployment time). Empty
-in Stage 2a; slices that need bootstrap land in Stage 2b/2c.
+seeding the per-facility Seal singleton at deployment time). The
+hook is a no-op today; slices that need bootstrap wiring fill it
+in when they land.
 """
 
 from __future__ import annotations

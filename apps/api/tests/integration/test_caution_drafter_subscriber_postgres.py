@@ -225,7 +225,7 @@ async def test_subscriber_writes_caution_proposal_decision_end_to_end(
 async def test_end_to_end_cross_bc_promotion_registers_real_caution(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Full Stage 0 design proof: subscriber emits Decision, operator
+    """Full design proof: subscriber emits Decision, operator
     promotes via Agent BC's slice, Caution lands in Caution BC's stream."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(10)])
     await seed_caution_drafter_agent(deps)

@@ -17,13 +17,12 @@ Key invariants per [[project_federation_port_design]]:
     (the handler mints it via UUID5 with the federation namespace).
   - Key separation: `online_key_ref` and `offline_key_ref` MUST
     differ at every transition. Helper `verify_key_separation` at
-    `cora.federation.aggregates.seal._key_separation` is
-    called by every transition decider in Stage 2 per sec-4 AH#15
-    strengthening.
+    `cora.federation.aggregates.seal._key_separation` is called by
+    every transition decider per the sec-4 AH#15 strengthening.
   - Purpose binding: each ref is the Credential.id of a Credential
     whose `purpose` matches the slot. Cross-purpose installation
-    raises `SealKeyPurposeMismatchError` at the decider
-    (Stage 2), which reads the referenced Credential's purpose.
+    raises `SealKeyPurposeMismatchError` at the decider, which reads
+    the referenced Credential's purpose.
   - Sequence monotonicity: `current_sequence_number` strictly
     increases with each `SealPointerSigned` and with each
     `SealRepublishingCompleted`. Regression raises
@@ -172,10 +171,10 @@ class SealKeyPurposeMismatchError(Exception):
 
     `online_key_ref` MUST reference a Credential with purpose
     `SealOnlineSigning`; `offline_key_ref` MUST reference a
-    Credential with purpose `SealOfflineRoot`. The Stage-2
-    decider performs this cross-aggregate purpose check before
-    commit; raising this error keeps the wrong-purpose case
-    distinguishable from the equality-collision case above.
+    Credential with purpose `SealOfflineRoot`. The decider performs
+    this cross-aggregate purpose check before commit; raising this
+    error keeps the wrong-purpose case distinguishable from the
+    equality-collision case above.
     """
 
     def __init__(

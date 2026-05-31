@@ -15,7 +15,7 @@ fresh (expected version zero). Cross-stream correlation lands in
 Seeds the target credential via the upstream `register_credential`
 handler so the FSM walk Active -> Revoked is exercised end-to-end
 against real Postgres (mirrors the test_clearance_fsm_walk_postgres
-template recommended in the Stage 2c-credential design).
+template recommended in the Credential design).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

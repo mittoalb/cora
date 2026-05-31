@@ -555,13 +555,13 @@ def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
 
 @pytest.mark.unit
 def test_decide_does_not_compare_used_calibrations_against_producing_run() -> None:
-    """Stage-0 lock: the decider does NOT compare the
-    Dataset's used_calibrations against producing_run.pinned_
-    calibrations. The two sets are independent (Git-blob-reference
-    analog; "partial override" is a category error in the revision-
-    cited atomic-ID model). The decider trusts what command
-    supplies, even when the cited revisions are different from
-    anything the producing Run pinned."""
+    """The decider does NOT compare the Dataset's used_calibrations
+    against producing_run.pinned_calibrations. The two sets are
+    independent (Git-blob-reference analog; "partial override" is a
+    category error in the revision-cited atomic-ID model). The
+    decider trusts what command supplies, even when the cited
+    revisions are different from anything the producing Run
+    pinned."""
     cal_dataset_only = UUID("01900000-0000-7000-8000-00000cd00001")
     cmd = _good_command(
         producing_run_id=uuid4(),

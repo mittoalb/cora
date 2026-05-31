@@ -1,18 +1,18 @@
 """p4p-backed `ControlPort` adapter for production EPICS pvAccess.
 
-Stage-1d of the control-port arc per [[project_control_port_design]] +
+Sits in the control-port arc per [[project_control_port_design]] +
 [[project_control_port_generalization_research]] +
 [[project_control_port_test_isolation_research]]. Production PVA client
 (p4p / pvxs; EPICS Base official); talks EPICS V4 Normative Types end
 to end.
 
-`EpicsCaControlPort` (Stage-1c, aioca) is the parallel production CA
-client; together they cover the EPICS substrate. PVA adds what CA
-cannot carry: NTNDArray (structured 2-D image streams) which surface
-as the `Image` ReadingKind. The existing `epicscorelibs.ioc` softIOC
-auto-loads qsrv + pvAccessIOC, so both Stage-1c (aioca via CA) and
-Stage-1d (p4p via PVA) integration-test against the same subprocess
-fixture.
+`EpicsCaControlPort` (aioca) is the parallel production CA client;
+together they cover the EPICS substrate. PVA adds what CA cannot
+carry: NTNDArray (structured 2-D image streams) which surface as the
+`Image` ReadingKind. The existing `epicscorelibs.ioc` softIOC auto-
+loads qsrv + pvAccessIOC, so both the CA adapter (aioca via CA) and
+this PVA adapter (p4p via PVA) integration-test against the same
+subprocess fixture.
 
 ## Connection model
 
@@ -50,7 +50,7 @@ unpacks per NT type:
     column-name -> tuple (rare in practice; reserved for future use)
 
 `quality` from `severity` via the same 0->Good, 1->Uncertain, 2/3->Bad
-map as Stage-1c. `quality_detail` from `status` integer as a
+map the CA adapter uses. `quality_detail` from `status` integer as a
 forensic breadcrumb when severity is non-zero.
 
 `Context.get` is called with `request="field(value,alarm,timeStamp,
@@ -124,7 +124,7 @@ if TYPE_CHECKING:
 
 
 _DEFAULT_TIMEOUT_S = 5.0
-"""Default per-operation timeout. Mirrors the Stage-1c CA adapter.
+"""Default per-operation timeout. Mirrors the CA adapter.
 Tests override on negative-path tests (`default_timeout_s=0.3`)."""
 
 
@@ -357,10 +357,9 @@ class EpicsPvaControlPort:
     async def aclose(self) -> None:
         """Close the underlying p4p Context and drop adapter state.
 
-        Idempotent. Unlike Stage-1c (aioca), p4p's per-instance Context
-        is the only state to clean up: there is no process-global
-        broadcaster, so no `purge_channel_caches` analog at the
-        fixture layer.
+        Idempotent. Unlike aioca, p4p's per-instance Context is the
+        only state to clean up: there is no process-global broadcaster,
+        so no `purge_channel_caches` analog at the fixture layer.
         """
         if self._closed:
             return
