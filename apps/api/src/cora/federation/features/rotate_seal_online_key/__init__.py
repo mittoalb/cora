@@ -6,7 +6,7 @@ Seal lifecycle slices:
     from cora.federation.features import rotate_seal_online_key
 
     cmd = rotate_seal_online_key.RotateSealOnlineKey(
-        facility_id="aps", new_online_key_ref=...
+        facility_id="aps", new_online_credential_id=...
     )
     handler = rotate_seal_online_key.bind(deps)
     await handler(cmd, principal_id=..., correlation_id=...)
@@ -15,7 +15,7 @@ Mid-lifecycle Live -> Live transition that swaps the online (warm)
 signing key. Strict-not-idempotent: rotating to the same ref the slot
 already holds raises `SealCannotRotateError` (HTTP 409); rotating
 against a Republishing Seal raises `SealCannotRotateError`; rotating
-to a ref equal to `offline_key_ref` raises `SealKeyCollisionError`
+to a ref equal to `offline_credential_id` raises `SealKeyCollisionError`
 (HTTP 422) via the `_key_separation` helper.
 
 Cross-BC: this slice writes `SealOnlineKeyRotated` on the Federation

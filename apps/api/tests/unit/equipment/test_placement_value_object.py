@@ -21,7 +21,7 @@ def _make_placement(**overrides: object) -> Placement:
         "rx": 0.0,
         "ry": 0.0,
         "rz": 0.0,
-        "parent_frame": uuid4(),
+        "parent_frame_id": uuid4(),
         "reference_surface": ReferenceSurface.SHIELDING_FACE,
         "tol_x": 0.25,
         "tol_y": 0.25,
@@ -78,7 +78,7 @@ def test_placement_constructs_with_valid_inputs() -> None:
         rx=0.1,
         ry=0.2,
         rz=0.3,
-        parent_frame=parent,
+        parent_frame_id=parent,
         reference_surface=ReferenceSurface.OPTIC_CENTER,
         tol_x=0.5,
         tol_y=0.5,
@@ -89,7 +89,7 @@ def test_placement_constructs_with_valid_inputs() -> None:
         units=UnitSystem.SI_MM_RAD,
     )
     assert p.x == 1.0
-    assert p.parent_frame == parent
+    assert p.parent_frame_id == parent
     assert p.reference_surface is ReferenceSurface.OPTIC_CENTER
     assert p.units is UnitSystem.SI_MM_RAD
 
@@ -177,16 +177,16 @@ def test_placement_equality_is_structural() -> None:
     """Two Placements with identical fields are equal regardless of
     construction order."""
     parent = uuid4()
-    a = _make_placement(parent_frame=parent)
-    b = _make_placement(parent_frame=parent)
+    a = _make_placement(parent_frame_id=parent)
+    b = _make_placement(parent_frame_id=parent)
     assert a == b
     assert hash(a) == hash(b)
 
 
 @pytest.mark.unit
 def test_placement_with_different_parent_frame_is_not_equal() -> None:
-    a = _make_placement(parent_frame=uuid4())
-    b = _make_placement(parent_frame=uuid4())
+    a = _make_placement(parent_frame_id=uuid4())
+    b = _make_placement(parent_frame_id=uuid4())
     assert a != b
 
 

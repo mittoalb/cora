@@ -9,7 +9,7 @@ from cora.trust.aggregates.visit import (
     VisitCannotTakeControlError,
     VisitNotFoundError,
     VisitStatus,
-    VisitTookControlOfSurface,
+    VisitSurfaceControlTaken,
 )
 from cora.trust.features.take_control_of_surface import TakeControlOfSurface
 from cora.trust.features.take_control_of_surface.context import TakeControlOfSurfaceContext
@@ -31,7 +31,7 @@ def test_take_from_free_surface_in_progress_emits_event() -> None:
     )
     assert len(events) == 1
     [e] = events
-    assert isinstance(e, VisitTookControlOfSurface)
+    assert isinstance(e, VisitSurfaceControlTaken)
     assert e.visit_id == VISIT_ID
     assert e.surface_id == SURFACE_ID
     assert e.occurred_at == NOW

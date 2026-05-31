@@ -10,7 +10,7 @@ Subscribed events:
                                         current_sequence_number,
                                         last_signed_by_actor_id,
                                         last_signed_at=signed_at
-  - SealOnlineKeyRotated      -> UPDATE online_key_ref
+  - SealOnlineKeyRotated      -> UPDATE online_credential_id
   - SealRepublishingStarted   -> UPDATE status='Republishing'
   - SealRepublishingCompleted -> UPDATE status='Live',
                                         current_head_hash,
@@ -41,7 +41,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SEAL_SQL = """
 INSERT INTO proj_federation_seal
-    (facility_id, online_key_ref, offline_key_ref,
+    (facility_id, online_credential_id, offline_credential_id,
      current_head_hash, current_sequence_number,
      initialized_by_actor_id, last_signed_by_actor_id,
      status, initialized_at, last_signed_at)
@@ -64,7 +64,7 @@ WHERE facility_id = $1
 
 _UPDATE_ONLINE_KEY_ROTATED_SQL = """
 UPDATE proj_federation_seal
-SET online_key_ref = $2,
+SET online_credential_id = $2,
     updated_at = now()
 WHERE facility_id = $1
 """
@@ -115,8 +115,8 @@ class SealProjection:
                 await conn.execute(
                     _INSERT_SEAL_SQL,
                     payload["facility_id"],
-                    UUID(payload["online_key_ref"]),
-                    UUID(payload["offline_key_ref"]),
+                    UUID(payload["online_credential_id"]),
+                    UUID(payload["offline_credential_id"]),
                     UUID(payload["initialized_by_actor_id"]),
                     initialized_at,
                 )
@@ -139,7 +139,7 @@ class SealProjection:
             await conn.execute(
                 _UPDATE_ONLINE_KEY_ROTATED_SQL,
                 payload["facility_id"],
-                UUID(payload["new_online_key_ref"]),
+                UUID(payload["new_online_credential_id"]),
             )
             return
 

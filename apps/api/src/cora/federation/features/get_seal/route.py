@@ -34,13 +34,13 @@ class SealResponse(BaseModel):
     """Read-side DTO at the API boundary.
 
     Mirrors the Seal aggregate state plus projection-sourced lifecycle
-    timestamps. `online_key_ref` / `offline_key_ref` are Credential
+    timestamps. `online_credential_id` / `offline_credential_id` are Credential
     references (their referenced secrets never cross this wire).
     """
 
     facility_id: str
-    online_key_ref: UUID
-    offline_key_ref: UUID
+    online_credential_id: UUID
+    offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
     initialized_by_actor_id: UUID
@@ -58,8 +58,8 @@ def _response_from_view(
 ) -> SealResponse:
     return SealResponse(
         facility_id=seal.facility_id,
-        online_key_ref=seal.online_key_ref,
-        offline_key_ref=seal.offline_key_ref,
+        online_credential_id=seal.online_credential_id,
+        offline_credential_id=seal.offline_credential_id,
         current_head_hash=seal.current_head_hash,
         current_sequence_number=seal.current_sequence_number,
         initialized_by_actor_id=seal.initialized_by_actor_id,

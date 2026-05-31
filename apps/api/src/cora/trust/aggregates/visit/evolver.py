@@ -25,10 +25,10 @@ from cora.trust.aggregates.visit.events import (
     VisitEvent,
     VisitHeld,
     VisitRegistered,
-    VisitReleasedControlOfSurface,
     VisitResumed,
     VisitStarted,
-    VisitTookControlOfSurface,
+    VisitSurfaceControlReleased,
+    VisitSurfaceControlTaken,
     VisitVoided,
 )
 from cora.trust.aggregates.visit.state import (
@@ -123,7 +123,7 @@ def evolve(state: Visit | None, event: VisitEvent) -> Visit:
                 state,
                 presence_entries=(state.presence_entries - {open_entry}) | {closed_entry},
             )
-        case VisitTookControlOfSurface() | VisitReleasedControlOfSurface():
+        case VisitSurfaceControlTaken() | VisitSurfaceControlReleased():
             # Control events do not mutate aggregate state: the "who drives
             # now" concern lives entirely on the `proj_surface_active_visit`
             # projection so concurrent take/release cycles never collide

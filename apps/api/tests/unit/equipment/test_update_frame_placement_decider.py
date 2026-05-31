@@ -33,7 +33,7 @@ def _placement(parent: object, *, z: float = 259313.0) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=parent,  # type: ignore[arg-type]
+        parent_frame_id=parent,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.25,
         tol_y=0.25,
@@ -50,7 +50,7 @@ def _frame(*, parent: object, status: FrameStatus = FrameStatus.ACTIVE) -> Frame
         id=uuid4(),
         name=FrameName("centerline_5p1_mrad"),
         parent_frame_id=parent,  # type: ignore[arg-type]
-        placement_relative_to_parent=_placement(parent),
+        placement=_placement(parent),
         status=status,
     )
 
@@ -81,7 +81,7 @@ def test_decide_returns_no_op_when_new_placement_equals_current() -> None:
     parent = uuid4()
     frame = _frame(parent=parent)
     same_placement = _placement(parent)
-    assert frame.placement_relative_to_parent == same_placement
+    assert frame.placement == same_placement
     events = update_frame_placement.decide(
         state=frame,
         command=UpdateFramePlacement(frame_id=frame.id, new_placement=same_placement, survey=None),
@@ -127,13 +127,13 @@ def test_decide_raises_frame_cannot_update_when_decommissioned() -> None:
 
 @pytest.mark.unit
 def test_decide_raises_frame_cannot_update_when_state_is_root_frame() -> None:
-    """Root frames have placement_relative_to_parent=None; updating them
+    """Root frames have placement=None; updating them
     would create a placement on a root, violating the invariant."""
     root = Frame(
         id=uuid4(),
         name=FrameName("centerline_1p35_mrad"),
         parent_frame_id=None,
-        placement_relative_to_parent=None,
+        placement=None,
         status=FrameStatus.ACTIVE,
     )
     with pytest.raises(FrameCannotUpdateError) as info:
@@ -151,7 +151,7 @@ def test_decide_raises_frame_cannot_update_when_state_is_root_frame() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_new_placement_whose_parent_does_not_match_frames_parent() -> None:
-    """update_frame_placement cannot reparent: new_placement.parent_frame MUST
+    """update_frame_placement cannot reparent: new_placement.parent_frame_id MUST
     equal the Frame's existing parent_frame_id."""
     parent = uuid4()
     other = uuid4()

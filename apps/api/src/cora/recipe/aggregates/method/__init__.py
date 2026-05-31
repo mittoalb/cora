@@ -27,7 +27,7 @@ from cora.recipe.aggregates.method.read import (
 )
 from cora.recipe.aggregates.method.state import (
     METHOD_NAME_MAX_LENGTH,
-    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+    METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH,
     METHOD_VERSION_TAG_MAX_LENGTH,
     InvalidMethodNameError,
     InvalidMethodNeededSuppliesError,
@@ -45,7 +45,7 @@ from cora.recipe.aggregates.method.state import (
 
 __all__ = [
     "METHOD_NAME_MAX_LENGTH",
-    "METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH",
+    "METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH",
     "METHOD_VERSION_TAG_MAX_LENGTH",
     "InvalidMethodNameError",
     "InvalidMethodNeededSuppliesError",

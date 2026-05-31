@@ -13,7 +13,7 @@ install_asset slice transitions a vacant slot to occupied).
 Eventual-consistency stance:
 - parent_mount_id existence is NOT verified at write time (matches
   Asset.parent_id, Frame.parent_frame_id precedent).
-- placement.parent_frame existence is NOT verified at write time
+- placement.parent_frame_id existence is NOT verified at write time
   (mirrors the same precedent for cross-aggregate references).
 - slot_code uniqueness IS enforced at the handler layer via the
   mount_lookup projection precondition before reaching the decider.

@@ -33,7 +33,7 @@ class InspectPlanBindingRequest(BaseModel):
     asset_ids: list[UUID] = Field(..., min_length=1)
 
 
-class WiredAssetBindingItem(BaseModel):
+class WiredAssetItem(BaseModel):
     """Per-wired-Asset binding contribution on the wire.
 
     `family_ids` and `contributed_affordances` are sorted for
@@ -52,7 +52,7 @@ class CandidateAssetItem(BaseModel):
     """Per-Asset candidate for a missing affordance on the wire.
 
     `contributing_family_ids` is deliberately named to differ from
-    `WiredAssetBindingItem.family_ids`: it lists ONLY the candidate's
+    `WiredAssetItem.family_ids`: it lists ONLY the candidate's
     Families that declare the parent missing affordance, not the
     candidate's full Family set. Other state (condition, lifecycle)
     is unfiltered so the operator can see Faulted / Decommissioned
@@ -68,7 +68,7 @@ class CandidateAssetItem(BaseModel):
         description=(
             "Subset of the candidate's Families that declare the parent "
             "missing affordance, NOT the candidate's full Family set. "
-            "Naming distinguishes this from WiredAssetBindingItem.family_ids "
+            "Naming distinguishes this from WiredAssetItem.family_ids "
             "(the full set) so SDK consumers don't naively union the two."
         ),
     )
@@ -107,7 +107,7 @@ class InspectPlanBindingResponse(BaseModel):
     capability_id: UUID | None
     method_needed_families: list[UUID]
     capability_required_affordances: list[str]
-    wired_assets: list[WiredAssetBindingItem]
+    wired_assets: list[WiredAssetItem]
     missing_families: list[UUID]
     missing_affordances: list[str]
     missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
@@ -162,7 +162,7 @@ async def inspect_plan_binding(
             a.value for a in view.capability_required_affordances
         ),
         wired_assets=[
-            WiredAssetBindingItem(
+            WiredAssetItem(
                 asset_id=item.asset_id,
                 asset_name=item.asset_name,
                 condition=item.condition.value,

@@ -43,7 +43,7 @@ def placement(parent_frame_id: UUID) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=parent_frame_id,
+        parent_frame_id=parent_frame_id,
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.1,
         tol_y=0.1,

@@ -36,9 +36,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Initialize the per-facility Seal singleton (genesis; lands in "
             "Live). Atomically emits a DecisionRegistered audit on the "
-            "Decision stream. Required: facility_id, online_key_ref, "
-            "offline_key_ref. online_key_ref MUST differ from "
-            "offline_key_ref (key-separation invariant)."
+            "Decision stream. Required: facility_id, online_credential_id, "
+            "offline_credential_id. online_credential_id MUST differ from "
+            "offline_credential_id (key-separation invariant)."
         ),
     )
     async def initialize_seal_tool(  # pyright: ignore[reportUnusedFunction]
@@ -53,21 +53,21 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        online_key_ref: Annotated[
+        online_credential_id: Annotated[
             UUID,
             Field(
                 description=(
                     "Credential.id of the warm signing key "
-                    "(purpose SealOnlineSigning). Must differ from offline_key_ref."
+                    "(purpose SealOnlineSigning). Must differ from offline_credential_id."
                 ),
             ),
         ],
-        offline_key_ref: Annotated[
+        offline_credential_id: Annotated[
             UUID,
             Field(
                 description=(
                     "Credential.id of the cold root key "
-                    "(purpose SealOfflineRoot). Must differ from online_key_ref."
+                    "(purpose SealOfflineRoot). Must differ from online_credential_id."
                 ),
             ),
         ],
@@ -76,8 +76,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         stream_id = await handler(
             InitializeSeal(
                 facility_id=facility_id,
-                online_key_ref=online_key_ref,
-                offline_key_ref=offline_key_ref,
+                online_credential_id=online_credential_id,
+                offline_credential_id=offline_credential_id,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

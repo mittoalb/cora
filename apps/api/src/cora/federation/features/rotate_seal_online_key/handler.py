@@ -33,7 +33,7 @@ when reconstructing incident timelines, which is why this slice is
 cross-BC (matching `revoke_credential`).
 
 Cross-aggregate purpose binding: the handler resolves
-`new_online_key_ref` via the `CredentialLookup` port before invoking
+`new_online_credential_id` via the `CredentialLookup` port before invoking
 the decider and threads the projection row (or None) into the pure
 decider, which raises `CredentialNotFoundError` on miss,
 `SealKeyPurposeMismatchError` on wrong purpose, and
@@ -113,7 +113,7 @@ def bind(deps: Kernel) -> Handler:
             command_name=_COMMAND_NAME,
             facility_id=command.facility_id,
             stream_id=str(stream_id),
-            new_online_key_ref=str(command.new_online_key_ref),
+            new_online_credential_id=str(command.new_online_credential_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -144,7 +144,9 @@ def bind(deps: Kernel) -> Handler:
         )
         state = fold([from_stored(s) for s in stored])
 
-        new_online_credential = await deps.credential_lookup.lookup(command.new_online_key_ref)
+        new_online_credential = await deps.credential_lookup.lookup(
+            command.new_online_credential_id
+        )
 
         now = deps.clock.now()
 

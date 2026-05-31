@@ -1,7 +1,7 @@
 """Unit tests for the FrameRevisionLink VO and InvalidFrameRevisionError.
 
 Mirrors test_placement_value_object.py: tests focus on within-VO
-invariants (transform.parent_frame must equal predecessor_frame_id),
+invariants (transform.parent_frame_id must equal predecessor_frame_id),
 construction with valid inputs, and frozen/structural equality.
 
 Cross-Frame invariants (self-supersession, predecessor existence) are
@@ -33,7 +33,7 @@ def _transform_against(predecessor_id: object) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=predecessor_id,  # type: ignore[arg-type]
+        parent_frame_id=predecessor_id,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.OPTIC_CENTER,
         tol_x=0.0,
         tol_y=0.0,
@@ -53,7 +53,7 @@ def test_frame_revision_link_constructs_with_matching_transform_parent() -> None
         transform_from_predecessor=_transform_against(predecessor),
     )
     assert link.predecessor_frame_id == predecessor
-    assert link.transform_from_predecessor.parent_frame == predecessor
+    assert link.transform_from_predecessor.parent_frame_id == predecessor
     assert link.transform_from_predecessor.z == 1822.0
 
 
@@ -67,7 +67,7 @@ def test_frame_revision_link_rejects_transform_pointing_at_different_parent() ->
             transform_from_predecessor=_transform_against(different),
         )
     msg = str(exc_info.value)
-    assert "transform.parent_frame" in msg
+    assert "transform.parent_frame_id" in msg
     assert "predecessor_frame_id" in msg
     assert str(predecessor) in msg
     assert str(different) in msg
@@ -101,7 +101,7 @@ def test_frame_revision_link_equality_is_structural() -> None:
 
 @pytest.mark.unit
 def test_invalid_frame_revision_error_carries_reason() -> None:
-    exc = InvalidFrameRevisionError("transform.parent_frame mismatch")
-    assert exc.reason == "transform.parent_frame mismatch"
+    exc = InvalidFrameRevisionError("transform.parent_frame_id mismatch")
+    assert exc.reason == "transform.parent_frame_id mismatch"
     assert "Invalid FrameRevisionLink" in str(exc)
-    assert "transform.parent_frame mismatch" in str(exc)
+    assert "transform.parent_frame_id mismatch" in str(exc)

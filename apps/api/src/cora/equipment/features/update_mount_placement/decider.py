@@ -9,8 +9,8 @@ contract via make_mount_update_handler).
 
   - State must not be None -> MountNotFoundError.
   - Status must be Active -> MountCannotUpdateError (status mismatch).
-  - new_placement.parent_frame MUST equal the current
-    placement.parent_frame (update_mount_placement cannot reparent;
+  - new_placement.parent_frame_id MUST equal the current
+    placement.parent_frame_id (update_mount_placement cannot reparent;
     that would require a separate reparent slice). -> MountCannotUpdateError.
   - new_placement == current_placement -> [] (no-op).
 """
@@ -42,11 +42,11 @@ def decide(
             f"update_mount_placement requires {MountStatus.ACTIVE.value}"
         )
         raise MountCannotUpdateError(state.id, msg)
-    if command.new_placement.parent_frame != state.placement.parent_frame:
+    if command.new_placement.parent_frame_id != state.placement.parent_frame_id:
         msg = (
-            f"new_placement.parent_frame ({command.new_placement.parent_frame}) "
-            f"must equal Mount's current placement.parent_frame "
-            f"({state.placement.parent_frame}); update_mount_placement cannot reparent"
+            f"new_placement.parent_frame_id ({command.new_placement.parent_frame_id}) "
+            f"must equal Mount's current placement.parent_frame_id "
+            f"({state.placement.parent_frame_id}); update_mount_placement cannot reparent"
         )
         raise MountCannotUpdateError(state.id, msg)
     if command.new_placement == state.placement:

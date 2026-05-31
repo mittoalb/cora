@@ -32,11 +32,11 @@ class RotateSealOnlineKeyBody(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    new_online_key_ref: UUID = Field(
+    new_online_credential_id: UUID = Field(
         description=(
             "Credential id of the fresh online (warm) signing key. Must "
-            "differ from both the current online_key_ref (no-op rotation "
-            "rejected) and the current offline_key_ref (key-separation "
+            "differ from both the current online_credential_id (no-op rotation "
+            "rejected) and the current offline_credential_id (key-separation "
             "invariant)."
         ),
     )
@@ -74,14 +74,15 @@ router = APIRouter(tags=["federation"])
             "model": ErrorResponse,
             "description": (
                 "Seal is not Live (rotate requires Live) or the new ref "
-                "equals the current online_key_ref (no-op rotation "
+                "equals the current online_credential_id (no-op rotation "
                 "rejected)."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ErrorResponse,
             "description": (
-                "The new online ref equals the current offline_key_ref (key-separation invariant)."
+                "The new online credential id equals the current "
+                "offline_credential_id (key-separation invariant)."
             ),
         },
     },
@@ -98,7 +99,7 @@ async def post_federation_seals_rotate_online_key(
     await handler(
         RotateSealOnlineKey(
             facility_id=facility_id,
-            new_online_key_ref=body.new_online_key_ref,
+            new_online_credential_id=body.new_online_credential_id,
             signed_by_offline_root=body.signed_by_offline_root,
         ),
         principal_id=principal_id,

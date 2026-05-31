@@ -4,7 +4,7 @@ A "consumer" is any aggregate that holds a reference to a Frame in a
 way that would break if the Frame were decommissioned. Two consumer
 types today:
   - Frame: a child Frame's `parent_frame_id` points at this frame.
-  - Mount: an active Mount's `placement.parent_frame` points at this
+  - Mount: an active Mount's `placement.parent_frame_id` points at this
     frame.
 
 The `decommission_frame` slice's longhand handler loads
@@ -19,7 +19,7 @@ Subscribed events:
   - FrameDecommissioned    -> DELETE WHERE consumer_id = this_frame_id
                               (Frame consumers go away when they
                               themselves decommission)
-  - MountRegistered        -> INSERT (referenced_frame_id=placement.parent_frame,
+  - MountRegistered        -> INSERT (referenced_frame_id=placement.parent_frame_id,
                               consumer_id=mount_id, consumer_type='Mount')
   - MountDecommissioned    -> DELETE WHERE consumer_id = mount_id
                               (Mount consumers go away when they
@@ -32,10 +32,10 @@ mount ids and frame ids do not collide since both are UUIDs from a
 single id generator).
 
 Note: `MountPlacementUpdated` is NOT subscribed today. If a future
-slice ever allows changing `placement.parent_frame` post-registration,
+slice ever allows changing `placement.parent_frame_id` post-registration,
 the projection must subscribe MountPlacementUpdated and re-key the
 referenced_frame_id; not in v1 since update_mount_placement keeps the
-parent_frame fixed (the decider validates new_placement.parent_frame
+parent_frame fixed (the decider validates new_placement.parent_frame_id
 matches the existing parent_frame_id).
 """
 
@@ -110,7 +110,7 @@ class FrameConsumersProjection:
                 )
             case "MountRegistered":
                 placement = event.payload["placement"]
-                referenced_frame_id = UUID(placement["parent_frame"])
+                referenced_frame_id = UUID(placement["parent_frame_id"])
                 await conn.execute(
                     _INSERT_SQL,
                     referenced_frame_id,

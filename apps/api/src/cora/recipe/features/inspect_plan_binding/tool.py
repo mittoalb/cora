@@ -21,7 +21,7 @@ from cora.recipe.features.inspect_plan_binding.handler import Handler
 from cora.recipe.features.inspect_plan_binding.query import InspectPlanBinding
 
 
-class WiredAssetBindingItem(BaseModel):
+class WiredAssetItem(BaseModel):
     """Per-wired-Asset binding contribution on the MCP wire."""
 
     asset_id: UUID
@@ -37,7 +37,7 @@ class CandidateAssetItem(BaseModel):
 
     `contributing_family_ids` lists only the Families that declare
     the parent missing affordance, distinct from
-    `WiredAssetBindingItem.family_ids` which lists the full set.
+    `WiredAssetItem.family_ids` which lists the full set.
     """
 
     asset_id: UUID
@@ -68,7 +68,7 @@ class InspectPlanBindingOutput(BaseModel):
     capability_id: UUID | None
     method_needed_families: list[UUID]
     capability_required_affordances: list[str]
-    wired_assets: list[WiredAssetBindingItem]
+    wired_assets: list[WiredAssetItem]
     missing_families: list[UUID]
     missing_affordances: list[str]
     missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
@@ -120,7 +120,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 a.value for a in view.capability_required_affordances
             ),
             wired_assets=[
-                WiredAssetBindingItem(
+                WiredAssetItem(
                     asset_id=item.asset_id,
                     asset_name=item.asset_name,
                     condition=item.condition.value,

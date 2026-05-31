@@ -1907,7 +1907,7 @@
         "type": "object"
       },
       "CandidateAssetItem": {
-        "description": "Per-Asset candidate for a missing affordance on the wire.\n\n`contributing_family_ids` is deliberately named to differ from\n`WiredAssetBindingItem.family_ids`: it lists ONLY the candidate's\nFamilies that declare the parent missing affordance, not the\ncandidate's full Family set. Other state (condition, lifecycle)\nis unfiltered so the operator can see Faulted / Decommissioned\ncandidates and decide whether to act.",
+        "description": "Per-Asset candidate for a missing affordance on the wire.\n\n`contributing_family_ids` is deliberately named to differ from\n`WiredAssetItem.family_ids`: it lists ONLY the candidate's\nFamilies that declare the parent missing affordance, not the\ncandidate's full Family set. Other state (condition, lifecycle)\nis unfiltered so the operator can see Faulted / Decommissioned\ncandidates and decide whether to act.",
         "properties": {
           "asset_id": {
             "format": "uuid",
@@ -1923,7 +1923,7 @@
             "type": "string"
           },
           "contributing_family_ids": {
-            "description": "Subset of the candidate's Families that declare the parent missing affordance, NOT the candidate's full Family set. Naming distinguishes this from WiredAssetBindingItem.family_ids (the full set) so SDK consumers don't naively union the two.",
+            "description": "Subset of the candidate's Families that declare the parent missing affordance, NOT the candidate's full Family set. Naming distinguishes this from WiredAssetItem.family_ids (the full set) so SDK consumers don't naively union the two.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -3011,7 +3011,7 @@
         "type": "object"
       },
       "CredentialPurpose": {
-        "description": "The role this credential plays in federation traffic.\n\nSix arms locked at Memo 1 Q4:\n\n  - `Signing`: credential signs outbound payloads (manifests,\n    receipts, attestations).\n  - `Verification`: credential verifies inbound payloads signed\n    by peer facilities.\n  - `Authentication`: credential authenticates the local facility\n    to a peer at connection setup.\n  - `Encryption`: credential decrypts inbound payloads or wraps\n    outbound payloads.\n  - `SealOnlineSigning`: credential signs seal pointer updates\n    online; rotated frequently. Referenced by\n    `Seal.online_key_ref`.\n  - `SealOfflineRoot`: credential is the offline root of trust\n    for the seal; rotated rarely and held offline. Referenced by\n    `Seal.offline_key_ref`.\n\nThe two seal purposes are distinct enum values rather than a\nsingle `Seal` arm so the `verify_key_separation` guard in `Seal`\ncan statically detect a same-purpose collision between the\nonline and offline references.",
+        "description": "The role this credential plays in federation traffic.\n\nSix arms locked at Memo 1 Q4:\n\n  - `Signing`: credential signs outbound payloads (manifests,\n    receipts, attestations).\n  - `Verification`: credential verifies inbound payloads signed\n    by peer facilities.\n  - `Authentication`: credential authenticates the local facility\n    to a peer at connection setup.\n  - `Encryption`: credential decrypts inbound payloads or wraps\n    outbound payloads.\n  - `SealOnlineSigning`: credential signs seal pointer updates\n    online; rotated frequently. Referenced by\n    `Seal.online_credential_id`.\n  - `SealOfflineRoot`: credential is the offline root of trust\n    for the seal; rotated rarely and held offline. Referenced by\n    `Seal.offline_credential_id`.\n\nThe two seal purposes are distinct enum values rather than a\nsingle `Seal` arm so the `verify_key_separation` guard in `Seal`\ncan statically detect a same-purpose collision between the\nonline and offline references.",
         "enum": [
           "Signing",
           "Verification",
@@ -5218,23 +5218,23 @@
             "title": "Facility Id",
             "type": "string"
           },
-          "offline_key_ref": {
-            "description": "Credential.id of the cold root key (purpose SealOfflineRoot). Must differ from online_key_ref.",
+          "offline_credential_id": {
+            "description": "Credential.id of the cold root key (purpose SealOfflineRoot). Must differ from online_credential_id.",
             "format": "uuid",
-            "title": "Offline Key Ref",
+            "title": "Offline Credential Id",
             "type": "string"
           },
-          "online_key_ref": {
-            "description": "Credential.id of the warm signing key (purpose SealOnlineSigning). Must differ from offline_key_ref.",
+          "online_credential_id": {
+            "description": "Credential.id of the warm signing key (purpose SealOnlineSigning). Must differ from offline_credential_id.",
             "format": "uuid",
-            "title": "Online Key Ref",
+            "title": "Online Credential Id",
             "type": "string"
           }
         },
         "required": [
           "facility_id",
-          "online_key_ref",
-          "offline_key_ref"
+          "online_credential_id",
+          "offline_credential_id"
         ],
         "title": "InitializeSealRequest",
         "type": "object"
@@ -5352,7 +5352,7 @@
           },
           "wired_assets": {
             "items": {
-              "$ref": "#/components/schemas/WiredAssetBindingItem"
+              "$ref": "#/components/schemas/WiredAssetItem"
             },
             "title": "Wired Assets",
             "type": "array"
@@ -6138,10 +6138,10 @@
       "PlacementBody": {
         "description": "Wire format for a Placement value object.\n\nMirrors the domain `Placement` dataclass field-for-field. Field\nsemantics, units, and tolerance rules live with the dataclass\nin `cora.equipment.aggregates._placement`; this body is purely\nthe wire shape that Pydantic parses.\n\nDomain validation (negative tolerance rejection) happens during\nthe dataclass construction in `to_domain`, not here, so the\nroute surfaces `InvalidPlacementError` -> 400 through the BC's\nexception handler.",
         "properties": {
-          "parent_frame": {
-            "description": "The Frame whose origin these coordinates are measured against. For a child Frame's placement_relative_to_parent, this MUST equal the owning Frame's parent_frame_id.",
+          "parent_frame_id": {
+            "description": "The Frame whose origin these coordinates are measured against. For a child Frame's placement, this MUST equal the owning Frame's parent_frame_id.",
             "format": "uuid",
-            "title": "Parent Frame",
+            "title": "Parent Frame Id",
             "type": "string"
           },
           "reference_surface": {
@@ -6227,7 +6227,7 @@
           "rx",
           "ry",
           "rz",
-          "parent_frame",
+          "parent_frame_id",
           "reference_surface",
           "tol_x",
           "tol_y",
@@ -8133,7 +8133,7 @@
         "type": "object"
       },
       "RegisterFrameRequest": {
-        "description": "Body for `POST /frames`.\n\nRoot frames pass `parent_frame_id=null` AND\n`placement_relative_to_parent=null`. Child frames pass both\nnon-null, and the embedded `placement.parent_frame` must equal\n`parent_frame_id` (decider enforces this with\nInvalidFrameRootError -> 400).",
+        "description": "Body for `POST /frames`.\n\nRoot frames pass `parent_frame_id=null` AND\n`placement=null`. Child frames pass both\nnon-null, and the embedded `placement.parent_frame_id` must equal\n`parent_frame_id` (decider enforces this with\nInvalidFrameRootError -> 400).",
         "properties": {
           "name": {
             "description": "Display name for the new frame.",
@@ -8152,10 +8152,10 @@
                 "type": "null"
               }
             ],
-            "description": "Immediate parent in the frame tree. Must be null for root frames; required for all others. Goes together with placement_relative_to_parent (both null or both non-null).",
+            "description": "Immediate parent in the frame tree. Must be null for root frames; required for all others. Goes together with placement (both null or both non-null).",
             "title": "Parent Frame Id"
           },
-          "placement_relative_to_parent": {
+          "placement": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/PlacementBody"
@@ -8170,7 +8170,7 @@
         "required": [
           "name",
           "parent_frame_id",
-          "placement_relative_to_parent"
+          "placement"
         ],
         "title": "RegisterFrameRequest",
         "type": "object"
@@ -8214,7 +8214,7 @@
                 "type": "null"
               }
             ],
-            "description": "Immediate parent in the slot hierarchy. Null for top-level slots. Hierarchy axis is distinct from coordinate-frame axis (which lives on placement.parent_frame).",
+            "description": "Immediate parent in the slot hierarchy. Null for top-level slots. Hierarchy axis is distinct from coordinate-frame axis (which lives on placement.parent_frame_id).",
             "title": "Parent Mount Id"
           },
           "placement": {
@@ -8937,10 +8937,10 @@
         "additionalProperties": false,
         "description": "Request body for rotate-seal-online-key.",
         "properties": {
-          "new_online_key_ref": {
-            "description": "Credential id of the fresh online (warm) signing key. Must differ from both the current online_key_ref (no-op rotation rejected) and the current offline_key_ref (key-separation invariant).",
+          "new_online_credential_id": {
+            "description": "Credential id of the fresh online (warm) signing key. Must differ from both the current online_credential_id (no-op rotation rejected) and the current offline_credential_id (key-separation invariant).",
             "format": "uuid",
-            "title": "New Online Key Ref",
+            "title": "New Online Credential Id",
             "type": "string"
           },
           "signed_by_offline_root": {
@@ -8950,7 +8950,7 @@
           }
         },
         "required": [
-          "new_online_key_ref",
+          "new_online_credential_id",
           "signed_by_offline_root"
         ],
         "title": "RotateSealOnlineKeyBody",
@@ -9371,7 +9371,7 @@
         "type": "object"
       },
       "SealResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nMirrors the Seal aggregate state plus projection-sourced lifecycle\ntimestamps. `online_key_ref` / `offline_key_ref` are Credential\nreferences (their referenced secrets never cross this wire).",
+        "description": "Read-side DTO at the API boundary.\n\nMirrors the Seal aggregate state plus projection-sourced lifecycle\ntimestamps. `online_credential_id` / `offline_credential_id` are Credential\nreferences (their referenced secrets never cross this wire).",
         "properties": {
           "current_head_hash": {
             "anyOf": [
@@ -9433,14 +9433,14 @@
             ],
             "title": "Last Signed By Actor Id"
           },
-          "offline_key_ref": {
+          "offline_credential_id": {
             "format": "uuid",
-            "title": "Offline Key Ref",
+            "title": "Offline Credential Id",
             "type": "string"
           },
-          "online_key_ref": {
+          "online_credential_id": {
             "format": "uuid",
-            "title": "Online Key Ref",
+            "title": "Online Credential Id",
             "type": "string"
           },
           "status": {
@@ -9449,8 +9449,8 @@
         },
         "required": [
           "facility_id",
-          "online_key_ref",
-          "offline_key_ref",
+          "online_credential_id",
+          "offline_credential_id",
           "current_head_hash",
           "current_sequence_number",
           "initialized_by_actor_id",
@@ -9524,14 +9524,14 @@
             ],
             "title": "Last Signed By Actor Id"
           },
-          "offline_key_ref": {
+          "offline_credential_id": {
             "format": "uuid",
-            "title": "Offline Key Ref",
+            "title": "Offline Credential Id",
             "type": "string"
           },
-          "online_key_ref": {
+          "online_credential_id": {
             "format": "uuid",
-            "title": "Online Key Ref",
+            "title": "Online Credential Id",
             "type": "string"
           },
           "status": {
@@ -9540,8 +9540,8 @@
         },
         "required": [
           "facility_id",
-          "online_key_ref",
-          "offline_key_ref",
+          "online_credential_id",
+          "offline_credential_id",
           "current_sequence_number",
           "initialized_by_actor_id",
           "status",
@@ -10482,11 +10482,11 @@
         "type": "object"
       },
       "UpdateFramePlacementRequest": {
-        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame_placement); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FramePlacementUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
+        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame_id` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame_placement); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FramePlacementUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
         "properties": {
           "new_placement": {
             "$ref": "#/components/schemas/PlacementBody",
-            "description": "The new placement_relative_to_parent."
+            "description": "The new placement."
           },
           "survey": {
             "anyOf": [
@@ -10780,7 +10780,7 @@
         "title": "VoidVisitRequest",
         "type": "object"
       },
-      "WiredAssetBindingItem": {
+      "WiredAssetItem": {
         "description": "Per-wired-Asset binding contribution on the wire.\n\n`family_ids` and `contributed_affordances` are sorted for\ndeterministic client diffs / cache validation.",
         "properties": {
           "asset_id": {
@@ -10824,7 +10824,7 @@
           "family_ids",
           "contributed_affordances"
         ],
-        "title": "WiredAssetBindingItem",
+        "title": "WiredAssetItem",
         "type": "object"
       },
       "ZoneListResponse": {
@@ -10961,6 +10961,10 @@
             "title": "Message",
             "type": "string"
           },
+          "source_kind": {
+            "title": "Source Kind",
+            "type": "string"
+          },
           "step_index": {
             "anyOf": [
               {
@@ -10972,10 +10976,6 @@
             ],
             "title": "Step Index"
           },
-          "step_kind": {
-            "title": "Step Kind",
-            "type": "string"
-          },
           "target": {
             "title": "Target",
             "type": "string"
@@ -10983,7 +10983,7 @@
         },
         "required": [
           "step_index",
-          "step_kind",
+          "source_kind",
           "target",
           "error_class",
           "message"
@@ -10993,7 +10993,7 @@
       },
       "_EqualsCriterion": {
         "additionalProperties": false,
-        "description": "JSON wire shape for an `Equals` criterion.",
+        "description": "JSON wire shape for an `EqualsCriterion`.",
         "properties": {
           "expected": {
             "anyOf": [
@@ -11339,7 +11339,7 @@
       },
       "_WithinToleranceCriterion": {
         "additionalProperties": false,
-        "description": "JSON wire shape for a `WithinTolerance` criterion.",
+        "description": "JSON wire shape for a `WithinToleranceCriterion`.",
         "properties": {
           "expected": {
             "title": "Expected",
@@ -13291,7 +13291,7 @@
     },
     "/assets/{asset_id}/add_family": {
       "post": {
-        "operationId": "post_assets_add_capability_assets__asset_id__add_family_post",
+        "operationId": "post_assets_add_family_assets__asset_id__add_family_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -14089,7 +14089,7 @@
     },
     "/assets/{asset_id}/remove_family": {
       "post": {
-        "operationId": "post_assets_remove_capability_assets__asset_id__remove_family_post",
+        "operationId": "post_assets_remove_family_assets__asset_id__remove_family_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -21729,7 +21729,7 @@
                 }
               }
             },
-            "description": "Request body failed schema validation (missing field, malformed UUID), OR online_key_ref equals offline_key_ref (key-separation invariant), OR Idempotency-Key was reused with a different request body."
+            "description": "Request body failed schema validation (missing field, malformed UUID), OR online_credential_id equals offline_credential_id (key-separation invariant), OR Idempotency-Key was reused with a different request body."
           }
         },
         "summary": "Initialize the per-facility Seal singleton (cross-BC atomic; emits DecisionRegistered audit)",
@@ -21892,7 +21892,7 @@
                 }
               }
             },
-            "description": "Seal is not Live (rotate requires Live) or the new ref equals the current online_key_ref (no-op rotation rejected)."
+            "description": "Seal is not Live (rotate requires Live) or the new ref equals the current online_credential_id (no-op rotation rejected)."
           },
           "422": {
             "content": {
@@ -21902,7 +21902,7 @@
                 }
               }
             },
-            "description": "The new online ref equals the current offline_key_ref (key-separation invariant)."
+            "description": "The new online credential id equals the current offline_credential_id (key-separation invariant)."
           }
         },
         "summary": "Rotate the Seal singleton's online (warm) signing key",
@@ -22298,7 +22298,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only name, negative tolerance, OR root-vs-child mismatch (parent_frame_id and placement_relative_to_parent must be both null or both non-null, and placement.parent_frame must equal parent_frame_id)."
+            "description": "Domain invariant violated: whitespace-only name, negative tolerance, OR root-vs-child mismatch (parent_frame_id and placement must be both null or both non-null, and placement.parent_frame_id must equal parent_frame_id)."
           },
           "403": {
             "content": {
@@ -22471,7 +22471,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: negative tolerance via Placement VO OR new_placement.parent_frame does not match the Frame's parent_frame_id."
+            "description": "Domain invariant violated: negative tolerance via Placement VO OR new_placement.parent_frame_id does not match the Frame's parent_frame_id."
           },
           "403": {
             "content": {

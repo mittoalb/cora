@@ -11,19 +11,19 @@ Clock and IdGenerator ports.
 
 The "both together or both None" rule:
   - Root frame: `parent_frame_id is None` AND
-    `placement_relative_to_parent is None`.
+    `placement is None`.
   - Child frame: both non-None, AND
-    `placement_relative_to_parent.parent_frame == parent_frame_id`
+    `placement.parent_frame_id == parent_frame_id`
     (the embedded Placement points at the same parent that the
     Frame declares).
 
 Three failure modes folded into `InvalidFrameRootError`:
-  1. `parent_frame_id is None` but `placement_relative_to_parent is
+  1. `parent_frame_id is None` but `placement is
      not None` (root frame can't carry a placement).
   2. `parent_frame_id is not None` but
-     `placement_relative_to_parent is None` (child frame missing its
+     `placement is None` (child frame missing its
      placement).
-  3. Both non-None but `placement.parent_frame != parent_frame_id`
+  3. Both non-None but `placement.parent_frame_id != parent_frame_id`
      (placement points at a different frame than the Frame declares).
 
 ## Supersession invariant
@@ -31,7 +31,7 @@ Three failure modes folded into `InvalidFrameRootError`:
 When `command.supersedes` is non-None, the link's
 `predecessor_frame_id` MUST NOT equal the new frame's own id
 (self-supersession is rejected via `FrameCannotSupersedeError`). The
-within-VO invariant (`transform.parent_frame == predecessor_frame_id`)
+within-VO invariant (`transform.parent_frame_id == predecessor_frame_id`)
 is enforced by the `FrameRevisionLink.__post_init__` and surfaces
 as `InvalidFrameRevisionError` before the decider runs.
 
@@ -75,9 +75,9 @@ def decide(
       - State must be None (genesis-only) -> FrameAlreadyExistsError
       - Name must be valid -> InvalidFrameNameError (via FrameName VO)
       - Root-vs-child invariant: both `parent_frame_id` and
-        `placement_relative_to_parent` together, or both None
+        `placement` together, or both None
         -> InvalidFrameRootError
-      - When child: `placement.parent_frame == parent_frame_id`
+      - When child: `placement.parent_frame_id == parent_frame_id`
         -> InvalidFrameRootError
       - When `supersedes` is set: `supersedes.predecessor_frame_id !=
         new_id` (no self-supersession) -> FrameCannotSupersedeError
@@ -88,27 +88,23 @@ def decide(
     name = FrameName(command.name)
 
     parent_frame_id = command.parent_frame_id
-    placement = command.placement_relative_to_parent
+    placement = command.placement
 
     if parent_frame_id is None and placement is not None:
         msg = (
-            "Root frame (parent_frame_id=None) cannot carry a "
-            "placement_relative_to_parent (got a non-None Placement)"
+            "Root frame (parent_frame_id=None) cannot carry a placement (got a non-None Placement)"
         )
         raise InvalidFrameRootError(msg)
     if parent_frame_id is not None and placement is None:
-        msg = (
-            f"Child frame (parent_frame_id={parent_frame_id}) must carry "
-            "a placement_relative_to_parent (got None)"
-        )
+        msg = f"Child frame (parent_frame_id={parent_frame_id}) must carry a placement (got None)"
         raise InvalidFrameRootError(msg)
     if (
         parent_frame_id is not None
         and placement is not None
-        and placement.parent_frame != parent_frame_id
+        and placement.parent_frame_id != parent_frame_id
     ):
         msg = (
-            f"Placement.parent_frame ({placement.parent_frame}) must equal "
+            f"Placement.parent_frame_id ({placement.parent_frame_id}) must equal "
             f"the Frame's parent_frame_id ({parent_frame_id})"
         )
         raise InvalidFrameRootError(msg)
@@ -126,7 +122,7 @@ def decide(
             frame_id=new_id,
             name=name.value,
             parent_frame_id=parent_frame_id,
-            placement_relative_to_parent=placement,
+            placement=placement,
             supersedes=supersedes,
             occurred_at=now,
         )

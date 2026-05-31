@@ -1,8 +1,8 @@
-"""E2E smoke: define capability, register asset, attach capability.
+"""E2E smoke: define family, register asset, attach family.
 
 Exercises the Equipment BC's two create slices plus the cross-aggregate
 add_asset_family action endpoint, then GETs the asset to verify the
-capability appears in its serialized capabilities list.
+family appears in its serialized families list.
 """
 
 from uuid import UUID, uuid4
@@ -12,7 +12,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.e2e
-async def test_register_asset_then_add_capability_round_trips(
+async def test_register_asset_then_add_family_round_trips(
     e2e_client: AsyncClient,
 ) -> None:
     cap_response = await e2e_client.post(

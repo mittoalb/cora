@@ -350,14 +350,14 @@ async def seed_live_seal(
     principal_id: UUID,
     initialized_at: datetime,
     facility_id: str = "aps-2bm",
-    online_key_ref: UUID = _DEFAULT_SEAL_ONLINE_KEY_REF,
-    offline_key_ref: UUID = _DEFAULT_SEAL_OFFLINE_KEY_REF,
+    online_credential_id: UUID = _DEFAULT_SEAL_ONLINE_KEY_REF,
+    offline_credential_id: UUID = _DEFAULT_SEAL_OFFLINE_KEY_REF,
 ) -> None:
     """Append a single `SealInitialized` event so the Seal lands in `Live`."""
     genesis = SealInitialized(
         facility_id=facility_id,
-        online_key_ref=online_key_ref,
-        offline_key_ref=offline_key_ref,
+        online_credential_id=online_credential_id,
+        offline_credential_id=offline_credential_id,
         initialized_by_actor_id=principal_id,
         occurred_at=initialized_at,
     )

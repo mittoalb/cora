@@ -55,7 +55,7 @@ async def _seed_frame(pool: asyncpg.Pool, frame_id: UUID) -> None:
         RegisterFrame(
             name=f"frame-{frame_id}",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

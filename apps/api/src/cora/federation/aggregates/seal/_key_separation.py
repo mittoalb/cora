@@ -6,8 +6,8 @@ Seal MUST never equal each other. Equality would collapse the
 cold-root attestation guarantee: an attacker compromising the warm
 key would also gain root authority.
 
-Every transition decider that touches `online_key_ref` or
-`offline_key_ref` (`initialize_seal`, `rotate_seal_online_key`,
+Every transition decider that touches `online_credential_id` or
+`offline_credential_id` (`initialize_seal`, `rotate_seal_online_key`,
 plus any future offline-root-rotation slice) MUST call
 `verify_key_separation(state)` against the *prospective*
 post-transition state before commit. The helper raises
@@ -35,10 +35,10 @@ def verify_key_separation(state: Seal) -> None:
     decider that mutates either key ref. Returns None on the happy
     path (refs differ).
     """
-    if state.online_key_ref == state.offline_key_ref:
+    if state.online_credential_id == state.offline_credential_id:
         raise SealKeyCollisionError(
             facility_id=state.facility_id,
-            shared_key_ref=state.online_key_ref,
+            shared_credential_id=state.online_credential_id,
         )
 
 

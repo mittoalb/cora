@@ -24,7 +24,7 @@ def _register_asset(client: TestClient, name: str = "APS-2BM") -> str:
 
 
 @pytest.mark.contract
-def test_post_add_capability_returns_204_on_happy_path() -> None:
+def test_post_add_family_returns_204_on_happy_path() -> None:
     cap = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
@@ -37,9 +37,9 @@ def test_post_add_capability_returns_204_on_happy_path() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_round_trips_into_get_asset_response() -> None:
-    """End-to-end: add_capability + get_asset → capability appears in
-    the response's capabilities list."""
+def test_post_add_family_round_trips_into_get_asset_response() -> None:
+    """End-to-end: add_family + get_asset → family appears in
+    the response's families list."""
     cap1 = str(uuid4())
     cap2 = str(uuid4())
     with TestClient(create_app()) as client:
@@ -55,7 +55,7 @@ def test_post_add_capability_round_trips_into_get_asset_response() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_returns_404_when_asset_does_not_exist() -> None:
+def test_post_add_family_returns_404_when_asset_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post(
@@ -66,7 +66,7 @@ def test_post_add_capability_returns_404_when_asset_does_not_exist() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_returns_409_when_capability_already_present() -> None:
+def test_post_add_family_returns_409_when_family_already_present() -> None:
     """Strict-not-idempotent: re-adding raises 409."""
     cap = str(uuid4())
     with TestClient(create_app()) as client:
@@ -79,7 +79,7 @@ def test_post_add_capability_returns_409_when_capability_already_present() -> No
 
 
 @pytest.mark.contract
-def test_post_add_capability_returns_409_when_asset_is_decommissioned() -> None:
+def test_post_add_family_returns_409_when_asset_is_decommissioned() -> None:
     cap = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
@@ -91,7 +91,7 @@ def test_post_add_capability_returns_409_when_asset_is_decommissioned() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_rejects_invalid_path_uuid_with_422() -> None:
+def test_post_add_family_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/assets/not-a-uuid/add_family",
@@ -101,7 +101,7 @@ def test_post_add_capability_rejects_invalid_path_uuid_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_rejects_missing_family_id_with_422() -> None:
+def test_post_add_family_rejects_missing_family_id_with_422() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
         response = client.post(f"/assets/{asset_id}/add_family", json={})
@@ -109,7 +109,7 @@ def test_post_add_capability_rejects_missing_family_id_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_rejects_non_uuid_capability_with_422() -> None:
+def test_post_add_family_rejects_non_uuid_family_with_422() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
         response = client.post(
@@ -120,7 +120,7 @@ def test_post_add_capability_rejects_non_uuid_capability_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_add_capability_with_x_principal_id_header_succeeds() -> None:
+def test_post_add_family_with_x_principal_id_header_succeeds() -> None:
     pid = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)

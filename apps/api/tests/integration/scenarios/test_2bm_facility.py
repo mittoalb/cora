@@ -145,7 +145,7 @@ async def test_2bm_facility_install_plays_out_end_to_end(
     assert esrb_actor is not None
     assert esrb_actor.kind is ActorKind.HUMAN
 
-    # ----- Equipment BC: Asset stream versions reflect register + add_capability -----
+    # ----- Equipment BC: Asset stream versions reflect register + add_family -----
     _, argonne_version = await deps.event_store.load("Asset", _ARGONNE_ENTERPRISE_ID)
     assert argonne_version == 1
     _, unit_version = await deps.event_store.load("Asset", _2BM_UNIT_ID)

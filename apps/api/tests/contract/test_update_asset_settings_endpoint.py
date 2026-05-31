@@ -39,7 +39,7 @@ def _register_asset(client: TestClient) -> UUID:
     return UUID(response.json()["asset_id"])
 
 
-def _add_capability(client: TestClient, asset_id: UUID, family_id: UUID) -> None:
+def _add_family(client: TestClient, asset_id: UUID, family_id: UUID) -> None:
     response = client.post(
         f"/assets/{asset_id}/add_family",
         json={"family_id": str(family_id)},
@@ -69,7 +69,7 @@ def test_patch_settings_returns_204_on_happy_path() -> None:
             },
         )
         asset_id = _register_asset(client)
-        _add_capability(client, asset_id, cap_id)
+        _add_family(client, asset_id, cap_id)
 
         response = client.patch(
             f"/assets/{asset_id}/settings",
@@ -100,7 +100,7 @@ def test_patch_settings_returns_400_for_constraint_violation() -> None:
             },
         )
         asset_id = _register_asset(client)
-        _add_capability(client, asset_id, cap_id)
+        _add_family(client, asset_id, cap_id)
 
         response = client.patch(
             f"/assets/{asset_id}/settings",
@@ -127,7 +127,7 @@ def test_patch_settings_returns_400_for_orphan_key_in_strict_mode() -> None:
             },
         )
         asset_id = _register_asset(client)
-        _add_capability(client, asset_id, cap_id)
+        _add_family(client, asset_id, cap_id)
 
         response = client.patch(
             f"/assets/{asset_id}/settings",
@@ -190,7 +190,7 @@ def test_patch_settings_supports_merge_via_two_calls() -> None:
             },
         )
         asset_id = _register_asset(client)
-        _add_capability(client, asset_id, cap_id)
+        _add_family(client, asset_id, cap_id)
 
         first = client.patch(
             f"/assets/{asset_id}/settings",
@@ -227,7 +227,7 @@ def test_patch_settings_null_deletes_key() -> None:
             },
         )
         asset_id = _register_asset(client)
-        _add_capability(client, asset_id, cap_id)
+        _add_family(client, asset_id, cap_id)
 
         # Set both keys.
         client.patch(

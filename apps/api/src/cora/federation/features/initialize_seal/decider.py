@@ -31,7 +31,7 @@ BC's domain invariants.
     or trailing whitespace); avoids auto-normalization that could mask
     a peer-facility credential drift in the binding check
     -> InvalidSealFacilityIdError
-  - online_key_ref != offline_key_ref (key-separation invariant;
+  - online_credential_id != offline_credential_id (key-separation invariant;
     enforced by building the prospective post-state and calling
     `verify_key_separation` per sec-4 AH#15)
     -> SealKeyCollisionError
@@ -81,8 +81,8 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.initialize_seal.command import InitializeSeal
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
-_ONLINE_SLOT = "online_key_ref"
-_OFFLINE_SLOT = "offline_key_ref"
+_ONLINE_SLOT = "online_credential_id"
+_OFFLINE_SLOT = "offline_credential_id"
 
 
 def decide(
@@ -101,7 +101,7 @@ def decide(
         -> SealAlreadyExistsError
       - facility_id non-empty AND canonical (no surrounding whitespace)
         -> InvalidSealFacilityIdError
-      - online_key_ref must differ from offline_key_ref
+      - online_credential_id must differ from offline_credential_id
         -> SealKeyCollisionError (via verify_key_separation)
       - online_credential must not be None
         -> CredentialNotFoundError (unknown credential ref)
@@ -131,8 +131,8 @@ def decide(
 
     prospective = Seal(
         facility_id=facility_id,
-        online_key_ref=command.online_key_ref,
-        offline_key_ref=command.offline_key_ref,
+        online_credential_id=command.online_credential_id,
+        offline_credential_id=command.offline_credential_id,
         current_head_hash=None,
         current_sequence_number=0,
         initialized_by_actor_id=initialized_by_actor_id,
@@ -141,15 +141,15 @@ def decide(
     verify_key_separation(prospective)
 
     if online_credential is None:
-        raise CredentialNotFoundError(command.online_key_ref)
+        raise CredentialNotFoundError(command.online_credential_id)
     if offline_credential is None:
-        raise CredentialNotFoundError(command.offline_key_ref)
+        raise CredentialNotFoundError(command.offline_credential_id)
 
     if online_credential.purpose != CredentialPurpose.SEAL_ONLINE_SIGNING.value:
         raise SealKeyPurposeMismatchError(
             facility_id=facility_id,
             slot=_ONLINE_SLOT,
-            credential_id=command.online_key_ref,
+            credential_id=command.online_credential_id,
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
             actual_purpose=online_credential.purpose,
         )
@@ -157,7 +157,7 @@ def decide(
         raise SealKeyPurposeMismatchError(
             facility_id=facility_id,
             slot=_OFFLINE_SLOT,
-            credential_id=command.offline_key_ref,
+            credential_id=command.offline_credential_id,
             expected_purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
             actual_purpose=offline_credential.purpose,
         )
@@ -185,22 +185,22 @@ def decide(
         raise SealCannotInitializeWithInactiveCredentialError(
             facility_id=facility_id,
             slot=_ONLINE_SLOT,
-            credential_id=command.online_key_ref,
+            credential_id=command.online_credential_id,
             actual_status=online_credential.status,
         )
     if offline_credential.status != CredentialStatus.ACTIVE.value:
         raise SealCannotInitializeWithInactiveCredentialError(
             facility_id=facility_id,
             slot=_OFFLINE_SLOT,
-            credential_id=command.offline_key_ref,
+            credential_id=command.offline_credential_id,
             actual_status=offline_credential.status,
         )
 
     return [
         SealInitialized(
             facility_id=facility_id,
-            online_key_ref=command.online_key_ref,
-            offline_key_ref=command.offline_key_ref,
+            online_credential_id=command.online_credential_id,
+            offline_credential_id=command.offline_credential_id,
             initialized_by_actor_id=initialized_by_actor_id,
             occurred_at=now,
         )

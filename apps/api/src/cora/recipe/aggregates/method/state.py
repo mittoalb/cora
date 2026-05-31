@@ -82,7 +82,7 @@ METHOD_VERSION_TAG_MAX_LENGTH = 50
 # with what Supply itself accepts at register_supply time. See
 # [[project_supply_design]] §"Method.needed_supplies consumer"
 # for the design lock.
-METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH = 50
+METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH = 50
 
 
 class MethodStatus(StrEnum):
@@ -203,7 +203,7 @@ class InvalidMethodNeededSuppliesError(ValueError):
 
     def __init__(self, value: str) -> None:
         super().__init__(
-            f"Method needed_supplies kind must be 1-{METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH} "
+            f"Method needed_supplies kind must be 1-{METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH} "
             f"chars after trimming (got: {value!r})"
         )
         self.value = value

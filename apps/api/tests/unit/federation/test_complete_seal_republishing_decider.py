@@ -46,8 +46,8 @@ def _seal(
 ) -> Seal:
     return Seal(
         facility_id=_FACILITY_ID,
-        online_key_ref=_ONLINE_KEY,
-        offline_key_ref=_OFFLINE_KEY,
+        online_credential_id=_ONLINE_KEY,
+        offline_credential_id=_OFFLINE_KEY,
         current_head_hash=current_head_hash,
         current_sequence_number=current_sequence_number,
         initialized_by_actor_id=_INITIALIZED_BY,

@@ -70,7 +70,7 @@ def _build_lookup(
     register_default: bool = True,
     purpose: str = CredentialPurpose.SEAL_ONLINE_SIGNING.value,
     status: str = CredentialStatus.ACTIVE.value,
-    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+    new_online_credential_id: UUID = _NEW_ONLINE_KEY,
 ) -> InMemoryCredentialLookup:
     """Build an `InMemoryCredentialLookup` seeded for the happy path.
 
@@ -82,7 +82,7 @@ def _build_lookup(
     lookup = InMemoryCredentialLookup()
     if register_default:
         lookup.register(
-            credential_id=new_online_key_ref,
+            credential_id=new_online_credential_id,
             facility_id=_FACILITY_ID,
             purpose=purpose,
             status=status,
@@ -111,13 +111,13 @@ def _build_deps(
 
 
 def _command(
-    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+    new_online_credential_id: UUID = _NEW_ONLINE_KEY,
     *,
     signed_by_offline_root: bool = True,
 ) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
         facility_id=_FACILITY_ID,
-        new_online_key_ref=new_online_key_ref,
+        new_online_credential_id=new_online_credential_id,
         signed_by_offline_root=signed_by_offline_root,
     )
 
@@ -131,8 +131,8 @@ async def _seed_live(store: InMemoryEventStore) -> None:
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         facility_id=_FACILITY_ID,
-        online_key_ref=_CURRENT_ONLINE_KEY,
-        offline_key_ref=_OFFLINE_KEY,
+        online_credential_id=_CURRENT_ONLINE_KEY,
+        offline_credential_id=_OFFLINE_KEY,
     )
 
 
@@ -154,7 +154,7 @@ async def test_rotate_seal_online_key_handler_appends_event_from_live() -> None:
     transition = events[-1]
     assert transition.event_type == "SealOnlineKeyRotated"
     assert transition.payload["facility_id"] == _FACILITY_ID
-    assert transition.payload["new_online_key_ref"] == str(_NEW_ONLINE_KEY)
+    assert transition.payload["new_online_credential_id"] == str(_NEW_ONLINE_KEY)
     assert transition.payload["signed_by_offline_root"] is True
     assert transition.payload["rotated_by_actor_id"] == str(_PRINCIPAL_ID)
     assert transition.correlation_id == _CORRELATION_ID
@@ -322,7 +322,7 @@ async def test_rotate_seal_online_key_handler_raises_cannot_rotate_on_noop_rotat
     handler = rotate_seal_online_key.bind(deps)
     with pytest.raises(SealCannotRotateError):
         await handler(
-            _command(new_online_key_ref=_CURRENT_ONLINE_KEY),
+            _command(new_online_credential_id=_CURRENT_ONLINE_KEY),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -351,11 +351,11 @@ async def test_rotate_seal_online_key_handler_raises_collision_when_ref_equals_o
     handler = rotate_seal_online_key.bind(deps)
     with pytest.raises(SealKeyCollisionError) as exc_info:
         await handler(
-            _command(new_online_key_ref=_OFFLINE_KEY),
+            _command(new_online_credential_id=_OFFLINE_KEY),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert exc_info.value.shared_key_ref == _OFFLINE_KEY
+    assert exc_info.value.shared_credential_id == _OFFLINE_KEY
     _, version = await store.load("Seal", _STREAM_ID)
     assert version == 1  # untouched seed
 
@@ -387,7 +387,7 @@ async def test_rotate_seal_online_key_handler_strict_not_idempotent_raises_on_re
     handler2 = rotate_seal_online_key.bind(deps2)
     with pytest.raises(SealCannotRotateError):
         await handler2(
-            _command(new_online_key_ref=_NEW_ONLINE_KEY),
+            _command(new_online_credential_id=_NEW_ONLINE_KEY),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -447,8 +447,8 @@ async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by_ac
         principal_id=_OTHER_PRINCIPAL_ID,
         initialized_at=_T0,
         facility_id=_FACILITY_ID,
-        online_key_ref=_CURRENT_ONLINE_KEY,
-        offline_key_ref=_OFFLINE_KEY,
+        online_credential_id=_CURRENT_ONLINE_KEY,
+        offline_credential_id=_OFFLINE_KEY,
     )
     deps = _build_deps(event_store=store)
     handler = rotate_seal_online_key.bind(deps)

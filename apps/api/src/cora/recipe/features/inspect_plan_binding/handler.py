@@ -45,7 +45,7 @@ from cora.recipe.features.inspect_plan_binding.view import (
     CandidateAsset,
     InspectPlanBindingView,
     MissingAffordanceCandidates,
-    WiredAssetBinding,
+    WiredAsset,
 )
 
 _QUERY_NAME = "InspectPlanBinding"
@@ -159,7 +159,7 @@ def bind(deps: Kernel) -> Handler:
             binding_status = BindingStatus.SATISFIED
 
         wired_assets = tuple(
-            WiredAssetBinding(
+            WiredAsset(
                 asset_id=asset_id,
                 asset_name=assets[asset_id].name.value,
                 condition=assets[asset_id].condition,

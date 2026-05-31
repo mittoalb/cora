@@ -24,7 +24,7 @@ import pytest
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features.add_asset_family import AddAssetFamily
-from cora.equipment.features.add_asset_family import bind as bind_add_capability
+from cora.equipment.features.add_asset_family import bind as bind_add_family
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
@@ -83,7 +83,7 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await bind_add_capability(deps)(
+    await bind_add_family(deps)(
         AddAssetFamily(asset_id=asset_id, family_id=cap_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

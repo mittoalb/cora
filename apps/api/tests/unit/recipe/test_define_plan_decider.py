@@ -11,7 +11,7 @@ Validation order pinned per gate-review Q5:
   3. Practice not Deprecated (PracticeDeprecatedError)
   4. Method not Deprecated (MethodDeprecatedError)
   5. No bound Asset Decommissioned (AssetDecommissionedError)
-  6. Family superset (PlanCapabilitiesNotSatisfiedError)
+  6. Family superset (PlanFamiliesNotSatisfiedError)
   7. Name validation (InvalidPlanNameError)
 """
 
@@ -43,8 +43,8 @@ from cora.recipe.aggregates.plan import (
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
-    PlanCapabilitiesNotSatisfiedError,
     PlanDefined,
+    PlanFamiliesNotSatisfiedError,
     PlanName,
     PlanStatus,
     PracticeDeprecatedError,
@@ -373,7 +373,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_cap
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
-    with pytest.raises(PlanCapabilitiesNotSatisfiedError) as exc_info:
+    with pytest.raises(PlanFamiliesNotSatisfiedError) as exc_info:
         define_plan.decide(
             state=None,
             command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),
@@ -686,7 +686,7 @@ def test_decide_affordance_guard_runs_after_family_id_check() -> None:
         capability=capability,
         family_affordances=family_affordances,
     )
-    with pytest.raises(PlanCapabilitiesNotSatisfiedError):
+    with pytest.raises(PlanFamiliesNotSatisfiedError):
         define_plan.decide(
             state=None,
             command=DefinePlan(name="X", practice_id=practice.id, asset_ids=frozenset({asset_id})),

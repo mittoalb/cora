@@ -23,11 +23,11 @@ Coverage spans both step kinds shipped to date (setpoint + action):
   - mixed setpoint + action step list walked in order
 
   Check:
-  - Equals criterion matches the read value -> success
-  - Equals criterion mismatches -> CheckFailedError halt
-  - WithinTolerance numeric inside tolerance -> success
-  - WithinTolerance numeric outside tolerance -> CheckFailedError halt
-  - WithinTolerance on non-numeric value -> clean mismatch (no exception escape)
+  - EqualsCriterion matches the read value -> success
+  - EqualsCriterion mismatches -> CheckFailedError halt
+  - WithinToleranceCriterion numeric inside tolerance -> success
+  - WithinToleranceCriterion numeric outside tolerance -> CheckFailedError halt
+  - WithinToleranceCriterion on non-numeric value -> clean mismatch (no exception escape)
   - Reading.quality != Good -> CheckFailedError halt with "quality=" reason
   - read raises Control*Error -> failure halt with the substrate error_class
   - recorded payload carries the observed reading (value + quality + sampled_at)
@@ -76,10 +76,10 @@ from cora.operation.conductor import (
     Conductor,
     ConductorFailure,
     ConductorResult,
-    Equals,
+    EqualsCriterion,
     InMemoryActionRegistry,
     SetpointStep,
-    WithinTolerance,
+    WithinToleranceCriterion,
 )
 from cora.operation.features.append_procedure_steps.command import AppendProcedureSteps
 from cora.operation.ports.control_port import ControlTimeoutError, Reading
@@ -267,7 +267,7 @@ async def test_execute_halts_at_first_not_connected_error_on_setpoint() -> None:
     assert result.succeeded is False
     assert result.failure == ConductorFailure(
         step_index=0,
-        step_kind="setpoint",
+        source_kind="setpoint",
         target="2bma:rot:val",
         error_class="ControlNotConnectedError",
         message="Control address '2bma:rot:val' not connected",
@@ -369,7 +369,7 @@ def test_conductor_result_succeeded_property_reflects_failure_absence() -> None:
         procedure_id=uuid4(),
         completed_count=1,
         failure=ConductorFailure(
-            step_index=1, step_kind="setpoint", target="x", error_class="y", message="z"
+            step_index=1, source_kind="setpoint", target="x", error_class="y", message="z"
         ),
     )
     assert ok.succeeded is True
@@ -433,7 +433,7 @@ async def test_execute_action_unknown_name_records_failure_and_halts() -> None:
     assert result.succeeded is False
     assert result.failure is not None
     assert result.failure.step_index == 0
-    assert result.failure.step_kind == "action"
+    assert result.failure.source_kind == "action"
     assert result.failure.target == "nope"
     assert result.failure.error_class == "UnknownActionError"
     # Only one record (the failure); the second action is untouched.
@@ -464,7 +464,7 @@ async def test_execute_action_body_raising_control_error_records_failure_and_hal
     assert result.succeeded is False
     assert result.failure is not None
     assert result.failure.error_class == "ControlTimeoutError"
-    assert result.failure.step_kind == "action"
+    assert result.failure.source_kind == "action"
     assert result.failure.target == "picky"
     payload = appender.calls[0].command.entries[0].payload
     assert payload["result"] == "failed"
@@ -560,7 +560,7 @@ def _good_reading(value: Any, kind: str = "Scalar") -> Reading:
 
 @pytest.mark.unit
 async def test_execute_check_equals_match_records_success_with_reading() -> None:
-    """Equals criterion that matches -> success; payload carries the reading."""
+    """EqualsCriterion that matches -> success; payload carries the reading."""
     port = InMemoryControlPort()
     port.set_reading("2bma:rot:rbv", _good_reading(45.0))
     appender = _FakeAppendStep()
@@ -569,7 +569,7 @@ async def test_execute_check_equals_match_records_success_with_reading() -> None
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
-        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),),
     )
     assert result.succeeded is True
     entry = appender.calls[0].command.entries[0]
@@ -584,7 +584,7 @@ async def test_execute_check_equals_match_records_success_with_reading() -> None
 
 @pytest.mark.unit
 async def test_execute_check_equals_mismatch_halts_with_check_failed_error() -> None:
-    """Equals mismatch -> CheckFailedError halt; payload + result.failure match."""
+    """EqualsCriterion mismatch -> CheckFailedError halt; payload + result.failure match."""
     port = InMemoryControlPort()
     port.set_reading("2bma:rot:rbv", _good_reading(12.5))
     appender = _FakeAppendStep()
@@ -594,14 +594,14 @@ async def test_execute_check_equals_mismatch_halts_with_check_failed_error() -> 
         principal_id=uuid4(),
         correlation_id=uuid4(),
         steps=(
-            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
-            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=12.5)),
+            CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),
+            CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=12.5)),
         ),
     )
     assert result.succeeded is False
     assert result.failure is not None
     assert result.failure.step_index == 0
-    assert result.failure.step_kind == "check"
+    assert result.failure.source_kind == "check"
     assert result.failure.target == "2bma:rot:rbv"
     assert result.failure.error_class == "CheckFailedError"
     assert "did not equal" in result.failure.message
@@ -622,7 +622,7 @@ async def test_execute_check_within_tolerance_inside_range_succeeds() -> None:
         steps=(
             CheckStep(
                 address="2bma:temp:rbv",
-                criterion=WithinTolerance(expected=295.0, tolerance=0.5),
+                criterion=WithinToleranceCriterion(expected=295.0, tolerance=0.5),
             ),
         ),
     )
@@ -642,7 +642,7 @@ async def test_execute_check_within_tolerance_outside_range_halts() -> None:
         steps=(
             CheckStep(
                 address="2bma:temp:rbv",
-                criterion=WithinTolerance(expected=295.0, tolerance=0.5),
+                criterion=WithinToleranceCriterion(expected=295.0, tolerance=0.5),
             ),
         ),
     )
@@ -665,7 +665,7 @@ async def test_execute_check_within_tolerance_on_non_numeric_value_clean_mismatc
         steps=(
             CheckStep(
                 address="2bma:state",
-                criterion=WithinTolerance(expected=1.0, tolerance=0.1),
+                criterion=WithinToleranceCriterion(expected=1.0, tolerance=0.1),
             ),
         ),
     )
@@ -693,7 +693,7 @@ async def test_execute_check_non_good_quality_halts() -> None:
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
-        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),),
     )
     assert result.failure is not None
     assert result.failure.error_class == "CheckFailedError"
@@ -728,7 +728,7 @@ async def test_execute_check_uncertain_quality_halts_with_quality_reason() -> No
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
-        steps=(CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),),
+        steps=(CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),),
     )
     assert result.failure is not None
     assert result.failure.error_class == "CheckFailedError"
@@ -747,11 +747,11 @@ async def test_execute_check_read_raises_control_error_halts_with_substrate_clas
         procedure_id=uuid4(),
         principal_id=uuid4(),
         correlation_id=uuid4(),
-        steps=(CheckStep(address="missing", criterion=Equals(expected=0)),),
+        steps=(CheckStep(address="missing", criterion=EqualsCriterion(expected=0)),),
     )
     assert result.failure is not None
     assert result.failure.error_class == "ControlNotConnectedError"
-    assert result.failure.step_kind == "check"
+    assert result.failure.source_kind == "check"
     # No reading observed -> no reading field in the payload.
     payload = appender.calls[0].command.entries[0].payload
     assert "reading" not in payload
@@ -777,7 +777,7 @@ async def test_execute_walks_mixed_setpoint_action_check_steps_in_order() -> Non
         steps=(
             SetpointStep(address="2bma:rot:val", value=45.0),
             ActionStep(name="open_shutter"),
-            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
+            CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),
         ),
     )
     assert result.succeeded is True
@@ -923,7 +923,7 @@ async def test_conduct_start_failure_records_lifecycle_failure_without_execute()
     assert result.succeeded is False
     assert result.failure is not None
     assert result.failure.step_index is None
-    assert result.failure.step_kind == "lifecycle"
+    assert result.failure.source_kind == "lifecycle"
     assert result.failure.target == "start"
     assert result.failure.error_class == "RuntimeError"
     # No steps recorded; complete + abort not called.
@@ -957,7 +957,7 @@ async def test_conduct_execute_failure_invokes_abort_with_derived_reason() -> No
     )
     assert result.succeeded is False
     assert result.failure is not None
-    assert result.failure.step_kind == "setpoint"  # original step failure preserved
+    assert result.failure.source_kind == "setpoint"  # original step failure preserved
     assert result.failure.error_class == "ControlNotConnectedError"
     assert len(start.calls) == 1
     assert complete.calls == []
@@ -994,7 +994,7 @@ async def test_conduct_when_abort_itself_fails_returns_original_execute_failure(
     )
     # Original execute failure surfaces; the secondary abort failure is suppressed.
     assert result.failure is not None
-    assert result.failure.step_kind == "setpoint"
+    assert result.failure.source_kind == "setpoint"
     assert result.failure.error_class == "ControlNotConnectedError"
     assert len(abort.calls) == 1
 
@@ -1255,7 +1255,7 @@ async def test_conduct_complete_failure_overrides_success_with_lifecycle_failure
         steps=(SetpointStep(address="2bma:rot:val", value=1.0),),
     )
     assert result.failure is not None
-    assert result.failure.step_kind == "lifecycle"
+    assert result.failure.source_kind == "lifecycle"
     assert result.failure.target == "complete"
     assert result.failure.error_class == "RuntimeError"
     assert result.completed_count == 1  # the step DID succeed
@@ -1295,14 +1295,14 @@ async def test_conduct_check_failure_after_setpoint_triggers_abort_with_check_ta
         correlation_id=uuid4(),
         steps=(
             SetpointStep(address="2bma:rot:val", value=45.0),
-            CheckStep(address="2bma:rot:rbv", criterion=Equals(expected=45.0)),
+            CheckStep(address="2bma:rot:rbv", criterion=EqualsCriterion(expected=45.0)),
         ),
     )
     assert result.succeeded is False
     assert result.completed_count == 1  # setpoint succeeded
     assert result.failure is not None
     assert result.failure.step_index == 1
-    assert result.failure.step_kind == "check"
+    assert result.failure.source_kind == "check"
     assert result.failure.target == "2bma:rot:rbv"
     assert result.failure.error_class == "CheckFailedError"
     # abort was invoked with a reason pointing at the failing check.
@@ -1422,7 +1422,7 @@ async def test_execute_setpoint_via_registry_with_unrouted_address_records_failu
     assert result.succeeded is False
     assert result.failure is not None
     assert result.failure.error_class == "NoAdapterForAddressError"
-    assert result.failure.step_kind == "setpoint"
+    assert result.failure.source_kind == "setpoint"
     # Recorded in logbook, not propagated as a 500.
     assert len(appender.calls) == 1
     assert appender.calls[0].command.entries[0].payload["result"] == "failed"

@@ -30,7 +30,7 @@ fundamental issues surface first:
 5. No bound Asset may be Decommissioned. Raises
    `AssetDecommissionedError` carrying the offending asset_ids.
 6. `union(asset.families) ⊇ method.needed_families`. Raises
-   `PlanCapabilitiesNotSatisfiedError` with the missing family
+   `PlanFamiliesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
    granularity makes sense and bind the Assets that carry them.
@@ -70,8 +70,8 @@ from cora.recipe.aggregates.plan import (
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
-    PlanCapabilitiesNotSatisfiedError,
     PlanDefined,
+    PlanFamiliesNotSatisfiedError,
     PlanName,
     PracticeDeprecatedError,
 )
@@ -98,7 +98,7 @@ def decide(
       - No bound Asset may be Decommissioned
         -> AssetDecommissionedError
       - Union of bound Assets' families must cover Method's
-        needed_families -> PlanCapabilitiesNotSatisfiedError
+        needed_families -> PlanFamiliesNotSatisfiedError
       - When Method has a Capability, union of bound Families'
         affordances must cover Capability.required_affordances
         -> PlanAffordancesNotSatisfiedError
@@ -135,7 +135,7 @@ def decide(
     )
     missing = context.method.needed_families - union_capabilities
     if missing:
-        raise PlanCapabilitiesNotSatisfiedError(missing)
+        raise PlanFamiliesNotSatisfiedError(missing)
 
     # cross-BC affordance-cover guard. Layered on top of the
     # family-id check: even when every needed Family is bound, the union

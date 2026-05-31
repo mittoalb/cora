@@ -4,9 +4,9 @@ A `Seal` is the per-facility singleton that signs the head
 pointer over this facility's published registry tree. It pairs two
 Credential references with distinct purposes:
 
-  - `online_key_ref` references a Credential whose purpose is
+  - `online_credential_id` references a Credential whose purpose is
     `SealOnlineSigning` (warm key used to sign every head pointer).
-  - `offline_key_ref` references a Credential whose purpose is
+  - `offline_credential_id` references a Credential whose purpose is
     `SealOfflineRoot` (cold root used only to authorize online-key
     rotation and to attest a full republish).
 
@@ -15,7 +15,7 @@ Key invariants per [[project_federation_port_design]]:
   - Singleton identity: `facility_id` (str). One Seal stream
     per facility; the stream's UUID is deterministic per facility
     (the handler mints it via UUID5 with the federation namespace).
-  - Key separation: `online_key_ref` and `offline_key_ref` MUST
+  - Key separation: `online_credential_id` and `offline_credential_id` MUST
     differ at every transition. Helper `verify_key_separation` at
     `cora.federation.aggregates.seal._key_separation` is called by
     every transition decider per the sec-4 AH#15 strengthening.
@@ -51,7 +51,7 @@ snapshot pattern.
 
 The fields that DO stay on state:
 
-  - `online_key_ref` / `offline_key_ref` (decider reads these for the
+  - `online_credential_id` / `offline_credential_id` (decider reads these for the
     key-separation invariant and for cross-purpose binding checks).
   - `current_head_hash` / `current_sequence_number` (decider reads
     these for monotonicity invariants).
@@ -148,7 +148,7 @@ class SealNotFoundError(Exception):
 
 
 class SealKeyCollisionError(Exception):
-    """`online_key_ref` and `offline_key_ref` are equal.
+    """`online_credential_id` and `offline_credential_id` are equal.
 
     Per sec-4 AH#15 strengthening, the online (warm) signing key and
     the offline (cold) root MUST be distinct credentials. Equality
@@ -157,20 +157,20 @@ class SealKeyCollisionError(Exception):
     Enforced at every transition by the `_key_separation` helper.
     """
 
-    def __init__(self, facility_id: str, shared_key_ref: UUID) -> None:
+    def __init__(self, facility_id: str, shared_credential_id: UUID) -> None:
         super().__init__(
-            f"Seal for facility {facility_id!r}: online_key_ref and "
-            f"offline_key_ref must differ (both equal {shared_key_ref})"
+            f"Seal for facility {facility_id!r}: online_credential_id and "
+            f"offline_credential_id must differ (both equal {shared_credential_id})"
         )
         self.facility_id = facility_id
-        self.shared_key_ref = shared_key_ref
+        self.shared_credential_id = shared_credential_id
 
 
 class SealKeyPurposeMismatchError(Exception):
     """A key ref points at a Credential whose purpose does not match the slot.
 
-    `online_key_ref` MUST reference a Credential with purpose
-    `SealOnlineSigning`; `offline_key_ref` MUST reference a
+    `online_credential_id` MUST reference a Credential with purpose
+    `SealOnlineSigning`; `offline_credential_id` MUST reference a
     Credential with purpose `SealOfflineRoot`. The decider performs
     this cross-aggregate purpose check before commit; raising this
     error keeps the wrong-purpose case distinguishable from the
@@ -264,7 +264,7 @@ class SealCannotInitializeWithInactiveCredentialError(Exception):
     Rotating or Revoked status indicates the secret material is in a
     lifecycle window where signing authority is not stable. The
     decider performs this cross-aggregate status check on both
-    `online_key_ref` and `offline_key_ref` before commit (mirrors the
+    `online_credential_id` and `offline_credential_id` before commit (mirrors the
     rotation-time check in
     `SealCannotRotateWithInactiveCredentialError`).
     """
@@ -371,7 +371,7 @@ class Seal:
     handler mints a deterministic stream UUID; the domain identity
     that matters is the human-readable facility string).
 
-    `online_key_ref` and `offline_key_ref` are both Credential.id
+    `online_credential_id` and `offline_credential_id` are both Credential.id
     references and MUST never equal each other. Their referenced
     Credentials MUST carry distinct purposes (`SealOnlineSigning`
     vs `SealOfflineRoot`); cross-purpose installation is rejected
@@ -396,8 +396,8 @@ class Seal:
     """
 
     facility_id: str
-    online_key_ref: UUID
-    offline_key_ref: UUID
+    online_credential_id: UUID
+    offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
     initialized_by_actor_id: UUID

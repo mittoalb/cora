@@ -43,10 +43,10 @@ A `CheckStep` carries an address + an acceptance criterion. The
 Conductor reads from the address via `ControlPort.read`, requires
 `Reading.quality == "Good"` (Uncertain or Bad fails the check), and
 evaluates the criterion against the observed value. The closed
-criterion union (`Equals | WithinTolerance`) keeps the wire shape
+criterion union (`EqualsCriterion | WithinToleranceCriterion`) keeps the wire shape
 JSON-clean while leaving room for future variants (`OneOf`,
 `Matches`, `Within` range) to land as additive code edits without a
-migration. Non-numeric values land in `WithinTolerance` as a clean
+migration. Non-numeric values land in `WithinToleranceCriterion` as a clean
 mismatch (no coercion exception escapes); criterion handling tolerates
 substrate value-type drift.
 
@@ -175,12 +175,12 @@ _STEP_KIND_CHECK = "check"
 the architecture fitness `test_conductor_step_kinds_match_procedure`
 pins that the union arms here stay in sync with the aggregate set.
 
-`_STEP_KIND_LIFECYCLE` below is a Conductor-local pseudo-kind used
+`_SOURCE_KIND_LIFECYCLE` below is a Conductor-local pseudo-kind used
 only on `ConductorFailure` (lifecycle failures do not record a step
 entry), so it is intentionally NOT a member of `STEP_KIND_VALUES`."""
 
-_STEP_KIND_LIFECYCLE = "lifecycle"
-"""Pseudo-`step_kind` used on `ConductorFailure` when the failure
+_SOURCE_KIND_LIFECYCLE = "lifecycle"
+"""Pseudo-`source_kind` used on `ConductorFailure` when the failure
 came from the surrounding lifecycle handlers (start_procedure /
 complete_procedure / abort_procedure) rather than a step in the
 caller-supplied sequence. Lifecycle failures do not record a
@@ -243,20 +243,20 @@ class ActionStep:
 
 
 @dataclass(frozen=True)
-class Equals:
+class EqualsCriterion:
     """Criterion: the observed value must equal `expected` exactly.
 
     Equality is Python `==`: numeric comparison for numbers (mind
     float exactness for non-integer values), structural equality for
     tuples + strings. For floats with tolerance use
-    `WithinTolerance` instead.
+    `WithinToleranceCriterion` instead.
     """
 
     expected: int | float | bool | str | tuple[Any, ...]
 
 
 @dataclass(frozen=True)
-class WithinTolerance:
+class WithinToleranceCriterion:
     """Criterion: numeric reading must satisfy |value - expected| <= tolerance.
 
     `tolerance` is the absolute allowed deviation; non-negative.
@@ -271,7 +271,7 @@ class WithinTolerance:
     tolerance: float
 
 
-CheckCriterion = Equals | WithinTolerance
+CheckCriterion = EqualsCriterion | WithinToleranceCriterion
 """Closed discriminator for `CheckStep` acceptance.
 
 Open to additive variants: `OneOf` (allowed value set), `Matches`
@@ -372,7 +372,7 @@ class ConductorFailure:
     `step_index` is the position in the caller-supplied step list
     when the failure was inside a step; `None` when the failure was
     a lifecycle handler call (start / complete / abort) and no step
-    was involved. `step_kind` is "setpoint" / "action" / "check" for
+    was involved. `source_kind` is "setpoint" / "action" / "check" for
     per-step failures, "lifecycle" for FSM-handler failures.
     `target` is the address (setpoint/check) or name (action) or
     lifecycle phase ("start" / "complete" / "abort").
@@ -384,7 +384,7 @@ class ConductorFailure:
     """
 
     step_index: int | None
-    step_kind: str
+    source_kind: str
     target: str
     error_class: str
     message: str
@@ -520,7 +520,7 @@ class Conductor:
         is a wiring bug, not a runtime failure, so it propagates.
 
         Lifecycle failures (start rejected, complete rejected) carry
-        `step_index=None`, `step_kind="lifecycle"`, `target` in
+        `step_index=None`, `source_kind="lifecycle"`, `target` in
         `{"start", "complete", "abort"}`.
         """
         if (
@@ -551,7 +551,7 @@ class Conductor:
                 completed_count=0,
                 failure=ConductorFailure(
                     step_index=None,
-                    step_kind=_STEP_KIND_LIFECYCLE,
+                    source_kind=_SOURCE_KIND_LIFECYCLE,
                     target=_LIFECYCLE_TARGET_START,
                     error_class=type(exc).__name__,
                     message=str(exc),
@@ -594,7 +594,7 @@ class Conductor:
                     completed_count=result.completed_count,
                     failure=ConductorFailure(
                         step_index=None,
-                        step_kind=_STEP_KIND_LIFECYCLE,
+                        source_kind=_SOURCE_KIND_LIFECYCLE,
                         target=_LIFECYCLE_TARGET_COMPLETE,
                         error_class=type(exc).__name__,
                         message=str(exc),
@@ -649,7 +649,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_SETPOINT,
+                source_kind=_STEP_KIND_SETPOINT,
                 target=step.address,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -704,7 +704,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_ACTION,
+                source_kind=_STEP_KIND_ACTION,
                 target=step.name,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -728,7 +728,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_ACTION,
+                source_kind=_STEP_KIND_ACTION,
                 target=step.name,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -765,7 +765,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_CHECK,
+                source_kind=_STEP_KIND_CHECK,
                 target=step.address,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -783,7 +783,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_CHECK,
+                source_kind=_STEP_KIND_CHECK,
                 target=step.address,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -801,7 +801,7 @@ class Conductor:
             )
             return ConductorFailure(
                 step_index=index,
-                step_kind=_STEP_KIND_CHECK,
+                source_kind=_STEP_KIND_CHECK,
                 target=step.address,
                 error_class=type(exc).__name__,
                 message=str(exc),
@@ -870,7 +870,7 @@ class _Envelope:
 
 def _criterion_to_dict(criterion: CheckCriterion) -> dict[str, Any]:
     """Serialize a criterion into a JSON-clean dict for the step payload."""
-    if isinstance(criterion, Equals):
+    if isinstance(criterion, EqualsCriterion):
         return {"kind": "equals", "expected": criterion.expected}
     return {
         "kind": "within_tolerance",
@@ -882,12 +882,12 @@ def _criterion_to_dict(criterion: CheckCriterion) -> dict[str, Any]:
 def _criterion_matches(criterion: CheckCriterion, value: Any) -> bool:
     """True iff `value` satisfies `criterion`.
 
-    `WithinTolerance` tolerates non-numeric values: a `TypeError` or
+    `WithinToleranceCriterion` tolerates non-numeric values: a `TypeError` or
     `ValueError` from `float(value)` is treated as a clean mismatch
     rather than escaping. This is the right shape because a reading
     that isn't numerically comparable IS a failed check, not a bug.
     """
-    if isinstance(criterion, Equals):
+    if isinstance(criterion, EqualsCriterion):
         return value == criterion.expected
     try:
         return abs(float(value) - criterion.expected) <= criterion.tolerance
@@ -897,7 +897,7 @@ def _criterion_matches(criterion: CheckCriterion, value: Any) -> bool:
 
 def _mismatch_reason(criterion: CheckCriterion, value: Any) -> str:
     """Operator-friendly explanation for a failed criterion."""
-    if isinstance(criterion, Equals):
+    if isinstance(criterion, EqualsCriterion):
         return f"value {value!r} did not equal expected {criterion.expected!r}"
     return f"value {value!r} not within {criterion.tolerance} of expected {criterion.expected}"
 
@@ -912,9 +912,9 @@ def _derive_abort_reason(failure: ConductorFailure) -> str:
     sequence killed the Procedure.
     """
     if failure.step_index is None:
-        prefix = f"{failure.step_kind} {failure.target}"
+        prefix = f"{failure.source_kind} {failure.target}"
     else:
-        prefix = f"{failure.step_kind}[{failure.step_index}] {failure.target}"
+        prefix = f"{failure.source_kind}[{failure.step_index}] {failure.target}"
     reason = f"{prefix} failed: {failure.error_class}: {failure.message}"
     return reason[:PROCEDURE_ABORT_REASON_MAX_LENGTH]
 
@@ -945,9 +945,9 @@ __all__ = [
     "Conductor",
     "ConductorFailure",
     "ConductorResult",
-    "Equals",
+    "EqualsCriterion",
     "InMemoryActionRegistry",
     "SetpointStep",
     "Step",
-    "WithinTolerance",
+    "WithinToleranceCriterion",
 ]

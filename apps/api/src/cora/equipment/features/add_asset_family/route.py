@@ -74,7 +74,7 @@ router = APIRouter(tags=["equipment"])
     },
     summary="Add a Family to an existing asset's family set",
 )
-async def post_assets_add_capability(
+async def post_assets_add_family(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],
     body: AddAssetFamilyRequest,
     handler: Annotated[Handler, Depends(_get_handler)],

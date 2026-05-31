@@ -36,7 +36,7 @@ def _placement(parent: object) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=parent,  # type: ignore[arg-type]
+        parent_frame_id=parent,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.25,
         tol_y=0.25,
@@ -54,7 +54,7 @@ def _frame(status: FrameStatus = FrameStatus.ACTIVE) -> Frame:
         id=uuid4(),
         name=FrameName("centerline_5p1_mrad"),
         parent_frame_id=parent,
-        placement_relative_to_parent=_placement(parent),
+        placement=_placement(parent),
         status=status,
     )
 

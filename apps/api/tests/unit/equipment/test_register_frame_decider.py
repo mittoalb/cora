@@ -34,7 +34,7 @@ def _placement(parent: object) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=parent,  # type: ignore[arg-type]
+        parent_frame_id=parent,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.25,
         tol_y=0.25,
@@ -54,7 +54,7 @@ def test_decide_emits_frame_registered_for_root_frame() -> None:
         command=RegisterFrame(
             name="centerline_1p35_mrad",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
         ),
         now=_NOW,
         new_id=new_id,
@@ -64,7 +64,7 @@ def test_decide_emits_frame_registered_for_root_frame() -> None:
             frame_id=new_id,
             name="centerline_1p35_mrad",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
             occurred_at=_NOW,
         )
     ]
@@ -80,7 +80,7 @@ def test_decide_emits_frame_registered_for_child_frame() -> None:
         command=RegisterFrame(
             name="centerline_5p1_mrad",
             parent_frame_id=parent,
-            placement_relative_to_parent=placement,
+            placement=placement,
         ),
         now=_NOW,
         new_id=new_id,
@@ -88,12 +88,12 @@ def test_decide_emits_frame_registered_for_child_frame() -> None:
     assert len(events) == 1
     assert events[0].frame_id == new_id
     assert events[0].parent_frame_id == parent
-    assert events[0].placement_relative_to_parent == placement
+    assert events[0].placement == placement
 
 
 @pytest.mark.unit
 def test_decide_rejects_root_frame_with_a_placement() -> None:
-    """Root frame must have placement_relative_to_parent=None."""
+    """Root frame must have placement=None."""
     new_id = uuid4()
     with pytest.raises(InvalidFrameRootError) as info:
         register_frame.decide(
@@ -101,7 +101,7 @@ def test_decide_rejects_root_frame_with_a_placement() -> None:
             command=RegisterFrame(
                 name="centerline",
                 parent_frame_id=None,
-                placement_relative_to_parent=_placement(uuid4()),
+                placement=_placement(uuid4()),
             ),
             now=_NOW,
             new_id=new_id,
@@ -111,7 +111,7 @@ def test_decide_rejects_root_frame_with_a_placement() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_child_frame_with_no_placement() -> None:
-    """Child frame must have placement_relative_to_parent=non-None."""
+    """Child frame must have placement=non-None."""
     new_id = uuid4()
     parent = uuid4()
     with pytest.raises(InvalidFrameRootError) as info:
@@ -120,7 +120,7 @@ def test_decide_rejects_child_frame_with_no_placement() -> None:
             command=RegisterFrame(
                 name="centerline_5p1_mrad",
                 parent_frame_id=parent,
-                placement_relative_to_parent=None,
+                placement=None,
             ),
             now=_NOW,
             new_id=new_id,
@@ -130,7 +130,7 @@ def test_decide_rejects_child_frame_with_no_placement() -> None:
 
 @pytest.mark.unit
 def test_decide_rejects_child_frame_when_placement_parent_mismatches_parent_frame_id() -> None:
-    """The embedded Placement.parent_frame MUST equal the Frame's
+    """The embedded Placement.parent_frame_id MUST equal the Frame's
     declared parent_frame_id (placement points where the Frame says)."""
     new_id = uuid4()
     parent = uuid4()
@@ -142,12 +142,12 @@ def test_decide_rejects_child_frame_when_placement_parent_mismatches_parent_fram
             command=RegisterFrame(
                 name="centerline_5p1_mrad",
                 parent_frame_id=parent,
-                placement_relative_to_parent=bad_placement,
+                placement=bad_placement,
             ),
             now=_NOW,
             new_id=new_id,
         )
-    assert "Placement.parent_frame" in info.value.reason
+    assert "Placement.parent_frame_id" in info.value.reason
 
 
 @pytest.mark.unit
@@ -157,7 +157,7 @@ def test_decide_rejects_already_registered_frame() -> None:
         id=uuid4(),
         name=FrameName("existing"),
         parent_frame_id=None,
-        placement_relative_to_parent=None,
+        placement=None,
         status=FrameStatus.ACTIVE,
     )
     with pytest.raises(FrameAlreadyExistsError) as info:
@@ -166,7 +166,7 @@ def test_decide_rejects_already_registered_frame() -> None:
             command=RegisterFrame(
                 name="new",
                 parent_frame_id=None,
-                placement_relative_to_parent=None,
+                placement=None,
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -182,7 +182,7 @@ def test_decide_rejects_whitespace_only_name() -> None:
             command=RegisterFrame(
                 name="   ",
                 parent_frame_id=None,
-                placement_relative_to_parent=None,
+                placement=None,
             ),
             now=_NOW,
             new_id=uuid4(),
@@ -206,7 +206,7 @@ def test_decide_emits_supersedes_link_into_frame_registered_event() -> None:
         command=RegisterFrame(
             name="centerline_apsu",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
             supersedes=link,
         ),
         now=_NOW,
@@ -217,7 +217,7 @@ def test_decide_emits_supersedes_link_into_frame_registered_event() -> None:
     assert isinstance(event, FrameRegistered)
     assert event.supersedes == link
     assert event.parent_frame_id is None
-    assert event.placement_relative_to_parent is None
+    assert event.placement is None
 
 
 @pytest.mark.unit
@@ -229,7 +229,7 @@ def test_decide_defaults_supersedes_to_none_when_command_omits_it() -> None:
         command=RegisterFrame(
             name="centerline_1p35_mrad",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
         ),
         now=_NOW,
         new_id=uuid4(),
@@ -254,7 +254,7 @@ def test_decide_rejects_self_supersession() -> None:
             command=RegisterFrame(
                 name="self_revising",
                 parent_frame_id=None,
-                placement_relative_to_parent=None,
+                placement=None,
                 supersedes=self_link,
             ),
             now=_NOW,

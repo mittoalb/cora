@@ -6,7 +6,7 @@ position axes + three rotation axes) plus three additional pieces
 of information that make the pose interpretable across surveys and
 re-installations:
 
-  - `parent_frame`: which coordinate frame the values are measured
+  - `parent_frame_id`: which coordinate frame the values are measured
     against (the 1.35 mrad standard beam centerline, an alternate
     centerline at the mirror, the optical-bench frame on a table, ...).
   - `reference_surface`: which physical feature of the part the
@@ -136,7 +136,7 @@ class Placement:
     `±` tolerance. All twelve numeric values are in the system named
     by `units` (v1: millimetres for translation, radians for rotation).
 
-    `parent_frame` names the coordinate frame the values are measured
+    `parent_frame_id` names the coordinate frame the values are measured
     against. `reference_surface` names the physical feature on the
     part the position is measured FROM.
 
@@ -150,7 +150,7 @@ class Placement:
     rx: float
     ry: float
     rz: float
-    parent_frame: UUID
+    parent_frame_id: UUID
     reference_surface: ReferenceSurface
     tol_x: float
     tol_y: float

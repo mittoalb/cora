@@ -57,11 +57,11 @@ class PlacementBody(BaseModel):
     rx: float = Field(..., description="Rotation around x (rad in SI_mm_rad).")
     ry: float = Field(..., description="Rotation around y.")
     rz: float = Field(..., description="Rotation around z.")
-    parent_frame: UUID = Field(
+    parent_frame_id: UUID = Field(
         ...,
         description=(
             "The Frame whose origin these coordinates are measured "
-            "against. For a child Frame's placement_relative_to_parent, "
+            "against. For a child Frame's placement, "
             "this MUST equal the owning Frame's parent_frame_id."
         ),
     )
@@ -95,7 +95,7 @@ class PlacementBody(BaseModel):
             rx=self.rx,
             ry=self.ry,
             rz=self.rz,
-            parent_frame=self.parent_frame,
+            parent_frame_id=self.parent_frame_id,
             reference_surface=self.reference_surface,
             tol_x=self.tol_x,
             tol_y=self.tol_y,

@@ -51,7 +51,7 @@ treats them as opaque domain data and validates:
   - Method not Deprecated → `MethodDeprecatedError`
   - No bound Asset is Decommissioned → `AssetDecommissionedError`
   - `union(asset.families) ⊇ method.needed_families` →
-    `PlanCapabilitiesNotSatisfiedError`
+    `PlanFamiliesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /
 `MethodNotFoundError` / `AssetNotFoundError` (defined on the
@@ -276,7 +276,7 @@ class InvalidPlanVersionTagError(ValueError):
         self.value = value
 
 
-class PlanCapabilitiesNotSatisfiedError(Exception):
+class PlanFamiliesNotSatisfiedError(Exception):
     """The bound Assets' families don't cover the Method's needs.
 
     Carries the missing family ids — those required by the
@@ -304,7 +304,7 @@ class PlanAffordancesNotSatisfiedError(Exception):
     Method.capability.required_affordances contract.
 
     Cross-BC affordance-cover guard. Layered on top of the
-    family-id check (PlanCapabilitiesNotSatisfiedError): even when
+    family-id check (PlanFamiliesNotSatisfiedError): even when
     every needed Family is present, the union of those Families'
     `affordances` must still cover the bound Method's
     `capability.required_affordances` contract. Mapped to HTTP 409

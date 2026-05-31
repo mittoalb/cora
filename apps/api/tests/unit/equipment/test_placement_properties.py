@@ -55,7 +55,7 @@ def _placement_kwargs(
     rx: float,
     ry: float,
     rz: float,
-    parent_frame: UUID,
+    parent_frame_id: UUID,
     reference_surface: ReferenceSurface,
     tol_x: float,
     tol_y: float,
@@ -72,7 +72,7 @@ def _placement_kwargs(
         "rx": rx,
         "ry": ry,
         "rz": rz,
-        "parent_frame": parent_frame,
+        "parent_frame_id": parent_frame_id,
         "reference_surface": reference_surface,
         "tol_x": tol_x,
         "tol_y": tol_y,
@@ -92,7 +92,7 @@ def _placement_kwargs(
     rx=_FINITE_FLOAT,
     ry=_FINITE_FLOAT,
     rz=_FINITE_FLOAT,
-    parent_frame=_UUID,
+    parent_frame_id=_UUID,
     reference_surface=_REF_SURFACE,
     tol_x=_NON_NEGATIVE_FLOAT,
     tol_y=_NON_NEGATIVE_FLOAT,
@@ -109,7 +109,7 @@ def test_placement_constructs_for_any_valid_input(
     rx: float,
     ry: float,
     rz: float,
-    parent_frame: UUID,
+    parent_frame_id: UUID,
     reference_surface: ReferenceSurface,
     tol_x: float,
     tol_y: float,
@@ -128,7 +128,7 @@ def test_placement_constructs_for_any_valid_input(
             rx=rx,
             ry=ry,
             rz=rz,
-            parent_frame=parent_frame,
+            parent_frame_id=parent_frame_id,
             reference_surface=reference_surface,
             tol_x=tol_x,
             tol_y=tol_y,
@@ -140,7 +140,7 @@ def test_placement_constructs_for_any_valid_input(
         )
     )
     assert p.x == x
-    assert p.parent_frame == parent_frame
+    assert p.parent_frame_id == parent_frame_id
     assert p.reference_surface is reference_surface
     assert p.units is units
     assert p.tol_z == tol_z
@@ -161,7 +161,7 @@ def test_placement_rejects_negative_tolerance_on_any_axis(axis: str, bad_value: 
         "rx": 0.0,
         "ry": 0.0,
         "rz": 0.0,
-        "parent_frame": uuid4(),
+        "parent_frame_id": uuid4(),
         "reference_surface": ReferenceSurface.OPTIC_CENTER,
         "tol_x": 0.0,
         "tol_y": 0.0,
@@ -185,7 +185,7 @@ def test_placement_rejects_negative_tolerance_on_any_axis(axis: str, bad_value: 
     rx=_FINITE_FLOAT,
     ry=_FINITE_FLOAT,
     rz=_FINITE_FLOAT,
-    parent_frame=_UUID,
+    parent_frame_id=_UUID,
     reference_surface=_REF_SURFACE,
     tol_x=_NON_NEGATIVE_FLOAT,
     tol_y=_NON_NEGATIVE_FLOAT,
@@ -202,7 +202,7 @@ def test_equal_placements_collapse_in_a_frozenset(
     rx: float,
     ry: float,
     rz: float,
-    parent_frame: UUID,
+    parent_frame_id: UUID,
     reference_surface: ReferenceSurface,
     tol_x: float,
     tol_y: float,
@@ -223,7 +223,7 @@ def test_equal_placements_collapse_in_a_frozenset(
         rx=rx,
         ry=ry,
         rz=rz,
-        parent_frame=parent_frame,
+        parent_frame_id=parent_frame_id,
         reference_surface=reference_surface,
         tol_x=tol_x,
         tol_y=tol_y,

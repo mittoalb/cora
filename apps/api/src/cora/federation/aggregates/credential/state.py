@@ -46,10 +46,10 @@ class CredentialPurpose(StrEnum):
         outbound payloads.
       - `SealOnlineSigning`: credential signs seal pointer updates
         online; rotated frequently. Referenced by
-        `Seal.online_key_ref`.
+        `Seal.online_credential_id`.
       - `SealOfflineRoot`: credential is the offline root of trust
         for the seal; rotated rarely and held offline. Referenced by
-        `Seal.offline_key_ref`.
+        `Seal.offline_credential_id`.
 
     The two seal purposes are distinct enum values rather than a
     single `Seal` arm so the `verify_key_separation` guard in `Seal`

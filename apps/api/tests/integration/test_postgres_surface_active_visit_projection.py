@@ -98,7 +98,7 @@ def _took_stored(visit_id: UUID, surface_id: UUID, occurred_at: datetime) -> Sto
         stream_type="Visit",
         stream_id=visit_id,
         version=1,
-        event_type="VisitTookControlOfSurface",
+        event_type="VisitSurfaceControlTaken",
         schema_version=1,
         payload={
             "visit_id": str(visit_id),
@@ -119,7 +119,7 @@ def _released_stored(visit_id: UUID, surface_id: UUID, occurred_at: datetime) ->
         stream_type="Visit",
         stream_id=visit_id,
         version=1,
-        event_type="VisitReleasedControlOfSurface",
+        event_type="VisitSurfaceControlReleased",
         schema_version=1,
         payload={
             "visit_id": str(visit_id),

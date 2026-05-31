@@ -26,7 +26,7 @@ class RotateSealOnlineKeyOutput(BaseModel):
     """Structured output of the `rotate_seal_online_key` MCP tool."""
 
     facility_id: str
-    new_online_key_ref: UUID
+    new_online_credential_id: UUID
     signed_by_offline_root: bool
 
 
@@ -49,13 +49,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             str,
             Field(description="Target Seal's facility id."),
         ],
-        new_online_key_ref: Annotated[
+        new_online_credential_id: Annotated[
             UUID,
             Field(
                 description=(
                     "Credential id of the fresh online (warm) signing key. "
-                    "Must differ from both the current online_key_ref and "
-                    "the current offline_key_ref."
+                    "Must differ from both the current online_credential_id and "
+                    "the current offline_credential_id."
                 ),
             ),
         ],
@@ -74,7 +74,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         await handler(
             RotateSealOnlineKey(
                 facility_id=facility_id,
-                new_online_key_ref=new_online_key_ref,
+                new_online_credential_id=new_online_credential_id,
                 signed_by_offline_root=signed_by_offline_root,
             ),
             principal_id=get_mcp_principal_id(ctx),
@@ -83,6 +83,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         )
         return RotateSealOnlineKeyOutput(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=signed_by_offline_root,
         )

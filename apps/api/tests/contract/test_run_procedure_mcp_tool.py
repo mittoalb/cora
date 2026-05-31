@@ -101,7 +101,7 @@ def test_mcp_run_procedure_with_unknown_action_returns_failure_in_structured_con
     structured: dict[str, Any] = parse_sse_data(response.text)["result"]["structuredContent"]
     assert structured["succeeded"] is False
     failure = structured["failure"]
-    assert failure["step_kind"] == "action"
+    assert failure["source_kind"] == "action"
     assert failure["error_class"] == "UnknownActionError"
 
 
@@ -131,6 +131,6 @@ def test_mcp_run_procedure_against_unregistered_procedure_returns_lifecycle_fail
     assert structured["succeeded"] is False
     failure = structured["failure"]
     assert failure["step_index"] is None
-    assert failure["step_kind"] == "lifecycle"
+    assert failure["source_kind"] == "lifecycle"
     assert failure["target"] == "start"
     assert failure["error_class"] == "ProcedureNotFoundError"

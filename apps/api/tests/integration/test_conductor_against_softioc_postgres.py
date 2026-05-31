@@ -40,9 +40,9 @@ from cora.operation.aggregates.procedure import (
 from cora.operation.conductor import (
     CheckStep,
     Conductor,
-    Equals,
+    EqualsCriterion,
     SetpointStep,
-    WithinTolerance,
+    WithinToleranceCriterion,
 )
 from cora.operation.features.abort_procedure import bind as bind_abort
 from cora.operation.features.append_procedure_steps import bind as bind_append
@@ -147,7 +147,7 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
                 SetpointStep(address=f"{softioc}double_value", value=7.5, verify=True),
                 CheckStep(
                     address=f"{softioc}double_value",
-                    criterion=WithinTolerance(expected=7.5, tolerance=0.01),
+                    criterion=WithinToleranceCriterion(expected=7.5, tolerance=0.01),
                 ),
             ),
         )
@@ -243,7 +243,7 @@ async def test_conductor_aborts_procedure_when_setpoint_fails_against_softioc(
 
     assert result.succeeded is False
     assert result.failure is not None
-    assert result.failure.step_kind == "setpoint"
+    assert result.failure.source_kind == "setpoint"
     assert result.failure.error_class == "ControlNotConnectedError"
 
     async with db_pool.acquire() as conn:
@@ -266,7 +266,7 @@ async def test_conductor_completes_procedure_with_equals_check_against_softioc(
     db_pool: asyncpg.Pool,
     softioc: str,
 ) -> None:
-    """Setpoint long_value + check Equals against an integer reading."""
+    """Setpoint long_value + check EqualsCriterion against an integer reading."""
     procedure_id = UUID("01900000-0000-7000-8000-0000020c0300")
     started_event_id = UUID("01900000-0000-7000-8000-0000020c0301")
     logbook_id = UUID("01900000-0000-7000-8000-0000020c0302")
@@ -309,7 +309,7 @@ async def test_conductor_completes_procedure_with_equals_check_against_softioc(
                 SetpointStep(address=f"{softioc}long_value", value=99),
                 CheckStep(
                     address=f"{softioc}long_value",
-                    criterion=Equals(expected=99),
+                    criterion=EqualsCriterion(expected=99),
                 ),
             ),
         )

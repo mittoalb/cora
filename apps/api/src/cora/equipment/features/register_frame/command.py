@@ -8,10 +8,10 @@ injected by the handler from infrastructure ports, matching the
 cross-BC create-style command shape locked in Access / Trust /
 Subject / Equipment.
 
-`parent_frame_id` is `UUID | None` and `placement_relative_to_parent`
+`parent_frame_id` is `UUID | None` and `placement`
 is `Placement | None`. The "both together or both None" invariant
 (root frames have both None; child frames have both non-None and
-`placement.parent_frame == parent_frame_id`) is enforced by the
+`placement.parent_frame_id == parent_frame_id`) is enforced by the
 decider via `InvalidFrameRootError`.
 
 `supersedes` is `FrameRevisionLink | None`. When present, marks
@@ -19,7 +19,7 @@ this frame as a revision of an older frame; the decider rejects
 self-supersession (predecessor_frame_id == frame_id) via
 `FrameCannotSupersedeError`. Predecessor existence is NOT verified
 at write time (eventual-consistency stance, matching Mount.placement
-.parent_frame precedent). Immutable post-register (no
+.parent_frame_id precedent). Immutable post-register (no
 `update_supersedes` slice in v1).
 
 Eventual-consistency stance for `parent_frame_id` and
@@ -43,5 +43,5 @@ class RegisterFrame:
 
     name: str
     parent_frame_id: UUID | None
-    placement_relative_to_parent: Placement | None
+    placement: Placement | None
     supersedes: FrameRevisionLink | None = None

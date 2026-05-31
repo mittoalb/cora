@@ -25,8 +25,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="update_frame_placement",
         description=(
-            "Update a frame's placement_relative_to_parent. "
-            "new_placement.parent_frame MUST equal the Frame's "
+            "Update a frame's placement. "
+            "new_placement.parent_frame_id MUST equal the Frame's "
             "existing parent_frame_id (update_frame_placement cannot reparent). "
             "Placement tolerance fields must be >= 0 (negative values "
             "are rejected as InvalidPlacementError). Idempotent: "
@@ -42,7 +42,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
         new_placement: Annotated[
             PlacementBody,
-            Field(description="The new placement_relative_to_parent."),
+            Field(description="The new placement."),
         ],
         survey: Annotated[
             dict[str, Any] | None,

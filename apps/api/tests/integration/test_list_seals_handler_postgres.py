@@ -61,17 +61,17 @@ def _register_seal_credentials(
     lookup: InMemoryCredentialLookup,
     *,
     facility_id: str,
-    online_key_ref: UUID,
-    offline_key_ref: UUID,
+    online_credential_id: UUID,
+    offline_credential_id: UUID,
 ) -> None:
     lookup.register(
-        credential_id=online_key_ref,
+        credential_id=online_credential_id,
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     lookup.register(
-        credential_id=offline_key_ref,
+        credential_id=offline_credential_id,
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
@@ -98,19 +98,19 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
 
     # Each Seal needs distinct online/offline key refs (key-separation).
     for fid in (f1, f2, f3):
-        online_key_ref = uuid4()
-        offline_key_ref = uuid4()
+        online_credential_id = uuid4()
+        offline_credential_id = uuid4()
         _register_seal_credentials(
             lookup,
             facility_id=fid,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
         )
         await initialize_seal.bind(deps)(
             InitializeSeal(
                 facility_id=fid,
-                online_key_ref=online_key_ref,
-                offline_key_ref=offline_key_ref,
+                online_credential_id=online_credential_id,
+                offline_credential_id=offline_credential_id,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -176,19 +176,19 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
     )
 
     fid = _facility("shape")
-    online_key_ref = uuid4()
-    offline_key_ref = uuid4()
+    online_credential_id = uuid4()
+    offline_credential_id = uuid4()
     _register_seal_credentials(
         lookup,
         facility_id=fid,
-        online_key_ref=online_key_ref,
-        offline_key_ref=offline_key_ref,
+        online_credential_id=online_credential_id,
+        offline_credential_id=offline_credential_id,
     )
     await initialize_seal.bind(deps)(
         InitializeSeal(
             facility_id=fid,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -203,8 +203,8 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
     matched = [item for item in page.items if item.facility_id == fid]
     assert len(matched) == 1
     item = matched[0]
-    assert item.online_key_ref == online_key_ref
-    assert item.offline_key_ref == offline_key_ref
+    assert item.online_credential_id == online_credential_id
+    assert item.offline_credential_id == offline_credential_id
     assert item.current_head_hash is None
     assert item.current_sequence_number == 0
     assert item.initialized_by_actor_id == _PRINCIPAL_ID
@@ -237,19 +237,19 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
     seeded: list[str] = []
     for i in range(3):
         fid = _facility(f"pag{i}")
-        online_key_ref = uuid4()
-        offline_key_ref = uuid4()
+        online_credential_id = uuid4()
+        offline_credential_id = uuid4()
         _register_seal_credentials(
             lookup,
             facility_id=fid,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
         )
         await initialize_seal.bind(deps)(
             InitializeSeal(
                 facility_id=fid,
-                online_key_ref=online_key_ref,
-                offline_key_ref=offline_key_ref,
+                online_credential_id=online_credential_id,
+                offline_credential_id=offline_credential_id,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

@@ -31,7 +31,7 @@ class BindingStatus(StrEnum):
 
 
 @dataclass(frozen=True)
-class WiredAssetBinding:
+class WiredAsset:
     """Per-wired-Asset contribution to the binding diagnostic.
 
     `condition` and `lifecycle` are the Asset's current health +
@@ -52,9 +52,9 @@ class WiredAssetBinding:
 class CandidateAsset:
     """Per-Asset candidate for a missing affordance.
 
-    Same shape as `WiredAssetBinding` minus the all-affordances
+    Same shape as `WiredAsset` minus the all-affordances
     contribution. `contributing_family_ids` is deliberately named
-    to differ from `WiredAssetBinding.family_ids`: it holds ONLY
+    to differ from `WiredAsset.family_ids`: it holds ONLY
     the candidate's Families that declare the missing affordance
     under consideration, not the candidate's full Family set. The
     narrowing surfaces why the Asset is a candidate at all without
@@ -122,7 +122,7 @@ class InspectPlanBindingView:
     capability_id: UUID | None
     method_needed_families: frozenset[UUID]
     capability_required_affordances: frozenset[Affordance]
-    wired_assets: tuple[WiredAssetBinding, ...]
+    wired_assets: tuple[WiredAsset, ...]
     missing_families: frozenset[UUID]
     missing_affordances: frozenset[Affordance]
     missing_affordance_candidates: tuple[MissingAffordanceCandidates, ...]

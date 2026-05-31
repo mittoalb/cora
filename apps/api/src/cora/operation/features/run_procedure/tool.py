@@ -44,7 +44,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Conduct an existing Procedure end-to-end: start it, walk the "
             "supplied step list via the ControlPort (setpoint writes), "
             "the action registry (named action invocations), and read-back "
-            "checks (Equals or WithinTolerance criteria); then complete on "
+            "checks (EqualsCriterion or WithinToleranceCriterion criteria); then complete on "
             "success or abort on the first step failure. Returns a structured "
             "summary; failures DO NOT raise."
         ),

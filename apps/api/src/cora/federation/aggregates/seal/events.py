@@ -46,8 +46,8 @@ class SealInitialized:
     """
 
     facility_id: str
-    online_key_ref: UUID
-    offline_key_ref: UUID
+    online_credential_id: UUID
+    offline_credential_id: UUID
     initialized_by_actor_id: UUID
     occurred_at: datetime
 
@@ -79,8 +79,8 @@ class SealPointerSigned:
 class SealOnlineKeyRotated:
     """The online (warm) signing key was rotated to a fresh Credential.
 
-    The decider has verified that the new `online_key_ref` differs
-    from the existing `offline_key_ref` (key separation) and that the
+    The decider has verified that the new `online_credential_id` differs
+    from the existing `offline_credential_id` (key separation) and that the
     new credential's purpose is `SealOnlineSigning`. The offline root
     is unchanged by this event; rotating the offline root is a
     separate slice and is out of scope here.
@@ -91,7 +91,7 @@ class SealOnlineKeyRotated:
     """
 
     facility_id: str
-    new_online_key_ref: UUID
+    new_online_credential_id: UUID
     signed_by_offline_root: bool
     rotated_by_actor_id: UUID
     occurred_at: datetime
@@ -147,15 +147,15 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
     match event:
         case SealInitialized(
             facility_id=facility_id,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
             initialized_by_actor_id=initialized_by_actor_id,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
-                "online_key_ref": str(online_key_ref),
-                "offline_key_ref": str(offline_key_ref),
+                "online_credential_id": str(online_credential_id),
+                "offline_credential_id": str(offline_credential_id),
                 "initialized_by_actor_id": str(initialized_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -177,14 +177,14 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             }
         case SealOnlineKeyRotated(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=signed_by_offline_root,
             rotated_by_actor_id=rotated_by_actor_id,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
-                "new_online_key_ref": str(new_online_key_ref),
+                "new_online_credential_id": str(new_online_credential_id),
                 "signed_by_offline_root": signed_by_offline_root,
                 "rotated_by_actor_id": str(rotated_by_actor_id),
                 "occurred_at": occurred_at.isoformat(),
@@ -233,8 +233,8 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                 "SealInitialized",
                 lambda: SealInitialized(
                     facility_id=payload["facility_id"],
-                    online_key_ref=UUID(payload["online_key_ref"]),
-                    offline_key_ref=UUID(payload["offline_key_ref"]),
+                    online_credential_id=UUID(payload["online_credential_id"]),
+                    offline_credential_id=UUID(payload["offline_credential_id"]),
                     initialized_by_actor_id=UUID(payload["initialized_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
@@ -256,7 +256,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                 "SealOnlineKeyRotated",
                 lambda: SealOnlineKeyRotated(
                     facility_id=payload["facility_id"],
-                    new_online_key_ref=UUID(payload["new_online_key_ref"]),
+                    new_online_credential_id=UUID(payload["new_online_credential_id"]),
                     signed_by_offline_root=payload["signed_by_offline_root"],
                     rotated_by_actor_id=UUID(payload["rotated_by_actor_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),

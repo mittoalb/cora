@@ -73,7 +73,7 @@ async def _seed_frame_mount_and_asset(
         RegisterFrame(
             name=f"frame-for-{slot_code}",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

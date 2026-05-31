@@ -9,10 +9,10 @@ Returns `[]` for the no-op-on-unchanged case (idempotent contract).
   - State must not be None -> FrameNotFoundError.
   - Status must be Active -> FrameCannotUpdateError (reason: status
     mismatch).
-  - Frame must be a child frame (placement_relative_to_parent is not
+  - Frame must be a child frame (placement is not
     None at the aggregate level) -> FrameCannotUpdateError (reason:
     root frame has no placement to update).
-  - The new placement's `parent_frame` field must equal the Frame's
+  - The new placement's `parent_frame_id` field must equal the Frame's
     current `parent_frame_id` (you cannot reparent via
     update_frame_placement; that would require a separate
     reparent_frame slice). -> InvalidFrameRootError.
@@ -43,9 +43,9 @@ def decide(
     Invariants:
       - State must not be None -> FrameNotFoundError
       - Status must be Active -> FrameCannotUpdateError (status mismatch)
-      - Frame must be a child frame (placement_relative_to_parent
+      - Frame must be a child frame (placement
         is not None) -> FrameCannotUpdateError (root frame)
-      - `new_placement.parent_frame == state.parent_frame_id`
+      - `new_placement.parent_frame_id == state.parent_frame_id`
         (update_frame_placement cannot reparent) -> InvalidFrameRootError
       - No-op on unchanged: `new_placement == current_placement`
         returns `[]` (idempotent contract).
@@ -57,20 +57,17 @@ def decide(
             f"currently in status {state.status.value}, update requires {FrameStatus.ACTIVE.value}"
         )
         raise FrameCannotUpdateError(state.id, msg)
-    if state.placement_relative_to_parent is None:
-        msg = (
-            "root frame has no placement_relative_to_parent; "
-            "update_frame_placement is only valid on child frames"
-        )
+    if state.placement is None:
+        msg = "root frame has no placement; update_frame_placement is only valid on child frames"
         raise FrameCannotUpdateError(state.id, msg)
-    if command.new_placement.parent_frame != state.parent_frame_id:
+    if command.new_placement.parent_frame_id != state.parent_frame_id:
         msg = (
-            f"new_placement.parent_frame ({command.new_placement.parent_frame}) "
+            f"new_placement.parent_frame_id ({command.new_placement.parent_frame_id}) "
             f"must equal Frame.parent_frame_id ({state.parent_frame_id}); "
             "update_frame_placement cannot reparent"
         )
         raise InvalidFrameRootError(msg)
-    if command.new_placement == state.placement_relative_to_parent:
+    if command.new_placement == state.placement:
         return []
     return [
         FramePlacementUpdated(

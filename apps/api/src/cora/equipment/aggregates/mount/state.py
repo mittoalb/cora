@@ -23,7 +23,7 @@ multi-facility deployment where slot codes are facility-scoped.
 `parent_mount_id` is the immediate parent in the slot hierarchy
 (an Assembly slot containing Device slots, ISA-88-derived). It is
 NOT the coordinate-frame parent: coordinate framing lives entirely
-on `Placement.parent_frame`, which references a Frame, not another
+on `Placement.parent_frame_id`, which references a Frame, not another
 Mount. The two parent axes are deliberately separate (a Mount may
 live in an Assembly that itself lives in a different Frame from the
 Mount).
@@ -32,7 +32,7 @@ Mount).
 
 `placement` is required for every Mount (no "root mount" carve-out
 analogous to root Frames; every slot has a position). Refers to a
-Frame via `placement.parent_frame`. Per the design memo, eventual-
+Frame via `placement.parent_frame_id`. Per the design memo, eventual-
 consistency: the decider does NOT verify the Frame exists at write
 time (matches Asset.parent_id eventual-consistency stance).
 
@@ -338,7 +338,7 @@ class Mount:
 
     `parent_mount_id` is the immediate parent in the slot hierarchy
     tree (Assembly slot containing Device slots). None for top-level
-    slots. Distinct axis from `placement.parent_frame` (which names
+    slots. Distinct axis from `placement.parent_frame_id` (which names
     the coordinate frame, NOT a Mount).
 
     `placement` is required (every slot has a position). `drawing`

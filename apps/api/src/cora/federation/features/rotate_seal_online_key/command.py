@@ -1,6 +1,6 @@
 """The `RotateSealOnlineKey` command: intent dataclass for this slice.
 
-`facility_id` selects the Seal singleton; `new_online_key_ref` is the
+`facility_id` selects the Seal singleton; `new_online_credential_id` is the
 fresh Credential.id to install in the online (warm) slot. The principal
 id of the invoker is supplied separately by the application handler at
 call time and stamped onto `SealOnlineKeyRotated` as
@@ -17,7 +17,7 @@ Strict-not-idempotent at the decider: rotating against a Republishing
 Seal raises `SealCannotRotateError` (HTTP 409); rotating to the same
 ref the slot already holds raises `SealCannotRotateError` (no-op
 rotations are rejected so the audit gesture is always meaningful);
-rotating to a ref equal to `offline_key_ref` raises
+rotating to a ref equal to `offline_credential_id` raises
 `SealKeyCollisionError` (HTTP 422) via the `_key_separation` helper.
 """
 
@@ -45,5 +45,5 @@ class RotateSealOnlineKey:
     """
 
     facility_id: str
-    new_online_key_ref: UUID
+    new_online_credential_id: UUID
     signed_by_offline_root: bool

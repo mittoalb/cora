@@ -17,7 +17,7 @@ from cora.trust.aggregates.visit import (
     VisitCannotTakeControlError,
     VisitNotFoundError,
     VisitStatus,
-    VisitTookControlOfSurface,
+    VisitSurfaceControlTaken,
 )
 from cora.trust.features.take_control_of_surface.command import TakeControlOfSurface
 from cora.trust.features.take_control_of_surface.context import TakeControlOfSurfaceContext
@@ -35,7 +35,7 @@ def decide(
     *,
     context: TakeControlOfSurfaceContext,
     now: datetime,
-) -> list[VisitTookControlOfSurface]:
+) -> list[VisitSurfaceControlTaken]:
     """Decide events for taking control of a Surface.
 
     Invariants:
@@ -73,7 +73,7 @@ def decide(
             reason="not_descendant",
         )
     return [
-        VisitTookControlOfSurface(
+        VisitSurfaceControlTaken(
             visit_id=state.id,
             surface_id=command.surface_id,
             occurred_at=now,

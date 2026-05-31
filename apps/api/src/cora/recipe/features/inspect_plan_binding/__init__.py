@@ -20,7 +20,7 @@ from cora.recipe.features.inspect_plan_binding.view import (
     CandidateAsset,
     InspectPlanBindingView,
     MissingAffordanceCandidates,
-    WiredAssetBinding,
+    WiredAsset,
 )
 
 __all__ = [
@@ -30,7 +30,7 @@ __all__ = [
     "InspectPlanBinding",
     "InspectPlanBindingView",
     "MissingAffordanceCandidates",
-    "WiredAssetBinding",
+    "WiredAsset",
     "bind",
     "router",
     "tool",

@@ -3,7 +3,7 @@
 Live -> Live mid-lifecycle transition that swaps the online (warm) key.
 Strict-not-idempotent: re-rotating to the same ref raises 409; rotating
 against a Republishing Seal raises 409; rotating to a ref equal to
-`offline_key_ref` raises 422 (key-separation invariant).
+`offline_credential_id` raises 422 (key-separation invariant).
 
 The cross-BC happy-path (SealOnlineKeyRotated + DecisionRegistered
 atomic write) is exercised by the handler tests and the integration
@@ -44,7 +44,7 @@ def test_post_rotate_seal_online_key_returns_204_via_handler_override() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 204, response.text
 
@@ -62,7 +62,7 @@ def test_post_rotate_seal_online_key_returns_404_when_seal_not_found() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 404
 
@@ -81,7 +81,7 @@ def test_post_rotate_seal_online_key_returns_409_when_republishing() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 409
     assert "rotate" in response.json()["detail"].lower()
@@ -101,7 +101,7 @@ def test_post_rotate_seal_online_key_returns_409_on_noop_rotation() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 409
 
@@ -114,14 +114,14 @@ def test_post_rotate_seal_online_key_returns_422_on_key_collision() -> None:
 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
-        raise SealKeyCollisionError(facility_id="aps-2bm", shared_key_ref=shared_ref)
+        raise SealKeyCollisionError(facility_id="aps-2bm", shared_credential_id=shared_ref)
 
     app.dependency_overrides[_get_rotate_seal_online_key_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
             json={
-                "new_online_key_ref": str(shared_ref),
+                "new_online_credential_id": str(shared_ref),
                 "signed_by_offline_root": True,
             },
         )
@@ -147,7 +147,7 @@ def test_post_rotate_seal_online_key_returns_409_on_cross_facility_binding() -> 
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 409
     assert "facility_id" in response.json()["detail"]
@@ -165,7 +165,7 @@ def test_post_rotate_seal_online_key_returns_403_when_authorize_denies() -> None
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4()), "signed_by_offline_root": True},
+            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"
@@ -173,7 +173,7 @@ def test_post_rotate_seal_online_key_returns_403_when_authorize_denies() -> None
 
 @pytest.mark.contract
 def test_post_rotate_seal_online_key_rejects_missing_body_with_422() -> None:
-    """`new_online_key_ref` is required; an empty body is rejected at the
+    """`new_online_credential_id` is required; an empty body is rejected at the
     Pydantic layer with 422."""
     with TestClient(create_app()) as client:
         response = client.post(
@@ -185,11 +185,11 @@ def test_post_rotate_seal_online_key_rejects_missing_body_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_rotate_seal_online_key_rejects_malformed_uuid_with_422() -> None:
-    """A non-UUID `new_online_key_ref` is rejected at the Pydantic layer."""
+    """A non-UUID `new_online_credential_id` is rejected at the Pydantic layer."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": "not-a-uuid", "signed_by_offline_root": True},
+            json={"new_online_credential_id": "not-a-uuid", "signed_by_offline_root": True},
         )
     assert response.status_code == 422
 
@@ -201,7 +201,7 @@ def test_post_rotate_seal_online_key_rejects_missing_signed_by_offline_root_with
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_key_ref": str(uuid4())},
+            json={"new_online_credential_id": str(uuid4())},
         )
     assert response.status_code == 422
 
@@ -214,7 +214,7 @@ def test_post_rotate_seal_online_key_rejects_extra_body_field_with_422() -> None
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
             json={
-                "new_online_key_ref": str(uuid4()),
+                "new_online_credential_id": str(uuid4()),
                 "signed_by_offline_root": True,
                 "unknown_field": "y",
             },
@@ -237,7 +237,7 @@ def test_post_rotate_seal_online_key_accepts_uuid_v4_ref() -> None:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
             json={
-                "new_online_key_ref": str(valid_ref),
+                "new_online_credential_id": str(valid_ref),
                 "signed_by_offline_root": True,
             },
         )

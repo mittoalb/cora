@@ -3,7 +3,7 @@
 Action endpoint at `POST /assets/{asset_id}/remove_family`. Body
 carries `family_id`. 204 No Content on success.
 
-POST (not DELETE) for symmetry with `add_capability` and the rest of
+POST (not DELETE) for symmetry with `add_family` and the rest of
 Equipment's action-endpoint convention. The semantics aren't really
 "REST collection management" — they're "operator decommissions a
 family on this asset," which is a state-change verb.
@@ -70,7 +70,7 @@ router = APIRouter(tags=["equipment"])
     },
     summary="Remove a Family from an existing asset's family set",
 )
-async def post_assets_remove_capability(
+async def post_assets_remove_family(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],
     body: RemoveAssetFamilyRequest,
     handler: Annotated[Handler, Depends(_get_handler)],

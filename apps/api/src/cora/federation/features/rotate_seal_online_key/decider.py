@@ -1,6 +1,6 @@
 """Pure decider for the `RotateSealOnlineKey` command.
 
-Live -> Live transition that swaps `online_key_ref` to a fresh
+Live -> Live transition that swaps `online_credential_id` to a fresh
 Credential. Strict-not-idempotent: re-rotating to the same ref the
 slot already holds raises `SealCannotRotateError` so the audit
 gesture stays meaningful (the offline-root authorises a real change
@@ -20,14 +20,14 @@ pure: no I/O, no await.
 The key-separation invariant (sec-4 AH#15) is enforced by building the
 prospective post-transition `Seal` state with the new online ref and
 calling `verify_key_separation` before returning events. The helper
-raises `SealKeyCollisionError` when `new_online_key_ref` would equal
-`offline_key_ref`; HTTP routes this to 422.
+raises `SealKeyCollisionError` when `new_online_credential_id` would equal
+`offline_credential_id`; HTTP routes this to 422.
 
 ## Validation
 
   - State must not be None (Seal must exist) -> SealNotFoundError
   - Current status must be Live -> SealCannotRotateError
-  - new_online_key_ref must differ from current online_key_ref
+  - new_online_credential_id must differ from current online_credential_id
     -> SealCannotRotateError (no-op rotation rejected)
   - new_online_credential must not be None (the projection must know
     the ref) -> CredentialNotFoundError (per the start_run ->
@@ -40,7 +40,7 @@ raises `SealKeyCollisionError` when `new_online_key_ref` would equal
   - new_online_credential.status must equal "Active"
     -> SealCannotRotateWithInactiveCredentialError (HTTP 409;
     Rotating or Revoked secrets cannot back a Seal)
-  - new_online_key_ref must differ from offline_key_ref
+  - new_online_credential_id must differ from offline_credential_id
     -> SealKeyCollisionError (via verify_key_separation helper)
 """
 
@@ -69,7 +69,7 @@ from cora.federation.features.rotate_seal_online_key.command import (
 )
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
-_ONLINE_SLOT = "online_key_ref"
+_ONLINE_SLOT = "online_credential_id"
 
 
 def decide(
@@ -85,7 +85,7 @@ def decide(
     Invariants:
       - State must not be None -> SealNotFoundError
       - state.status must be Live -> SealCannotRotateError
-      - new_online_key_ref must differ from state.online_key_ref
+      - new_online_credential_id must differ from state.online_credential_id
         -> SealCannotRotateError (no-op rotation rejected)
       - new_online_credential must not be None
         -> CredentialNotFoundError (unknown credential ref)
@@ -95,23 +95,23 @@ def decide(
         -> SealCrossFacilityBindingError
       - new_online_credential.status must be Active
         -> SealCannotRotateWithInactiveCredentialError
-      - new_online_key_ref must differ from state.offline_key_ref
+      - new_online_credential_id must differ from state.offline_credential_id
         -> SealKeyCollisionError (via verify_key_separation)
     """
     if state is None:
         raise SealNotFoundError(command.facility_id)
     if state.status is not SealStatus.LIVE:
         raise SealCannotRotateError(state.facility_id, state.status)
-    if command.new_online_key_ref == state.online_key_ref:
+    if command.new_online_credential_id == state.online_credential_id:
         raise SealCannotRotateError(state.facility_id, state.status)
 
     if new_online_credential is None:
-        raise CredentialNotFoundError(command.new_online_key_ref)
+        raise CredentialNotFoundError(command.new_online_credential_id)
     if new_online_credential.purpose != CredentialPurpose.SEAL_ONLINE_SIGNING.value:
         raise SealKeyPurposeMismatchError(
             facility_id=state.facility_id,
             slot=_ONLINE_SLOT,
-            credential_id=command.new_online_key_ref,
+            credential_id=command.new_online_credential_id,
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
             actual_purpose=new_online_credential.purpose,
         )
@@ -125,17 +125,17 @@ def decide(
         raise SealCannotRotateWithInactiveCredentialError(
             facility_id=state.facility_id,
             slot=_ONLINE_SLOT,
-            credential_id=command.new_online_key_ref,
+            credential_id=command.new_online_credential_id,
             actual_status=new_online_credential.status,
         )
 
-    prospective = replace(state, online_key_ref=command.new_online_key_ref)
+    prospective = replace(state, online_credential_id=command.new_online_credential_id)
     verify_key_separation(prospective)
 
     return [
         SealOnlineKeyRotated(
             facility_id=state.facility_id,
-            new_online_key_ref=command.new_online_key_ref,
+            new_online_credential_id=command.new_online_credential_id,
             signed_by_offline_root=command.signed_by_offline_root,
             rotated_by_actor_id=rotated_by_actor_id,
             occurred_at=now,

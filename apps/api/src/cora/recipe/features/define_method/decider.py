@@ -31,7 +31,7 @@ from cora.recipe.aggregates.capability import (
     ExecutorShape,
 )
 from cora.recipe.aggregates.method import (
-    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+    METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH,
     InvalidMethodNeededSuppliesError,
     Method,
     MethodAlreadyExistsError,
@@ -90,7 +90,7 @@ def decide(
     for kind in command.needed_supplies:
         trimmed = validate_bounded_text(
             kind,
-            max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+            max_length=METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH,
             error_class=InvalidMethodNeededSuppliesError,
         )
         trimmed_supplies.append(trimmed)

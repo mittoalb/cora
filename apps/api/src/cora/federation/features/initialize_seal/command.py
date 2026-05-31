@@ -9,13 +9,13 @@ for a facility:
     Doubles as the singleton identity (one Seal per facility); the
     handler derives the stream UUID deterministically via
     `seal_stream_id(facility_id)`.
-  - `online_key_ref`: Credential.id of the warm signing key
+  - `online_credential_id`: Credential.id of the warm signing key
     (purpose `SealOnlineSigning`). MUST differ from
-    `offline_key_ref` (key-separation invariant enforced by the
+    `offline_credential_id` (key-separation invariant enforced by the
     decider via the `_key_separation` helper).
-  - `offline_key_ref`: Credential.id of the cold root key
+  - `offline_credential_id`: Credential.id of the cold root key
     (purpose `SealOfflineRoot`). MUST differ from
-    `online_key_ref`.
+    `online_credential_id`.
 
 Server-side concerns (wall-clock timestamp, correlation id, per-event
 ids, `initialized_by_actor_id`) are injected by the handler from
@@ -35,5 +35,5 @@ class InitializeSeal:
     """Initialize the Seal singleton for a facility (genesis; lands in Live)."""
 
     facility_id: str
-    online_key_ref: UUID
-    offline_key_ref: UUID
+    online_credential_id: UUID
+    offline_credential_id: UUID

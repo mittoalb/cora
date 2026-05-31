@@ -40,8 +40,8 @@ _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
 def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     base.update(overrides)
     return base
@@ -91,18 +91,18 @@ def test_post_federation_seals_rejects_missing_required_body_field_with_422() ->
 
 
 @pytest.mark.contract
-def test_post_federation_seals_rejects_missing_online_key_ref_with_422() -> None:
+def test_post_federation_seals_rejects_missing_online_credential_id_with_422() -> None:
     body = _body()
-    del body["online_key_ref"]
+    del body["online_credential_id"]
     with TestClient(create_app()) as client:
         response = client.post("/federation/seals", json=body)
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_federation_seals_rejects_missing_offline_key_ref_with_422() -> None:
+def test_post_federation_seals_rejects_missing_offline_credential_id_with_422() -> None:
     body = _body()
-    del body["offline_key_ref"]
+    del body["offline_credential_id"]
     with TestClient(create_app()) as client:
         response = client.post("/federation/seals", json=body)
     assert response.status_code == 422
@@ -118,11 +118,11 @@ def test_post_federation_seals_rejects_empty_facility_id_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_federation_seals_rejects_malformed_uuid_with_422() -> None:
-    """Pydantic rejects an online_key_ref that does not parse as UUID."""
+    """Pydantic rejects an online_credential_id that does not parse as UUID."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals",
-            json=_body(online_key_ref="not-a-uuid"),
+            json=_body(online_credential_id="not-a-uuid"),
         )
     assert response.status_code == 422
 
@@ -134,7 +134,7 @@ def test_post_federation_seals_rejects_key_collision_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/seals",
-            json=_body(online_key_ref=shared, offline_key_ref=shared),
+            json=_body(online_credential_id=shared, offline_credential_id=shared),
         )
     assert response.status_code == 422
 

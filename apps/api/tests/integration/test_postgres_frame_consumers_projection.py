@@ -5,7 +5,7 @@ The frame_consumers projection is polymorphic: it tracks two consumer
 types of any given Frame:
 
   - child Frames (whose parent_frame_id points at this frame)
-  - active Mounts (whose placement.parent_frame points at this frame)
+  - active Mounts (whose placement.parent_frame_id points at this frame)
 
 The decommission_frame handler loads load_active_frame_consumers()
 and the decider raises FrameInUseError if the tuple is non-empty.
@@ -16,7 +16,7 @@ Pins:
   - FrameRegistered with non-None parent_frame_id -> INSERT
     (referenced=parent, consumer=child, type='Frame')
   - FrameRegistered with parent_frame_id=None (root) -> no INSERT
-  - MountRegistered -> INSERT (referenced=placement.parent_frame,
+  - MountRegistered -> INSERT (referenced=placement.parent_frame_id,
     consumer=mount_id, type='Mount')
   - FrameDecommissioned -> DELETE the type='Frame' row only
   - MountDecommissioned -> DELETE the type='Mount' row only
@@ -63,7 +63,7 @@ async def _seed_root_frame(pool: asyncpg.Pool, frame_id: UUID) -> None:
         RegisterFrame(
             name=f"root-{frame_id}",
             parent_frame_id=None,
-            placement_relative_to_parent=None,
+            placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -81,7 +81,7 @@ async def _seed_child_frame(
         RegisterFrame(
             name=f"child-{frame_id}",
             parent_frame_id=parent_frame_id,
-            placement_relative_to_parent=placement(parent_frame_id),
+            placement=placement(parent_frame_id),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -197,7 +197,7 @@ async def test_decommission_frame_rejected_while_mount_consumer_active(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Load-bearing fitness for the Mount-type consumer leg: a Mount's
-    placement.parent_frame keeps the Frame alive even when no child
+    placement.parent_frame_id keeps the Frame alive even when no child
     Frame references it."""
     frame_id, mount_id = uuid4(), uuid4()
     await _seed_root_frame(db_pool, frame_id)

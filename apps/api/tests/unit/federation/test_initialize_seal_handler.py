@@ -10,8 +10,8 @@ distinction: the Seal stream id is DETERMINISTIC, derived from
 the aggregate (it mints only the audit `decision_id` plus per-event
 ids).
 
-Pass-3 wiring: the handler now resolves both `online_key_ref` and
-`offline_key_ref` through `deps.credential_lookup` before invoking
+Pass-3 wiring: the handler now resolves both `online_credential_id` and
+`offline_credential_id` through `deps.credential_lookup` before invoking
 the decider. Tests seed the in-memory credential adapter via
 `InMemoryCredentialLookup.register(...)` so the happy path threads
 through the new purpose-binding + status-Active checks.
@@ -104,8 +104,8 @@ def _build_deps(
 def _command(**overrides: object) -> InitializeSeal:
     base: dict[str, object] = {
         "facility_id": _FACILITY_ID,
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     base.update(overrides)
     return InitializeSeal(**base)  # type: ignore[arg-type]
@@ -160,8 +160,8 @@ async def test_initialize_seal_handler_writes_seal_payload_fields() -> None:
     seal_events, _ = await store.load("Seal", _STREAM_ID)
     payload = seal_events[0].payload
     assert payload["facility_id"] == _FACILITY_ID
-    assert payload["online_key_ref"] == str(_ONLINE_KEY_REF)
-    assert payload["offline_key_ref"] == str(_OFFLINE_KEY_REF)
+    assert payload["online_credential_id"] == str(_ONLINE_KEY_REF)
+    assert payload["offline_credential_id"] == str(_OFFLINE_KEY_REF)
     assert payload["initialized_by_actor_id"] == str(_PRINCIPAL_ID)
     assert payload["occurred_at"] == _NOW.isoformat()
 
@@ -297,7 +297,7 @@ async def test_initialize_seal_handler_raises_collision_when_keys_equal() -> Non
     handler = initialize_seal.bind(deps)
     with pytest.raises(SealKeyCollisionError):
         await handler(
-            _command(online_key_ref=shared, offline_key_ref=shared),
+            _command(online_credential_id=shared, offline_credential_id=shared),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -312,7 +312,7 @@ async def test_initialize_seal_handler_collision_does_not_write_either_stream() 
     handler = initialize_seal.bind(deps)
     with pytest.raises(SealKeyCollisionError):
         await handler(
-            _command(online_key_ref=shared, offline_key_ref=shared),
+            _command(online_credential_id=shared, offline_credential_id=shared),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -425,7 +425,7 @@ async def test_initialize_seal_handler_raises_purpose_mismatch_when_online_wrong
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert exc.value.slot == "online_key_ref"
+    assert exc.value.slot == "online_credential_id"
 
 
 @pytest.mark.unit
@@ -452,7 +452,7 @@ async def test_initialize_seal_handler_raises_inactive_when_online_rotating() ->
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert exc.value.slot == "online_key_ref"
+    assert exc.value.slot == "online_credential_id"
     assert exc.value.actual_status == CredentialStatus.ROTATING.value
 
 

@@ -52,7 +52,7 @@ def _build_deps(
     )
 
 
-async def _register_and_add_capability(deps: Kernel) -> UUID:
+async def _register_and_add_family(deps: Kernel) -> UUID:
     asset_id = await register_asset.bind(deps)(
         RegisterAsset(name="APS-2BM", level=AssetLevel.UNIT, parent_id=_PARENT_ID),
         principal_id=_PRINCIPAL_ID,
@@ -70,7 +70,7 @@ async def _register_and_add_capability(deps: Kernel) -> UUID:
 async def test_handler_returns_none_on_success() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id = await _register_and_add_capability(deps)
+    asset_id = await _register_and_add_family(deps)
 
     result = await remove_asset_family.bind(deps)(
         RemoveAssetFamily(asset_id=asset_id, family_id=_CAP1),
@@ -84,7 +84,7 @@ async def test_handler_returns_none_on_success() -> None:
 async def test_handler_appends_asset_capability_removed_event_with_family_id() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id = await _register_and_add_capability(deps)
+    asset_id = await _register_and_add_family(deps)
 
     await remove_asset_family.bind(deps)(
         RemoveAssetFamily(asset_id=asset_id, family_id=_CAP1),
@@ -142,7 +142,7 @@ async def test_handler_raises_cannot_remove_when_capability_not_present() -> Non
 async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id = await _register_and_add_capability(deps)
+    asset_id = await _register_and_add_family(deps)
 
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
@@ -159,7 +159,7 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id = await _register_and_add_capability(deps)
+    asset_id = await _register_and_add_family(deps)
 
     await remove_asset_family.bind(deps)(
         RemoveAssetFamily(asset_id=asset_id, family_id=_CAP1),

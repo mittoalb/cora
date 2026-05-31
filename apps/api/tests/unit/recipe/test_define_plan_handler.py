@@ -78,7 +78,7 @@ from cora.recipe.aggregates.plan import (
     InvalidPlanNameError,
     MethodDeprecatedError,
     PlanAffordancesNotSatisfiedError,
-    PlanCapabilitiesNotSatisfiedError,
+    PlanFamiliesNotSatisfiedError,
     PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import PracticeNotFoundError
@@ -586,7 +586,7 @@ async def test_handler_propagates_capabilities_not_satisfied_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(PlanCapabilitiesNotSatisfiedError):
+    with pytest.raises(PlanFamiliesNotSatisfiedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,

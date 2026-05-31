@@ -22,7 +22,7 @@ namespace) so the genesis write targets the canonical stream and
 later transitions reach the same stream without out-of-band id
 coordination.
 
-The handler also resolves BOTH `online_key_ref` and `offline_key_ref`
+The handler also resolves BOTH `online_credential_id` and `offline_credential_id`
 through `deps.credential_lookup` BEFORE invoking the decider and
 threads the resolved `CredentialLookupResult` snapshots into the
 decider for cross-aggregate purpose-binding + status-Active checks.
@@ -148,8 +148,8 @@ def bind(deps: Kernel) -> Handler:
 
         stream_id = seal_stream_id(command.facility_id.strip())
 
-        online_credential = await deps.credential_lookup.lookup(command.online_key_ref)
-        offline_credential = await deps.credential_lookup.lookup(command.offline_key_ref)
+        online_credential = await deps.credential_lookup.lookup(command.online_credential_id)
+        offline_credential = await deps.credential_lookup.lookup(command.offline_credential_id)
 
         now = deps.clock.now()
 

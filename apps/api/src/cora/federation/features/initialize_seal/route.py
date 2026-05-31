@@ -1,7 +1,7 @@
 """HTTP route for the `initialize_seal` slice.
 
 `POST /federation/seals` with body carrying facility_id +
-online_key_ref + offline_key_ref. Returns 201 +
+online_credential_id + offline_credential_id. Returns 201 +
 `{seal_stream_id, facility_id}` on success. The Seal singleton is
 keyed on the human-readable facility_id (str); the response
 additionally surfaces the deterministic stream UUID derived via
@@ -10,7 +10,7 @@ read-side surfaces.
 
 Per sec-4 AH#15 strengthening the decider invokes the
 `_key_separation` helper against the prospective post-state;
-`online_key_ref == offline_key_ref` is rejected with HTTP 422.
+`online_credential_id == offline_credential_id` is rejected with HTTP 422.
 """
 
 from typing import Annotated
@@ -41,18 +41,18 @@ class InitializeSealRequest(BaseModel):
             "Doubles as the singleton identity (one Seal per facility)."
         ),
     )
-    online_key_ref: UUID = Field(
+    online_credential_id: UUID = Field(
         ...,
         description=(
             "Credential.id of the warm signing key (purpose SealOnlineSigning). "
-            "Must differ from offline_key_ref."
+            "Must differ from offline_credential_id."
         ),
     )
-    offline_key_ref: UUID = Field(
+    offline_credential_id: UUID = Field(
         ...,
         description=(
             "Credential.id of the cold root key (purpose SealOfflineRoot). "
-            "Must differ from online_key_ref."
+            "Must differ from online_credential_id."
         ),
     )
 
@@ -97,7 +97,7 @@ router = APIRouter(tags=["federation"])
             "model": ErrorResponse,
             "description": (
                 "Request body failed schema validation (missing field, "
-                "malformed UUID), OR online_key_ref equals offline_key_ref "
+                "malformed UUID), OR online_credential_id equals offline_credential_id "
                 "(key-separation invariant), OR Idempotency-Key was reused "
                 "with a different request body."
             ),
@@ -129,8 +129,8 @@ async def post_federation_seals(
     stream_id = await handler(
         InitializeSeal(
             facility_id=body.facility_id,
-            online_key_ref=body.online_key_ref,
-            offline_key_ref=body.offline_key_ref,
+            online_credential_id=body.online_credential_id,
+            offline_credential_id=body.offline_credential_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

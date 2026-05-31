@@ -53,22 +53,22 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-000000fed402")
 async def _seed_live_seal(db_pool: asyncpg.Pool, facility_id: str) -> tuple[UUID, UUID, UUID]:
     """Initialize a fresh Live Seal against real Postgres.
 
-    Returns `(stream_id, online_key_ref, offline_key_ref)` so the test
+    Returns `(stream_id, online_credential_id, offline_credential_id)` so the test
     can assert the post-rotation state against the seeded refs. The
     handler's Pass-3 credential-lookup gate is satisfied by threading
     an `InMemoryCredentialLookup` pre-seeded with both refs Active.
     """
-    online_key_ref = uuid4()
-    offline_key_ref = uuid4()
+    online_credential_id = uuid4()
+    offline_credential_id = uuid4()
     seed_lookup = InMemoryCredentialLookup()
     seed_lookup.register(
-        credential_id=online_key_ref,
+        credential_id=online_credential_id,
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     seed_lookup.register(
-        credential_id=offline_key_ref,
+        credential_id=offline_credential_id,
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
@@ -82,20 +82,20 @@ async def _seed_live_seal(db_pool: asyncpg.Pool, facility_id: str) -> tuple[UUID
     stream_id = await initialize_seal.bind(seed_deps)(
         InitializeSeal(
             facility_id=facility_id,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    return stream_id, online_key_ref, offline_key_ref
+    return stream_id, online_credential_id, offline_credential_id
 
 
 def _credential_lookup_with(
-    new_online_key_ref: UUID,
+    new_online_credential_id: UUID,
     facility_id: str,
 ) -> InMemoryCredentialLookup:
-    """Build a credential lookup with `new_online_key_ref` seeded Active.
+    """Build a credential lookup with `new_online_credential_id` seeded Active.
 
     The integration tests don't depend on a real `PostgresCredentialLookup`
     today: the production adapter would query
@@ -106,7 +106,7 @@ def _credential_lookup_with(
     """
     lookup = InMemoryCredentialLookup()
     lookup.register(
-        credential_id=new_online_key_ref,
+        credential_id=new_online_credential_id,
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
@@ -120,19 +120,19 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
 ) -> None:
     suffix = uuid4().hex[:8]
     facility_id = f"aps-2bm-{suffix}"
-    stream_id, _, offline_key_ref = await _seed_live_seal(db_pool, facility_id)
-    new_online_key_ref = uuid4()
+    stream_id, _, offline_credential_id = await _seed_live_seal(db_pool, facility_id)
+    new_online_credential_id = uuid4()
 
     rotate_deps = build_postgres_deps(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
-        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
+        credential_lookup=_credential_lookup_with(new_online_credential_id, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -143,9 +143,9 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
     assert seal is not None
     assert seal.facility_id == facility_id
     assert seal.status is SealStatus.LIVE
-    assert seal.online_key_ref == new_online_key_ref
-    assert seal.offline_key_ref == offline_key_ref
-    assert seal.online_key_ref != seal.offline_key_ref
+    assert seal.online_credential_id == new_online_credential_id
+    assert seal.offline_credential_id == offline_credential_id
+    assert seal.online_credential_id != seal.offline_credential_id
     # Key fields not touched by rotation stay unchanged.
     assert seal.current_head_hash is None
     assert seal.current_sequence_number == 0
@@ -169,18 +169,18 @@ async def test_rotate_seal_online_key_shared_xid8_across_streams(
     suffix = uuid4().hex[:8]
     facility_id = f"aps-2bm-{suffix}"
     stream_id, _, _ = await _seed_live_seal(db_pool, facility_id)
-    new_online_key_ref = uuid4()
+    new_online_credential_id = uuid4()
 
     rotate_deps = build_postgres_deps(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
-        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
+        credential_lookup=_credential_lookup_with(new_online_credential_id, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -219,23 +219,23 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
     db_pool: asyncpg.Pool,
 ) -> None:
     """After draining projections, proj_federation_seal should reflect the
-    rotated `online_key_ref` while leaving `offline_key_ref` and `status`
+    rotated `online_credential_id` while leaving `offline_credential_id` and `status`
     unchanged."""
     suffix = uuid4().hex[:8]
     facility_id = f"aps-2bm-{suffix}"
-    _, _, offline_key_ref = await _seed_live_seal(db_pool, facility_id)
-    new_online_key_ref = uuid4()
+    _, _, offline_credential_id = await _seed_live_seal(db_pool, facility_id)
+    new_online_credential_id = uuid4()
 
     rotate_deps = build_postgres_deps(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
-        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
+        credential_lookup=_credential_lookup_with(new_online_credential_id, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -249,7 +249,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT facility_id, online_key_ref, offline_key_ref,
+            SELECT facility_id, online_credential_id, offline_credential_id,
                    status, current_head_hash, current_sequence_number,
                    initialized_at
               FROM proj_federation_seal
@@ -259,9 +259,9 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
         )
     assert row is not None
     assert row["facility_id"] == facility_id
-    assert row["online_key_ref"] == new_online_key_ref
-    assert row["offline_key_ref"] == offline_key_ref
-    assert row["online_key_ref"] != row["offline_key_ref"]
+    assert row["online_credential_id"] == new_online_credential_id
+    assert row["offline_credential_id"] == offline_credential_id
+    assert row["online_credential_id"] != row["offline_credential_id"]
     assert row["status"] == SealStatus.LIVE.value
     assert row["current_head_hash"] is None
     assert row["current_sequence_number"] == 0
@@ -281,17 +281,17 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
     expected_stream_id = seal_stream_id(facility_id)
     assert seeded_stream_id == expected_stream_id
 
-    new_online_key_ref = uuid4()
+    new_online_credential_id = uuid4()
     rotate_deps = build_postgres_deps(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
-        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
+        credential_lookup=_credential_lookup_with(new_online_credential_id, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
             facility_id=facility_id,
-            new_online_key_ref=new_online_key_ref,
+            new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -302,7 +302,7 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
         rows = await conn.fetch(
             """
             SELECT event_type,
-                   payload->>'new_online_key_ref' AS new_ref,
+                   payload->>'new_online_credential_id' AS new_ref,
                    (payload->>'signed_by_offline_root')::bool AS signed_root
               FROM events
              WHERE stream_type = 'Seal'
@@ -312,5 +312,5 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
             expected_stream_id,
         )
     assert len(rows) == 1
-    assert rows[0]["new_ref"] == str(new_online_key_ref)
+    assert rows[0]["new_ref"] == str(new_online_credential_id)
     assert rows[0]["signed_root"] is True

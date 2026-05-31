@@ -20,8 +20,8 @@ Each test mints a unique facility_id suffix so the
 deterministic Seal stream UUID do not collide across runs sharing
 the same db_pool.
 
-Pass-3 wiring: the handler resolves both `online_key_ref` and
-`offline_key_ref` through `deps.credential_lookup` before invoking
+Pass-3 wiring: the handler resolves both `online_credential_id` and
+`offline_credential_id` through `deps.credential_lookup` before invoking
 the decider. These integration tests thread an `InMemoryCredentialLookup`
 pre-seeded with both refs as Active so the cross-aggregate purpose-
 binding + status-Active checks pass without coupling to a separate
@@ -58,8 +58,8 @@ _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
 def _command(*, facility_id: str) -> InitializeSeal:
     return InitializeSeal(
         facility_id=facility_id,
-        online_key_ref=_ONLINE_KEY_REF,
-        offline_key_ref=_OFFLINE_KEY_REF,
+        online_credential_id=_ONLINE_KEY_REF,
+        offline_credential_id=_OFFLINE_KEY_REF,
     )
 
 
@@ -108,8 +108,8 @@ async def test_initialize_seal_writes_both_streams_atomically(
     assert seal is not None
     assert seal.facility_id == facility_id
     assert seal.status is SealStatus.LIVE
-    assert seal.online_key_ref == _ONLINE_KEY_REF
-    assert seal.offline_key_ref == _OFFLINE_KEY_REF
+    assert seal.online_credential_id == _ONLINE_KEY_REF
+    assert seal.offline_credential_id == _OFFLINE_KEY_REF
     assert seal.current_head_hash is None
     assert seal.current_sequence_number == 0
     assert seal.initialized_by_actor_id == _PRINCIPAL_ID
@@ -191,7 +191,7 @@ async def test_initialize_seal_projection_lands_row(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            SELECT facility_id, online_key_ref, offline_key_ref,
+            SELECT facility_id, online_credential_id, offline_credential_id,
                    current_head_hash, current_sequence_number,
                    initialized_by_actor_id, last_signed_by_actor_id,
                    status, initialized_at, last_signed_at
@@ -202,8 +202,8 @@ async def test_initialize_seal_projection_lands_row(
         )
     assert row is not None
     assert row["facility_id"] == facility_id
-    assert row["online_key_ref"] == _ONLINE_KEY_REF
-    assert row["offline_key_ref"] == _OFFLINE_KEY_REF
+    assert row["online_credential_id"] == _ONLINE_KEY_REF
+    assert row["offline_credential_id"] == _OFFLINE_KEY_REF
     assert row["current_head_hash"] is None
     assert row["current_sequence_number"] == 0
     assert row["initialized_by_actor_id"] == _PRINCIPAL_ID

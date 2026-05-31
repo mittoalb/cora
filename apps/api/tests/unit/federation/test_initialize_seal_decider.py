@@ -47,8 +47,8 @@ _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
 def _command(**overrides: object) -> InitializeSeal:
     base: dict[str, object] = {
         "facility_id": _FACILITY_ID,
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     base.update(overrides)
     return InitializeSeal(**base)  # type: ignore[arg-type]
@@ -87,8 +87,8 @@ def _offline_cred(
 def _existing_state() -> Seal:
     return Seal(
         facility_id=_FACILITY_ID,
-        online_key_ref=_ONLINE_KEY_REF,
-        offline_key_ref=_OFFLINE_KEY_REF,
+        online_credential_id=_ONLINE_KEY_REF,
+        offline_credential_id=_OFFLINE_KEY_REF,
         current_head_hash=None,
         current_sequence_number=0,
         initialized_by_actor_id=_PRINCIPAL_ID,
@@ -109,8 +109,8 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.facility_id == _FACILITY_ID
-    assert event.online_key_ref == _ONLINE_KEY_REF
-    assert event.offline_key_ref == _OFFLINE_KEY_REF
+    assert event.online_credential_id == _ONLINE_KEY_REF
+    assert event.offline_credential_id == _OFFLINE_KEY_REF
     assert event.initialized_by_actor_id == _PRINCIPAL_ID
     assert event.occurred_at == _NOW
 
@@ -178,20 +178,20 @@ def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
 
 @pytest.mark.unit
 def test_initialize_seal_raises_collision_when_keys_equal() -> None:
-    """Key-separation invariant: online_key_ref == offline_key_ref rejects
+    """Key-separation invariant: online_credential_id == offline_credential_id rejects
     via the shared `verify_key_separation` helper per sec-4 AH#15."""
     shared = uuid4()
     with pytest.raises(SealKeyCollisionError) as exc:
         initialize_seal.decide(
             state=None,
-            command=_command(online_key_ref=shared, offline_key_ref=shared),
+            command=_command(online_credential_id=shared, offline_credential_id=shared),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
         )
     assert exc.value.facility_id == _FACILITY_ID
-    assert exc.value.shared_key_ref == shared
+    assert exc.value.shared_credential_id == shared
 
 
 @pytest.mark.unit
@@ -205,8 +205,8 @@ def test_initialize_seal_rejects_non_canonical_before_collision_check() -> None:
             state=None,
             command=_command(
                 facility_id="  aps-2bm  ",
-                online_key_ref=shared,
-                offline_key_ref=shared,
+                online_credential_id=shared,
+                offline_credential_id=shared,
             ),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
@@ -224,15 +224,15 @@ def test_initialize_seal_accepts_distinct_keys() -> None:
     events = initialize_seal.decide(
         state=None,
         command=_command(
-            online_key_ref=new_online,
-            offline_key_ref=new_offline,
+            online_credential_id=new_online,
+            offline_credential_id=new_offline,
         ),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
         online_credential=_online_cred(credential_id=new_online),
         offline_credential=_offline_cred(credential_id=new_offline),
     )
-    assert events[0].online_key_ref != events[0].offline_key_ref
+    assert events[0].online_credential_id != events[0].offline_credential_id
 
 
 @pytest.mark.unit
@@ -354,7 +354,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_online_wrong_purpose() -> 
             offline_credential=_offline_cred(),
         )
     assert exc.value.facility_id == _FACILITY_ID
-    assert exc.value.slot == "online_key_ref"
+    assert exc.value.slot == "online_credential_id"
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.expected_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
     assert exc.value.actual_purpose == CredentialPurpose.SIGNING.value
@@ -373,7 +373,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_offline_wrong_purpose() ->
             offline_credential=_offline_cred(purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value),
         )
     assert exc.value.facility_id == _FACILITY_ID
-    assert exc.value.slot == "offline_key_ref"
+    assert exc.value.slot == "offline_credential_id"
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.expected_purpose == CredentialPurpose.SEAL_OFFLINE_ROOT.value
     assert exc.value.actual_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
@@ -392,7 +392,7 @@ def test_initialize_seal_raises_inactive_when_online_status_rotating() -> None:
             offline_credential=_offline_cred(),
         )
     assert exc.value.facility_id == _FACILITY_ID
-    assert exc.value.slot == "online_key_ref"
+    assert exc.value.slot == "online_credential_id"
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.actual_status == CredentialStatus.ROTATING.value
 
@@ -410,7 +410,7 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
             offline_credential=_offline_cred(status=CredentialStatus.REVOKED.value),
         )
     assert exc.value.facility_id == _FACILITY_ID
-    assert exc.value.slot == "offline_key_ref"
+    assert exc.value.slot == "offline_credential_id"
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.actual_status == CredentialStatus.REVOKED.value
 

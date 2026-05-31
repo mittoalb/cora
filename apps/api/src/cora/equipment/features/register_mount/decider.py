@@ -18,7 +18,7 @@ Clock and IdGenerator ports.
   - slot_code must be valid -> InvalidSlotCodeError (via SlotCode VO).
 
 Eventual-consistency: parent_mount_id existence NOT verified;
-placement.parent_frame existence NOT verified.
+placement.parent_frame_id existence NOT verified.
 """
 
 from datetime import datetime

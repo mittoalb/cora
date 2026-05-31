@@ -10,7 +10,7 @@ Covers:
   - handler raises UnauthorizedError when the Authorize port denies
   - wire-type converters: SetpointStep / ActionStep / CheckStep
     round-trip through Pydantic + step_from_wire
-  - criterion converters: Equals / WithinTolerance round-trip
+  - criterion converters: EqualsCriterion / WithinToleranceCriterion round-trip
   - lists on the wire coerce to tuples in the in-process Step values
 """
 
@@ -29,10 +29,10 @@ from cora.operation.conductor import (
     CheckStep,
     ConductorFailure,
     ConductorResult,
-    Equals,
+    EqualsCriterion,
     SetpointStep,
     Step,
-    WithinTolerance,
+    WithinToleranceCriterion,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features.run_procedure.command import RunProcedure, RunProcedureResult
@@ -158,7 +158,7 @@ async def test_run_procedure_handler_propagates_failure_from_conductor() -> None
     procedure_id = uuid4()
     failure = ConductorFailure(
         step_index=0,
-        step_kind="setpoint",
+        source_kind="setpoint",
         target="2bma:rot:val",
         error_class="ControlNotConnectedError",
         message="Control address '2bma:rot:val' not connected",
@@ -244,7 +244,7 @@ def test_check_step_with_equals_round_trips_through_wire() -> None:
     step = step_from_wire(body.steps[0])
     assert isinstance(step, CheckStep)
     assert step.address == "2bma:rot:rbv"
-    assert isinstance(step.criterion, Equals)
+    assert isinstance(step.criterion, EqualsCriterion)
     assert step.criterion.expected == 45.0
 
 
@@ -263,7 +263,7 @@ def test_check_step_with_within_tolerance_round_trips_through_wire() -> None:
     )
     step = step_from_wire(body.steps[0])
     assert isinstance(step, CheckStep)
-    assert isinstance(step.criterion, WithinTolerance)
+    assert isinstance(step.criterion, WithinToleranceCriterion)
     assert step.criterion.expected == 295.0
     assert step.criterion.tolerance == 0.5
 
@@ -283,7 +283,7 @@ def test_setpoint_value_list_on_wire_coerces_to_tuple_in_process() -> None:
 def test_equals_expected_list_on_wire_coerces_to_tuple_in_process() -> None:
     wire = _criterion_wire_from_dict({"kind": "equals", "expected": [1, 2, 3]})
     criterion = criterion_from_wire(wire)
-    assert isinstance(criterion, Equals)
+    assert isinstance(criterion, EqualsCriterion)
     assert criterion.expected == (1, 2, 3)
     assert isinstance(criterion.expected, tuple)
 
@@ -325,7 +325,7 @@ def test_result_to_wire_serializes_failure() -> None:
     procedure_id = uuid4()
     failure = ConductorFailure(
         step_index=1,
-        step_kind="check",
+        source_kind="check",
         target="2bma:rot:rbv",
         error_class="CheckFailedError",
         message="value 12.5 did not equal expected 45.0",
@@ -337,7 +337,7 @@ def test_result_to_wire_serializes_failure() -> None:
     assert wire.succeeded is False
     assert wire.failure is not None
     assert wire.failure.step_index == 1
-    assert wire.failure.step_kind == "check"
+    assert wire.failure.source_kind == "check"
     assert wire.failure.target == "2bma:rot:rbv"
     assert wire.failure.error_class == "CheckFailedError"
     assert "did not equal" in wire.failure.message
@@ -352,7 +352,7 @@ def test_result_to_wire_serializes_lifecycle_failure_with_null_step_index() -> N
     procedure_id = uuid4()
     failure = ConductorFailure(
         step_index=None,
-        step_kind="lifecycle",
+        source_kind="lifecycle",
         target="start",
         error_class="RuntimeError",
         message="Procedure not in Defined",
@@ -363,7 +363,7 @@ def test_result_to_wire_serializes_lifecycle_failure_with_null_step_index() -> N
     wire = result_to_wire(result)
     assert wire.failure is not None
     assert wire.failure.step_index is None
-    assert wire.failure.step_kind == "lifecycle"
+    assert wire.failure.source_kind == "lifecycle"
     assert wire.failure.target == "start"
 
 

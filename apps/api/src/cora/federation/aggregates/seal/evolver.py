@@ -10,7 +10,7 @@ Status mapping per event type:
     head hash yet).
   - `SealPointerSigned` keeps LIVE (head hash and sequence
     refreshed; `last_signed_*` lives on projection per Path C).
-  - `SealOnlineKeyRotated` keeps LIVE (online_key_ref swapped;
+  - `SealOnlineKeyRotated` keeps LIVE (online_credential_id swapped;
     offline unchanged).
   - `SealRepublishingStarted` moves to REPUBLISHING.
   - `SealRepublishingCompleted` returns to LIVE (head hash and
@@ -54,15 +54,15 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
     match event:
         case SealInitialized(
             facility_id=facility_id,
-            online_key_ref=online_key_ref,
-            offline_key_ref=offline_key_ref,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
             initialized_by_actor_id=initialized_by_actor_id,
         ):
             _ = state  # SealInitialized is the genesis event; prior state ignored
             return Seal(
                 facility_id=facility_id,
-                online_key_ref=online_key_ref,
-                offline_key_ref=offline_key_ref,
+                online_credential_id=online_credential_id,
+                offline_credential_id=offline_credential_id,
                 current_head_hash=None,
                 current_sequence_number=0,
                 initialized_by_actor_id=initialized_by_actor_id,
@@ -75,19 +75,19 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
             prior = require_state(state, "SealPointerSigned")
             return Seal(
                 facility_id=prior.facility_id,
-                online_key_ref=prior.online_key_ref,
-                offline_key_ref=prior.offline_key_ref,
+                online_credential_id=prior.online_credential_id,
+                offline_credential_id=prior.offline_credential_id,
                 current_head_hash=head_hash,
                 current_sequence_number=sequence_number,
                 initialized_by_actor_id=prior.initialized_by_actor_id,
                 status=SealStatus.LIVE,
             )
-        case SealOnlineKeyRotated(new_online_key_ref=new_online_key_ref):
+        case SealOnlineKeyRotated(new_online_credential_id=new_online_credential_id):
             prior = require_state(state, "SealOnlineKeyRotated")
             return Seal(
                 facility_id=prior.facility_id,
-                online_key_ref=new_online_key_ref,
-                offline_key_ref=prior.offline_key_ref,
+                online_credential_id=new_online_credential_id,
+                offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
                 current_sequence_number=prior.current_sequence_number,
                 initialized_by_actor_id=prior.initialized_by_actor_id,
@@ -97,8 +97,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
             prior = require_state(state, "SealRepublishingStarted")
             return Seal(
                 facility_id=prior.facility_id,
-                online_key_ref=prior.online_key_ref,
-                offline_key_ref=prior.offline_key_ref,
+                online_credential_id=prior.online_credential_id,
+                offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
                 current_sequence_number=prior.current_sequence_number,
                 initialized_by_actor_id=prior.initialized_by_actor_id,
@@ -111,8 +111,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
             prior = require_state(state, "SealRepublishingCompleted")
             return Seal(
                 facility_id=prior.facility_id,
-                online_key_ref=prior.online_key_ref,
-                offline_key_ref=prior.offline_key_ref,
+                online_credential_id=prior.online_credential_id,
+                offline_credential_id=prior.offline_credential_id,
                 current_head_hash=new_head_hash,
                 current_sequence_number=new_sequence_number,
                 initialized_by_actor_id=prior.initialized_by_actor_id,

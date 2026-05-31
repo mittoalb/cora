@@ -1,7 +1,7 @@
 """Unit tests for `SurfaceActiveVisitProjection`.
 
 Pins per-event-type apply() dispatch + the 2-statement transactional
-shape for VisitTookControlOfSurface. Postgres-side behavior is
+shape for VisitSurfaceControlTaken. Postgres-side behavior is
 exercised in the integration-tier projection-worker tests.
 """
 
@@ -52,7 +52,7 @@ def test_projection_metadata() -> None:
     proj = SurfaceActiveVisitProjection()
     assert proj.name == "proj_trust_surface_active_visit"
     assert proj.subscribed_event_types == frozenset(
-        {"VisitTookControlOfSurface", "VisitReleasedControlOfSurface"}
+        {"VisitSurfaceControlTaken", "VisitSurfaceControlReleased"}
     )
 
 
@@ -71,7 +71,7 @@ async def test_took_control_runs_two_statement_transaction() -> None:
     proj = SurfaceActiveVisitProjection()
     conn = _conn_with_transaction()
     event = _stored(
-        "VisitTookControlOfSurface",
+        "VisitSurfaceControlTaken",
         {
             "visit_id": str(_VID),
             "surface_id": str(_SID),
@@ -94,7 +94,7 @@ async def test_released_control_updates_open_row_only() -> None:
     proj = SurfaceActiveVisitProjection()
     conn = AsyncMock()
     event = _stored(
-        "VisitReleasedControlOfSurface",
+        "VisitSurfaceControlReleased",
         {
             "visit_id": str(_VID),
             "surface_id": str(_SID),

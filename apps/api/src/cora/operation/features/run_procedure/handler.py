@@ -115,7 +115,7 @@ def bind(deps: Kernel, *, conductor: Conductor) -> Handler:
         )
 
         _log.info(
-            "run_procedure.complete",
+            "run_procedure.success",
             command_name=_COMMAND_NAME,
             procedure_id=str(command.procedure_id),
             completed_count=result.completed_count,

@@ -10,7 +10,7 @@ from cora.trust.aggregates.visit import (
     Visit,
     VisitCannotReleaseControlError,
     VisitNotFoundError,
-    VisitReleasedControlOfSurface,
+    VisitSurfaceControlReleased,
 )
 from cora.trust.features.release_control_of_surface.command import ReleaseControlOfSurface
 from cora.trust.features.release_control_of_surface.context import ReleaseControlOfSurfaceContext
@@ -22,7 +22,7 @@ def decide(
     *,
     context: ReleaseControlOfSurfaceContext,
     now: datetime,
-) -> list[VisitReleasedControlOfSurface]:
+) -> list[VisitSurfaceControlReleased]:
     """Decide events for releasing a Surface.
 
     Invariants:
@@ -50,7 +50,7 @@ def decide(
             current_holder_id=current_holder_id,
         )
     return [
-        VisitReleasedControlOfSurface(
+        VisitSurfaceControlReleased(
             visit_id=state.id,
             surface_id=command.surface_id,
             occurred_at=now,

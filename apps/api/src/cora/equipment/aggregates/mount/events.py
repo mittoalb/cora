@@ -27,7 +27,7 @@ Frame / Subject.
 `UUID | None`. Top-level slots serialize None.
 
 `placement` and `drawing` IS carried in `MountRegistered` (initial
-values). `placement.parent_frame` references a Frame; not validated
+values). `placement.parent_frame_id` references a Frame; not validated
 at write time (eventual consistency per the design memo).
 
 `previously_installed_asset_id?` on `MountAssetInstalled` is populated
@@ -66,7 +66,7 @@ def _placement_to_payload(placement: Placement) -> dict[str, Any]:
         "rx": placement.rx,
         "ry": placement.ry,
         "rz": placement.rz,
-        "parent_frame": str(placement.parent_frame),
+        "parent_frame_id": str(placement.parent_frame_id),
         "reference_surface": placement.reference_surface.value,
         "tol_x": placement.tol_x,
         "tol_y": placement.tol_y,
@@ -87,7 +87,7 @@ def _placement_from_payload(payload: dict[str, Any]) -> Placement:
         rx=payload["rx"],
         ry=payload["ry"],
         rz=payload["rz"],
-        parent_frame=UUID(payload["parent_frame"]),
+        parent_frame_id=UUID(payload["parent_frame_id"]),
         reference_surface=ReferenceSurface(payload["reference_surface"]),
         tol_x=payload["tol_x"],
         tol_y=payload["tol_y"],

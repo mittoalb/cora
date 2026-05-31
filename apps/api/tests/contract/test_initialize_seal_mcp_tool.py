@@ -29,8 +29,8 @@ _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
 def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     base.update(overrides)
     return base
@@ -107,7 +107,7 @@ def test_mcp_initialize_seal_tool_returns_iserror_on_key_collision() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "initialize_seal",
-                    "arguments": _args(online_key_ref=shared, offline_key_ref=shared),
+                    "arguments": _args(online_credential_id=shared, offline_credential_id=shared),
                 },
             },
             headers=session_headers,
@@ -144,7 +144,7 @@ def test_mcp_initialize_seal_tool_rejects_missing_required_argument() -> None:
 
 @pytest.mark.contract
 def test_mcp_initialize_seal_tool_rejects_malformed_uuid_argument() -> None:
-    """Pydantic rejects an online_key_ref that does not parse as UUID;
+    """Pydantic rejects an online_credential_id that does not parse as UUID;
     surfaces as isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
@@ -156,7 +156,7 @@ def test_mcp_initialize_seal_tool_rejects_malformed_uuid_argument() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "initialize_seal",
-                    "arguments": _args(online_key_ref="not-a-uuid"),
+                    "arguments": _args(online_credential_id="not-a-uuid"),
                 },
             },
             headers=session_headers,

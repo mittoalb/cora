@@ -3,10 +3,10 @@
 Surface right now?" projection.
 
 Subscribed events:
-  - VisitTookControlOfSurface  -> 2-statement transaction:
+  - VisitSurfaceControlTaken  -> 2-statement transaction:
       (1) UPDATE prior holder's released_at, then
       (2) INSERT new holder row.
-  - VisitReleasedControlOfSurface -> UPDATE the open row's released_at.
+  - VisitSurfaceControlReleased -> UPDATE the open row's released_at.
 
 Take-control must atomically mark the prior holder released + INSERT
 the new holder row so the invariant "at most one row per surface with
@@ -26,9 +26,7 @@ from asyncpg import Pool
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
-_SUBSCRIBED: frozenset[str] = frozenset(
-    {"VisitTookControlOfSurface", "VisitReleasedControlOfSurface"}
-)
+_SUBSCRIBED: frozenset[str] = frozenset({"VisitSurfaceControlTaken", "VisitSurfaceControlReleased"})
 
 # Statement 1: mark whatever row is currently open on this Surface as
 # released at the same instant. The `since_at < $2` predicate is load-
@@ -54,7 +52,7 @@ VALUES ($1, $2, $3, NULL)
 ON CONFLICT (surface_id, visit_id, since_at) DO NOTHING
 """
 
-# VisitReleasedControlOfSurface: UPDATE the open row's released_at.
+# VisitSurfaceControlReleased: UPDATE the open row's released_at.
 # Naturally idempotent: second replay finds zero rows with released_at IS NULL.
 _RELEASE_CONTROL_SQL = """
 UPDATE proj_trust_surface_active_visit
@@ -117,13 +115,13 @@ class SurfaceActiveVisitProjection:
         occurred_at = datetime.fromisoformat(payload["occurred_at"])
 
         match event.event_type:
-            case "VisitTookControlOfSurface":
+            case "VisitSurfaceControlTaken":
                 async with conn.transaction():
                     await conn.execute(_TAKE_CONTROL_UPDATE_PRIOR_SQL, surface_id, occurred_at)
                     await conn.execute(
                         _TAKE_CONTROL_INSERT_NEW_SQL, surface_id, visit_id, occurred_at
                     )
-            case "VisitReleasedControlOfSurface":
+            case "VisitSurfaceControlReleased":
                 await conn.execute(_RELEASE_CONTROL_SQL, surface_id, visit_id, occurred_at)
             case _:  # pragma: no cover  # _SUBSCRIBED gate above prevents reaching here
                 pass

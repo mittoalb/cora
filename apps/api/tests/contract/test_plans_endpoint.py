@@ -17,7 +17,7 @@ from cora.api.main import create_app
 from cora.recipe.aggregates.plan import (
     PLAN_NAME_MAX_LENGTH,
     PlanAlreadyExistsError,
-    PlanCapabilitiesNotSatisfiedError,
+    PlanFamiliesNotSatisfiedError,
 )
 from cora.recipe.features.define_plan.route import (
     _get_handler as _get_define_plan_handler,  # pyright: ignore[reportPrivateUsage]
@@ -379,12 +379,12 @@ def test_post_plans_returns_409_when_plan_already_exists() -> None:
 
 @pytest.mark.contract
 def test_post_plans_returns_409_when_capabilities_not_satisfied_via_stub() -> None:
-    """Stub-based pin that PlanCapabilitiesNotSatisfiedError → 409
+    """Stub-based pin that PlanFamiliesNotSatisfiedError → 409
     via the cannot_transition handler tuple."""
     missing = frozenset({uuid4()})
 
     async def _stub(*_args: object, **_kwargs: object) -> UUID:
-        raise PlanCapabilitiesNotSatisfiedError(missing)
+        raise PlanFamiliesNotSatisfiedError(missing)
 
     app = create_app()
     app.dependency_overrides[_get_define_plan_handler] = lambda: _stub

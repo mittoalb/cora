@@ -66,7 +66,7 @@ from cora.recipe.aggregates.plan import (
     PlanAlreadyExistsError,
     PlanCannotDeprecateError,
     PlanCannotVersionError,
-    PlanCapabilitiesNotSatisfiedError,
+    PlanFamiliesNotSatisfiedError,
     PlanNotFoundError,
     PlanWireAlreadyExistsError,
     PlanWireAssetNotBoundError,
@@ -258,7 +258,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         PracticeDeprecatedError,
         MethodDeprecatedError,
         AssetDecommissionedError,
-        PlanCapabilitiesNotSatisfiedError,
+        PlanFamiliesNotSatisfiedError,
         # cross-BC affordance-cover guard: bound Assets'
         # Family.affordances don't union to Method.capability.required_affordances.
         PlanAffordancesNotSatisfiedError,

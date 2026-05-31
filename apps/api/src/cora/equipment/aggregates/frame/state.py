@@ -4,7 +4,7 @@
 deployment are the beamline centerlines (e.g., APS 2-BM's standard
 1.35 mrad centerline, plus the alternate 5.1 mrad and 5.23 mrad
 centerlines that engage when the mirror is in use). Mount placements
-(and other Frame placements) reference a `parent_frame: UUID` field
+(and other Frame placements) reference a `parent_frame_id: UUID` field
 that points at a Frame's `id`.
 
 Frames form a tree: every Frame has a `parent_frame_id` that is
@@ -19,9 +19,9 @@ to catch that case loudly.
 
 The invariant is "both together, or both None":
   - Root frame: `parent_frame_id is None` AND
-    `placement_relative_to_parent is None`.
+    `placement is None`.
   - Child frame: both non-None, and the embedded
-    `Placement.parent_frame` field MUST equal the Frame's own
+    `Placement.parent_frame_id` field MUST equal the Frame's own
     `parent_frame_id` (the Placement points at the same parent that
     the Frame declares).
 
@@ -41,12 +41,12 @@ Transitions:
   - `register_frame`            -> Active (genesis)
   - `decommission_frame`        -> Decommissioned (terminal; guarded
                                    by FrameInUseError if any active
-                                   Mount.placement.parent_frame or
+                                   Mount.placement.parent_frame_id or
                                    active child Frame references this
                                    frame)
 
 `update_frame_placement` does NOT change status; it updates
-`placement_relative_to_parent` and is a no-op when the new placement
+`placement` and is a no-op when the new placement
 equals the current one (idempotent contract via
 `make_asset_update_handler`).
 
@@ -97,15 +97,15 @@ class InvalidFrameRootError(ValueError):
 
     The invariant is "both fields together, or both None":
       - Root frame: `parent_frame_id is None` AND
-        `placement_relative_to_parent is None`.
+        `placement is None`.
       - Child frame: both non-None, and the embedded
-        `Placement.parent_frame` MUST equal the Frame's own
+        `Placement.parent_frame_id` MUST equal the Frame's own
         `parent_frame_id`.
 
     Three failure modes folded into one error:
-      1. `parent_frame_id` is None but `placement_relative_to_parent`
+      1. `parent_frame_id` is None but `placement`
          is not (or vice versa).
-      2. Both are non-None but `placement.parent_frame` does not
+      2. Both are non-None but `placement.parent_frame_id` does not
          equal `parent_frame_id`.
 
     `reason` identifies which case fired for diagnostics.
@@ -140,7 +140,7 @@ class FrameCannotUpdateError(Exception):
       - Frame is in `Decommissioned` status (re-issuing a placement
         update on a retired frame raises; operators must register a
         fresh frame instead).
-      - Frame is a root frame (its `placement_relative_to_parent` is
+      - Frame is a root frame (its `placement` is
         None by invariant; updating would create a placement on a
         root frame, violating the root-vs-child invariant).
 
@@ -178,7 +178,7 @@ class FrameInUseError(Exception):
     """Attempted to decommission a frame still referenced by active consumers.
 
     A frame is "in use" when any of the following hold:
-      - Some active Mount's `Placement.parent_frame` points at this
+      - Some active Mount's `Placement.parent_frame_id` points at this
         frame (lands once the Mount aggregate exists).
       - Some active child Frame's `parent_frame_id` points at this
         frame.
@@ -202,7 +202,7 @@ class InvalidFrameRevisionError(ValueError):
 
     The link carries a predecessor frame id plus a transform expressing
     where this frame's origin sits relative to the predecessor's. The
-    transform's `parent_frame` field MUST equal `predecessor_frame_id`
+    transform's `parent_frame_id` field MUST equal `predecessor_frame_id`
     so the transform unambiguously names which frame it transforms
     from. Mirrors `Placement.__post_init__`'s within-VO validation
     precedent (finiteness, non-negative tolerance).
@@ -227,7 +227,7 @@ class FrameCannotSupersedeError(Exception):
 
     Predecessor existence is NOT checked here. The codebase follows
     eventual-consistency for cross-Frame references (per the
-    Mount.placement.parent_frame precedent), so a supersedes pointer
+    Mount.placement.parent_frame_id precedent), so a supersedes pointer
     at a non-existent predecessor frame is data-integrity, not write-
     time rejection.
     """
@@ -272,7 +272,7 @@ class FrameRevisionLink:
 
     `transform_from_predecessor` is the Placement that maps a
     position expressed in the predecessor's coordinates to this
-    frame's coordinates. The transform's `parent_frame` field MUST
+    frame's coordinates. The transform's `parent_frame_id` field MUST
     equal `predecessor_frame_id`; the within-VO invariant is enforced
     in `__post_init__` (mirror of `Placement.__post_init__`'s
     finiteness/tolerance checks).
@@ -285,9 +285,9 @@ class FrameRevisionLink:
     transform_from_predecessor: Placement
 
     def __post_init__(self) -> None:
-        if self.transform_from_predecessor.parent_frame != self.predecessor_frame_id:
+        if self.transform_from_predecessor.parent_frame_id != self.predecessor_frame_id:
             raise InvalidFrameRevisionError(
-                f"transform.parent_frame ({self.transform_from_predecessor.parent_frame!s}) "
+                f"transform.parent_frame_id ({self.transform_from_predecessor.parent_frame_id!s}) "
                 f"must equal predecessor_frame_id ({self.predecessor_frame_id!s})"
             )
 
@@ -301,10 +301,10 @@ class Frame:
     for instance). Immutable across this aggregate's lifecycle (no
     `reparent_frame` slice in v1).
 
-    `placement_relative_to_parent` is the pose of THIS frame's origin
+    `placement` is the pose of THIS frame's origin
     relative to its parent. `None` for root frames; non-None for
     child frames. The invariant
-    `placement.parent_frame == parent_frame_id` is enforced at the
+    `placement.parent_frame_id == parent_frame_id` is enforced at the
     decider.
 
     `supersedes` marks this frame as a revision of an older frame
@@ -316,13 +316,13 @@ class Frame:
 
     `status` is `Active` at registration and transitions only to
     `Decommissioned` (terminal). The `update_frame_placement` slice mutates
-    `placement_relative_to_parent` but leaves status and supersedes
+    `placement` but leaves status and supersedes
     unchanged.
     """
 
     id: UUID
     name: FrameName
     parent_frame_id: UUID | None
-    placement_relative_to_parent: Placement | None
+    placement: Placement | None
     supersedes: FrameRevisionLink | None = None
     status: FrameStatus = FrameStatus.ACTIVE

@@ -33,8 +33,8 @@ class RegisterFrameRequest(BaseModel):
     """Body for `POST /frames`.
 
     Root frames pass `parent_frame_id=null` AND
-    `placement_relative_to_parent=null`. Child frames pass both
-    non-null, and the embedded `placement.parent_frame` must equal
+    `placement=null`. Child frames pass both
+    non-null, and the embedded `placement.parent_frame_id` must equal
     `parent_frame_id` (decider enforces this with
     InvalidFrameRootError -> 400).
     """
@@ -50,11 +50,11 @@ class RegisterFrameRequest(BaseModel):
         description=(
             "Immediate parent in the frame tree. Must be null for "
             "root frames; required for all others. Goes together "
-            "with placement_relative_to_parent (both null or both "
+            "with placement (both null or both "
             "non-null)."
         ),
     )
-    placement_relative_to_parent: PlacementBody | None = Field(
+    placement: PlacementBody | None = Field(
         ...,
         description=(
             "Pose of this frame's origin relative to its parent. "
@@ -88,9 +88,9 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Domain invariant violated: whitespace-only name, "
                 "negative tolerance, OR root-vs-child mismatch "
-                "(parent_frame_id and placement_relative_to_parent "
+                "(parent_frame_id and placement "
                 "must be both null or both non-null, and "
-                "placement.parent_frame must equal parent_frame_id)."
+                "placement.parent_frame_id must equal parent_frame_id)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -125,16 +125,12 @@ async def post_frames(
         ),
     ] = None,
 ) -> RegisterFrameResponse:
-    placement = (
-        body.placement_relative_to_parent.to_domain()
-        if body.placement_relative_to_parent is not None
-        else None
-    )
+    placement = body.placement.to_domain() if body.placement is not None else None
     frame_id = await handler(
         RegisterFrame(
             name=body.name,
             parent_frame_id=body.parent_frame_id,
-            placement_relative_to_parent=placement,
+            placement=placement,
         ),
         principal_id=principal_id,
         correlation_id=cid,

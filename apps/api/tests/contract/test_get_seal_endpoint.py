@@ -49,8 +49,8 @@ def _seed(
 ) -> tuple[str, dict[str, Any]]:
     body: dict[str, Any] = {
         "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     body.update(overrides)
     _seed_active_credentials(app, facility_id=str(body["facility_id"]))
@@ -68,8 +68,8 @@ def test_get_federation_seal_returns_200_with_full_state() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["facility_id"] == facility_id
-    assert body["online_key_ref"] == seeded["online_key_ref"]
-    assert body["offline_key_ref"] == seeded["offline_key_ref"]
+    assert body["online_credential_id"] == seeded["online_credential_id"]
+    assert body["offline_credential_id"] == seeded["offline_credential_id"]
     assert body["current_head_hash"] is None
     assert body["current_sequence_number"] == 0
     assert body["status"] == "Live"

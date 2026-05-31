@@ -6,7 +6,7 @@ command slices:
     from cora.equipment.features import register_frame
 
     cmd = register_frame.RegisterFrame(
-        name=..., parent_frame_id=..., placement_relative_to_parent=...,
+        name=..., parent_frame_id=..., placement=...,
     )
     handler = register_frame.bind(deps)
     frame_id = await handler(cmd, principal_id=..., correlation_id=...)

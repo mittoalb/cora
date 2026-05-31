@@ -1,7 +1,7 @@
 """HTTP route for the `update_frame_placement` slice.
 
 `PATCH /frames/{frame_id}/placement` mutates the Frame's
-`placement_relative_to_parent`. Re-uses the `PlacementBody`
+`placement`. Re-uses the `PlacementBody`
 Pydantic mirror from the register_frame slice for wire-shape parity.
 """
 
@@ -25,7 +25,7 @@ from cora.infrastructure.routing import (
 class UpdateFramePlacementRequest(BaseModel):
     """Body for `PATCH /frames/{frame_id}/placement`.
 
-    `new_placement.parent_frame` MUST equal the Frame's existing
+    `new_placement.parent_frame_id` MUST equal the Frame's existing
     `parent_frame_id` (you cannot reparent via update_frame_placement); the
     decider enforces this with InvalidFrameRootError -> 400.
 
@@ -37,7 +37,7 @@ class UpdateFramePlacementRequest(BaseModel):
 
     new_placement: PlacementBody = Field(
         ...,
-        description="The new placement_relative_to_parent.",
+        description="The new placement.",
     )
     survey: dict[str, Any] | None = Field(
         None,
@@ -66,7 +66,7 @@ router = APIRouter(tags=["equipment"])
             "model": ErrorResponse,
             "description": (
                 "Domain invariant violated: negative tolerance via "
-                "Placement VO OR new_placement.parent_frame does not "
+                "Placement VO OR new_placement.parent_frame_id does not "
                 "match the Frame's parent_frame_id."
             ),
         },

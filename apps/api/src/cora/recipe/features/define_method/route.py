@@ -25,7 +25,7 @@ from cora.infrastructure.routing import (
 )
 from cora.recipe.aggregates.method import (
     METHOD_NAME_MAX_LENGTH,
-    METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+    METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH,
 )
 from cora.recipe.features.define_method.command import DefineMethod
 from cora.recipe.features.define_method.handler import IdempotentHandler
@@ -82,7 +82,7 @@ class DefineMethodRequest(BaseModel):
             str,
             Field(
                 min_length=1,
-                max_length=METHOD_NEEDS_SUPPLY_KIND_MAX_LENGTH,
+                max_length=METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH,
             ),
         ]
     ] = Field(

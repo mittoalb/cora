@@ -13,13 +13,13 @@ precedent as Asset / Subject / Family.
 at registration, never changes via this aggregate). `parent_frame_id`
 IS reconstructed from `FrameRegistered`'s payload and is immutable in
 v1 (no `reparent_frame` slice).
-`placement_relative_to_parent` is set at registration and mutated by
+`placement` is set at registration and mutated by
 `FramePlacementUpdated.new_placement`. `supersedes` is set at registration
 and is immutable across the lifecycle (no `update_supersedes` slice).
 
 **Critical invariant**: the `FramePlacementUpdated` and `FrameDecommissioned`
 arms MUST carry `parent_frame_id`, `name`, and `supersedes` through
-from prior state. Constructing `Frame(id=..., placement_relative_to_parent=...)`
+from prior state. Constructing `Frame(id=..., placement=...)`
 without explicitly passing them would reset the other fields. The
 `require_state` helper keeps the per-arm bodies short.
 
@@ -47,7 +47,7 @@ def evolve(state: Frame | None, event: FrameEvent) -> Frame:
             frame_id=frame_id,
             name=name,
             parent_frame_id=parent_frame_id,
-            placement_relative_to_parent=placement,
+            placement=placement,
             supersedes=supersedes,
         ):
             _ = state  # FrameRegistered is the genesis event; prior state ignored
@@ -55,7 +55,7 @@ def evolve(state: Frame | None, event: FrameEvent) -> Frame:
                 id=frame_id,
                 name=FrameName(name),
                 parent_frame_id=parent_frame_id,
-                placement_relative_to_parent=placement,
+                placement=placement,
                 supersedes=supersedes,
                 status=FrameStatus.ACTIVE,
             )
@@ -65,7 +65,7 @@ def evolve(state: Frame | None, event: FrameEvent) -> Frame:
                 id=prior.id,
                 name=prior.name,
                 parent_frame_id=prior.parent_frame_id,
-                placement_relative_to_parent=new_placement,
+                placement=new_placement,
                 supersedes=prior.supersedes,
                 status=prior.status,
             )
@@ -75,7 +75,7 @@ def evolve(state: Frame | None, event: FrameEvent) -> Frame:
                 id=prior.id,
                 name=prior.name,
                 parent_frame_id=prior.parent_frame_id,
-                placement_relative_to_parent=prior.placement_relative_to_parent,
+                placement=prior.placement,
                 supersedes=prior.supersedes,
                 status=FrameStatus.DECOMMISSIONED,
             )

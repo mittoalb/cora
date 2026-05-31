@@ -54,8 +54,8 @@ _SEQUENCE_NUMBER = 1
 def _init_command(*, facility_id: str) -> InitializeSeal:
     return InitializeSeal(
         facility_id=facility_id,
-        online_key_ref=_ONLINE_KEY_REF,
-        offline_key_ref=_OFFLINE_KEY_REF,
+        online_credential_id=_ONLINE_KEY_REF,
+        offline_credential_id=_OFFLINE_KEY_REF,
     )
 
 

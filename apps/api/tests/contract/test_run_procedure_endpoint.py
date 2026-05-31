@@ -13,7 +13,7 @@ the supplied step list end-to-end through the Procedure FSM (start
     succeeded=False with ControlNotConnectedError (InMemoryControlPort
     is the v1 wire-up; no addresses are pre-connected)
   - lifecycle failure: running an unregistered procedure yields
-    succeeded=False with step_kind=lifecycle + target=start +
+    succeeded=False with source_kind=lifecycle + target=start +
     ProcedureNotFoundError
   - check failure: read raises NotConnected on the in-memory port
   - mixed step list: walks setpoint + action + check in order
@@ -81,7 +81,7 @@ def test_post_run_with_unknown_action_step_returns_200_with_unknown_action_failu
     assert payload["succeeded"] is False
     failure = payload["failure"]
     assert failure["step_index"] == 0
-    assert failure["step_kind"] == "action"
+    assert failure["source_kind"] == "action"
     assert failure["target"] == "no_such_body"
     assert failure["error_class"] == "UnknownActionError"
 
@@ -100,7 +100,7 @@ def test_post_run_with_setpoint_to_unconnected_address_returns_not_connected_fai
     payload = run.json()
     assert payload["succeeded"] is False
     failure = payload["failure"]
-    assert failure["step_kind"] == "setpoint"
+    assert failure["source_kind"] == "setpoint"
     assert failure["target"] == "2bma:rot:val"
     assert failure["error_class"] == "ControlNotConnectedError"
 
@@ -119,7 +119,7 @@ def test_post_run_against_unregistered_procedure_returns_200_with_lifecycle_fail
     assert payload["succeeded"] is False
     failure = payload["failure"]
     assert failure["step_index"] is None
-    assert failure["step_kind"] == "lifecycle"
+    assert failure["source_kind"] == "lifecycle"
     assert failure["target"] == "start"
     assert failure["error_class"] == "ProcedureNotFoundError"
 
@@ -145,7 +145,7 @@ def test_post_run_with_check_step_against_unconnected_address_returns_200_with_f
     payload = run.json()
     assert payload["succeeded"] is False
     failure = payload["failure"]
-    assert failure["step_kind"] == "check"
+    assert failure["source_kind"] == "check"
     assert failure["error_class"] == "ControlNotConnectedError"
 
 

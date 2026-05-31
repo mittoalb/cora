@@ -25,15 +25,15 @@ from cora.operation.aggregates.procedure import STEP_KIND_VALUES
 def test_conductor_step_kind_constants_match_procedure_step_kind_values() -> None:
     """Per-kind `_STEP_KIND_<X>` constants in conductor.py equal `STEP_KIND_VALUES`.
 
-    The lifecycle pseudo-kind is intentionally excluded (it never
-    lands on a recorded ProcedureStep; it only appears on
-    ConductorFailure when conduct() catches a lifecycle handler
-    exception).
+    The lifecycle pseudo-kind (`_SOURCE_KIND_LIFECYCLE`) is naturally
+    excluded by the `_STEP_KIND_*` prefix filter; it never lands on a
+    recorded ProcedureStep and only appears on `ConductorFailure.source_kind`
+    when conduct() catches a lifecycle handler exception.
     """
     conductor_kinds = frozenset(
         getattr(_conductor_module, name)
         for name in dir(_conductor_module)
-        if name.startswith("_STEP_KIND_") and name != "_STEP_KIND_LIFECYCLE"
+        if name.startswith("_STEP_KIND_")
     )
     assert conductor_kinds == STEP_KIND_VALUES, (
         f"Conductor _STEP_KIND_* constants {sorted(conductor_kinds)} drift from "

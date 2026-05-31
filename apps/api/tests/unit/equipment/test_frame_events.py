@@ -61,7 +61,7 @@ def _placement(parent: object) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame=parent,  # type: ignore[arg-type]
+        parent_frame_id=parent,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.25,
         tol_y=0.25,
@@ -81,7 +81,7 @@ def test_event_type_name_returns_class_name_per_event_kind() -> None:
                 frame_id=uuid4(),
                 name="x",
                 parent_frame_id=None,
-                placement_relative_to_parent=None,
+                placement=None,
                 occurred_at=_NOW,
             )
         )
@@ -112,14 +112,14 @@ def test_frame_registered_round_trip_for_root_frame() -> None:
         frame_id=frame_id,
         name="centerline_1p35_mrad",
         parent_frame_id=None,
-        placement_relative_to_parent=None,
+        placement=None,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
     assert payload["frame_id"] == str(frame_id)
     assert payload["name"] == "centerline_1p35_mrad"
     assert payload["parent_frame_id"] is None
-    assert payload["placement_relative_to_parent"] is None
+    assert payload["placement"] is None
     rebuilt = from_stored(_stored("FrameRegistered", payload))
     assert rebuilt == event
 
@@ -133,14 +133,14 @@ def test_frame_registered_round_trip_for_child_frame_preserves_placement_fields(
         frame_id=frame_id,
         name="centerline_5p1_mrad",
         parent_frame_id=parent,
-        placement_relative_to_parent=placement,
+        placement=placement,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
     rebuilt = from_stored(_stored("FrameRegistered", payload))
     assert rebuilt == event
     assert isinstance(rebuilt, FrameRegistered)
-    assert rebuilt.placement_relative_to_parent == placement
+    assert rebuilt.placement == placement
 
 
 @pytest.mark.unit
@@ -218,7 +218,7 @@ def test_from_stored_raises_on_malformed_uuid_in_frame_registered_payload() -> N
         "frame_id": "not-a-uuid",
         "name": "x",
         "parent_frame_id": None,
-        "placement_relative_to_parent": None,
+        "placement": None,
         "occurred_at": _NOW.isoformat(),
     }
     # UUID(non-uuid) raises ValueError directly. The wrap arm catches
@@ -243,7 +243,7 @@ def test_frame_registered_round_trip_carries_supersedes_link() -> None:
         frame_id=frame_id,
         name="centerline_apsu",
         parent_frame_id=None,
-        placement_relative_to_parent=None,
+        placement=None,
         occurred_at=_NOW,
         supersedes=link,
     )
@@ -266,7 +266,7 @@ def test_frame_registered_round_trip_tolerates_legacy_payload_without_supersedes
         "frame_id": str(frame_id),
         "name": "legacy_root_frame",
         "parent_frame_id": None,
-        "placement_relative_to_parent": None,
+        "placement": None,
         "occurred_at": _NOW.isoformat(),
         # NO supersedes key
     }
@@ -289,7 +289,7 @@ def test_supersedes_payload_carries_predecessor_and_transform_fields() -> None:
         frame_id=uuid4(),
         name="successor",
         parent_frame_id=None,
-        placement_relative_to_parent=None,
+        placement=None,
         occurred_at=_NOW,
         supersedes=link,
     )
@@ -329,7 +329,7 @@ def test_placement_payload_carries_all_15_fields() -> None:
         "rx",
         "ry",
         "rz",
-        "parent_frame",
+        "parent_frame_id",
         "reference_surface",
         "tol_x",
         "tol_y",

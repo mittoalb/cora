@@ -32,8 +32,8 @@ class SealSummaryItem:
     """One row from the Seal singleton-per-facility projection."""
 
     facility_id: str
-    online_key_ref: UUID
-    offline_key_ref: UUID
+    online_credential_id: UUID
+    offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
     initialized_by_actor_id: UUID
@@ -65,7 +65,7 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "facility_id, online_key_ref, offline_key_ref, "
+    "facility_id, online_credential_id, offline_credential_id, "
     "current_head_hash, current_sequence_number, "
     "initialized_by_actor_id, last_signed_by_actor_id, "
     "status, initialized_at, last_signed_at"
@@ -75,8 +75,8 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> SealSummaryItem:
     return SealSummaryItem(
         facility_id=str(row["facility_id"]),
-        online_key_ref=row["online_key_ref"],
-        offline_key_ref=row["offline_key_ref"],
+        online_credential_id=row["online_credential_id"],
+        offline_credential_id=row["offline_credential_id"],
         current_head_hash=(
             str(row["current_head_hash"]) if row["current_head_hash"] is not None else None
         ),

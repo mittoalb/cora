@@ -24,7 +24,7 @@ without parsing HTTP status codes.
 ## Pydantic wire types
 
 The Conductor's `Step = SetpointStep | ActionStep | CheckStep` and
-`CheckCriterion = Equals | WithinTolerance` discriminated unions
+`CheckCriterion = EqualsCriterion | WithinToleranceCriterion` discriminated unions
 land on the wire as JSON discriminated unions with a `kind` field.
 Pydantic's `Field(discriminator="kind")` validates the union at
 parse time so a malformed step kind fails the request with a 422
@@ -53,10 +53,10 @@ from cora.operation.conductor import (
     CheckCriterion,
     CheckStep,
     ConductorFailure,
-    Equals,
+    EqualsCriterion,
     SetpointStep,
     Step,
-    WithinTolerance,
+    WithinToleranceCriterion,
 )
 from cora.operation.features.run_procedure.command import (
     RunProcedure,
@@ -92,7 +92,7 @@ class _ActionStepRequest(BaseModel):
 
 
 class _EqualsCriterion(BaseModel):
-    """JSON wire shape for an `Equals` criterion."""
+    """JSON wire shape for an `EqualsCriterion`."""
 
     kind: Literal["equals"]
     expected: int | float | bool | str | list[Any]
@@ -101,7 +101,7 @@ class _EqualsCriterion(BaseModel):
 
 
 class _WithinToleranceCriterion(BaseModel):
-    """JSON wire shape for a `WithinTolerance` criterion."""
+    """JSON wire shape for a `WithinToleranceCriterion`."""
 
     kind: Literal["within_tolerance"]
     expected: float
@@ -151,7 +151,7 @@ class _ConductorFailureResponse(BaseModel):
     """JSON wire shape for `ConductorFailure`."""
 
     step_index: int | None
-    step_kind: str
+    source_kind: str
     target: str
     error_class: str
     message: str
@@ -183,10 +183,10 @@ def criterion_from_wire(
     if isinstance(wire, _EqualsCriterion):
         expected: Any = wire.expected
         if isinstance(expected, list):
-            # wire.expected is a JSON list of Any; tuple-coerce for the in-process Equals
-            return Equals(expected=cast("tuple[Any, ...]", tuple(expected)))  # pyright: ignore[reportUnknownArgumentType]
-        return Equals(expected=expected)
-    return WithinTolerance(expected=wire.expected, tolerance=wire.tolerance)
+            # wire.expected is a JSON list of Any; tuple-coerce for the in-process EqualsCriterion
+            return EqualsCriterion(expected=cast("tuple[Any, ...]", tuple(expected)))  # pyright: ignore[reportUnknownArgumentType]
+        return EqualsCriterion(expected=expected)
+    return WithinToleranceCriterion(expected=wire.expected, tolerance=wire.tolerance)
 
 
 def step_from_wire(
@@ -217,7 +217,7 @@ def step_from_wire(
 def _failure_to_wire(failure: ConductorFailure) -> _ConductorFailureResponse:
     return _ConductorFailureResponse(
         step_index=failure.step_index,
-        step_kind=failure.step_kind,
+        source_kind=failure.source_kind,
         target=failure.target,
         error_class=failure.error_class,
         message=failure.message,

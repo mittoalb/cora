@@ -7,8 +7,8 @@ import pytest
 from cora.trust.aggregates.visit import (
     VisitCannotReleaseControlError,
     VisitNotFoundError,
-    VisitReleasedControlOfSurface,
     VisitStatus,
+    VisitSurfaceControlReleased,
 )
 from cora.trust.features.release_control_of_surface import ReleaseControlOfSurface
 from cora.trust.features.release_control_of_surface.context import (
@@ -30,7 +30,7 @@ def test_release_by_current_holder_emits_event() -> None:
     events = decide(state=state, command=_CMD, context=ctx, now=NOW)
     assert len(events) == 1
     [e] = events
-    assert isinstance(e, VisitReleasedControlOfSurface)
+    assert isinstance(e, VisitSurfaceControlReleased)
     assert e.visit_id == state.id
     assert e.surface_id == SURFACE_ID
     assert e.occurred_at == NOW

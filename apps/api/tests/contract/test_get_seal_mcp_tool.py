@@ -23,8 +23,8 @@ _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
 def _initialize_args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
-        "online_key_ref": _ONLINE_KEY_REF,
-        "offline_key_ref": _OFFLINE_KEY_REF,
+        "online_credential_id": _ONLINE_KEY_REF,
+        "offline_credential_id": _OFFLINE_KEY_REF,
     }
     base.update(overrides)
     return base
@@ -112,8 +112,8 @@ def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
     payload = result["structuredContent"]["result"]
     assert payload is not None
     assert payload["facility_id"] == facility_id
-    assert payload["online_key_ref"] == _ONLINE_KEY_REF
-    assert payload["offline_key_ref"] == _OFFLINE_KEY_REF
+    assert payload["online_credential_id"] == _ONLINE_KEY_REF
+    assert payload["offline_credential_id"] == _OFFLINE_KEY_REF
     assert payload["current_head_hash"] is None
     assert payload["current_sequence_number"] == 0
     assert payload["status"] == "Live"

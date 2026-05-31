@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from cora.api.main import create_app
 
 
-def _register_and_add_capability(client: TestClient, family_id: str) -> str:
+def _register_and_add_family(client: TestClient, family_id: str) -> str:
     asset_response = client.post(
         "/assets",
         json={"name": "APS-2BM", "level": "Unit", "parent_id": str(uuid4())},
@@ -27,10 +27,10 @@ def _register_and_add_capability(client: TestClient, family_id: str) -> str:
 
 
 @pytest.mark.contract
-def test_post_remove_capability_returns_204_on_happy_path() -> None:
+def test_post_remove_family_returns_204_on_happy_path() -> None:
     cap = str(uuid4())
     with TestClient(create_app()) as client:
-        asset_id = _register_and_add_capability(client, cap)
+        asset_id = _register_and_add_family(client, cap)
         response = client.post(
             f"/assets/{asset_id}/remove_family",
             json={"family_id": cap},
@@ -40,12 +40,12 @@ def test_post_remove_capability_returns_204_on_happy_path() -> None:
 
 
 @pytest.mark.contract
-def test_post_remove_capability_drops_capability_from_get_asset_response() -> None:
-    """End-to-end: add then remove leaves capabilities back at empty
+def test_post_remove_family_drops_family_from_get_asset_response() -> None:
+    """End-to-end: add then remove leaves families back at empty
     in the read response."""
     cap = str(uuid4())
     with TestClient(create_app()) as client:
-        asset_id = _register_and_add_capability(client, cap)
+        asset_id = _register_and_add_family(client, cap)
         client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap})
         response = client.get(f"/assets/{asset_id}")
 
@@ -54,7 +54,7 @@ def test_post_remove_capability_drops_capability_from_get_asset_response() -> No
 
 
 @pytest.mark.contract
-def test_post_remove_capability_returns_404_when_asset_does_not_exist() -> None:
+def test_post_remove_family_returns_404_when_asset_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post(
@@ -65,11 +65,11 @@ def test_post_remove_capability_returns_404_when_asset_does_not_exist() -> None:
 
 
 @pytest.mark.contract
-def test_post_remove_capability_returns_409_when_capability_not_present() -> None:
-    """Strict-not-idempotent: removing a capability not in the set raises."""
+def test_post_remove_family_returns_409_when_family_not_present() -> None:
+    """Strict-not-idempotent: removing a family not in the set raises."""
     cap = str(uuid4())
     with TestClient(create_app()) as client:
-        # Register but don't add the capability.
+        # Register but don't add the family.
         asset_response = client.post(
             "/assets",
             json={"name": "APS-2BM", "level": "Unit", "parent_id": str(uuid4())},
@@ -81,10 +81,10 @@ def test_post_remove_capability_returns_409_when_capability_not_present() -> Non
 
 
 @pytest.mark.contract
-def test_post_remove_capability_returns_409_when_asset_is_decommissioned() -> None:
+def test_post_remove_family_returns_409_when_asset_is_decommissioned() -> None:
     cap = str(uuid4())
     with TestClient(create_app()) as client:
-        asset_id = _register_and_add_capability(client, cap)
+        asset_id = _register_and_add_family(client, cap)
         decom = client.post(f"/assets/{asset_id}/decommission")
         assert decom.status_code == 204
         response = client.post(f"/assets/{asset_id}/remove_family", json={"family_id": cap})
@@ -93,7 +93,7 @@ def test_post_remove_capability_returns_409_when_asset_is_decommissioned() -> No
 
 
 @pytest.mark.contract
-def test_post_remove_capability_rejects_invalid_path_uuid_with_422() -> None:
+def test_post_remove_family_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/assets/not-a-uuid/remove_family",

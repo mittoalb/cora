@@ -1,10 +1,10 @@
 """Unit tests for the `rotate_seal_online_key` slice's pure decider.
 
-Live -> Live mid-lifecycle transition that swaps `online_key_ref` to a
+Live -> Live mid-lifecycle transition that swaps `online_credential_id` to a
 fresh Credential. Strict-not-idempotent: rotating to the same ref the
 slot already holds raises `SealCannotRotateError` (no-op rejected);
 rotating against a Republishing Seal raises `SealCannotRotateError`;
-rotating to a ref equal to `offline_key_ref` raises
+rotating to a ref equal to `offline_credential_id` raises
 `SealKeyCollisionError` via the `_key_separation` helper called against
 the prospective post-transition state.
 
@@ -58,15 +58,15 @@ _NEW_ONLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0a2")
 def _seal(
     status: SealStatus,
     *,
-    online_key_ref: UUID = _CURRENT_ONLINE_KEY,
-    offline_key_ref: UUID = _OFFLINE_KEY,
+    online_credential_id: UUID = _CURRENT_ONLINE_KEY,
+    offline_credential_id: UUID = _OFFLINE_KEY,
     current_head_hash: str | None = None,
     current_sequence_number: int = 0,
 ) -> Seal:
     return Seal(
         facility_id=_FACILITY_ID,
-        online_key_ref=online_key_ref,
-        offline_key_ref=offline_key_ref,
+        online_credential_id=online_credential_id,
+        offline_credential_id=offline_credential_id,
         current_head_hash=current_head_hash,
         current_sequence_number=current_sequence_number,
         initialized_by_actor_id=_INITIALIZED_BY,
@@ -75,13 +75,13 @@ def _seal(
 
 
 def _command(
-    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+    new_online_credential_id: UUID = _NEW_ONLINE_KEY,
     *,
     signed_by_offline_root: bool = True,
 ) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
         facility_id=_FACILITY_ID,
-        new_online_key_ref=new_online_key_ref,
+        new_online_credential_id=new_online_credential_id,
         signed_by_offline_root=signed_by_offline_root,
     )
 
@@ -114,7 +114,7 @@ def test_rotate_seal_online_key_emits_event_from_live() -> None:
     assert events == [
         SealOnlineKeyRotated(
             facility_id=_FACILITY_ID,
-            new_online_key_ref=_NEW_ONLINE_KEY,
+            new_online_credential_id=_NEW_ONLINE_KEY,
             signed_by_offline_root=True,
             rotated_by_actor_id=_PRINCIPAL_ID,
             occurred_at=_NOW,
@@ -183,7 +183,7 @@ def test_rotate_seal_online_key_raises_cannot_rotate_when_ref_equals_current_onl
     with pytest.raises(SealCannotRotateError) as exc_info:
         rotate_seal_online_key.decide(
             state=state,
-            command=_command(new_online_key_ref=_CURRENT_ONLINE_KEY),
+            command=_command(new_online_credential_id=_CURRENT_ONLINE_KEY),
             now=_NOW,
             rotated_by_actor_id=_PRINCIPAL_ID,
             new_online_credential=_credential(credential_id=_CURRENT_ONLINE_KEY),
@@ -198,13 +198,13 @@ def test_rotate_seal_online_key_raises_collision_when_new_ref_equals_offline() -
     with pytest.raises(SealKeyCollisionError) as exc_info:
         rotate_seal_online_key.decide(
             state=state,
-            command=_command(new_online_key_ref=_OFFLINE_KEY),
+            command=_command(new_online_credential_id=_OFFLINE_KEY),
             now=_NOW,
             rotated_by_actor_id=_PRINCIPAL_ID,
             new_online_credential=_credential(credential_id=_OFFLINE_KEY),
         )
     assert exc_info.value.facility_id == _FACILITY_ID
-    assert exc_info.value.shared_key_ref == _OFFLINE_KEY
+    assert exc_info.value.shared_credential_id == _OFFLINE_KEY
 
 
 @pytest.mark.unit
@@ -273,7 +273,7 @@ def test_rotate_seal_online_key_actor_id_independent_of_initialized_by() -> None
 
 @pytest.mark.unit
 def test_rotate_seal_online_key_preserves_offline_ref_on_emitted_event() -> None:
-    """The offline_key_ref is NOT carried on the emitted event payload; only
+    """The offline_credential_id is NOT carried on the emitted event payload; only
     the new online ref + actor + facility ride on SealOnlineKeyRotated."""
     state = _seal(SealStatus.LIVE)
     events = rotate_seal_online_key.decide(
@@ -285,8 +285,8 @@ def test_rotate_seal_online_key_preserves_offline_ref_on_emitted_event() -> None
     )
     assert len(events) == 1
     event = events[0]
-    assert event.new_online_key_ref == _NEW_ONLINE_KEY
-    assert not hasattr(event, "offline_key_ref")
+    assert event.new_online_credential_id == _NEW_ONLINE_KEY
+    assert not hasattr(event, "offline_credential_id")
 
 
 @pytest.mark.unit
@@ -346,7 +346,7 @@ def test_rotate_seal_online_key_raises_purpose_mismatch_when_credential_is_offli
             new_online_credential=wrong_purpose,
         )
     assert exc_info.value.facility_id == _FACILITY_ID
-    assert exc_info.value.slot == "online_key_ref"
+    assert exc_info.value.slot == "online_credential_id"
     assert exc_info.value.credential_id == _NEW_ONLINE_KEY
     assert exc_info.value.expected_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
     assert exc_info.value.actual_purpose == CredentialPurpose.SEAL_OFFLINE_ROOT.value
@@ -366,7 +366,7 @@ def test_rotate_seal_online_key_raises_inactive_when_credential_is_rotating() ->
             new_online_credential=rotating,
         )
     assert exc_info.value.facility_id == _FACILITY_ID
-    assert exc_info.value.slot == "online_key_ref"
+    assert exc_info.value.slot == "online_credential_id"
     assert exc_info.value.credential_id == _NEW_ONLINE_KEY
     assert exc_info.value.actual_status == CredentialStatus.ROTATING.value
 

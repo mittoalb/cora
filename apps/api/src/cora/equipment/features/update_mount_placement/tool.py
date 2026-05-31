@@ -20,7 +20,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="update_mount_placement",
         description=(
             "Update a mount's placement relative to its parent Frame. "
-            "new_placement.parent_frame MUST equal the existing "
+            "new_placement.parent_frame_id MUST equal the existing "
             "parent_frame (update_mount_placement cannot reparent). "
             "Placement tolerance fields must be >= 0. Idempotent: "
             "submitting an UpdateMountPlacement with the current placement "

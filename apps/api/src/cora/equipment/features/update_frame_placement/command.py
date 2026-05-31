@@ -1,7 +1,7 @@
 """The `UpdateFramePlacement` command - intent dataclass for the update_frame_placement slice.
 
 Update-style: targets an existing Frame by `frame_id`. Carries the
-new Placement (which must reference the same `parent_frame` the
+new Placement (which must reference the same `parent_frame_id` the
 Frame already has, enforced by the decider) and an optional
 `survey` payload for re-survey provenance.
 
@@ -20,7 +20,7 @@ from cora.equipment.aggregates._placement import Placement
 
 @dataclass(frozen=True)
 class UpdateFramePlacement:
-    """Update a frame's placement_relative_to_parent."""
+    """Update a frame's placement."""
 
     frame_id: UUID
     new_placement: Placement

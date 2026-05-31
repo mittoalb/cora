@@ -36,8 +36,8 @@ _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-000000fec0b1")
 def _seal(status: SealStatus) -> Seal:
     return Seal(
         facility_id=_FACILITY_ID,
-        online_key_ref=_ONLINE_KEY_REF,
-        offline_key_ref=_OFFLINE_KEY_REF,
+        online_credential_id=_ONLINE_KEY_REF,
+        offline_credential_id=_OFFLINE_KEY_REF,
         current_head_hash=None,
         current_sequence_number=0,
         initialized_by_actor_id=_INITIALIZED_BY,

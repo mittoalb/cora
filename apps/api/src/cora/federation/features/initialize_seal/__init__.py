@@ -7,8 +7,8 @@ command slices:
 
     cmd = initialize_seal.InitializeSeal(
         facility_id="aps-2bm",
-        online_key_ref=online_credential_id,
-        offline_key_ref=offline_credential_id,
+        online_credential_id=online_credential_id,
+        offline_credential_id=offline_credential_id,
     )
     handler = initialize_seal.bind(deps)
     seal_stream_id = await handler(cmd, principal_id=..., correlation_id=...)

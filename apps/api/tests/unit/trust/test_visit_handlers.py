@@ -441,7 +441,7 @@ async def test_take_control_of_surface_handler_appends_event_on_free_surface() -
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Visit", _VISIT_ID)
-    assert events[-1].event_type == "VisitTookControlOfSurface"
+    assert events[-1].event_type == "VisitSurfaceControlTaken"
     assert events[-1].payload["surface_id"] == str(_SURFACE_ID)
     assert events[-1].payload["visit_id"] == str(_VISIT_ID)
 
@@ -547,7 +547,7 @@ async def test_take_control_handler_rejects_when_pool_reports_unrelated_holder()
         )
     assert exc.value.reason == "not_descendant"
     events, _ = await store.load("Visit", _VISIT_ID)
-    assert not any(e.event_type == "VisitTookControlOfSurface" for e in events)
+    assert not any(e.event_type == "VisitSurfaceControlTaken" for e in events)
 
 
 @pytest.mark.unit
@@ -610,7 +610,7 @@ async def test_take_control_handler_allows_when_pool_reports_partof_parent_holde
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Visit", child_visit_id)
-    assert events[-1].event_type == "VisitTookControlOfSurface"
+    assert events[-1].event_type == "VisitSurfaceControlTaken"
     assert events[-1].payload["visit_id"] == str(child_visit_id)
 
 
@@ -635,7 +635,7 @@ async def test_release_control_handler_appends_event_when_pool_reports_self_as_h
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Visit", _VISIT_ID)
-    assert events[-1].event_type == "VisitReleasedControlOfSurface"
+    assert events[-1].event_type == "VisitSurfaceControlReleased"
     assert events[-1].payload["visit_id"] == str(_VISIT_ID)
     assert events[-1].payload["surface_id"] == str(_SURFACE_ID)
 
@@ -664,4 +664,4 @@ async def test_release_control_handler_rejects_when_pool_reports_other_holder() 
             correlation_id=_CORRELATION_ID,
         )
     events, _ = await store.load("Visit", _VISIT_ID)
-    assert not any(e.event_type == "VisitReleasedControlOfSurface" for e in events)
+    assert not any(e.event_type == "VisitSurfaceControlReleased" for e in events)

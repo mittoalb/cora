@@ -24,7 +24,7 @@ and Subject.
 `UUID | None`. Root frames serialize None; child frames serialize a
 string.
 
-`placement_relative_to_parent` IS carried in both `FrameRegistered`
+`placement` IS carried in both `FrameRegistered`
 (initial value) and `FramePlacementUpdated` (new value) payloads. Serialized
 as the Placement VO's full 15-field shape (or `None` for root frames
 in `FrameRegistered`).
@@ -68,7 +68,7 @@ def _placement_to_payload(placement: Placement) -> dict[str, Any]:
         "rx": placement.rx,
         "ry": placement.ry,
         "rz": placement.rz,
-        "parent_frame": str(placement.parent_frame),
+        "parent_frame_id": str(placement.parent_frame_id),
         "reference_surface": placement.reference_surface.value,
         "tol_x": placement.tol_x,
         "tol_y": placement.tol_y,
@@ -94,7 +94,7 @@ def _placement_from_payload(payload: dict[str, Any]) -> Placement:
         rx=payload["rx"],
         ry=payload["ry"],
         rz=payload["rz"],
-        parent_frame=UUID(payload["parent_frame"]),
+        parent_frame_id=UUID(payload["parent_frame_id"]),
         reference_surface=ReferenceSurface(payload["reference_surface"]),
         tol_x=payload["tol_x"],
         tol_y=payload["tol_y"],
@@ -132,7 +132,7 @@ class FrameRegistered:
     """A new frame was registered.
 
     Status is implicit (`Active`); the evolver sets it.
-    `parent_frame_id` and `placement_relative_to_parent` go together:
+    `parent_frame_id` and `placement` go together:
     both None for root frames, both non-None for child frames. The
     decider's `InvalidFrameRootError` guard enforces the invariant.
     `supersedes` is None for non-revision frames; when present, marks
@@ -146,14 +146,14 @@ class FrameRegistered:
     frame_id: UUID
     name: str
     parent_frame_id: UUID | None
-    placement_relative_to_parent: Placement | None
+    placement: Placement | None
     occurred_at: datetime
     supersedes: FrameRevisionLink | None = None
 
 
 @dataclass(frozen=True)
 class FramePlacementUpdated:
-    """A frame's `placement_relative_to_parent` was updated.
+    """A frame's `placement` was updated.
 
     Used both for nominal-from-drawing initial corrections and for
     re-survey updates. When `survey` is present, the payload carries
@@ -166,7 +166,7 @@ class FramePlacementUpdated:
     event in the stream means the placement actually changed.
 
     Root frames cannot be updated via this event (their
-    `placement_relative_to_parent` is None by invariant; updating
+    `placement` is None by invariant; updating
     would violate the root-vs-child invariant). The decider rejects
     `FramePlacementUpdated` on root frames.
     """
@@ -212,7 +212,7 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
             frame_id=frame_id,
             name=name,
             parent_frame_id=parent_frame_id,
-            placement_relative_to_parent=placement,
+            placement=placement,
             supersedes=supersedes,
             occurred_at=occurred_at,
         ):
@@ -220,9 +220,7 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
                 "frame_id": str(frame_id),
                 "name": name,
                 "parent_frame_id": (str(parent_frame_id) if parent_frame_id is not None else None),
-                "placement_relative_to_parent": (
-                    _placement_to_payload(placement) if placement is not None else None
-                ),
+                "placement": (_placement_to_payload(placement) if placement is not None else None),
                 "supersedes": (
                     _frame_revision_link_to_payload(supersedes) if supersedes is not None else None
                 ),
@@ -269,13 +267,13 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
 
             def _build_registered() -> FrameRegistered:
                 raw_parent = payload["parent_frame_id"]
-                raw_placement = payload["placement_relative_to_parent"]
+                raw_placement = payload["placement"]
                 raw_supersedes = payload.get("supersedes")
                 return FrameRegistered(
                     frame_id=UUID(payload["frame_id"]),
                     name=payload["name"],
                     parent_frame_id=UUID(raw_parent) if raw_parent is not None else None,
-                    placement_relative_to_parent=(
+                    placement=(
                         _placement_from_payload(raw_placement)
                         if raw_placement is not None
                         else None

@@ -43,7 +43,7 @@ class RegisterMountRequest(BaseModel):
         description=(
             "Immediate parent in the slot hierarchy. Null for top-level "
             "slots. Hierarchy axis is distinct from coordinate-frame "
-            "axis (which lives on placement.parent_frame)."
+            "axis (which lives on placement.parent_frame_id)."
         ),
     )
     placement: PlacementBody = Field(

@@ -104,8 +104,8 @@ class Kernel:
     seal handlers (`initialize_seal`, `rotate_seal_online_key`) to
     validate cross-aggregate purpose binding (the referenced
     Credential's purpose must match the seal slot:
-    `SealOnlineSigning` for `online_key_ref`, `SealOfflineRoot` for
-    `offline_key_ref`) and the status-Active invariant (Rotating or
+    `SealOnlineSigning` for `online_credential_id`, `SealOfflineRoot` for
+    `offline_credential_id`) and the status-Active invariant (Rotating or
     Revoked secrets cannot back a Seal). Federation BC ships
     `PostgresCredentialLookup` as the production adapter (reads
     `proj_federation_credential_summary` keyed by `credential_id`).

@@ -108,7 +108,7 @@ from cora.access.features.register_actor import bind as bind_register_actor
 from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features.add_asset_family import AddAssetFamily
-from cora.equipment.features.add_asset_family import bind as bind_add_capability
+from cora.equipment.features.add_asset_family import bind as bind_add_family
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
@@ -427,7 +427,7 @@ async def install_aps_unit(
             principal_id=principal_id,
             correlation_id=correlation_id,
         )
-        await bind_add_capability(deps)(
+        await bind_add_family(deps)(
             AddAssetFamily(asset_id=d.asset_id, family_id=d.cap_id),
             principal_id=principal_id,
             correlation_id=correlation_id,

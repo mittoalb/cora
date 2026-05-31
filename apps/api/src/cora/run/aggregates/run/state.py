@@ -470,7 +470,7 @@ class RunCapabilitiesNotSatisfiedError(Exception):
     Run-start re-checks the capability superset against current
     Asset state. Mapped to HTTP 409.
 
-    Mirrors Plan-bind's PlanCapabilitiesNotSatisfiedError shape.
+    Mirrors Plan-bind's PlanFamiliesNotSatisfiedError shape.
     """
 
     def __init__(self, missing_family_ids: frozenset[UUID]) -> None:

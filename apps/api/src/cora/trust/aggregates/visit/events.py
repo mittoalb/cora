@@ -14,7 +14,7 @@ Lifecycle events (8 transitions + 1 voided terminal):
                           FHIR `entered-in-error` analog.
 
 Presence events: `VisitCheckedIn` / `VisitCheckedOut`. Surface-control
-events: `VisitTookControlOfSurface` / `VisitReleasedControlOfSurface`.
+events: `VisitSurfaceControlTaken` / `VisitSurfaceControlReleased`.
 
 `VisitRegistered.permitted_*` lists become `frozenset` on state in the
 evolver -- same list-on-event / frozenset-on-state pattern as PolicyDefined.
@@ -179,7 +179,7 @@ class VisitCheckedOut:
 
 
 @dataclass(frozen=True)
-class VisitTookControlOfSurface:
+class VisitSurfaceControlTaken:
     """The Visit took operational control of the Surface.
 
     SINGLE-stream Visit write -- Surface aggregate state is NOT mutated
@@ -201,7 +201,7 @@ class VisitTookControlOfSurface:
 
 
 @dataclass(frozen=True)
-class VisitReleasedControlOfSurface:
+class VisitSurfaceControlReleased:
     """The Visit released operational control of the Surface.
 
     Projection marks the row's released_at = occurred_at. No auto-flip
@@ -228,8 +228,8 @@ VisitEvent = (
     | VisitVoided
     | VisitCheckedIn
     | VisitCheckedOut
-    | VisitTookControlOfSurface
-    | VisitReleasedControlOfSurface
+    | VisitSurfaceControlTaken
+    | VisitSurfaceControlReleased
 )
 
 
@@ -337,7 +337,7 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
                 "actor_id": str(actor_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case VisitTookControlOfSurface(
+        case VisitSurfaceControlTaken(
             visit_id=visit_id, surface_id=surface_id, occurred_at=occurred_at
         ):
             return {
@@ -345,7 +345,7 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
                 "surface_id": str(surface_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case VisitReleasedControlOfSurface(
+        case VisitSurfaceControlReleased(
             visit_id=visit_id, surface_id=surface_id, occurred_at=occurred_at
         ):
             return {
@@ -465,19 +465,19 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
-        case "VisitTookControlOfSurface":
+        case "VisitSurfaceControlTaken":
             return deserialize_or_raise(
-                "VisitTookControlOfSurface",
-                lambda: VisitTookControlOfSurface(
+                "VisitSurfaceControlTaken",
+                lambda: VisitSurfaceControlTaken(
                     visit_id=UUID(payload["visit_id"]),
                     surface_id=UUID(payload["surface_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
-        case "VisitReleasedControlOfSurface":
+        case "VisitSurfaceControlReleased":
             return deserialize_or_raise(
-                "VisitReleasedControlOfSurface",
-                lambda: VisitReleasedControlOfSurface(
+                "VisitSurfaceControlReleased",
+                lambda: VisitSurfaceControlReleased(
                     visit_id=UUID(payload["visit_id"]),
                     surface_id=UUID(payload["surface_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
@@ -498,10 +498,10 @@ __all__ = [
     "VisitEvent",
     "VisitHeld",
     "VisitRegistered",
-    "VisitReleasedControlOfSurface",
     "VisitResumed",
     "VisitStarted",
-    "VisitTookControlOfSurface",
+    "VisitSurfaceControlReleased",
+    "VisitSurfaceControlTaken",
     "VisitVoided",
     "event_type_name",
     "from_stored",

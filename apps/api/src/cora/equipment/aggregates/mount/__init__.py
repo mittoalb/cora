@@ -10,7 +10,7 @@ against a Frame), and currently-installed specimen
 
 Mounts form a tree via `parent_mount_id` (Assembly slot containing
 Device slots, ISA-88-derived); the coordinate-frame parent is a
-separate axis on `Placement.parent_frame` (which references a Frame,
+separate axis on `Placement.parent_frame_id` (which references a Frame,
 NOT another Mount).
 
 Lifecycle: `Active | Decommissioned`. `decommission_mount` is
