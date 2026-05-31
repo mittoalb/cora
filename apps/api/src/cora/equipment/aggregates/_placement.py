@@ -27,11 +27,15 @@ ancestor (parent-pointer + relative orientation). Promote to a
 NeXus NXtransformations-style ordered axis-chain only when
 articulated multi-DoF kinematics surface (Watch item).
 
-`ReferenceSurface` is a closed StrEnum of three values; escape hatch
-when a second facility lands and a fourth convention surfaces. NOT
-a GD&T datum (which is the derived theoretical entity); these are
-"datum features" in GD&T parlance. CORA uses the longer
-`ReferenceSurface` to avoid the term collision.
+`ReferenceSurface` is a closed StrEnum of four values; escape hatch
+fires when a second facility lands and a new convention surfaces, OR
+when a new component-category cohort at the existing facility has no
+plausible fit among current values AND no canonical term in the
+modeling-refs corpus (ISO 1101, ASME Y14.5, NeXus, AAS Hierarchical
+Structures, OPC UA DI/LADS) would be a better fit. NOT a GD&T datum
+(which is the derived theoretical entity); these are "datum features"
+in GD&T parlance. CORA uses the longer `ReferenceSurface` to avoid
+the term collision.
 
 `UnitSystem` is a StrEnum with one v1 value (`SI_MM_RAD`):
 millimetres for translation, radians for rotation. Extensible when
@@ -81,24 +85,24 @@ class InvalidPlacementError(ValueError):
 class ReferenceSurface(StrEnum):
     """The physical feature of a part that a Placement is measured FROM.
 
-    APS 2-BM uses three conventions documented in the reference
-    table (APS_1404611):
-      - `THERMAL_FACE`: upstream face of the thermal component (front-
-        end masks, beam stops, photon stops, Be windows; OFHC Cu /
-        Be sit between cooling water and beam).
-      - `OPTIC_CENTER`: center of the optic (mirror axis, monochromator
-        crystal axis; the active surface, not a face).
-      - `SHIELDING_FACE`: upstream face of the shielding material
-        (collimators, baffles; the W or Pb absorbing surface).
-
-    Closed enum v1; CORA precedent is the Affordance StrEnum. Add a
-    fourth value only when a second facility surveyed against a
-    convention not in the v1 set.
+    Closed enum; CORA precedent is the Affordance StrEnum. Widening
+    rules and GD&T-term-collision rationale live in the module docstring.
     """
 
     THERMAL_FACE = "ThermalFace"
+    """Upstream face of the thermal component (front-end masks, beam stops,
+    photon stops, Be windows; OFHC Cu / Be sit between cooling water and beam)."""
     OPTIC_CENTER = "OpticCenter"
+    """Center of the optic (mirror axis, monochromator crystal axis;
+    the active surface, not a face)."""
     SHIELDING_FACE = "ShieldingFace"
+    """Upstream face of the shielding material (collimators, baffles;
+    the W or Pb absorbing surface)."""
+    MOUNTING_FACE = "MountingFace"
+    """Precision-machined surface used to attach a motorized asset to its
+    parent (bolted flanges, kinematic ball-groove couplings, V-rails,
+    tapped-hole patterns). Functional naming covers mounts that are not
+    strictly flanged."""
 
 
 class UnitSystem(StrEnum):

@@ -6046,7 +6046,7 @@
           },
           "reference_surface": {
             "$ref": "#/components/schemas/ReferenceSurface",
-            "description": "Which physical feature of the part the position values are measured FROM. One of: ThermalFace, OpticCenter, ShieldingFace."
+            "description": "Which physical feature of the part the position values are measured FROM. One of: ThermalFace, OpticCenter, ShieldingFace, MountingFace."
           },
           "rx": {
             "description": "Rotation around x (rad in SI_mm_rad).",
@@ -7233,11 +7233,12 @@
         "type": "string"
       },
       "ReferenceSurface": {
-        "description": "The physical feature of a part that a Placement is measured FROM.\n\nAPS 2-BM uses three conventions documented in the reference\ntable (APS_1404611):\n  - `THERMAL_FACE`: upstream face of the thermal component (front-\n    end masks, beam stops, photon stops, Be windows; OFHC Cu /\n    Be sit between cooling water and beam).\n  - `OPTIC_CENTER`: center of the optic (mirror axis, monochromator\n    crystal axis; the active surface, not a face).\n  - `SHIELDING_FACE`: upstream face of the shielding material\n    (collimators, baffles; the W or Pb absorbing surface).\n\nClosed enum v1; CORA precedent is the Affordance StrEnum. Add a\nfourth value only when a second facility surveyed against a\nconvention not in the v1 set.",
+        "description": "The physical feature of a part that a Placement is measured FROM.\n\nClosed enum; CORA precedent is the Affordance StrEnum. Widening\nrules and GD&T-term-collision rationale live in the module docstring.",
         "enum": [
           "ThermalFace",
           "OpticCenter",
-          "ShieldingFace"
+          "ShieldingFace",
+          "MountingFace"
         ],
         "title": "ReferenceSurface",
         "type": "string"

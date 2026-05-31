@@ -38,21 +38,25 @@ def _make_placement(**overrides: object) -> Placement:
 @pytest.mark.unit
 def test_reference_surface_values_are_pascalcase_strings() -> None:
     """Pinned: ReferenceSurface serializes as 'ThermalFace' / 'OpticCenter' /
-    'ShieldingFace' so the JSON wire format reads naturally and matches
-    enum precedent (PortDirection)."""
+    'ShieldingFace' / 'MountingFace' so the JSON wire format reads naturally
+    and matches enum precedent (PortDirection)."""
     assert ReferenceSurface.THERMAL_FACE.value == "ThermalFace"
     assert ReferenceSurface.OPTIC_CENTER.value == "OpticCenter"
     assert ReferenceSurface.SHIELDING_FACE.value == "ShieldingFace"
+    assert ReferenceSurface.MOUNTING_FACE.value == "MountingFace"
 
 
 @pytest.mark.unit
-def test_reference_surface_is_closed_three_value_enum() -> None:
-    """The v1 enum is closed at three values; adding a fourth is a
-    deliberate cross-facility decision per the design memo."""
+def test_reference_surface_membership_is_pinned() -> None:
+    """The enum is closed; widening requires either second-facility survey
+    evidence, or a new component-category cohort with no plausible fit
+    among current values and no canonical term in the modeling-refs
+    corpus that would be a better fit."""
     assert {member.name for member in ReferenceSurface} == {
         "THERMAL_FACE",
         "OPTIC_CENTER",
         "SHIELDING_FACE",
+        "MOUNTING_FACE",
     }
 
 

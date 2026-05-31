@@ -70,7 +70,7 @@ class PlacementBody(BaseModel):
         description=(
             "Which physical feature of the part the position values "
             "are measured FROM. One of: ThermalFace, OpticCenter, "
-            "ShieldingFace."
+            "ShieldingFace, MountingFace."
         ),
     )
     tol_x: float = Field(..., ge=0, description="Bilateral plus-or-minus tolerance on x.")
