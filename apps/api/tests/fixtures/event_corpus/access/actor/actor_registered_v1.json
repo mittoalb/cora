@@ -1,0 +1,15 @@
+{
+  "event_type": "ActorRegistered",
+  "payload": {
+    "actor_id": "1c4f0f9e-2a35-4d77-9b62-2f9a7f5ac001",
+    "name": "Doga Gursoy",
+    "occurred_at": "2026-05-01T09:15:30+00:00",
+    "kind": "human"
+  },
+  "expected": {
+    "class": "ActorRegistered",
+    "actor_id": "1c4f0f9e-2a35-4d77-9b62-2f9a7f5ac001",
+    "occurred_at": "2026-05-01T09:15:30+00:00",
+    "kind": "human"
+  }
+}

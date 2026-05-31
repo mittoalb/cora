@@ -1,0 +1,14 @@
+{
+  "event_type": "ActorRegisteredV2",
+  "payload": {
+    "actor_id": "b8e51c40-9a17-4d20-8c11-f25e9b3ab742",
+    "occurred_at": "2026-05-30T11:00:00+00:00",
+    "kind": "agent"
+  },
+  "expected": {
+    "class": "ActorRegistered",
+    "actor_id": "b8e51c40-9a17-4d20-8c11-f25e9b3ab742",
+    "occurred_at": "2026-05-30T11:00:00+00:00",
+    "kind": "agent"
+  }
+}

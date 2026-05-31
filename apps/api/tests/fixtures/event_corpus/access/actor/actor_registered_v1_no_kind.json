@@ -1,0 +1,14 @@
+{
+  "event_type": "ActorRegistered",
+  "payload": {
+    "actor_id": "3aa6e8c2-7f04-4b91-9c0e-d4f51b6730a2",
+    "name": "Legacy Pre-Kind Actor",
+    "occurred_at": "2026-04-12T18:42:11+00:00"
+  },
+  "expected": {
+    "class": "ActorRegistered",
+    "actor_id": "3aa6e8c2-7f04-4b91-9c0e-d4f51b6730a2",
+    "occurred_at": "2026-04-12T18:42:11+00:00",
+    "kind": "human"
+  }
+}
