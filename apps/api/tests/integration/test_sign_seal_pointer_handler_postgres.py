@@ -28,12 +28,16 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
 from cora.federation.aggregates.seal import SealStatus, load_seal
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.features import initialize_seal, sign_seal_pointer
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.features.sign_seal_pointer import SignSealPointer
 from cora.federation.projections import SealProjection
+from cora.infrastructure.adapters.in_memory_credential_lookup import (
+    InMemoryCredentialLookup,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -55,6 +59,23 @@ def _init_command(*, facility_id: str) -> InitializeSeal:
     )
 
 
+def _credential_lookup_for(facility_id: str) -> InMemoryCredentialLookup:
+    lookup = InMemoryCredentialLookup()
+    lookup.register(
+        credential_id=_ONLINE_KEY_REF,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    lookup.register(
+        credential_id=_OFFLINE_KEY_REF,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    return lookup
+
+
 def _sign_command(*, facility_id: str) -> SignSealPointer:
     return SignSealPointer(
         facility_id=facility_id,
@@ -70,7 +91,12 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
     expected_stream_id = seal_stream_id(facility_id)
 
-    init_deps = build_postgres_deps(db_pool, now=_INIT_NOW, ids=[uuid4() for _ in range(5)])
+    init_deps = build_postgres_deps(
+        db_pool,
+        now=_INIT_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_for(facility_id),
+    )
     init_stream_id = await initialize_seal.bind(init_deps)(
         _init_command(facility_id=facility_id),
         principal_id=_PRINCIPAL_ID,

@@ -17,15 +17,25 @@ from uuid import UUID
 
 import pytest
 
+from cora.federation.aggregates.credential import (
+    CredentialNotFoundError,
+    CredentialPurpose,
+    CredentialStatus,
+)
 from cora.federation.aggregates.seal import (
     SealCannotRotateError,
+    SealCannotRotateWithInactiveCredentialError,
     SealKeyCollisionError,
+    SealKeyPurposeMismatchError,
     SealNotFoundError,
 )
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features import rotate_seal_online_key
 from cora.federation.features.rotate_seal_online_key import RotateSealOnlineKey
+from cora.infrastructure.adapters.in_memory_credential_lookup import (
+    InMemoryCredentialLookup,
+)
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
@@ -55,11 +65,37 @@ _OFFLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0b1")
 _NEW_ONLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0a2")
 
 
+def _build_lookup(
+    *,
+    register_default: bool = True,
+    purpose: str = CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+    status: str = CredentialStatus.ACTIVE.value,
+    new_online_key_ref: UUID = _NEW_ONLINE_KEY,
+) -> InMemoryCredentialLookup:
+    """Build an `InMemoryCredentialLookup` seeded for the happy path.
+
+    Default: the new online ref resolves to an Active SealOnlineSigning
+    credential. Tests asserting the missing / wrong-purpose / inactive
+    paths override `register_default=False` (no seed) or pass alternate
+    `purpose` / `status` strings.
+    """
+    lookup = InMemoryCredentialLookup()
+    if register_default:
+        lookup.register(
+            credential_id=new_online_key_ref,
+            facility_id=_FACILITY_ID,
+            purpose=purpose,
+            status=status,
+        )
+    return lookup
+
+
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
     ids: list[UUID] | None = None,
+    credential_lookup: InMemoryCredentialLookup | None = None,
 ) -> Kernel:
     # rotate_seal_online_key consumes 3 ids per successful call:
     #   1) decision_id (fresh Decision stream id)
@@ -70,6 +106,7 @@ def _build_deps(
         now=_T2,
         event_store=event_store,
         deny=deny,
+        credential_lookup=(credential_lookup if credential_lookup is not None else _build_lookup()),
     )
 
 
@@ -295,10 +332,22 @@ async def test_rotate_seal_online_key_handler_raises_cannot_rotate_on_noop_rotat
 
 @pytest.mark.unit
 async def test_rotate_seal_online_key_handler_raises_collision_when_ref_equals_offline() -> None:
-    """Key-separation invariant: rotating to a ref equal to offline raises."""
+    """Key-separation invariant: rotating to a ref equal to offline raises.
+
+    The lookup is seeded with the offline ref as a valid Active
+    SealOnlineSigning credential so the decider passes the purpose /
+    status checks and reaches the key-separation step that raises.
+    """
     store = InMemoryEventStore()
     await _seed_live(store)
-    deps = _build_deps(event_store=store)
+    lookup = _build_lookup(register_default=False)
+    lookup.register(
+        credential_id=_OFFLINE_KEY,
+        facility_id=_FACILITY_ID,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    deps = _build_deps(event_store=store, credential_lookup=lookup)
     handler = rotate_seal_online_key.bind(deps)
     with pytest.raises(SealKeyCollisionError) as exc_info:
         await handler(
@@ -431,3 +480,90 @@ async def test_rotate_seal_online_key_handler_targets_deterministic_stream_id() 
     events, version = await store.load("Seal", expected_stream_id)
     assert version == 2
     assert events[-1].event_type == "SealOnlineKeyRotated"
+
+
+@pytest.mark.unit
+async def test_rotate_seal_online_key_handler_raises_credential_not_found_when_unseeded() -> None:
+    """Unknown credential ref: the `CredentialLookup` returns None, and the
+    decider raises `CredentialNotFoundError` before writing either stream."""
+    store = InMemoryEventStore()
+    await _seed_live(store)
+    lookup = _build_lookup(register_default=False)
+    deps = _build_deps(event_store=store, credential_lookup=lookup)
+    handler = rotate_seal_online_key.bind(deps)
+    with pytest.raises(CredentialNotFoundError):
+        await handler(
+            _command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    _, seal_version = await store.load("Seal", _STREAM_ID)
+    _, decision_version = await store.load("Decision", _DECISION_ID)
+    assert seal_version == 1  # genesis seed untouched
+    assert decision_version == 0
+
+
+@pytest.mark.unit
+async def test_rotate_seal_online_key_handler_raises_purpose_mismatch_for_offline_ref() -> None:
+    """Wrong-purpose credential: the resolved row has purpose SealOfflineRoot,
+    so the decider raises `SealKeyPurposeMismatchError` and writes nothing."""
+    store = InMemoryEventStore()
+    await _seed_live(store)
+    lookup = _build_lookup(purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value)
+    deps = _build_deps(event_store=store, credential_lookup=lookup)
+    handler = rotate_seal_online_key.bind(deps)
+    with pytest.raises(SealKeyPurposeMismatchError) as exc_info:
+        await handler(
+            _command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.credential_id == _NEW_ONLINE_KEY
+    assert exc_info.value.actual_purpose == CredentialPurpose.SEAL_OFFLINE_ROOT.value
+    _, seal_version = await store.load("Seal", _STREAM_ID)
+    _, decision_version = await store.load("Decision", _DECISION_ID)
+    assert seal_version == 1
+    assert decision_version == 0
+
+
+@pytest.mark.unit
+async def test_rotate_seal_online_key_handler_raises_inactive_when_credential_is_rotating() -> None:
+    """Non-Active credential: a Rotating status raises
+    `SealCannotRotateWithInactiveCredentialError` and writes nothing."""
+    store = InMemoryEventStore()
+    await _seed_live(store)
+    lookup = _build_lookup(status=CredentialStatus.ROTATING.value)
+    deps = _build_deps(event_store=store, credential_lookup=lookup)
+    handler = rotate_seal_online_key.bind(deps)
+    with pytest.raises(SealCannotRotateWithInactiveCredentialError) as exc_info:
+        await handler(
+            _command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.credential_id == _NEW_ONLINE_KEY
+    assert exc_info.value.actual_status == CredentialStatus.ROTATING.value
+    _, seal_version = await store.load("Seal", _STREAM_ID)
+    _, decision_version = await store.load("Decision", _DECISION_ID)
+    assert seal_version == 1
+    assert decision_version == 0
+
+
+@pytest.mark.unit
+async def test_rotate_seal_online_key_handler_raises_inactive_when_credential_is_revoked() -> None:
+    """Non-Active credential: a Revoked status raises
+    `SealCannotRotateWithInactiveCredentialError` and writes nothing."""
+    store = InMemoryEventStore()
+    await _seed_live(store)
+    lookup = _build_lookup(status=CredentialStatus.REVOKED.value)
+    deps = _build_deps(event_store=store, credential_lookup=lookup)
+    handler = rotate_seal_online_key.bind(deps)
+    with pytest.raises(SealCannotRotateWithInactiveCredentialError) as exc_info:
+        await handler(
+            _command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.actual_status == CredentialStatus.REVOKED.value
+    _, seal_version = await store.load("Seal", _STREAM_ID)
+    assert seal_version == 1

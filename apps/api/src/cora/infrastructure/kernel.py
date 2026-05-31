@@ -40,6 +40,7 @@ from cora.infrastructure.ports import (
     CautionLookup,
     ClearanceLookup,
     Clock,
+    CredentialLookup,
     EventStore,
     IdempotencyStore,
     IdGenerator,
@@ -99,6 +100,22 @@ class Kernel:
     the `ClearanceLookup` / `CautionLookup` test-default pattern.
     See [[project_supply_preflight_gate_design]].
 
+    `credential_lookup`: cross-BC port consumed by Federation BC's
+    seal handlers (`initialize_seal`, `rotate_seal_online_key`) to
+    validate cross-aggregate purpose binding (the referenced
+    Credential's purpose must match the seal slot:
+    `SealOnlineSigning` for `online_key_ref`, `SealOfflineRoot` for
+    `offline_key_ref`) and the status-Active invariant (Rotating or
+    Revoked secrets cannot back a Seal). Federation BC ships
+    `PostgresCredentialLookup` as the production adapter (reads
+    `proj_federation_credential_summary` keyed by `credential_id`).
+    Test environments default to `InMemoryCredentialLookup`; seal
+    handler / decider tests seed credentials explicitly via the
+    adapter's `register(...)` helper. The handler does the async
+    lookup and threads the result through to the decider as part of
+    the slice's context dataclass, keeping the decider pure (mirrors
+    the start_run -> ClearanceLookup pattern).
+
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
     `AnthropicLLM` when `Settings.anthropic_api_key` is set;
@@ -150,6 +167,7 @@ class Kernel:
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
     supply_lookup: SupplyLookup
+    credential_lookup: CredentialLookup
     profile_store: ProfileStore
     pool: asyncpg.Pool | None = None
     llm: LLM | None = None

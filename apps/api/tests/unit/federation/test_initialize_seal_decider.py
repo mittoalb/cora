@@ -7,9 +7,9 @@ evolver not the event), purity (same inputs -> same outputs), and
 handler-injected `now` / `initialized_by_actor_id` capture per the
 non-determinism principle.
 
-Cross-aggregate purpose binding is deferred per the
-[[project_federation_port_design]] eventual-consistency carve-out;
-this slice does NOT raise SealKeyPurposeMismatchError today.
+Pass-3 wiring: the decider now consumes two `CredentialLookupResult`
+snapshots (one per slot) and partitions on `purpose` / `status` for
+the cross-aggregate purpose-binding and status-Active checks.
 """
 
 from datetime import UTC, datetime
@@ -17,26 +17,35 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.federation.aggregates.credential import (
+    CredentialNotFoundError,
+    CredentialPurpose,
+    CredentialStatus,
+)
 from cora.federation.aggregates.seal import (
     InvalidSealFacilityIdError,
     Seal,
     SealAlreadyExistsError,
+    SealCannotInitializeWithInactiveCredentialError,
     SealKeyCollisionError,
+    SealKeyPurposeMismatchError,
     SealStatus,
 )
 from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
+from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed101")
 _OTHER_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed102")
+_FACILITY_ID = "aps-2bm"
 _ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
 
 
 def _command(**overrides: object) -> InitializeSeal:
     base: dict[str, object] = {
-        "facility_id": "aps-2bm",
+        "facility_id": _FACILITY_ID,
         "online_key_ref": _ONLINE_KEY_REF,
         "offline_key_ref": _OFFLINE_KEY_REF,
     }
@@ -44,9 +53,39 @@ def _command(**overrides: object) -> InitializeSeal:
     return InitializeSeal(**base)  # type: ignore[arg-type]
 
 
+def _online_cred(
+    credential_id: UUID = _ONLINE_KEY_REF,
+    *,
+    purpose: str = CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+    status: str = CredentialStatus.ACTIVE.value,
+    facility_id: str = _FACILITY_ID,
+) -> CredentialLookupResult:
+    return CredentialLookupResult(
+        id=credential_id,
+        facility_id=facility_id,
+        purpose=purpose,
+        status=status,
+    )
+
+
+def _offline_cred(
+    credential_id: UUID = _OFFLINE_KEY_REF,
+    *,
+    purpose: str = CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+    status: str = CredentialStatus.ACTIVE.value,
+    facility_id: str = _FACILITY_ID,
+) -> CredentialLookupResult:
+    return CredentialLookupResult(
+        id=credential_id,
+        facility_id=facility_id,
+        purpose=purpose,
+        status=status,
+    )
+
+
 def _existing_state() -> Seal:
     return Seal(
-        facility_id="aps-2bm",
+        facility_id=_FACILITY_ID,
         online_key_ref=_ONLINE_KEY_REF,
         offline_key_ref=_OFFLINE_KEY_REF,
         current_head_hash=None,
@@ -63,10 +102,12 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
     assert len(events) == 1
     event = events[0]
-    assert event.facility_id == "aps-2bm"
+    assert event.facility_id == _FACILITY_ID
     assert event.online_key_ref == _ONLINE_KEY_REF
     assert event.offline_key_ref == _OFFLINE_KEY_REF
     assert event.initialized_by_actor_id == _PRINCIPAL_ID
@@ -80,8 +121,10 @@ def test_initialize_seal_trims_facility_id_before_capture() -> None:
         command=_command(facility_id="  aps-2bm  "),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
-    assert events[0].facility_id == "aps-2bm"
+    assert events[0].facility_id == _FACILITY_ID
 
 
 @pytest.mark.unit
@@ -93,8 +136,10 @@ def test_initialize_seal_raises_already_exists_when_state_present() -> None:
             command=_command(),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
         )
-    assert exc.value.facility_id == "aps-2bm"
+    assert exc.value.facility_id == _FACILITY_ID
 
 
 @pytest.mark.unit
@@ -105,6 +150,8 @@ def test_initialize_seal_rejects_empty_facility_id() -> None:
             command=_command(facility_id=""),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
         )
     assert exc.value.value == ""
 
@@ -117,6 +164,8 @@ def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
             command=_command(facility_id="   "),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
         )
     assert exc.value.value == "   "
 
@@ -132,8 +181,10 @@ def test_initialize_seal_raises_collision_when_keys_equal() -> None:
             command=_command(online_key_ref=shared, offline_key_ref=shared),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(credential_id=shared),
+            offline_credential=_offline_cred(credential_id=shared),
         )
-    assert exc.value.facility_id == "aps-2bm"
+    assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.shared_key_ref == shared
 
 
@@ -152,38 +203,50 @@ def test_initialize_seal_raises_collision_after_facility_id_trim() -> None:
             ),
             now=_NOW,
             initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(credential_id=shared),
+            offline_credential=_offline_cred(credential_id=shared),
         )
-    assert exc.value.facility_id == "aps-2bm"
+    assert exc.value.facility_id == _FACILITY_ID
 
 
 @pytest.mark.unit
 def test_initialize_seal_accepts_distinct_keys() -> None:
     """Happy path: distinct refs sail through the key-separation check."""
+    new_online = UUID("01900000-0000-7000-8000-00000000aaa1")
+    new_offline = UUID("01900000-0000-7000-8000-00000000bbb2")
     events = initialize_seal.decide(
         state=None,
         command=_command(
-            online_key_ref=UUID("01900000-0000-7000-8000-00000000aaa1"),
-            offline_key_ref=UUID("01900000-0000-7000-8000-00000000bbb2"),
+            online_key_ref=new_online,
+            offline_key_ref=new_offline,
         ),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=_online_cred(credential_id=new_online),
+        offline_credential=_offline_cred(credential_id=new_offline),
     )
     assert events[0].online_key_ref != events[0].offline_key_ref
 
 
 @pytest.mark.unit
 def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
+    online = _online_cred()
+    offline = _offline_cred()
     first = initialize_seal.decide(
         state=None,
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=online,
+        offline_credential=offline,
     )
     second = initialize_seal.decide(
         state=None,
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=online,
+        offline_credential=offline,
     )
     assert first == second
 
@@ -196,6 +259,8 @@ def test_initialize_seal_uses_handler_injected_actor_id_verbatim() -> None:
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=injected,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
     assert events[0].initialized_by_actor_id == injected
 
@@ -208,6 +273,8 @@ def test_initialize_seal_uses_handler_injected_now_verbatim() -> None:
         command=_command(),
         now=custom_now,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
     assert events[0].occurred_at == custom_now
 
@@ -221,12 +288,121 @@ def test_initialize_seal_records_distinct_principals_independently() -> None:
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=_PRINCIPAL_ID,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
     second = initialize_seal.decide(
         state=None,
         command=_command(),
         now=_NOW,
         initialized_by_actor_id=_OTHER_PRINCIPAL_ID,
+        online_credential=_online_cred(),
+        offline_credential=_offline_cred(),
     )
     assert first[0].initialized_by_actor_id == _PRINCIPAL_ID
     assert second[0].initialized_by_actor_id == _OTHER_PRINCIPAL_ID
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_not_found_when_online_credential_missing() -> None:
+    """Online ref unresolved by projection -> CredentialNotFoundError
+    (per the start_run -> PlanNotFoundError precedent)."""
+    with pytest.raises(CredentialNotFoundError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=None,
+            offline_credential=_offline_cred(),
+        )
+    assert exc.value.credential_id == _ONLINE_KEY_REF
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_not_found_when_offline_credential_missing() -> None:
+    """Offline ref unresolved by projection -> CredentialNotFoundError."""
+    with pytest.raises(CredentialNotFoundError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=None,
+        )
+    assert exc.value.credential_id == _OFFLINE_KEY_REF
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_purpose_mismatch_when_online_wrong_purpose() -> None:
+    """Online slot must carry purpose 'SealOnlineSigning'."""
+    with pytest.raises(SealKeyPurposeMismatchError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(purpose=CredentialPurpose.SIGNING.value),
+            offline_credential=_offline_cred(),
+        )
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.slot == "online_key_ref"
+    assert exc.value.credential_id == _ONLINE_KEY_REF
+    assert exc.value.expected_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
+    assert exc.value.actual_purpose == CredentialPurpose.SIGNING.value
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_purpose_mismatch_when_offline_wrong_purpose() -> None:
+    """Offline slot must carry purpose 'SealOfflineRoot'."""
+    with pytest.raises(SealKeyPurposeMismatchError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value),
+        )
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.slot == "offline_key_ref"
+    assert exc.value.credential_id == _OFFLINE_KEY_REF
+    assert exc.value.expected_purpose == CredentialPurpose.SEAL_OFFLINE_ROOT.value
+    assert exc.value.actual_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_inactive_when_online_status_rotating() -> None:
+    """Online slot must carry status 'Active'; Rotating rejected."""
+    with pytest.raises(SealCannotInitializeWithInactiveCredentialError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(status=CredentialStatus.ROTATING.value),
+            offline_credential=_offline_cred(),
+        )
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.slot == "online_key_ref"
+    assert exc.value.credential_id == _ONLINE_KEY_REF
+    assert exc.value.actual_status == CredentialStatus.ROTATING.value
+
+
+@pytest.mark.unit
+def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
+    """Offline slot must carry status 'Active'; Revoked rejected."""
+    with pytest.raises(SealCannotInitializeWithInactiveCredentialError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by_actor_id=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(status=CredentialStatus.REVOKED.value),
+        )
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.slot == "offline_key_ref"
+    assert exc.value.credential_id == _OFFLINE_KEY_REF
+    assert exc.value.actual_status == CredentialStatus.REVOKED.value

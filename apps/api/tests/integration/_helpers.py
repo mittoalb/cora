@@ -45,6 +45,7 @@ from cora.infrastructure.ports import (
     Authorize,
     CautionLookup,
     ClearanceLookup,
+    CredentialLookup,
     EventStore,
     FakeClock,
     FixedIdGenerator,
@@ -63,6 +64,7 @@ def build_postgres_deps(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    credential_lookup: CredentialLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
 ) -> Kernel:
@@ -91,6 +93,7 @@ def build_postgres_deps(
         idempotency_store=idempotency_store,
         clearance_lookup=clearance_lookup or AlwaysCoveredClearanceLookup(),
         caution_lookup=caution_lookup or AlwaysQuietCautionLookup(),
+        credential_lookup=credential_lookup,
         profile_store=profile_store,
         llm=llm,
     )

@@ -48,6 +48,7 @@ from cora.infrastructure.ports import (
     AllowAllAuthorize,
     Authorize,
     AuthzResult,
+    CredentialLookup,
     Deny,
     EventStore,
     FakeClock,
@@ -116,6 +117,7 @@ def build_deps(
     authz: Authorize | None = None,
     llm: LLM | None = None,
     profile_store: ProfileStore | None = None,
+    credential_lookup: CredentialLookup | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
@@ -138,6 +140,12 @@ def build_deps(
     when a test wants to seed the vault before invoking the handler,
     or wants to assert on the vault state afterwards via the same
     instance). Defaults to a fresh `InMemoryProfileStore` per call.
+
+    `credential_lookup` injects a pre-built `CredentialLookup` adapter
+    (typically `InMemoryCredentialLookup` seeded with one or more
+    credential summaries) so Seal handler tests can pre-register the
+    refs the slice will resolve before invoking the decider. Defaults
+    to a fresh empty `InMemoryCredentialLookup` per call.
     """
     if authz is None:
         authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
@@ -149,6 +157,7 @@ def build_deps(
         event_store=event_store,
         llm=llm,
         profile_store=profile_store,
+        credential_lookup=credential_lookup,
     )
 
 

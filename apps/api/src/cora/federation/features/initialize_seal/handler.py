@@ -22,6 +22,14 @@ namespace) so the genesis write targets the canonical stream and
 later transitions reach the same stream without out-of-band id
 coordination.
 
+The handler also resolves BOTH `online_key_ref` and `offline_key_ref`
+through `deps.credential_lookup` BEFORE invoking the decider and
+threads the resolved `CredentialLookupResult` snapshots into the
+decider for cross-aggregate purpose-binding + status-Active checks.
+Mirrors the `start_run` pattern (handler loads upstream projections,
+threads them into the pure decider) and the `rotate_seal_online_key`
+precedent shipped in Pass 2.
+
 Idempotency-wrappable per the create-style convention; the
 `with_idempotency` wrap is applied at `wire.py`, not here.
 
@@ -139,6 +147,10 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         stream_id = seal_stream_id(command.facility_id.strip())
+
+        online_credential = await deps.credential_lookup.lookup(command.online_key_ref)
+        offline_credential = await deps.credential_lookup.lookup(command.offline_key_ref)
+
         now = deps.clock.now()
 
         seal_domain_events = decide(
@@ -146,6 +158,8 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             initialized_by_actor_id=principal_id,
+            online_credential=online_credential,
+            offline_credential=offline_credential,
         )
 
         decision_id = deps.id_generator.new_id()

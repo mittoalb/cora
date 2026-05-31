@@ -9,9 +9,11 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 _ONLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0a1"
@@ -28,8 +30,29 @@ def _initialize_args(**overrides: object) -> dict[str, Any]:
     return base
 
 
-def _seed_seal(client: TestClient, session_headers: dict[str, str]) -> str:
+def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
+    lookup = app.state.deps.credential_lookup
+    lookup.register(
+        credential_id=UUID(_ONLINE_KEY_REF),
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    lookup.register(
+        credential_id=UUID(_OFFLINE_KEY_REF),
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+
+
+def _seed_seal(
+    app: FastAPI,
+    client: TestClient,
+    session_headers: dict[str, str],
+) -> str:
     args = _initialize_args()
+    _seed_active_credentials(app, facility_id=str(args["facility_id"]))
     response = client.post(
         "/mcp",
         json={
@@ -63,9 +86,10 @@ def test_mcp_lists_get_seal_tool() -> None:
 
 @pytest.mark.contract
 def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
-    with TestClient(create_app()) as client:
+    app = create_app()
+    with TestClient(app) as client:
         session_headers = open_session(client)
-        facility_id = _seed_seal(client, session_headers)
+        facility_id = _seed_seal(app, client, session_headers)
         response = client.post(
             "/mcp",
             json={

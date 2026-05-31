@@ -43,6 +43,7 @@ from typing import Protocol
 
 import asyncpg
 
+from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
@@ -62,6 +63,7 @@ from cora.infrastructure.ports import (
     CautionLookup,
     ClearanceLookup,
     Clock,
+    CredentialLookup,
     EventStore,
     IdempotencyStore,
     IdGenerator,
@@ -106,6 +108,7 @@ def make_postgres_kernel(
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
+    credential_lookup: CredentialLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -147,6 +150,13 @@ def make_postgres_kernel(
     `supply_lookup_factory` argument; gate-specific tests override
     here explicitly. See [[project_supply_preflight_gate_design]].
 
+    `credential_lookup` defaults to a fresh `InMemoryCredentialLookup`
+    (empty record map). Seal handler / decider tests seed credentials
+    explicitly via the adapter's `register(...)` helper; non-Seal
+    tests never touch it, so an empty default is safe. Production's
+    `build_kernel` injects the real `PostgresCredentialLookup` via the
+    `credential_lookup_factory` argument.
+
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
     `build_kernel` injects `AnthropicLLM` when
@@ -177,6 +187,9 @@ def make_postgres_kernel(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
         supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
+        credential_lookup=(
+            credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
+        ),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         pool=pool,
         llm=llm,
@@ -196,6 +209,7 @@ def make_inmemory_kernel(
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
+    credential_lookup: CredentialLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -231,6 +245,13 @@ def make_inmemory_kernel(
     read from. Gate-specific tests can override with
     `NoSuppliesRegisteredLookup` (missing-kind path) or a custom fake.
 
+    `credential_lookup` defaults to a fresh `InMemoryCredentialLookup`
+    for the same reason: no projection worker, no
+    `proj_federation_credential_summary` table to read from. Seal
+    handler / decider tests seed credentials via the adapter's
+    `register(...)` helper; tests that don't touch the seal slices
+    leave the dict empty (the default).
+
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
     tests that DO exercise the LLM path inject `FakeLLM`
@@ -261,6 +282,9 @@ def make_inmemory_kernel(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
         supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
+        credential_lookup=(
+            credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
+        ),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         # pool is intentionally typed `object | None` on this factory's
         # signature (per the docstring: idempotency-pruner tests pass a
@@ -334,6 +358,26 @@ class SupplyLookupFactory(Protocol):
     ) -> SupplyLookup: ...
 
 
+class CredentialLookupFactory(Protocol):
+    """Builds the production CredentialLookup port for the Kernel.
+
+    Federation BC's `cora.federation.adapters.PostgresCredentialLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as the other lookup factories so
+    `cora.infrastructure.deps` doesn't import from any BC (tach module
+    rule: `cora.infrastructure depends_on = []`).
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryCredentialLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> CredentialLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -366,6 +410,7 @@ async def build_kernel(
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
+    credential_lookup_factory: CredentialLookupFactory | None = None,
     llm_factory: LLMFactory | None = None,
     settings: Settings | None = None,
 ) -> tuple[Kernel, Teardown]:
@@ -453,6 +498,11 @@ async def build_kernel(
         if supply_lookup_factory is not None
         else AllSatisfiedSupplyLookup()
     )
+    credential_lookup: CredentialLookup = (
+        credential_lookup_factory(pool)
+        if credential_lookup_factory is not None
+        else InMemoryCredentialLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -465,6 +515,7 @@ async def build_kernel(
         clearance_lookup=clearance_lookup,
         caution_lookup=caution_lookup,
         supply_lookup=supply_lookup,
+        credential_lookup=credential_lookup,
         llm=llm,
         token_verifier=token_verifier,
     )
@@ -536,6 +587,7 @@ __all__ = [
     "AuthorizeFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
+    "CredentialLookupFactory",
     "LLMFactory",
     "build_kernel",
     "make_inmemory_kernel",

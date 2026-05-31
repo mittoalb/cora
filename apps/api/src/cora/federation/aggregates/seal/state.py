@@ -198,6 +198,62 @@ class SealKeyPurposeMismatchError(Exception):
         self.actual_purpose = actual_purpose
 
 
+class SealCannotRotateWithInactiveCredentialError(Exception):
+    """A key ref points at a Credential whose status is not Active.
+
+    Rotation MUST bind only Active Credentials; Rotating or Revoked
+    status indicates the secret material is in a lifecycle window
+    where signing-authority is not stable. The decider performs this
+    cross-aggregate status check before commit (mirrors the purpose
+    check in `SealKeyPurposeMismatchError`).
+    """
+
+    def __init__(
+        self,
+        facility_id: str,
+        slot: str,
+        credential_id: UUID,
+        actual_status: str,
+    ) -> None:
+        super().__init__(
+            f"Seal for facility {facility_id!r}: {slot} credential "
+            f"{credential_id} has status {actual_status!r}, expected 'Active'"
+        )
+        self.facility_id = facility_id
+        self.slot = slot
+        self.credential_id = credential_id
+        self.actual_status = actual_status
+
+
+class SealCannotInitializeWithInactiveCredentialError(Exception):
+    """A key ref points at a Credential whose status is not Active at initialize time.
+
+    Initialization MUST bind only Active Credentials in BOTH slots;
+    Rotating or Revoked status indicates the secret material is in a
+    lifecycle window where signing authority is not stable. The
+    decider performs this cross-aggregate status check on both
+    `online_key_ref` and `offline_key_ref` before commit (mirrors the
+    rotation-time check in
+    `SealCannotRotateWithInactiveCredentialError`).
+    """
+
+    def __init__(
+        self,
+        facility_id: str,
+        slot: str,
+        credential_id: UUID,
+        actual_status: str,
+    ) -> None:
+        super().__init__(
+            f"Seal for facility {facility_id!r}: {slot} credential "
+            f"{credential_id} has status {actual_status!r}, expected 'Active'"
+        )
+        self.facility_id = facility_id
+        self.slot = slot
+        self.credential_id = credential_id
+        self.actual_status = actual_status
+
+
 class SealCannotSignError(Exception):
     """Attempted `sign_seal_pointer` from a disqualifying status."""
 

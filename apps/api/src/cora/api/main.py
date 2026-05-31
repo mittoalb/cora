@@ -109,6 +109,7 @@ from cora.federation import (
     register_federation_tools,
     wire_federation,
 )
+from cora.federation.adapters import PostgresCredentialLookup
 from cora.infrastructure.auth.bearer_auth_middleware import BearerAuthMiddleware
 from cora.infrastructure.auth.exception_handlers import register_auth_exception_handlers
 from cora.infrastructure.config import Settings
@@ -393,6 +394,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 clearance_lookup_factory=PostgresClearanceLookup,
                 caution_lookup_factory=PostgresCautionLookup,
                 supply_lookup_factory=PostgresSupplyLookup,
+                credential_lookup_factory=PostgresCredentialLookup,
                 llm_factory=build_llm,
                 # Pass the create_app-time Settings through so tests
                 # overriding identity_providers / require_auth / etc.

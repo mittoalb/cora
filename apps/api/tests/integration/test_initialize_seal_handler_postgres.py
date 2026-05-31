@@ -19,6 +19,13 @@ Each test mints a unique facility_id suffix so the
 `proj_federation_seal` singleton PK on `facility_id` and the
 deterministic Seal stream UUID do not collide across runs sharing
 the same db_pool.
+
+Pass-3 wiring: the handler resolves both `online_key_ref` and
+`offline_key_ref` through `deps.credential_lookup` before invoking
+the decider. These integration tests thread an `InMemoryCredentialLookup`
+pre-seeded with both refs as Active so the cross-aggregate purpose-
+binding + status-Active checks pass without coupling to a separate
+Credential-projection seed.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -29,11 +36,15 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
 from cora.federation.aggregates.seal import SealStatus, load_seal
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.projections import SealProjection
+from cora.infrastructure.adapters.in_memory_credential_lookup import (
+    InMemoryCredentialLookup,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -52,16 +63,39 @@ def _command(*, facility_id: str) -> InitializeSeal:
     )
 
 
+def _credential_lookup_for(facility_id: str) -> InMemoryCredentialLookup:
+    """Build a credential lookup with both seal-slot refs seeded Active."""
+    lookup = InMemoryCredentialLookup()
+    lookup.register(
+        credential_id=_ONLINE_KEY_REF,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    lookup.register(
+        credential_id=_OFFLINE_KEY_REF,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    return lookup
+
+
 @pytest.mark.integration
 async def test_initialize_seal_writes_both_streams_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
-
     # Unique facility_id per test so the singleton PK on
     # proj_federation_seal AND the deterministic Seal stream UUID do
     # not collide across runs sharing the same db_pool.
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_for(facility_id),
+    )
+
     stream_id = await initialize_seal.bind(deps)(
         _command(facility_id=facility_id),
         principal_id=_PRINCIPAL_ID,
@@ -92,9 +126,14 @@ async def test_initialize_seal_shared_xid8_across_streams(
     inserts every event in one transaction, so the Seal + Decision
     rows share the same `transaction_id`.
     """
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
-
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_for(facility_id),
+    )
+
     stream_id = await initialize_seal.bind(deps)(
         _command(facility_id=facility_id),
         principal_id=_PRINCIPAL_ID,
@@ -131,9 +170,14 @@ async def test_initialize_seal_projection_lands_row(
     """After draining projections, proj_federation_seal should carry the
     new singleton row with status='Live', current_sequence_number=0,
     initialized_at=_NOW, last_signed_at=NULL."""
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
-
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_for(facility_id),
+    )
+
     await initialize_seal.bind(deps)(
         _command(facility_id=facility_id),
         principal_id=_PRINCIPAL_ID,
@@ -176,9 +220,14 @@ async def test_initialize_seal_projection_upsert_is_idempotent_on_replay(
     """The SealInitialized projection uses ON CONFLICT DO NOTHING; a
     second drain over the same bookmark window does not duplicate the
     singleton row, and the row contents stay frozen at genesis values."""
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
-
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_for(facility_id),
+    )
+
     await initialize_seal.bind(deps)(
         _command(facility_id=facility_id),
         principal_id=_PRINCIPAL_ID,

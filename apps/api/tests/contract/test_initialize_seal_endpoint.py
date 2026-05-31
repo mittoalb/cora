@@ -7,15 +7,21 @@ by federation routes); 400 surfaces the decider-layer
 InvalidSealFacilityIdError (whitespace-only facility_id slips past
 Pydantic min_length=1); 403 surfaces Authorize-port denial; 409
 surfaces the SealAlreadyExistsError singleton guard.
+
+The 201 happy path seeds the in-memory `CredentialLookup` adapter so
+the handler's cross-aggregate purpose-binding + status-Active checks
+(Pass 3) pass. Error-only tests do NOT need to seed.
 """
 
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
 from cora.federation.aggregates.seal import SealAlreadyExistsError
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.aggregates.seal.state import InvalidSealFacilityIdError
@@ -38,10 +44,30 @@ def _body(**overrides: object) -> dict[str, Any]:
     return base
 
 
+def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
+    """Seed both seal-slot credentials in the in-memory CredentialLookup
+    adapter so the decider's purpose-binding + status-Active checks pass."""
+    lookup = app.state.deps.credential_lookup
+    lookup.register(
+        credential_id=UUID(_ONLINE_KEY_REF),
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    lookup.register(
+        credential_id=UUID(_OFFLINE_KEY_REF),
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+
+
 @pytest.mark.contract
 def test_post_federation_seals_returns_201_with_stream_id_and_facility_id() -> None:
     body = _body()
-    with TestClient(create_app()) as client:
+    app = create_app()
+    with TestClient(app) as client:
+        _seed_active_credentials(app, facility_id=body["facility_id"])
         response = client.post("/federation/seals", json=body)
     assert response.status_code == 201, response.text
     payload = response.json()

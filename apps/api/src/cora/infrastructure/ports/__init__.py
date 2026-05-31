@@ -24,6 +24,10 @@ from cora.infrastructure.ports.clearance_lookup import (
     ClearanceReference,
 )
 from cora.infrastructure.ports.clock import Clock, FakeClock, SystemClock
+from cora.infrastructure.ports.credential_lookup import (
+    CredentialLookup,
+    CredentialLookupResult,
+)
 from cora.infrastructure.ports.event_publisher import EventPublisher
 from cora.infrastructure.ports.event_store import (
     ConcurrencyError,
@@ -115,6 +119,8 @@ __all__ = [
     "ClearanceReference",
     "Clock",
     "ConcurrencyError",
+    "CredentialLookup",
+    "CredentialLookupResult",
     "Deny",
     "EventPublisher",
     "EventStore",

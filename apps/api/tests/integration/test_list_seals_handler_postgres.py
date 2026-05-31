@@ -26,6 +26,7 @@ import asyncpg
 import pytest
 
 from cora.federation._projections import register_federation_projections
+from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
 from cora.federation.features import (
     initialize_seal,
     list_seals,
@@ -34,6 +35,9 @@ from cora.federation.features import (
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.features.list_seals import ListSeals
 from cora.federation.features.start_seal_republishing import StartSealRepublishing
+from cora.infrastructure.adapters.in_memory_credential_lookup import (
+    InMemoryCredentialLookup,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -53,9 +57,36 @@ def _facility(tag: str) -> str:
     return f"aps-{tag}-{uuid4().hex[:8]}"
 
 
+def _register_seal_credentials(
+    lookup: InMemoryCredentialLookup,
+    *,
+    facility_id: str,
+    online_key_ref: UUID,
+    offline_key_ref: UUID,
+) -> None:
+    lookup.register(
+        credential_id=online_key_ref,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    lookup.register(
+        credential_id=offline_key_ref,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+
+
 @pytest.mark.integration
 async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(40)])
+    lookup = InMemoryCredentialLookup()
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(40)],
+        credential_lookup=lookup,
+    )
 
     # Seed 3 Seals on distinct facilities:
     #   s1: status=Live
@@ -67,11 +98,19 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
 
     # Each Seal needs distinct online/offline key refs (key-separation).
     for fid in (f1, f2, f3):
+        online_key_ref = uuid4()
+        offline_key_ref = uuid4()
+        _register_seal_credentials(
+            lookup,
+            facility_id=fid,
+            online_key_ref=online_key_ref,
+            offline_key_ref=offline_key_ref,
+        )
         await initialize_seal.bind(deps)(
             InitializeSeal(
                 facility_id=fid,
-                online_key_ref=uuid4(),
-                offline_key_ref=uuid4(),
+                online_key_ref=online_key_ref,
+                offline_key_ref=offline_key_ref,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -128,11 +167,23 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
 async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -> None:
     """Single Seal landed via initialize_seal surfaces every column
     on the SealSummaryItem with the expected genesis defaults."""
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
+    lookup = InMemoryCredentialLookup()
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(5)],
+        credential_lookup=lookup,
+    )
 
     fid = _facility("shape")
     online_key_ref = uuid4()
     offline_key_ref = uuid4()
+    _register_seal_credentials(
+        lookup,
+        facility_id=fid,
+        online_key_ref=online_key_ref,
+        offline_key_ref=offline_key_ref,
+    )
     await initialize_seal.bind(deps)(
         InitializeSeal(
             facility_id=fid,
@@ -175,16 +226,30 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
     `start_seal_republishing` between seeds) lets the status filter
     scope tightly to this test's rows.
     """
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
+    lookup = InMemoryCredentialLookup()
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4() for _ in range(20)],
+        credential_lookup=lookup,
+    )
 
     seeded: list[str] = []
     for i in range(3):
         fid = _facility(f"pag{i}")
+        online_key_ref = uuid4()
+        offline_key_ref = uuid4()
+        _register_seal_credentials(
+            lookup,
+            facility_id=fid,
+            online_key_ref=online_key_ref,
+            offline_key_ref=offline_key_ref,
+        )
         await initialize_seal.bind(deps)(
             InitializeSeal(
                 facility_id=fid,
-                online_key_ref=uuid4(),
-                offline_key_ref=uuid4(),
+                online_key_ref=online_key_ref,
+                offline_key_ref=offline_key_ref,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

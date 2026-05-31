@@ -31,6 +31,15 @@ authorises in response to suspected compromise or planned rollover;
 the Decision-BC audit emission gives the SOC a single stream to scrub
 when reconstructing incident timelines, which is why this slice is
 cross-BC (matching `revoke_credential`).
+
+Cross-aggregate purpose binding: the handler resolves
+`new_online_key_ref` via the `CredentialLookup` port before invoking
+the decider and threads the projection row (or None) into the pure
+decider, which raises `CredentialNotFoundError` on miss,
+`SealKeyPurposeMismatchError` on wrong purpose, and
+`SealCannotRotateWithInactiveCredentialError` on non-Active status.
+Mirrors the `start_run` handler-loads-projection-then-passes-to-decider
+pattern.
 """
 
 from typing import Protocol
@@ -135,6 +144,8 @@ def bind(deps: Kernel) -> Handler:
         )
         state = fold([from_stored(s) for s in stored])
 
+        new_online_credential = await deps.credential_lookup.lookup(command.new_online_key_ref)
+
         now = deps.clock.now()
 
         seal_domain_events = decide(
@@ -142,6 +153,7 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             rotated_by_actor_id=principal_id,
+            new_online_credential=new_online_credential,
         )
 
         decision_id = deps.id_generator.new_id()

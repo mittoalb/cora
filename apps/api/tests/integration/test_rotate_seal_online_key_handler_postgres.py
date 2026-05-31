@@ -25,6 +25,10 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.federation.aggregates.credential import (
+    CredentialPurpose,
+    CredentialStatus,
+)
 from cora.federation.aggregates.seal import (
     SealStatus,
     load_seal,
@@ -34,6 +38,9 @@ from cora.federation.features import initialize_seal, rotate_seal_online_key
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.features.rotate_seal_online_key import RotateSealOnlineKey
 from cora.federation.projections import SealProjection
+from cora.infrastructure.adapters.in_memory_credential_lookup import (
+    InMemoryCredentialLookup,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -47,14 +54,30 @@ async def _seed_live_seal(db_pool: asyncpg.Pool, facility_id: str) -> tuple[UUID
     """Initialize a fresh Live Seal against real Postgres.
 
     Returns `(stream_id, online_key_ref, offline_key_ref)` so the test
-    can assert the post-rotation state against the seeded refs.
+    can assert the post-rotation state against the seeded refs. The
+    handler's Pass-3 credential-lookup gate is satisfied by threading
+    an `InMemoryCredentialLookup` pre-seeded with both refs Active.
     """
     online_key_ref = uuid4()
     offline_key_ref = uuid4()
+    seed_lookup = InMemoryCredentialLookup()
+    seed_lookup.register(
+        credential_id=online_key_ref,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    seed_lookup.register(
+        credential_id=offline_key_ref,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
     seed_deps = build_postgres_deps(
         db_pool,
         now=_INITIALIZED_AT,
         ids=[uuid4() for _ in range(5)],
+        credential_lookup=seed_lookup,
     )
     stream_id = await initialize_seal.bind(seed_deps)(
         InitializeSeal(
@@ -66,6 +89,29 @@ async def _seed_live_seal(db_pool: asyncpg.Pool, facility_id: str) -> tuple[UUID
         correlation_id=_CORRELATION_ID,
     )
     return stream_id, online_key_ref, offline_key_ref
+
+
+def _credential_lookup_with(
+    new_online_key_ref: UUID,
+    facility_id: str,
+) -> InMemoryCredentialLookup:
+    """Build a credential lookup with `new_online_key_ref` seeded Active.
+
+    The integration tests don't depend on a real `PostgresCredentialLookup`
+    today: the production adapter would query
+    `proj_federation_credential_summary`, which is not seeded here.
+    Threading an `InMemoryCredentialLookup` keeps the cross-aggregate
+    purpose-binding check exercised end-to-end without coupling these
+    Seal tests to a separate Credential-projection setup.
+    """
+    lookup = InMemoryCredentialLookup()
+    lookup.register(
+        credential_id=new_online_key_ref,
+        facility_id=facility_id,
+        purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
+        status=CredentialStatus.ACTIVE.value,
+    )
+    return lookup
 
 
 @pytest.mark.integration
@@ -81,6 +127,7 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
@@ -128,6 +175,7 @@ async def test_rotate_seal_online_key_shared_xid8_across_streams(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
@@ -182,6 +230,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
@@ -237,6 +286,7 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
         db_pool,
         now=_ROTATED_AT,
         ids=[uuid4() for _ in range(5)],
+        credential_lookup=_credential_lookup_with(new_online_key_ref, facility_id),
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(

@@ -53,7 +53,9 @@ from cora.federation.aggregates.seal.state import (
     InvalidSealHeadHashError,
     SealAlreadyExistsError,
     SealCannotCompleteRepublishingError,
+    SealCannotInitializeWithInactiveCredentialError,
     SealCannotRotateError,
+    SealCannotRotateWithInactiveCredentialError,
     SealCannotSignError,
     SealCannotStartRepublishingError,
     SealKeyCollisionError,
@@ -207,6 +209,8 @@ def register_federation_routes(app: FastAPI) -> None:
         CredentialCannotRevokeError,
         SealCannotSignError,
         SealCannotRotateError,
+        SealCannotInitializeWithInactiveCredentialError,
+        SealCannotRotateWithInactiveCredentialError,
         SealCannotStartRepublishingError,
         SealCannotCompleteRepublishingError,
     ):
