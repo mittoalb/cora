@@ -12,8 +12,10 @@ which exercise the full middleware + exception-handler chain
 WITHOUT needing a real JWKS or token signer.
 
 Happy-path bearer verification (valid JWT + real JWKS + signature
-verify) lives at the integration tier with `pytest-httpserver`
-mocking the IdP -- contract-tier tests focus on shape, not crypto.
+verify, real PostgresEventStore writes, TrustAuthorize gating, and
+cross-principal idempotency) is pinned at the integration tier in
+`tests/integration/auth/test_bearer_auth_postgres.py`; contract-tier
+tests focus on shape, not crypto.
 
 ## Why an `IDENTITY_PROVIDERS` env var is enough
 
