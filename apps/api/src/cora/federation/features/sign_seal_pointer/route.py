@@ -1,17 +1,17 @@
 """HTTP route for the `sign_seal_pointer` slice.
 
 Action endpoint at
-`POST /federation/seals/{facility_id}/signings`. The path identifies
+`POST /federation/seals/{facility_id}/pointer/sign`. The path identifies
 the per-facility singleton; the body carries the new head hash and the
 monotonic sequence number for the signed pointer. 204 No Content on
 success.
 
-Mirrors the `revoke_credential` action-endpoint shape in placing the
-verb noun (`signings`) under the resource segment, and takes a body
-because the signed pointer's hash and sequence number are part of the
-signing intent. No Idempotency-Key header because transition handlers
-use strict-not-idempotent guards at the decider; HTTP-layer caching
-adds no value.
+Mirrors the sibling `rotate_seal_online_key` shape: a part-of-Seal noun
+(`pointer`) followed by the transition verb (`sign`) at the tail. Takes
+a body because the signed pointer's hash and sequence number are part
+of the signing intent. No Idempotency-Key header because transition
+handlers use strict-not-idempotent guards at the decider; HTTP-layer
+caching adds no value.
 """
 
 from typing import Annotated
@@ -31,7 +31,7 @@ from cora.infrastructure.routing import (
 
 
 class SignSealPointerRequest(BaseModel):
-    """Body for `POST /federation/seals/{facility_id}/signings`."""
+    """Body for `POST /federation/seals/{facility_id}/pointer/sign`."""
 
     new_head_hash: str = Field(
         ...,
@@ -63,8 +63,9 @@ router = APIRouter(tags=["federation"])
 
 
 @router.post(
-    "/federation/seals/{facility_id}/signings",
+    "/federation/seals/{facility_id}/pointer/sign",
     status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="sign_seal_pointer",
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
@@ -94,7 +95,7 @@ router = APIRouter(tags=["federation"])
     },
     summary="Sign a new head pointer on a Live Seal (Live -> Live)",
 )
-async def post_federation_seals_signings(
+async def post_federation_seals_pointer_sign(
     facility_id: Annotated[str, Path(min_length=1, description="Target facility's id.")],
     body: SignSealPointerRequest,
     handler: Annotated[Handler, Depends(_get_handler)],

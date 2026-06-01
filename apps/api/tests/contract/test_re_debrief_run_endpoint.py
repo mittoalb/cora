@@ -1,4 +1,4 @@
-"""Contract tests for `POST /agents/run-debriefer/invoke`."""
+"""Contract tests for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`."""
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
@@ -38,41 +38,23 @@ def test_post_invoke_returns_503_when_kernel_llm_unwired() -> None:
     Idempotency-Key middleware."""
     with TestClient(create_app()) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "01900000-0000-7000-8000-000000000001"},
+            "/agents/run-debriefer/runs/01900000-0000-7000-8000-000000000001/re-debrief",
+            json={},
         )
     assert response.status_code == 503, response.text
     assert "kernel.llm" in response.json()["detail"]
 
 
 @pytest.mark.contract
-def test_post_invoke_returns_422_on_missing_run_id_when_handler_wired() -> None:
-    """Pydantic body validation: required `run_id` missing -> 422.
-
-    The route's `_get_handler` Depends runs BEFORE Pydantic body
-    validation in FastAPI, so the default app_env=test path (no LLM)
-    short-circuits to 503 regardless of body. Override to a fake
-    handler so the 503 path doesn't preempt the 422 path."""
-    app = create_app()
-    app.dependency_overrides[_get_re_debrief_handler] = lambda: _stub_handler_never_called
-
-    with TestClient(app) as client:
-        response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={},
-        )
-    assert response.status_code == 422, response.text
-
-
-@pytest.mark.contract
 def test_post_invoke_returns_422_on_malformed_run_id_when_handler_wired() -> None:
+    """Path-parameter validation: malformed `run_id` UUID -> 422."""
     app = create_app()
     app.dependency_overrides[_get_re_debrief_handler] = lambda: _stub_handler_never_called
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "not-a-uuid"},
+            "/agents/run-debriefer/runs/not-a-uuid/re-debrief",
+            json={},
         )
     assert response.status_code == 422, response.text
 
@@ -105,8 +87,8 @@ def test_post_invoke_dependency_injection_path_overrides_handler() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "01900000-0000-7000-8000-000000000001"},
+            "/agents/run-debriefer/runs/01900000-0000-7000-8000-000000000001/re-debrief",
+            json={},
         )
     assert response.status_code == 201, response.text
     assert response.json()["decision_id"] == "01900000-0000-7000-8000-00000000fc99"
@@ -130,8 +112,8 @@ def test_post_invoke_propagates_idempotency_key_header() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "01900000-0000-7000-8000-000000000001"},
+            "/agents/run-debriefer/runs/01900000-0000-7000-8000-000000000001/re-debrief",
+            json={},
             headers={"Idempotency-Key": "test-redebrief-key-001"},
         )
     assert response.status_code == 201, response.text
@@ -159,8 +141,8 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "01900000-0000-7000-8000-000000000001"},
+            "/agents/run-debriefer/runs/01900000-0000-7000-8000-000000000001/re-debrief",
+            json={},
         )
     assert response.status_code == 403, response.text
     assert response.json()["detail"] == "test denial"
@@ -224,8 +206,8 @@ def test_post_invoke_exception_to_status_mapping(
 
     with TestClient(app) as client:
         response = client.post(
-            "/agents/run-debriefer/invoke",
-            json={"run_id": "01900000-0000-7000-8000-000000000001"},
+            "/agents/run-debriefer/runs/01900000-0000-7000-8000-000000000001/re-debrief",
+            json={},
         )
     assert response.status_code == expected_status, response.text
 

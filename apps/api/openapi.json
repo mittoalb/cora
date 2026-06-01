@@ -7007,7 +7007,7 @@
         "type": "object"
       },
       "ReDebriefRunRequest": {
-        "description": "Body for `POST /agents/run-debriefer/invoke`.",
+        "description": "Body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
         "properties": {
           "parent_decision_id": {
             "anyOf": [
@@ -7019,24 +7019,15 @@
                 "type": "null"
               }
             ],
-            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as `run_id`.",
+            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as the path's `run_id`.",
             "title": "Parent Decision Id"
-          },
-          "run_id": {
-            "description": "The Run to re-debrief. Must reference an existing Run.",
-            "format": "uuid",
-            "title": "Run Id",
-            "type": "string"
           }
         },
-        "required": [
-          "run_id"
-        ],
         "title": "ReDebriefRunRequest",
         "type": "object"
       },
       "ReDebriefRunResponse": {
-        "description": "Response body for `POST /agents/run-debriefer/invoke`.",
+        "description": "Response body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
         "properties": {
           "decision_id": {
             "format": "uuid",
@@ -9552,7 +9543,7 @@
       },
       "SignSealPointerRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /federation/seals/{facility_id}/signings`.",
+        "description": "Body for `POST /federation/seals/{facility_id}/pointer/sign`.",
         "properties": {
           "new_head_hash": {
             "description": "SHA-256 lowercase hex of the canonicalized head pointer body just signed by the online key.",
@@ -12060,10 +12051,22 @@
         ]
       }
     },
-    "/agents/run-debriefer/invoke": {
+    "/agents/run-debriefer/runs/{run_id}/re-debrief": {
       "post": {
-        "operationId": "post_re_debrief_run_agents_run_debriefer_invoke_post",
+        "operationId": "post_re_debrief_run_agents_run_debriefer_runs__run_id__re_debrief_post",
         "parameters": [
+          {
+            "description": "The Run to re-debrief.",
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "description": "The Run to re-debrief.",
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
           {
             "in": "header",
             "name": "Idempotency-Key",
@@ -12104,11 +12107,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReDebriefRunRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReDebriefRunRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -21911,6 +21921,113 @@
         ]
       }
     },
+    "/federation/seals/{facility_id}/pointer/sign": {
+      "post": {
+        "operationId": "sign_seal_pointer",
+        "parameters": [
+          {
+            "description": "Target facility's id.",
+            "in": "path",
+            "name": "facility_id",
+            "required": true,
+            "schema": {
+              "description": "Target facility's id.",
+              "minLength": 1,
+              "title": "Facility Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignSealPointerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only new_head_hash)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Seal exists for the given facility_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Seal is not in `Live` status, or the supplied new_sequence_number does not strictly exceed the prior (sign_seal_pointer is single-source from Live only and strict-not-idempotent)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Sign a new head pointer on a Live Seal (Live -> Live)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
     "/federation/seals/{facility_id}/republishing/complete": {
       "post": {
         "operationId": "post_federation_seals_republishing_complete_federation_seals__facility_id__republishing_complete_post",
@@ -22115,113 +22232,6 @@
           }
         },
         "summary": "Start a republishing window on the Live Seal (Live -> Republishing)",
-        "tags": [
-          "federation"
-        ]
-      }
-    },
-    "/federation/seals/{facility_id}/signings": {
-      "post": {
-        "operationId": "post_federation_seals_signings_federation_seals__facility_id__signings_post",
-        "parameters": [
-          {
-            "description": "Target facility's id.",
-            "in": "path",
-            "name": "facility_id",
-            "required": true,
-            "schema": {
-              "description": "Target facility's id.",
-              "minLength": 1,
-              "title": "Facility Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-            "in": "header",
-            "name": "X-Principal-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-              "title": "X-Principal-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignSealPointerRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Domain invariant violated (whitespace-only new_head_hash)."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authorize port denied the command."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No Seal exists for the given facility_id."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Seal is not in `Live` status, or the supplied new_sequence_number does not strictly exceed the prior (sign_seal_pointer is single-source from Live only and strict-not-idempotent)."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Path parameter or request body failed schema validation."
-          }
-        },
-        "summary": "Sign a new head pointer on a Live Seal (Live -> Live)",
         "tags": [
           "federation"
         ]

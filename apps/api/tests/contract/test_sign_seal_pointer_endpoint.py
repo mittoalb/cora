@@ -1,4 +1,4 @@
-"""Contract tests for `POST /federation/seals/{facility_id}/signings`.
+"""Contract tests for `POST /federation/seals/{facility_id}/pointer/sign`.
 
 The happy-path Live -> Live transition is exercised end-to-end in the
 handler tests; here we pin the status-code mappings via dependency
@@ -40,7 +40,7 @@ def test_post_sign_seal_pointer_returns_204_via_handler_override() -> None:
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 1,
@@ -61,7 +61,7 @@ def test_post_sign_seal_pointer_returns_404_on_unknown_facility() -> None:
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": 1},
         )
     assert response.status_code == 404
@@ -79,7 +79,7 @@ def test_post_sign_seal_pointer_returns_409_when_republishing() -> None:
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": 2},
         )
     assert response.status_code == 409
@@ -104,7 +104,7 @@ def test_post_sign_seal_pointer_returns_422_on_sequence_regression() -> None:
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": 5},
         )
     assert response.status_code == 422
@@ -121,7 +121,7 @@ def test_post_sign_seal_pointer_returns_403_when_authorize_denies() -> None:
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": 1},
         )
     assert response.status_code == 403
@@ -133,7 +133,7 @@ def test_post_sign_seal_pointer_rejects_missing_new_head_hash_with_422() -> None
     """Pydantic enforces `new_head_hash` presence before reaching the handler."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_sequence_number": 1},
         )
     assert response.status_code == 422
@@ -144,7 +144,7 @@ def test_post_sign_seal_pointer_rejects_empty_new_head_hash_with_422() -> None:
     """Pydantic min_length=1 enforces non-empty head hash BEFORE reaching the decider."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": "", "new_sequence_number": 1},
         )
     assert response.status_code == 422
@@ -155,7 +155,7 @@ def test_post_sign_seal_pointer_rejects_missing_sequence_number_with_422() -> No
     """Pydantic enforces `new_sequence_number` presence before reaching the handler."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH},
         )
     assert response.status_code == 422
@@ -166,7 +166,7 @@ def test_post_sign_seal_pointer_rejects_zero_sequence_number_with_422() -> None:
     """Pydantic ge=1 rejects 0 before reaching the decider."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": 0},
         )
     assert response.status_code == 422
@@ -177,7 +177,7 @@ def test_post_sign_seal_pointer_rejects_negative_sequence_number_with_422() -> N
     """Pydantic ge=1 rejects negative sequence numbers."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": _NEW_HEAD_HASH, "new_sequence_number": -1},
         )
     assert response.status_code == 422
@@ -198,7 +198,7 @@ def test_post_sign_seal_pointer_returns_400_on_whitespace_only_new_head_hash() -
     app.dependency_overrides[_get_sign_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={"new_head_hash": "   ", "new_sequence_number": 1},
         )
     assert response.status_code == 400
@@ -210,7 +210,7 @@ def test_post_sign_seal_pointer_rejects_extra_field_with_422() -> None:
     """`extra=forbid` on the request body schema rejects unknown fields."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/signings",
+            f"/federation/seals/{_FACILITY_ID}/pointer/sign",
             json={
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 1,

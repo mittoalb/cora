@@ -1,9 +1,9 @@
 """HTTP route for the `re_debrief_run` slice.
 
-`POST /agents/run-debriefer/invoke` with body `{run_id,
-parent_decision_id?}`. Returns 201 + `{decision_id}` on success
-(including the `DebriefDeferred` path, which still produces a
-Decision -- operators distinguish via the `choice` field on the
+`POST /agents/run-debriefer/runs/{run_id}/re-debrief` with optional
+body `{parent_decision_id?}`. Returns 201 + `{decision_id}` on
+success (including the `DebriefDeferred` path, which still produces
+a Decision -- operators distinguish via the `choice` field on the
 returned Decision).
 
 Idempotency-Key header (per Stripe / Adyen / PayPal convention)
@@ -14,7 +14,7 @@ replays the cached `decision_id`.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, status
 from pydantic import BaseModel, Field
 
 from cora.agent.features.re_debrief_run.command import ReDebriefRun
@@ -28,24 +28,21 @@ from cora.infrastructure.routing import (
 
 
 class ReDebriefRunRequest(BaseModel):
-    """Body for `POST /agents/run-debriefer/invoke`."""
+    """Body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`."""
 
-    run_id: UUID = Field(
-        ...,
-        description="The Run to re-debrief. Must reference an existing Run.",
-    )
     parent_decision_id: UUID | None = Field(
         default=None,
         description=(
             "Optional ref to the prior RunDebrief Decision being re-evaluated. "
             "When supplied, the new Decision's `parent_id` is set, forming a "
-            "PROV-O `wasInformedBy` chain. Must reference the same Run as `run_id`."
+            "PROV-O `wasInformedBy` chain. Must reference the same Run as the "
+            "path's `run_id`."
         ),
     )
 
 
 class ReDebriefRunResponse(BaseModel):
-    """Response body for `POST /agents/run-debriefer/invoke`."""
+    """Response body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`."""
 
     decision_id: UUID
 
@@ -68,7 +65,7 @@ router = APIRouter(tags=["agent"])
 
 
 @router.post(
-    "/agents/run-debriefer/invoke",
+    "/agents/run-debriefer/runs/{run_id}/re-debrief",
     status_code=status.HTTP_201_CREATED,
     response_model=ReDebriefRunResponse,
     responses={
@@ -98,17 +95,19 @@ router = APIRouter(tags=["agent"])
     summary="Re-invoke RunDebriefer on demand against a specific Run.",
 )
 async def post_re_debrief_run(
-    body: ReDebriefRunRequest,
+    run_id: Annotated[UUID, Path(description="The Run to re-debrief.")],
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
+    body: ReDebriefRunRequest | None = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> ReDebriefRunResponse:
+    parent_decision_id = body.parent_decision_id if body is not None else None
     decision_id = await handler(
         ReDebriefRun(
-            run_id=body.run_id,
-            parent_decision_id=body.parent_decision_id,
+            run_id=run_id,
+            parent_decision_id=parent_decision_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,
