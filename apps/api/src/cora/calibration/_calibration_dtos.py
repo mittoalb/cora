@@ -1,6 +1,6 @@
 """Shared Pydantic discriminated-union DTOs for the Calibration wire shape.
 
-BC-level scaffolding consumed by the `append_revision` slice (the only
+BC-level scaffolding consumed by the `append_calibration_revision` slice (the only
 slice today that takes a polymorphic `CalibrationSource` as input).
 Hoisted to the BC level so future slices that also take a source
 (for example, 12g `promote_revision` if it carries a refinement source) can

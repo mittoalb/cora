@@ -13,7 +13,7 @@ value for transitions.
 (audit anchor for the operator gesture). The shared
 `make_update_handler` factory only threads `state`, `command`, and
 `now` into the decider, so it cannot pass `principal_id`. Mirrors the
-Calibration `append_revision` precedent (decider needs
+Calibration `append_calibration_revision` precedent (decider needs
 `established_by_actor_id`, so the handler stays longhand). When all
 four Permit transition slices have shipped longhand, a Permit-
 flavored factory variant that threads `<verb>_by_actor_id` may

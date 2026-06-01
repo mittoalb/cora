@@ -1,7 +1,7 @@
 """Application handler for the `complete_credential_rotation` slice.
 
 Longhand update handler (mirrors `revoke_permit` / `activate_permit` /
-`append_revision`): the decider needs handler-injected
+`append_calibration_revision`): the decider needs handler-injected
 `rotation_completed_by_actor_id` to stamp the audit denorm onto
 `CredentialRotationCompleted`, so this slice cannot use the
 `make_update_handler` factory (which only forwards `state`, `command`,

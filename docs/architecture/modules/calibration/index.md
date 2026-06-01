@@ -59,7 +59,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 | Event | Payload sketch | When emitted |
 |---|---|---|
 | `CalibrationDefined` | `calibration_id`, `target_id`, `quantity`, `operating_point`, `description?`, `defined_by_actor_id`, `occurred_at` | `define_calibration` succeeds (genesis; no revisions yet) |
-| `CalibrationRevisionAppended` | `revision_id`, `calibration_id`, `value`, `status`, `source_procedure_id?`, `source_dataset_id?`, `source_actor_id?`, `established_at`, `established_by_actor_id`, `decided_by_decision_id?`, `supersedes_revision_id?`, `occurred_at` | `append_revision` succeeds |
+| `CalibrationRevisionAppended` | `revision_id`, `calibration_id`, `value`, `status`, `source_procedure_id?`, `source_dataset_id?`, `source_actor_id?`, `established_at`, `established_by_actor_id`, `decided_by_decision_id?`, `supersedes_revision_id?`, `occurred_at` | `append_calibration_revision` succeeds |
 
 `CalibrationRevisionAppended` serialises the polymorphic source as three nullable `source_*_id` fields with exactly one non-null per the exclusive-arc pattern. The wire shape on REST and MCP keeps the nested `{kind, <id>}` envelope for readability; the event payload and projection columns use exclusive-arc to keep storage shape and constraint enforcement direct.
 
@@ -68,7 +68,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
 | `DefineCalibration` | NEW | `POST /calibrations` | `define_calibration` | required |
-| `AppendRevision` | MODIFIED | `POST /calibrations/{calibration_id}/revisions` | `append_revision` | required |
+| `AppendCalibrationRevision` | MODIFIED | `POST /calibrations/{calibration_id}/revisions` | `append_calibration_revision` | required |
 | `GetCalibration` | QUERY | `GET /calibrations/{calibration_id}` | `get_calibration` | none |
 | `ListCalibrations` | QUERY | `GET /calibrations` | `list_calibrations` | none |
 
@@ -77,7 +77,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 `DefineCalibration`
 : `InvalidCalibrationQuantity`, `InvalidOperatingPoint`, `InvalidCalibrationDescription`, `CalibrationIdentityAlreadyExists` (the `(target_id, quantity, operating_point)` triple already exists), `Unauthorized`
 
-`AppendRevision`
+`AppendCalibrationRevision`
 : `CalibrationNotFound`, `InvalidCalibrationValue`, `InvalidCalibrationSource`, `SupersedesRevisionNotFound` (the `supersedes_revision_id` does not match any revision on this calibration), `Unauthorized`, `ConcurrencyError`
 
 `GetCalibration`
@@ -86,7 +86,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 `ListCalibrations`
 : (boundary 422 or `Unauthorized` only)
 
-`DefineCalibration` and `AppendRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebriefer subscriber that retries after a network blip must not produce a duplicate revision).
+`DefineCalibration` and `AppendCalibrationRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebriefer subscriber that retries after a network blip must not produce a duplicate revision).
 
 ## Storage & Projections
 
@@ -211,7 +211,7 @@ The four examples below follow the canonical path for one Calibration: define an
 
     ```python
     mcp.call_tool(
-        "append_revision",
+        "append_calibration_revision",
         {
             "calibration_id": "<calibration-id>",
             "value": {"center": 1024.5, "uncertainty": 0.3},
@@ -254,7 +254,7 @@ The four examples below follow the canonical path for one Calibration: define an
 
     ```python
     mcp.call_tool(
-        "append_revision",
+        "append_calibration_revision",
         {
             "calibration_id": "<calibration-id>",
             "value": {"center": 1024.72, "uncertainty": 0.08},

@@ -58,10 +58,10 @@ from cora.operation.features import (
     abort_procedure,
     append_procedure_steps,
     complete_procedure,
+    conduct_procedure,
     get_procedure,
     list_procedures,
     register_procedure,
-    run_procedure,
     start_procedure,
     truncate_procedure,
 )
@@ -142,7 +142,7 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(append_procedure_steps.router)
     app.include_router(get_procedure.router)
     app.include_router(list_procedures.router)
-    app.include_router(run_procedure.router)
+    app.include_router(conduct_procedure.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,
@@ -159,7 +159,7 @@ def register_operation_routes(app: FastAPI) -> None:
     # recipe/routes.py — FastAPI's app-scoped handler catches regardless
     # of which BC's route raises). Same single-registration rule as
     # decision/routes.py owning ParentDecision*MismatchError for agent
-    # BC's re_debrief_run slice.
+    # BC's regenerate_run_debrief slice.
     for already_exists_cls in (ProcedureAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (

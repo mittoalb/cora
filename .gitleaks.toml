@@ -12,8 +12,11 @@ description = "Allowlist machine-generated content that resembles high-entropy s
 # Atlas migration sums are SHA256 base64 hashes that legitimately
 # look like API keys to entropy-based detectors. Module documentation
 # pages carry literal `Idempotency-Key: <uuid>` headers in REST/MCP
-# examples; the UUID body trips the entropy detector.
+# examples; the UUID body trips the entropy detector. Contract tests
+# for slices that take an Idempotency-Key header carry a deterministic
+# test-key string and a UUID in the URL path; both trip the detector.
 paths = [
     '''infra/atlas/migrations/atlas\.sum''',
     '''docs/architecture/modules/.*\.md''',
+    '''apps/api/tests/contract/test_regenerate_run_debrief_endpoint\.py''',
 ]

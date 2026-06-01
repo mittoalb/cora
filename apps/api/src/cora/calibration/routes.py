@@ -39,7 +39,7 @@ from cora.calibration.aggregates.calibration import (
 )
 from cora.calibration.errors import UnauthorizedError
 from cora.calibration.features import (
-    append_revision,
+    append_calibration_revision,
     define_calibration,
     get_calibration,
     list_calibrations,
@@ -93,7 +93,7 @@ async def _handle_already_exists(request: Request, exc: Exception) -> JSONRespon
 def register_calibration_routes(app: FastAPI) -> None:
     """Attach Calibration slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_calibration.router)
-    app.include_router(append_revision.router)
+    app.include_router(append_calibration_revision.router)
     app.include_router(get_calibration.router)
     app.include_router(list_calibrations.router)
     for validation_cls in (

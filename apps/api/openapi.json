@@ -659,6 +659,92 @@
         "title": "AmendClearanceResponse",
         "type": "object"
       },
+      "AppendCalibrationRevisionRequest": {
+        "description": "Body for `POST /calibrations/{calibration_id}/revisions`.",
+        "properties": {
+          "decided_by_decision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional Decision id that justified appending this revision (operator pivot, agent advisory). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. Mirrors AdjustRun / StartRun / AbortRun pattern. NOT verified at the write path.",
+            "title": "Decided By Decision Id"
+          },
+          "source": {
+            "description": "Tagged source provenance: `{kind: 'Measured', procedure_id}` / `{kind: 'Computed', dataset_id}` / `{kind: 'Asserted', actor_id}`. The kind discriminator is required. Source FK targets are NOT cross-BC validated at the write path (eventual-consistency stance).",
+            "discriminator": {
+              "mapping": {
+                "Asserted": "#/components/schemas/SourceAssertedDTO",
+                "Computed": "#/components/schemas/SourceComputedDTO",
+                "Measured": "#/components/schemas/SourceMeasuredDTO"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SourceMeasuredDTO"
+              },
+              {
+                "$ref": "#/components/schemas/SourceComputedDTO"
+              },
+              {
+                "$ref": "#/components/schemas/SourceAssertedDTO"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalibrationStatus",
+            "description": "Confidence tier of this revision: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). A 2-tier ladder; a 3-tier `Refined` middle is a future option, not currently supported."
+          },
+          "supersedes_revision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. The direct derivation edge saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
+            "title": "Supersedes Revision Id"
+          },
+          "value": {
+            "additionalProperties": true,
+            "description": "JSON-shaped revision value (for example, `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "value",
+          "status",
+          "source"
+        ],
+        "title": "AppendCalibrationRevisionRequest",
+        "type": "object"
+      },
+      "AppendCalibrationRevisionResponse": {
+        "description": "Response body for `POST /calibrations/{calibration_id}/revisions`.",
+        "properties": {
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id"
+        ],
+        "title": "AppendCalibrationRevisionResponse",
+        "type": "object"
+      },
       "AppendClearanceReviewStepRequest": {
         "description": "Body for `POST /clearances/{clearance_id}/review-steps`.",
         "properties": {
@@ -786,92 +872,6 @@
           "event_count"
         ],
         "title": "AppendReasoningEntriesResponse",
-        "type": "object"
-      },
-      "AppendRevisionRequest": {
-        "description": "Body for `POST /calibrations/{calibration_id}/revisions`.",
-        "properties": {
-          "decided_by_decision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional Decision id that justified appending this revision (operator pivot, agent advisory). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. Mirrors AdjustRun / StartRun / AbortRun pattern. NOT verified at the write path.",
-            "title": "Decided By Decision Id"
-          },
-          "source": {
-            "description": "Tagged source provenance: `{kind: 'Measured', procedure_id}` / `{kind: 'Computed', dataset_id}` / `{kind: 'Asserted', actor_id}`. The kind discriminator is required. Source FK targets are NOT cross-BC validated at the write path (eventual-consistency stance).",
-            "discriminator": {
-              "mapping": {
-                "Asserted": "#/components/schemas/SourceAssertedDTO",
-                "Computed": "#/components/schemas/SourceComputedDTO",
-                "Measured": "#/components/schemas/SourceMeasuredDTO"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/SourceMeasuredDTO"
-              },
-              {
-                "$ref": "#/components/schemas/SourceComputedDTO"
-              },
-              {
-                "$ref": "#/components/schemas/SourceAssertedDTO"
-              }
-            ],
-            "title": "Source"
-          },
-          "status": {
-            "$ref": "#/components/schemas/CalibrationStatus",
-            "description": "Confidence tier of this revision: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). A 2-tier ladder; a 3-tier `Refined` middle is a future option, not currently supported."
-          },
-          "supersedes_revision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. The direct derivation edge saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
-            "title": "Supersedes Revision Id"
-          },
-          "value": {
-            "additionalProperties": true,
-            "description": "JSON-shaped revision value (for example, `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
-            "title": "Value",
-            "type": "object"
-          }
-        },
-        "required": [
-          "value",
-          "status",
-          "source"
-        ],
-        "title": "AppendRevisionRequest",
-        "type": "object"
-      },
-      "AppendRevisionResponse": {
-        "description": "Response body for `POST /calibrations/{calibration_id}/revisions`.",
-        "properties": {
-          "revision_id": {
-            "format": "uuid",
-            "title": "Revision Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "revision_id"
-        ],
-        "title": "AppendRevisionResponse",
         "type": "object"
       },
       "AppendRunReadingsRequest": {
@@ -2913,6 +2913,76 @@
           }
         },
         "title": "CompleteSealRepublishingBody",
+        "type": "object"
+      },
+      "ConductProcedureRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /procedures/{procedure_id}/conduct`.",
+        "properties": {
+          "steps": {
+            "description": "Steps the Conductor walks in order (0-500). Empty list is valid: start + complete fire with no steps.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "action": "#/components/schemas/_ActionStepRequest",
+                  "check": "#/components/schemas/_CheckStepRequest",
+                  "setpoint": "#/components/schemas/_SetpointStepRequest"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/_SetpointStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_ActionStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_CheckStepRequest"
+                }
+              ]
+            },
+            "maxItems": 500,
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "title": "ConductProcedureRequest",
+        "type": "object"
+      },
+      "ConductProcedureResponse": {
+        "description": "Response body for the conduct_procedure slice.\n\n`succeeded` is the canonical pass/fail bit; `failure` is non-null\niff `succeeded` is False. `completed_count` is informational\n(the number of steps that ran successfully before halt, if any).",
+        "properties": {
+          "completed_count": {
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_ConductorFailureResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "procedure_id": {
+            "format": "uuid",
+            "title": "Procedure Id",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "procedure_id",
+          "completed_count",
+          "succeeded"
+        ],
+        "title": "ConductProcedureResponse",
         "type": "object"
       },
       "ConduitListResponse": {
@@ -7006,41 +7076,6 @@
         "title": "RateDecisionRequest",
         "type": "object"
       },
-      "ReDebriefRunRequest": {
-        "description": "Body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
-        "properties": {
-          "parent_decision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as the path's `run_id`.",
-            "title": "Parent Decision Id"
-          }
-        },
-        "title": "ReDebriefRunRequest",
-        "type": "object"
-      },
-      "ReDebriefRunResponse": {
-        "description": "Response body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
-        "properties": {
-          "decision_id": {
-            "format": "uuid",
-            "title": "Decision Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "decision_id"
-        ],
-        "title": "ReDebriefRunResponse",
-        "type": "object"
-      },
       "ReadScope": {
         "description": "How much the peer may read under an outbound permit.\n\n- `ListMetadataOnly`:     index entries (titles, ids, tags) only;\n                          no artifact bodies.\n- `ReadAllArtifacts`:     full artifact bytes for every entry\n                          in scope.\n- `ReadByABITierMinimum`: artifact bytes only for entries at or\n                          above `abi_tier_floor`.",
         "enum": [
@@ -7333,6 +7368,41 @@
         ],
         "title": "ReferenceSurface",
         "type": "string"
+      },
+      "RegenerateRunDebriefRequest": {
+        "description": "Body for `POST /agents/run-debriefer/runs/{run_id}/regenerate-debrief`.",
+        "properties": {
+          "parent_decision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as the path's `run_id`.",
+            "title": "Parent Decision Id"
+          }
+        },
+        "title": "RegenerateRunDebriefRequest",
+        "type": "object"
+      },
+      "RegenerateRunDebriefResponse": {
+        "description": "Response body for `POST /agents/run-debriefer/runs/{run_id}/regenerate-debrief`.",
+        "properties": {
+          "decision_id": {
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id"
+        ],
+        "title": "RegenerateRunDebriefResponse",
+        "type": "object"
       },
       "RegisterActorRequest": {
         "description": "Body for `POST /actors`.",
@@ -8973,76 +9043,6 @@
           "items"
         ],
         "title": "RunListResponse",
-        "type": "object"
-      },
-      "RunProcedureRequest": {
-        "additionalProperties": false,
-        "description": "Body for `POST /procedures/{procedure_id}/run`.",
-        "properties": {
-          "steps": {
-            "description": "Steps the Conductor walks in order (0-500). Empty list is valid: start + complete fire with no steps.",
-            "items": {
-              "discriminator": {
-                "mapping": {
-                  "action": "#/components/schemas/_ActionStepRequest",
-                  "check": "#/components/schemas/_CheckStepRequest",
-                  "setpoint": "#/components/schemas/_SetpointStepRequest"
-                },
-                "propertyName": "kind"
-              },
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/_SetpointStepRequest"
-                },
-                {
-                  "$ref": "#/components/schemas/_ActionStepRequest"
-                },
-                {
-                  "$ref": "#/components/schemas/_CheckStepRequest"
-                }
-              ]
-            },
-            "maxItems": 500,
-            "title": "Steps",
-            "type": "array"
-          }
-        },
-        "title": "RunProcedureRequest",
-        "type": "object"
-      },
-      "RunProcedureResponse": {
-        "description": "Response body for the run_procedure slice.\n\n`succeeded` is the canonical pass/fail bit; `failure` is non-null\niff `succeeded` is False. `completed_count` is informational\n(the number of steps that ran successfully before halt, if any).",
-        "properties": {
-          "completed_count": {
-            "title": "Completed Count",
-            "type": "integer"
-          },
-          "failure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/_ConductorFailureResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "procedure_id": {
-            "format": "uuid",
-            "title": "Procedure Id",
-            "type": "string"
-          },
-          "succeeded": {
-            "title": "Succeeded",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "procedure_id",
-          "completed_count",
-          "succeeded"
-        ],
-        "title": "RunProcedureResponse",
         "type": "object"
       },
       "RunReadingRequest": {
@@ -12051,17 +12051,17 @@
         ]
       }
     },
-    "/agents/run-debriefer/runs/{run_id}/re-debrief": {
+    "/agents/run-debriefer/runs/{run_id}/regenerate-debrief": {
       "post": {
-        "operationId": "post_re_debrief_run_agents_run_debriefer_runs__run_id__re_debrief_post",
+        "operationId": "post_regenerate_run_debrief_agents_run_debriefer_runs__run_id__regenerate_debrief_post",
         "parameters": [
           {
-            "description": "The Run to re-debrief.",
+            "description": "The Run to regenerate the debrief for.",
             "in": "path",
             "name": "run_id",
             "required": true,
             "schema": {
-              "description": "The Run to re-debrief.",
+              "description": "The Run to regenerate the debrief for.",
               "format": "uuid",
               "title": "Run Id",
               "type": "string"
@@ -12109,7 +12109,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/ReDebriefRunRequest"
+                    "$ref": "#/components/schemas/RegenerateRunDebriefRequest"
                   },
                   {
                     "type": "null"
@@ -12125,7 +12125,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReDebriefRunResponse"
+                  "$ref": "#/components/schemas/RegenerateRunDebriefResponse"
                 }
               }
             },
@@ -14868,7 +14868,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AppendRevisionRequest"
+                "$ref": "#/components/schemas/AppendCalibrationRevisionRequest"
               }
             }
           },
@@ -14879,7 +14879,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppendRevisionResponse"
+                  "$ref": "#/components/schemas/AppendCalibrationRevisionResponse"
                 }
               }
             },
@@ -25870,10 +25870,10 @@
         ]
       }
     },
-    "/procedures/{procedure_id}/run": {
+    "/procedures/{procedure_id}/conduct": {
       "post": {
         "description": "Conduct a Procedure end-to-end. Failures land in the response body.",
-        "operationId": "post_procedures_run_procedures__procedure_id__run_post",
+        "operationId": "post_procedures_conduct_procedures__procedure_id__conduct_post",
         "parameters": [
           {
             "description": "Target procedure's id.",
@@ -25911,7 +25911,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RunProcedureRequest"
+                "$ref": "#/components/schemas/ConductProcedureRequest"
               }
             }
           },
@@ -25922,7 +25922,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunProcedureResponse"
+                  "$ref": "#/components/schemas/ConductProcedureResponse"
                 }
               }
             },

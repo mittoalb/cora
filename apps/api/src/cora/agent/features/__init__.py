@@ -9,10 +9,10 @@ Foundation:
   - `get_agent`       (read; fold-on-read)
 
 On-demand re-invocation:
-  - `re_debrief_run`  (operator-triggered on-demand RunDebriefer
-                       re-invocation; cross-BC writes a Decision;
-                       idempotency-wrapped; Pattern C from the
-                       design memo)
+  - `regenerate_run_debrief`  (operator-triggered on-demand RunDebriefer
+                               re-invocation; cross-BC writes a Decision;
+                               idempotency-wrapped; Pattern C from the
+                               design memo)
 
 Lifecycle + grants + budget:
   - `suspend_agent`         (Versioned -> Suspended; non-terminal)
@@ -41,7 +41,7 @@ from cora.agent.features import (
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
-    re_debrief_run,
+    regenerate_run_debrief,
     resume_agent,
     revise_agent_budget,
     revoke_tool_from_agent,
@@ -55,7 +55,7 @@ __all__ = [
     "get_agent",
     "grant_tool_to_agent",
     "promote_caution_proposal",
-    "re_debrief_run",
+    "regenerate_run_debrief",
     "resume_agent",
     "revise_agent_budget",
     "revoke_tool_from_agent",

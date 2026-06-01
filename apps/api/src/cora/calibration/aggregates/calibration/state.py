@@ -279,7 +279,7 @@ class CalibrationIdentityAlreadyExistsError(Exception):
 
 # ---------------------------------------------------------------------------
 # Shared value-validation helper (used by both define_calibration and
-# append_revision deciders)
+# append_calibration_revision deciders)
 # ---------------------------------------------------------------------------
 
 
@@ -372,7 +372,7 @@ class CalibrationRevision:
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
     # SHA-256 (64-char lowercase hex) of the canonical body bytes for
-    # this revision's content subset; captured by append_revision per
+    # this revision's content subset; captured by append_calibration_revision per
     # the non-determinism principle and folded by the evolver from the
     # event payload. None for pre-rollout CalibrationRevisionAppended
     # events that landed before the field was added (additive-state

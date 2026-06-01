@@ -31,7 +31,7 @@ issues surface first:
 
 Initial revision list is empty; the genesis event carries identity +
 operating_point + description only. Revisions arrive via subsequent
-`append_revision` slice calls.
+`append_calibration_revision` slice calls.
 
 `defined_by_actor_id` is handler-injected from the request envelope's
 `principal_id` (not on the command). At define time author and

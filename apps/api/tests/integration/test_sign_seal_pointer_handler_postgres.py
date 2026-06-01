@@ -11,7 +11,7 @@ catches a regression where any Seal slice drifts off the canonical
 Two-event lifecycle under real Postgres:
 
   1. `initialize_seal` writes `SealInitialized` (+ `DecisionRegistered`
-     audit) and seeds `proj_federation_seal` at sequence 0.
+     audit) and seeds `proj_federation_seal_summary` at sequence 0.
   2. `sign_seal_pointer` writes `SealPointerSigned`, advancing the
      projection's `current_head_hash` and `current_sequence_number`.
 
@@ -34,7 +34,7 @@ from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.features import initialize_seal, sign_seal_pointer
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.features.sign_seal_pointer import SignSealPointer
-from cora.federation.projections import SealProjection
+from cora.federation.projections import SealSummaryProjection
 from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
@@ -132,7 +132,7 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
     assert event_types == ["SealInitialized", "SealPointerSigned"], event_types
 
     registry = ProjectionRegistry()
-    registry.register(SealProjection())
+    registry.register(SealSummaryProjection())
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
     async with db_pool.acquire() as conn:
@@ -140,7 +140,7 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
             """
             SELECT facility_id, current_head_hash, current_sequence_number,
                    last_signed_by_actor_id, last_signed_at, status
-              FROM proj_federation_seal
+              FROM proj_federation_seal_summary
              WHERE facility_id = $1
             """,
             facility_id,

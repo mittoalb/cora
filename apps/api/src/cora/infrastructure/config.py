@@ -172,7 +172,7 @@ class Settings(BaseSettings):
 
     # ControlPort routing — Operation BC Conductor
     # When empty (default), `wire_operation` builds an
-    # `InMemoryControlPort` (legacy + test convenience: the run_procedure
+    # `InMemoryControlPort` (legacy + test convenience: the conduct_procedure
     # endpoint is reachable but no real substrate is exercised). When
     # populated, `build_control_port` constructs a `ControlPortRegistry`
     # with each route's substrate adapter under its prefix; the

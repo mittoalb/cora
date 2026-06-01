@@ -84,7 +84,7 @@ def _wire_command_name_for_slice(wire_src: str, slice_name: str) -> str | None:
     disagree the walker returns None and the test asserts on the
     mismatch via the "could not locate" branch. The whole-body walk
     (not just Handlers(...) keywords) admits conditional wirings
-    built into a local variable, for example `re_debrief_run_handler` on
+    built into a local variable, for example `regenerate_run_debrief_handler` on
     the LLM-optional path.
     """
     tree = ast.parse(wire_src)

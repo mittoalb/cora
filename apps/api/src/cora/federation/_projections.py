@@ -12,7 +12,7 @@ read models, one per aggregate:
     (CredentialRegistered / CredentialRotationStarted /
     CredentialRotationCompleted / CredentialRotationAborted /
     CredentialRevoked)
-  - `SealProjection`              -> `proj_federation_seal`
+  - `SealSummaryProjection`       -> `proj_federation_seal_summary`
     (SealInitialized / SealPointerSigned / SealOnlineKeyRotated /
     SealRepublishingStarted / SealRepublishingCompleted)
 """
@@ -20,7 +20,7 @@ read models, one per aggregate:
 from cora.federation.projections import (
     CredentialSummaryProjection,
     PermitSummaryProjection,
-    SealProjection,
+    SealSummaryProjection,
 )
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry
@@ -34,7 +34,7 @@ def register_federation_projections(
     _ = deps
     registry.register(PermitSummaryProjection())
     registry.register(CredentialSummaryProjection())
-    registry.register(SealProjection())
+    registry.register(SealSummaryProjection())
 
 
 __all__ = ["register_federation_projections"]

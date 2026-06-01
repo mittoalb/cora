@@ -16,7 +16,7 @@ Mirrors the `register_credential` cross-BC genesis precedent
     singleton identity, not a UUID).
 
 Each test mints a unique facility_id suffix so the
-`proj_federation_seal` singleton PK on `facility_id` and the
+`proj_federation_seal_summary` singleton PK on `facility_id` and the
 deterministic Seal stream UUID do not collide across runs sharing
 the same db_pool.
 
@@ -41,7 +41,7 @@ from cora.federation.aggregates.seal import SealStatus, load_seal
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
-from cora.federation.projections import SealProjection
+from cora.federation.projections import SealSummaryProjection
 from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
@@ -86,7 +86,7 @@ async def test_initialize_seal_writes_both_streams_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
     # Unique facility_id per test so the singleton PK on
-    # proj_federation_seal AND the deterministic Seal stream UUID do
+    # proj_federation_seal_summary AND the deterministic Seal stream UUID do
     # not collide across runs sharing the same db_pool.
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
     deps = build_postgres_deps(
@@ -167,7 +167,7 @@ async def test_initialize_seal_shared_xid8_across_streams(
 async def test_initialize_seal_projection_lands_row(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """After draining projections, proj_federation_seal should carry the
+    """After draining projections, proj_federation_seal_summary should carry the
     new singleton row with status='Live', current_sequence_number=0,
     initialized_at=_NOW, last_signed_at=NULL."""
     facility_id = f"aps-2bm-{uuid4().hex[:8]}"
@@ -185,7 +185,7 @@ async def test_initialize_seal_projection_lands_row(
     )
 
     registry = ProjectionRegistry()
-    registry.register(SealProjection())
+    registry.register(SealSummaryProjection())
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
     async with db_pool.acquire() as conn:
@@ -195,7 +195,7 @@ async def test_initialize_seal_projection_lands_row(
                    current_head_hash, current_sequence_number,
                    initialized_by_actor_id, last_signed_by_actor_id,
                    status, initialized_at, last_signed_at
-              FROM proj_federation_seal
+              FROM proj_federation_seal_summary
              WHERE facility_id = $1
             """,
             facility_id,
@@ -235,7 +235,7 @@ async def test_initialize_seal_projection_upsert_is_idempotent_on_replay(
     )
 
     registry = ProjectionRegistry()
-    registry.register(SealProjection())
+    registry.register(SealSummaryProjection())
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
     # Second drain: bookmark has already advanced past the
     # SealInitialized event, so this is a no-op for the
@@ -244,7 +244,7 @@ async def test_initialize_seal_projection_upsert_is_idempotent_on_replay(
 
     async with db_pool.acquire() as conn:
         count = await conn.fetchval(
-            "SELECT count(*) FROM proj_federation_seal WHERE facility_id = $1",
+            "SELECT count(*) FROM proj_federation_seal_summary WHERE facility_id = $1",
             facility_id,
         )
     assert count == 1

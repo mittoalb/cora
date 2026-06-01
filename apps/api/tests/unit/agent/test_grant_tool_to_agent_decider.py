@@ -15,8 +15,8 @@ from cora.agent.aggregates.agent import (
     AgentNotFoundError,
     AgentStatus,
     AgentToolGranted,
-    AgentToolsExceedsLimitError,
     AgentVersion,
+    InvalidAgentToolsError,
     InvalidToolNameError,
     ModelRef,
     ToolName,
@@ -149,7 +149,7 @@ def test_grant_at_cap_with_existing_tool_is_still_idempotent() -> None:
 def test_grant_that_would_exceed_cardinality_cap_raises() -> None:
     full = frozenset(ToolName(f"tool_{i}") for i in range(AGENT_TOOLS_MAX_COUNT))
     agent = _agent(AgentStatus.VERSIONED, tools=full)
-    with pytest.raises(AgentToolsExceedsLimitError):
+    with pytest.raises(InvalidAgentToolsError):
         decide(
             state=agent,
             command=GrantToolToAgent(agent_id=agent.id, tool_name="overflow"),

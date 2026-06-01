@@ -103,8 +103,10 @@ from cora.calibration.aggregates.calibration import (
     AssertedSource,
     CalibrationStatus,
 )
-from cora.calibration.features.append_revision import AppendRevision
-from cora.calibration.features.append_revision import bind as bind_append_revision
+from cora.calibration.features.append_calibration_revision import AppendCalibrationRevision
+from cora.calibration.features.append_calibration_revision import (
+    bind as bind_append_calibration_revision,
+)
 from cora.calibration.features.define_calibration import DefineCalibration
 from cora.calibration.features.define_calibration import bind as bind_define_calibration
 from cora.calibration.quantities import CalibrationQuantity
@@ -508,7 +510,7 @@ def _id_queue() -> list[UUID]:
         e(),
         e(),
         e(),
-        # define_calibration + append_revision x 4: per Calibration the
+        # define_calibration + append_calibration_revision x 4: per Calibration the
         # ceremony is (cal_id, def_event_id, rev_id, rev_event_id).
         _CAL_MAG_OBJ_0_ID,
         e(),
@@ -905,8 +907,8 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-        await bind_append_revision(deps)(
-            AppendRevision(
+        await bind_append_calibration_revision(deps)(
+            AppendCalibrationRevision(
                 calibration_id=cal_id,
                 value=value,
                 status=CalibrationStatus.PROVISIONAL,

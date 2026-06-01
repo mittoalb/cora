@@ -18,7 +18,7 @@ payload it serialises as three nullable id fields with exactly one
 non-null (Postgres exclusive-arc consensus + Christensen/Hashrocket
 recommendation). The serialize / deserialize helpers below are
 PUBLIC cross-slice helpers (no leading underscore): the
-`append_revision` decider uses `serialize_source` to build the event
+`append_calibration_revision` decider uses `serialize_source` to build the event
 payload; the evolver uses `deserialize_source` to reconstruct the
 typed union from the payload.
 

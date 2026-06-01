@@ -230,7 +230,7 @@ class InvalidToolNameError(ValueError):
         self.value = value
 
 
-class AgentToolsExceedsLimitError(ValueError):
+class InvalidAgentToolsError(ValueError):
     """A grant_tool_to_agent call would push `Agent.tools` past
     `AGENT_TOOLS_MAX_COUNT` entries. Mirrors
     `InvalidAgentCapabilitiesError` shape."""

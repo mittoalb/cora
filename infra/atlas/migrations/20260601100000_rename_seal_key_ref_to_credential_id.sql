@@ -1,4 +1,4 @@
--- Rename proj_federation_seal columns to match the post-2026-05-31
+-- Rename proj_federation_seal_summary columns to match the post-2026-05-31
 -- naming audit: `*_key_ref` -> `*_credential_id`.
 --
 -- The columns are UUID references to Credential aggregates; the
@@ -23,18 +23,18 @@
 -- dropped + re-added with the new column names since the original
 -- CHECK references the old column names by identifier.
 
-ALTER TABLE proj_federation_seal
+ALTER TABLE proj_federation_seal_summary
     RENAME COLUMN online_key_ref TO online_credential_id;
 
-ALTER TABLE proj_federation_seal
+ALTER TABLE proj_federation_seal_summary
     RENAME COLUMN offline_key_ref TO offline_credential_id;
 
 -- Drop + re-add the key-separation CHECK constraint with the new
 -- column names. The original constraint was named
--- `proj_federation_seal_keys_distinct` in the init migration.
-ALTER TABLE proj_federation_seal
-    DROP CONSTRAINT proj_federation_seal_keys_distinct;
+-- `proj_federation_seal_summary_keys_distinct` in the init migration.
+ALTER TABLE proj_federation_seal_summary
+    DROP CONSTRAINT proj_federation_seal_summary_keys_distinct;
 
-ALTER TABLE proj_federation_seal
-    ADD CONSTRAINT proj_federation_seal_credentials_distinct
+ALTER TABLE proj_federation_seal_summary
+    ADD CONSTRAINT proj_federation_seal_summary_credentials_distinct
         CHECK (online_credential_id != offline_credential_id);

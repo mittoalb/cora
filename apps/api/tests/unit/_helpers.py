@@ -133,7 +133,7 @@ def build_deps(
 
     `llm` wires a test LLM (typically
     `FakeLLM`) when the handler under test consumes one
-    (eg. `re_debrief_run`). Defaults to None so the vast majority
+    (eg. `regenerate_run_debrief`). Defaults to None so the vast majority
     of tests that don't need an LLM stay LLM-free.
 
     `profile_store` injects a pre-built PII vault adapter (typically

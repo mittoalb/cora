@@ -127,7 +127,7 @@ def register_decision_routes(app: FastAPI) -> None:
         InvalidActorKindForDecisionError,
         InvalidReasoningSignatureError,
         OverrideKindRequiresParentError,
-        # Parent-chain validators raised by Agent BC's `re_debrief_run`
+        # Parent-chain validators raised by Agent BC's `regenerate_run_debrief`
         # slice. Decision BC owns these errors (defined in
         # aggregates/decision/state.py) so the HTTP mapping lives here;
         # FastAPI's app-scoped handler catches regardless of which BC's

@@ -97,10 +97,10 @@ diagnostic output (defensive against a future SDK regression).
 error message before structured-logging it (per security gate-review
 convention).
 
-## Duplication-by-design with `re_debrief_run` slice
+## Duplication-by-design with `regenerate_run_debrief` slice
 
 `_compose_and_append` here and
-`cora.agent.features.re_debrief_run.decider.decide` use the same
+`cora.agent.features.regenerate_run_debrief.decider.decide` use the same
 Decision BC public validators + `DecisionRegistered` constructor.
 The subscriber inlines the composition (its at-most-once depends
 on a deterministic decision_id derived from terminal_event.event_id
@@ -114,7 +114,7 @@ anomaly subscriber, second on-demand agent slice) OR the
 subscriber's at-most-once scheme converges with the slice's
 (eg. both move to IdempotencyStore-keyed dedup). Pre-trigger: live
 with the duplication, documented here + at
-`cora.agent.features.re_debrief_run.decider`.
+`cora.agent.features.regenerate_run_debrief.decider`.
 """
 
 from __future__ import annotations
@@ -206,7 +206,7 @@ def redact_secrets(message: str) -> str:
     vendor.
 
     Public callable: used by both this subscriber and the
-    `re_debrief_run` handler for parallel error-logging redaction.
+    `regenerate_run_debrief` handler for parallel error-logging redaction.
     """
     return _API_KEY_LIKE_PATTERN.sub(_REDACTED_TOKEN, message)
 

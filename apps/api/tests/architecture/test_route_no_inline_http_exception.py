@@ -41,11 +41,11 @@ if TYPE_CHECKING:
 # Command-slice route files with a documented inline raise.
 GRANDFATHERED_COMMAND_ROUTES: frozenset[str] = frozenset(
     {
-        # Capability-dependent-handler 503: re_debrief_run is unwired
-        # when ANTHROPIC_API_KEY isn't configured (handler: ... | None).
-        # The route guards on None and raises 503 inline. Documented at
-        # agent/wire.py and agent/tools.py.
-        "cora.agent.features.re_debrief_run.route",
+        # Capability-dependent-handler 503: regenerate_run_debrief is
+        # unwired when ANTHROPIC_API_KEY isn't configured
+        # (handler: ... | None). The route guards on None and raises 503
+        # inline. Documented at agent/wire.py and agent/tools.py.
+        "cora.agent.features.regenerate_run_debrief.route",
     }
 )
 

@@ -5,7 +5,7 @@ Update-style handler (loads the Permit aggregate, then appends a
 `activated_by_actor_id` denorm requires forwarding the envelope's
 `principal_id` to the decider; the cross-BC
 `cora.infrastructure.update_handler.make_update_handler` factory
-forwards only `now`. Mirrors the calibration/append_revision
+forwards only `now`. Mirrors the calibration/append_calibration_revision
 precedent. A Federation-local update-handler factory will hoist
 once the four sibling transition slices (suspend / resume / revoke)
 land alongside.

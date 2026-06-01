@@ -1,5 +1,5 @@
-"""SealProjection: folds the Seal aggregate's events into the
-singleton-per-facility `proj_federation_seal` read model.
+"""SealSummaryProjection: folds the Seal aggregate's events into the
+singleton-per-facility `proj_federation_seal_summary_summary` read model.
 
 Subscribed events:
   - SealInitialized           -> INSERT (status='Live',
@@ -40,7 +40,7 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SEAL_SQL = """
-INSERT INTO proj_federation_seal
+INSERT INTO proj_federation_seal_summary
     (facility_id, online_credential_id, offline_credential_id,
      current_head_hash, current_sequence_number,
      initialized_by_actor_id, last_signed_by_actor_id,
@@ -53,7 +53,7 @@ ON CONFLICT (facility_id) DO NOTHING
 """
 
 _UPDATE_POINTER_SIGNED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET current_head_hash = $2,
     current_sequence_number = $3,
     last_signed_by_actor_id = $4,
@@ -63,21 +63,21 @@ WHERE facility_id = $1
 """
 
 _UPDATE_ONLINE_KEY_ROTATED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET online_credential_id = $2,
     updated_at = now()
 WHERE facility_id = $1
 """
 
 _UPDATE_REPUBLISHING_STARTED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET status = 'Republishing',
     updated_at = now()
 WHERE facility_id = $1
 """
 
 _UPDATE_REPUBLISHING_COMPLETED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET status = 'Live',
     current_head_hash = $2,
     current_sequence_number = $3,
@@ -86,10 +86,10 @@ WHERE facility_id = $1
 """
 
 
-class SealProjection:
-    """Maintains the `proj_federation_seal` singleton-per-facility read model."""
+class SealSummaryProjection:
+    """Maintains the `proj_federation_seal_summary` singleton-per-facility read model."""
 
-    name = "proj_federation_seal"
+    name = "proj_federation_seal_summary"
     subscribed_event_types = frozenset(
         {
             "SealInitialized",
@@ -164,4 +164,4 @@ class SealProjection:
         return
 
 
-__all__ = ["SealProjection"]
+__all__ = ["SealSummaryProjection"]

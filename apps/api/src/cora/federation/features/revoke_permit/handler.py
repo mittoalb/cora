@@ -1,6 +1,6 @@
 """Application handler for the `revoke_permit` slice.
 
-Longhand update handler (mirrors `append_revision`): the decider
+Longhand update handler (mirrors `append_calibration_revision`): the decider
 needs handler-injected `revoked_by_actor_id` to stamp the audit
 denorm onto `PermitRevoked`, so this slice cannot use the
 `make_update_handler` factory (which only forwards `state`,

@@ -101,5 +101,5 @@ def test_federation_projection_migration_enforces_rls_force(
         "material (seal heads, credential refs, permit terms). The owner-role "
         "bypass that ENABLE alone permits is unacceptable here; FORCE plus "
         "two flat cora_app policies (read + write) is the locked posture. See "
-        "20260530210200_init_proj_federation_seal.sql for the canonical shape."
+        "20260530210200_init_proj_federation_seal_summary.sql for the canonical shape."
     )

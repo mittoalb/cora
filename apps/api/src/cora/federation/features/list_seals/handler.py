@@ -1,6 +1,6 @@
 """Application handler for the `list_seals` query slice.
 
-Reads `proj_federation_seal` via the cross-BC
+Reads `proj_federation_seal_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. One
 optional filter (`status`). Cursor pagination keyed on
 `(initialized_at, seal_stream_uuid)` where the cursor UUID is the
@@ -100,7 +100,7 @@ def bind(deps: Kernel) -> Handler:
         query_name="ListSeals",
         log_prefix="list_seals",
         unauthorized_error=UnauthorizedError,
-        table="proj_federation_seal",
+        table="proj_federation_seal_summary",
         select_columns=_SELECT_COLUMNS,
         time_column="initialized_at",
         id_column="facility_id",

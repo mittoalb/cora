@@ -68,10 +68,10 @@ from cora.operation.features import (
     abort_procedure,
     append_procedure_steps,
     complete_procedure,
+    conduct_procedure,
     get_procedure,
     list_procedures,
     register_procedure,
-    run_procedure,
     start_procedure,
     truncate_procedure,
 )
@@ -98,7 +98,7 @@ class OperationHandlers:
     append_procedure_steps: append_procedure_steps.Handler
     get_procedure: get_procedure.Handler
     list_procedures: list_procedures.Handler
-    run_procedure: run_procedure.Handler
+    conduct_procedure: conduct_procedure.Handler
     control_port: ControlPort
     """The ControlPort the Conductor talks to. Surfaced on the bundle
     so the FastAPI lifespan's teardown can call `aclose()` on it
@@ -110,7 +110,7 @@ class OperationHandlers:
 def wire_operation(deps: Kernel) -> OperationHandlers:
     """Build the Operation BC handlers from shared dependencies.
 
-    Note on the run_procedure / Conductor wire-up: the Conductor needs
+    Note on the conduct_procedure / Conductor wire-up: the Conductor needs
     the FINAL (post-tracing) versions of start / complete / abort /
     append_procedure_steps so its internal calls land with the same
     observability shape as direct REST / MCP calls. We hoist those
@@ -198,9 +198,9 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             bc=_BC,
             kind="query",
         ),
-        run_procedure=with_tracing(
-            run_procedure.bind(deps, conductor=conductor),
-            command_name="RunProcedure",
+        conduct_procedure=with_tracing(
+            conduct_procedure.bind(deps, conductor=conductor),
+            command_name="ConductProcedure",
             bc=_BC,
         ),
         control_port=control_port,

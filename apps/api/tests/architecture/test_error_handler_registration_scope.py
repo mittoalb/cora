@@ -11,7 +11,7 @@ error class registered in `cora/<bc>/routes.py` comes from either
 Together the pair pins both directions: no orphaned errors,
 no cross-BC poaching. A foreign-BC registration is the typical
 copy-paste regression — for example wiring `RunNotFoundError`
-into `cora/agent/routes.py` because `re_debrief_run` raises it on
+into `cora/agent/routes.py` because `regenerate_run_debrief` raises it on
 the way to deciding. That's the wrong place to map it: the Run
 BC owns the 404, and FastAPI's app-scoped handler catches the
 exception regardless of which BC's route raised it.
