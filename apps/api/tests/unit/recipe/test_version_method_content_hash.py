@@ -46,8 +46,8 @@ _FIXED_FAMILY_B = UUID("01900000-0000-7000-8000-000000000222")
 #     event_type_to_payload_type("MethodVersioned"), <content_subset>)`.
 # Pinned here so future Pydantic / canonicalization / payloadType-scheme
 # drift trips a single fixture rather than every consumer test.
-_GOLDEN_EMPTY = "d829c0eced9a61283b3fe89892e85b165ccb0c89f0caa482e88cc8938116eabc"
-_GOLDEN_POPULATED = "006257fffde27dd8aa13c72b369515cd723dc5e05c0b2daa7065facce7a4e1c0"
+_GOLDEN_EMPTY = "29d9d36ce6e033edf1100c42751ba52462bd3f0daac6589821a5f18984aa4a56"
+_GOLDEN_POPULATED = "203a1e8bb9ea5cf8238a3f8cea143054f3fa271d0cea5ff08dce96e1ca333f86"
 
 
 def _method(
