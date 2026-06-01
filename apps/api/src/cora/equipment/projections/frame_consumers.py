@@ -35,7 +35,7 @@ Note: `MountPlacementUpdated` is NOT subscribed today. If a future
 slice ever allows changing `placement.parent_frame_id` post-registration,
 the projection must subscribe MountPlacementUpdated and re-key the
 referenced_frame_id; not in v1 since update_mount_placement keeps the
-parent_frame fixed (the decider validates new_placement.parent_frame_id
+parent_frame_id fixed (the decider validates new_placement.parent_frame_id
 matches the existing parent_frame_id).
 """
 

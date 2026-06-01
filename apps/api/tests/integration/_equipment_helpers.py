@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 def placement(parent_frame_id: UUID) -> Placement:
     """A minimal Placement adequate for any slot in PG integration tests.
 
-    Pins the parent_frame; everything else is canonical zero / SI_MM_RAD
+    Pins the parent_frame_id; everything else is canonical zero / SI_MM_RAD
     so test-side construction stays terse. Tests that need a specific
     pose construct Placement directly rather than calling this helper.
     """

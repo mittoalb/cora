@@ -60,7 +60,7 @@ class InvalidPlacementError(ValueError):
       - Any tolerance is negative (tolerances are bilateral; zero
         means "exact", negative is meaningless).
 
-    Cross-aggregate validations (parent_frame must reference an
+    Cross-aggregate validations (parent_frame_id must reference an
     active Frame, etc.) happen at the handler / decider layer, not
     in the VO. Per the design memo: the VO is closed-shape; the
     handler is where cross-aggregate preconditions land.
