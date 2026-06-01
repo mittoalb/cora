@@ -3,10 +3,11 @@
 Reads `proj_federation_seal_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. One
 optional filter (`status`). Cursor pagination keyed on
-`(initialized_at, seal_stream_uuid)` where the cursor UUID is the
-deterministic UUID5 derivation of the row's `facility_id` (the
-projection PK is `TEXT`, the factory contract requires a UUID cursor
-id; see `seal_stream_id`).
+`(initialized_at, seal_stream_id)` where `seal_stream_id` is the
+projection-stored UUID5 derivation of the row's `facility_id`
+(populated at INSERT time by `SealSummaryProjection`). Matches the
+shape of every other federation list_* slice
+(`list_credentials.credential_id`, `list_permits.permit_id`).
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC
 (per [[project_authz_future]] watch items).
@@ -19,7 +20,6 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.list_seals.query import ListSeals
 from cora.infrastructure.kernel import Kernel
@@ -32,6 +32,7 @@ class SealSummaryItem:
     """One row from the Seal singleton-per-facility projection."""
 
     facility_id: str
+    seal_stream_id: UUID
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None
@@ -65,7 +66,8 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "facility_id, online_credential_id, offline_credential_id, "
+    "facility_id, seal_stream_id, "
+    "online_credential_id, offline_credential_id, "
     "current_head_hash, current_sequence_number, "
     "initialized_by_actor_id, last_signed_by_actor_id, "
     "status, initialized_at, last_signed_at"
@@ -75,6 +77,7 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> SealSummaryItem:
     return SealSummaryItem(
         facility_id=str(row["facility_id"]),
+        seal_stream_id=row["seal_stream_id"],
         online_credential_id=row["online_credential_id"],
         offline_credential_id=row["offline_credential_id"],
         current_head_hash=(
@@ -103,11 +106,11 @@ def bind(deps: Kernel) -> Handler:
         table="proj_federation_seal_summary",
         select_columns=_SELECT_COLUMNS,
         time_column="initialized_at",
-        id_column="facility_id",
+        id_column="seal_stream_id",
         filters=[ScalarFilter(attr="status")],
         row_to_item=_row_to_item,
         item_cursor_at=lambda item: item.initialized_at,
-        item_cursor_id=lambda item: seal_stream_id(item.facility_id),
+        item_cursor_id=lambda item: item.seal_stream_id,
         page_from=lambda items, next_cursor: SealListPage(items=items, next_cursor=next_cursor),
         extract_log_fields=_log_fields,
     )

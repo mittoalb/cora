@@ -36,19 +36,22 @@ column reflects domain (signing) time rather than event-envelope time
 from datetime import datetime
 from uuid import UUID
 
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SEAL_SQL = """
 INSERT INTO proj_federation_seal_summary
-    (facility_id, online_credential_id, offline_credential_id,
+    (facility_id, seal_stream_id,
+     online_credential_id, offline_credential_id,
      current_head_hash, current_sequence_number,
      initialized_by_actor_id, last_signed_by_actor_id,
      status, initialized_at, last_signed_at)
-VALUES ($1, $2, $3,
+VALUES ($1, $2,
+        $3, $4,
         NULL, 0,
-        $4, NULL,
-        'Live', $5, NULL)
+        $5, NULL,
+        'Live', $6, NULL)
 ON CONFLICT (facility_id) DO NOTHING
 """
 
@@ -108,13 +111,15 @@ class SealSummaryProjection:
         if event.event_type == "SealInitialized":
             payload = event.payload
             initialized_at = datetime.fromisoformat(payload["occurred_at"])
+            facility_id = payload["facility_id"]
             # SAVEPOINT-wrap: the keys_distinct CHECK and
             # singleton-per-facility UNIQUE are cross-stream invariants
             # that should not poison the bookmark transaction.
             async with conn.transaction():
                 await conn.execute(
                     _INSERT_SEAL_SQL,
-                    payload["facility_id"],
+                    facility_id,
+                    seal_stream_id(facility_id),
                     UUID(payload["online_credential_id"]),
                     UUID(payload["offline_credential_id"]),
                     UUID(payload["initialized_by_actor_id"]),
