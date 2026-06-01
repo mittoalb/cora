@@ -474,6 +474,150 @@ def test_extract_bearer_token_preserves_token_with_internal_dots_and_dashes() ->
     assert _extract_bearer_token(f"Bearer {jwt}") == jwt
 
 
+# ---------- Surface context binding ----------
+
+
+@pytest.mark.unit
+def test_authenticated_path_binds_surface_context_on_structlog_contextvars() -> None:
+    """The middleware binds `surface_id` + `surface_kind` to structlog
+    contextvars before delegating to the verifier, so every log line
+    emitted by downstream handlers carries the arrival-Surface dimension.
+
+    Asserts via a route handler that snapshots `get_contextvars()` at
+    request time; the values MUST be the stringified UUID + kind that
+    correspond to the resolved expected-audience."""
+    from structlog.contextvars import get_contextvars
+
+    from cora.infrastructure.observability.surface_context import SURFACE_KIND_HTTP
+
+    captured: dict[str, object] = {}
+
+    async def _snapshot_handler(_request: Request) -> JSONResponse:
+        captured.update(get_contextvars())
+        return JSONResponse({})
+
+    app = Starlette(routes=[Route("/", _snapshot_handler)])
+    app.add_middleware(BearerAuthMiddleware)
+
+    @dataclass
+    class _StubKernel:
+        token_verifier: TokenVerifier | None
+
+    app.state.deps = _StubKernel(token_verifier=_FakeTokenVerifier(verify_call=_always_succeed))
+    client = TestClient(app)
+
+    response = client.get("/", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 200
+    assert captured["surface_id"] == str(SYSTEM_HTTP_SURFACE_ID)
+    assert captured["surface_kind"] == SURFACE_KIND_HTTP
+
+
+@pytest.mark.unit
+def test_authenticated_mcp_path_binds_mcp_streamable_surface_kind() -> None:
+    """MCP paths resolve to `SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID`;
+    the structlog kind dimension must reflect that, NOT the HTTP kind."""
+    from structlog.contextvars import get_contextvars
+
+    from cora.infrastructure.observability.surface_context import (
+        SURFACE_KIND_MCP_STREAMABLE_HTTP,
+    )
+
+    captured: dict[str, object] = {}
+
+    async def _snapshot_handler(_request: Request) -> JSONResponse:
+        captured.update(get_contextvars())
+        return JSONResponse({})
+
+    app = Starlette(routes=[Route("/mcp/anything", _snapshot_handler)])
+    app.add_middleware(BearerAuthMiddleware)
+
+    @dataclass
+    class _StubKernel:
+        token_verifier: TokenVerifier | None
+
+    app.state.deps = _StubKernel(token_verifier=_FakeTokenVerifier(verify_call=_always_succeed))
+    client = TestClient(app)
+
+    response = client.get("/mcp/anything", headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 200
+    assert captured["surface_id"] == str(SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID)
+    assert captured["surface_kind"] == SURFACE_KIND_MCP_STREAMABLE_HTTP
+
+
+@pytest.mark.unit
+def test_unauthenticated_path_does_not_bind_surface_context() -> None:
+    """Health / metrics / `.well-known` paths are deployment-plumbing
+    probes with no arrival-Surface semantics; they must NOT pollute the
+    log dimension with a Surface they never invoke."""
+    from structlog.contextvars import get_contextvars
+
+    captured: dict[str, object] = {}
+
+    async def _snapshot_handler(_request: Request) -> JSONResponse:
+        captured.update(get_contextvars())
+        return JSONResponse({})
+
+    app = Starlette(routes=[Route("/health", _snapshot_handler)])
+    app.add_middleware(BearerAuthMiddleware)
+
+    @dataclass
+    class _StubKernel:
+        token_verifier: TokenVerifier | None
+
+    app.state.deps = _StubKernel(token_verifier=_FakeTokenVerifier(verify_call=_always_succeed))
+    client = TestClient(app)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert "surface_id" not in captured
+    assert "surface_kind" not in captured
+
+
+@pytest.mark.unit
+def test_surface_context_cleared_after_request_does_not_leak_across_requests() -> None:
+    """Two back-to-back requests on different paths: each must see its
+    own surface kind. A missing `clear` in the middleware's finally
+    block would let the first request's binding leak into the second
+    (asyncio task reuse under BaseHTTPMiddleware)."""
+    from structlog.contextvars import get_contextvars
+
+    from cora.infrastructure.observability.surface_context import (
+        SURFACE_KIND_HTTP,
+        SURFACE_KIND_MCP_STREAMABLE_HTTP,
+    )
+
+    seen: list[dict[str, object]] = []
+
+    async def _snapshot_handler(_request: Request) -> JSONResponse:
+        seen.append(dict(get_contextvars()))
+        return JSONResponse({})
+
+    app = Starlette(
+        routes=[
+            Route("/", _snapshot_handler),
+            Route("/mcp/anything", _snapshot_handler),
+        ]
+    )
+    app.add_middleware(BearerAuthMiddleware)
+
+    @dataclass
+    class _StubKernel:
+        token_verifier: TokenVerifier | None
+
+    app.state.deps = _StubKernel(token_verifier=_FakeTokenVerifier(verify_call=_always_succeed))
+    client = TestClient(app)
+
+    client.get("/mcp/anything", headers={"Authorization": "Bearer t"})
+    client.get("/", headers={"Authorization": "Bearer t"})
+
+    assert len(seen) == 2
+    assert seen[0]["surface_kind"] == SURFACE_KIND_MCP_STREAMABLE_HTTP
+    assert seen[1]["surface_kind"] == SURFACE_KIND_HTTP
+
+
 def _unused_assert(_x: Any) -> None:
     """Pyright-quiet stub to keep imports used."""
     return None

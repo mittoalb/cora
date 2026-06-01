@@ -72,6 +72,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from cora.infrastructure.logging import get_logger
+from cora.infrastructure.observability.surface_context import (
+    bind_surface_context,
+    clear_surface_context,
+    surface_kind_for,
+)
 from cora.infrastructure.routing import (
     SYSTEM_HTTP_SURFACE_ID,
     SYSTEM_MCP_STREAMABLE_HTTP_SURFACE_ID,
@@ -164,8 +169,28 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         if _is_unauthenticated_path(request.url.path):
+            # Unauthenticated paths (health / metrics / OAuth metadata) are
+            # deployment-plumbing endpoints with no arrival-Surface semantics;
+            # do NOT bind the observability dimension or it pollutes the log
+            # with a Surface those probes never actually invoked.
             return await call_next(request)
 
+        expected_audience = _resolve_expected_audience(request.url.path)
+        bind_surface_context(expected_audience, surface_kind_for(expected_audience))
+        try:
+            return await self._dispatch_authenticated(
+                request, call_next, expected_audience=expected_audience
+            )
+        finally:
+            clear_surface_context()
+
+    async def _dispatch_authenticated(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+        *,
+        expected_audience: UUID,
+    ) -> Response:
         # `app.state.deps` is populated by the lifespan; the only path
         # where it could be unset is a request that hits before the
         # lifespan finishes. Starlette / FastAPI hold requests until
@@ -221,7 +246,6 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             InvalidTokenError,
         )
 
-        expected_audience = _resolve_expected_audience(request.url.path)
         try:
             token = _extract_bearer_token(authorization)
             principal = await verifier.verify(
