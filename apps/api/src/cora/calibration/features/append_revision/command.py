@@ -9,8 +9,8 @@ existing Calibration:
   - `value` — JSON-shaped dict with the revision's measured/computed/
     asserted value. Validated STRICT against the calibration's
     quantity-specific `VALUE_SCHEMA`.
-  - `status` — `Provisional` or `Verified` per the 2-tier ladder
-    (Q3 lock; 3-tier `Refined` deferred to phase 12f).
+  - `status` — `Provisional` or `Verified`. A 2-tier ladder; a
+    3-tier `Refined` is a future option, not currently supported.
   - `source` — typed `CalibrationSource` discriminated union
     (`MeasuredSource(procedure_id)` | `ComputedSource(dataset_id)` |
     `AssertedSource(actor_id)`). The runtime type IS the discriminator;

@@ -96,7 +96,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         ],
         model_ref: Annotated[
             ModelRefInput,
-            Field(description="Model identity (provider + model + optional snapshot_pin)."),
+            Field(
+                description="Model identity: provider, model name, and an optional snapshot pin."
+            ),
         ],
         description: Annotated[
             str | None,

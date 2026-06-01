@@ -91,7 +91,7 @@ Phase history:
     logbooks, truncate_run extends to auto-close them per gate-
     review L4.
 
-Known gaps (early sequencing decisions, gate-review Q3 locked):
+Known gaps (early sequencing decisions, accepted by design):
   - **Supply availability check** (Track B Supply BC not shipped):
     Run-start does NOT verify beam / power / gas availability today.
     Operator-trusted; documented as gap. Lands when Supply BC ships.

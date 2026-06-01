@@ -39,10 +39,10 @@ class AppendRevisionRequest(BaseModel):
     status: CalibrationStatus = Field(
         ...,
         description=(
-            "Per-revision posture: `Provisional` (initial estimate or "
-            "early-data-derived) or `Verified` (blessed for production "
-            "reconstructions). 2-tier; the 3-tier `Refined` middle is "
-            "deferred to phase 12f."
+            "Confidence tier of this revision: `Provisional` (initial "
+            "estimate or early-data-derived) or `Verified` (blessed for "
+            "production reconstructions). A 2-tier ladder; a 3-tier "
+            "`Refined` middle is a future option, not currently supported."
         ),
     )
     source: SourceDTO = Field(
@@ -69,10 +69,10 @@ class AppendRevisionRequest(BaseModel):
         default=None,
         description=(
             "Optional prior revision id (on the SAME aggregate) that this "
-            "revision supersedes. Direct derivation edge per Q3 lock; "
-            "saves consumers a graph walk vs traversal-only. Cross-"
-            "aggregate supersession is forbidden: the supersedes target "
-            "must exist on this calibration."
+            "revision supersedes. The direct derivation edge saves "
+            "consumers a graph walk vs traversal-only. Cross-aggregate "
+            "supersession is forbidden: the supersedes target must exist "
+            "on this calibration."
         ),
     )
 

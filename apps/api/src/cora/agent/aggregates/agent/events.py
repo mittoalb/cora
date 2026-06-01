@@ -109,8 +109,8 @@ class AgentDefined:
     # additive payload fields (default to
     # empty / None for backward-compat with 8f-a / 8f-b streams).
     tools: frozenset[str] = frozenset()
-    budget_monthly_usd_cap: float | None = None
-    budget_daily_token_cap: int | None = None
+    monthly_usd_cap: float | None = None
+    daily_token_cap: int | None = None
 
 
 @dataclass(frozen=True)
@@ -269,8 +269,8 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
             capabilities=capabilities,
             occurred_at=occurred_at,
             tools=tools,
-            budget_monthly_usd_cap=budget_monthly_usd_cap,
-            budget_daily_token_cap=budget_daily_token_cap,
+            monthly_usd_cap=monthly_usd_cap,
+            daily_token_cap=daily_token_cap,
         ):
             return {
                 "agent_id": str(agent_id),
@@ -289,8 +289,8 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
                 # written so the wire shape is uniform; from_stored
                 # falls back to defaults on pre-iter-2 streams.
                 "tools": sorted(tools),
-                "budget_monthly_usd_cap": budget_monthly_usd_cap,
-                "budget_daily_token_cap": budget_daily_token_cap,
+                "monthly_usd_cap": monthly_usd_cap,
+                "daily_token_cap": daily_token_cap,
             }
         case AgentVersioned(agent_id=agent_id, version=version, occurred_at=occurred_at):
             return {
@@ -374,8 +374,8 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                     capabilities=frozenset(payload.get("capabilities", [])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     tools=frozenset(payload.get("tools", [])),
-                    budget_monthly_usd_cap=payload.get("budget_monthly_usd_cap"),
-                    budget_daily_token_cap=payload.get("budget_daily_token_cap"),
+                    monthly_usd_cap=payload.get("monthly_usd_cap"),
+                    daily_token_cap=payload.get("daily_token_cap"),
                 )
 
             return deserialize_or_raise("AgentDefined", _build_agent_defined)

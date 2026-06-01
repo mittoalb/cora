@@ -37,7 +37,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def revise_agent_budget_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        agent_id: Annotated[UUID, Field(description="Target agent's id.")],
+        agent_id: Annotated[
+            UUID, Field(description="Identifier of the Agent whose budget to revise.")
+        ],
         monthly_usd_cap: Annotated[
             float | None,
             Field(

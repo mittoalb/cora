@@ -1,8 +1,8 @@
-"""MCP tool for the `re_debrief_run` slice.
+"""MCP tool for the re_debrief_run slice.
 
 Surfaces the same handler the REST route uses. MCP tools currently
-        For the same reason, `idempotency_key`
-defaults to `None` so each MCP invocation is a fresh attempt.
+bypass header-based idempotency, so idempotency_key defaults to None
+and each MCP invocation is a fresh attempt.
 """
 
 from collections.abc import Callable

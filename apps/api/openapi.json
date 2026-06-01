@@ -829,7 +829,7 @@
           },
           "status": {
             "$ref": "#/components/schemas/CalibrationStatus",
-            "description": "Per-revision posture: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). 2-tier; the 3-tier `Refined` middle is deferred to phase 12f."
+            "description": "Confidence tier of this revision: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). A 2-tier ladder; a 3-tier `Refined` middle is a future option, not currently supported."
           },
           "supersedes_revision_id": {
             "anyOf": [
@@ -841,7 +841,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. Direct derivation edge per Q3 lock; saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
+            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. The direct derivation edge saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
             "title": "Supersedes Revision Id"
           },
           "value": {
@@ -1511,7 +1511,7 @@
         "type": "object"
       },
       "CalibrationStatus": {
-        "description": "A revision's lifecycle posture for downstream consumption.\n\nTwo values locked day one per [[project_calibration_research]]\nRound 2 Q3:\n\n  - `Provisional` -- initial estimate or early-data-derived figure;\n                     downstream consumers may still use it but\n                     should be aware it is unblessed.\n  - `Verified`    -- blessed for production reconstructions /\n                     analyses; downstream consumers can rely on it\n                     without operator follow-up.\n\n2-tier matches when no PCL-shaped middle latency window exists with\ndistinct statistical maturity (ERA5 reanalysis precedent). 3-tier\n(CMS Express/Prompt/ReReco pattern) is deferred to phase 12f when\nrefined-after-provisional becomes a frequent structured workflow.",
+        "description": "A revision's confidence tier for downstream consumption.\n\nTwo values:\n\n  - `Provisional` -- initial estimate or early-data-derived figure;\n                     downstream consumers may still use it but\n                     should be aware it is unblessed.\n  - `Verified`    -- blessed for production reconstructions /\n                     analyses; downstream consumers can rely on it\n                     without operator follow-up.\n\n2-tier matches when no PCL-shaped middle latency window exists with\ndistinct statistical maturity (ERA5 reanalysis precedent). 3-tier\n(CMS Express/Prompt/ReReco pattern) is deferred to phase 12f when\nrefined-after-provisional becomes a frequent structured workflow.",
         "enum": [
           "Provisional",
           "Verified"

@@ -63,8 +63,25 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        category: Annotated[CautionCategory, Field(description="Closed category enum.")],
-        severity: Annotated[CautionSeverity, Field(description="Notice / Caution / Warning.")],
+        category: Annotated[
+            CautionCategory,
+            Field(
+                description=(
+                    "Closed caution category from a fixed vocabulary "
+                    "(Wear, Calibration, Wiring, OperationalWindow, "
+                    "InterlockQuirk, ProcedureGotcha)."
+                ),
+            ),
+        ],
+        severity: Annotated[
+            CautionSeverity,
+            Field(
+                description=(
+                    "Caution severity on the ANSI Z535 ladder "
+                    "(Notice, Caution, Warning); no Danger tier."
+                ),
+            ),
+        ],
         text: Annotated[
             str,
             Field(

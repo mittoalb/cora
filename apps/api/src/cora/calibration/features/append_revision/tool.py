@@ -59,9 +59,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         status: Annotated[
             CalibrationStatus,
             Field(
-                description=(
-                    "Per-revision posture (Provisional | Verified). 2-tier ladder per Q3 lock."
-                ),
+                description=("Confidence tier of this revision: Provisional or Verified."),
             ),
         ],
         source: Annotated[

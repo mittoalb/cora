@@ -34,7 +34,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class RegisterDatasetOutput(BaseModel):
     """Structured output of the `register_dataset` MCP tool."""
 
-    dataset_id: UUID
+    dataset_id: UUID = Field(description="Identifier of the newly registered Dataset.")
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> None:

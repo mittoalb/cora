@@ -66,7 +66,7 @@ def test_calibration_description_vo_is_frozen() -> None:
 
 @pytest.mark.unit
 def test_calibration_status_value_set_is_locked() -> None:
-    """2-tier ladder per Q3 lock; tier expansion deferred to phase 12f."""
+    """Confidence ladder is locked at 2 tiers; tier expansion is a future option."""
     assert {s.value for s in CalibrationStatus} == {"Provisional", "Verified"}
     assert len(list(CalibrationStatus)) == 2
 

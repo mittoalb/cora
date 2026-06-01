@@ -34,7 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def deprecate_agent_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        agent_id: Annotated[UUID, Field(description="Target agent's id.")],
+        agent_id: Annotated[UUID, Field(description="Identifier of the Agent to deprecate.")],
         reason: Annotated[
             str | None,
             Field(

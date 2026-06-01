@@ -77,7 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ctx: Context[Any, Any, Any],
         agent_id: Annotated[
             UUID,
-            Field(description="Target agent's id."),
+            Field(description="Identifier of the Agent to fetch."),
         ],
     ) -> AgentOutput:
         handler = get_handler()

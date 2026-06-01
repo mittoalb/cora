@@ -36,7 +36,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def grant_tool_to_agent_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        agent_id: Annotated[UUID, Field(description="Target agent's id.")],
+        agent_id: Annotated[
+            UUID, Field(description="Identifier of the Agent to grant the tool to.")
+        ],
         tool_name: Annotated[
             str,
             Field(

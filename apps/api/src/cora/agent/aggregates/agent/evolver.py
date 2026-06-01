@@ -74,8 +74,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
             capabilities=capabilities,
             occurred_at=_,
             tools=tools,
-            budget_monthly_usd_cap=budget_monthly_usd_cap,
-            budget_daily_token_cap=budget_daily_token_cap,
+            monthly_usd_cap=monthly_usd_cap,
+            daily_token_cap=daily_token_cap,
         ):
             _ = state  # AgentDefined is the genesis event; prior state ignored
             # Path C: `defined_at` no longer on state — folded into
@@ -94,7 +94,7 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 capabilities=frozenset(AgentCapability(c) for c in capabilities),
                 status=AgentStatus.DEFINED,
                 tools=frozenset(ToolName(t) for t in tools),
-                budget=_decode_budget(budget_monthly_usd_cap, budget_daily_token_cap),
+                budget=_decode_budget(monthly_usd_cap, daily_token_cap),
             )
         case AgentVersioned(occurred_at=_):
             prior = require_state(state, "AgentVersioned")

@@ -139,8 +139,8 @@ def test_to_payload_serializes_agent_defined_minimal() -> None:
         # on a minimal define (operators add tools / budget via separate
         # commands post-genesis).
         "tools": [],
-        "budget_monthly_usd_cap": None,
-        "budget_daily_token_cap": None,
+        "monthly_usd_cap": None,
+        "daily_token_cap": None,
     }
 
 
@@ -386,8 +386,8 @@ def test_agent_defined_round_trip_with_tools_and_budget_caps() -> None:
         capabilities=frozenset(),
         occurred_at=_NOW,
         tools=frozenset({"read_run", "read_dataset"}),
-        budget_monthly_usd_cap=200.0,
-        budget_daily_token_cap=2_000_000,
+        monthly_usd_cap=200.0,
+        daily_token_cap=2_000_000,
     )
     stored = _stored("AgentDefined", to_payload(original))
     assert from_stored(stored) == original
@@ -412,13 +412,13 @@ def test_agent_defined_from_stored_tolerates_pre_iter2_payload() -> None:
         "prompt_template_id": None,
         "capabilities": [],
         "occurred_at": _NOW.isoformat(),
-        # tools / budget_* fields absent
+        # tools / budget fields absent
     }
     rebuilt = from_stored(_stored("AgentDefined", pre_iter2_payload))
     assert isinstance(rebuilt, AgentDefined)
     assert rebuilt.tools == frozenset()
-    assert rebuilt.budget_monthly_usd_cap is None
-    assert rebuilt.budget_daily_token_cap is None
+    assert rebuilt.monthly_usd_cap is None
+    assert rebuilt.daily_token_cap is None
 
 
 # ---------- Foreign event_type fails loud ----------

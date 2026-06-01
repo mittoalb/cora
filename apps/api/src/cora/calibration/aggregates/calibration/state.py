@@ -49,10 +49,9 @@ CALIBRATION_DESCRIPTION_MAX_LENGTH = 2000
 
 
 class CalibrationStatus(StrEnum):
-    """A revision's lifecycle posture for downstream consumption.
+    """A revision's confidence tier for downstream consumption.
 
-    Two values locked day one per [[project_calibration_research]]
-    Round 2 Q3:
+    Two values:
 
       - `Provisional` -- initial estimate or early-data-derived figure;
                          downstream consumers may still use it but
@@ -358,9 +357,9 @@ class CalibrationRevision:
 
     `supersedes_revision_id` (OPTIONAL) is a direct derivation edge
     pointing at a prior revision in the SAME aggregate that this
-    revision supersedes (Q3 lock: direct edges save consumers a graph
-    walk; IVOA traversal-only rejected). Cross-aggregate supersession
-    is forbidden — the supersedes target must exist in
+    revision supersedes. Direct edges save consumers a graph walk;
+    traversal-only is rejected. Cross-aggregate supersession is
+    forbidden: the supersedes target must exist in
     `aggregate.revisions` at append time.
     """
 
@@ -377,7 +376,7 @@ class CalibrationRevision:
     # the non-determinism principle and folded by the evolver from the
     # event payload. None for pre-rollout CalibrationRevisionAppended
     # events that landed before the field was added (additive-state
-    # pattern; same posture as Method.content_hash and Plan.content_hash).
+    # pattern; same convention as Method.content_hash and Plan.content_hash).
     # Each revision is immutable, so no preservation rules are needed:
     # the hash is set once when the revision is appended and never
     # rewritten. See [[project_content_addressed_identity_design]].
