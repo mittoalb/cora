@@ -126,8 +126,8 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 |---|---|---|---|---|
 | `RegisterClearance` | NEW | `POST /clearances` | `register_clearance` | required |
 | `SubmitClearance` | MODIFIED | `POST /clearances/{clearance_id}/submit` | `submit_clearance` | none |
-| `StartClearanceReview` | MODIFIED | `POST /clearances/{clearance_id}/start_review` | `start_clearance_review` | none |
-| `AppendClearanceReviewStep` | MODIFIED | `POST /clearances/{clearance_id}/review_steps` | `append_clearance_review_step` | none |
+| `StartClearanceReview` | MODIFIED | `POST /clearances/{clearance_id}/start-review` | `start_clearance_review` | none |
+| `AppendClearanceReviewStep` | MODIFIED | `POST /clearances/{clearance_id}/review-steps` | `append_clearance_review_step` | none |
 | `ApproveClearance` | MODIFIED | `POST /clearances/{clearance_id}/approve` | `approve_clearance` | none |
 | `RejectClearance` | MODIFIED | `POST /clearances/{clearance_id}/reject` | `reject_clearance` | none |
 | `ActivateClearance` | MODIFIED | `POST /clearances/{clearance_id}/activate` | `activate_clearance` | none |
@@ -308,7 +308,7 @@ The four examples below follow the canonical path for one Clearance: register it
     Then, by the first reviewer:
 
     ```http
-    POST /clearances/9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c/start_review
+    POST /clearances/9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c/start-review
     Content-Type: application/json
     X-Principal-Id: 22222222-3333-4444-5555-666666666666
 
@@ -334,7 +334,7 @@ The four examples below follow the canonical path for one Clearance: register it
 === "REST"
 
     ```http
-    POST /clearances/9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c/review_steps
+    POST /clearances/9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c/review-steps
     Content-Type: application/json
     X-Principal-Id: 22222222-3333-4444-5555-666666666666
 

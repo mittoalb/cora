@@ -1,6 +1,6 @@
 """HTTP route for the `mark_supply_available` slice.
 
-Action endpoint at `POST /supplies/{supply_id}/mark_available`. Body
+Action endpoint at `POST /supplies/{supply_id}/mark-available`. Body
 carries `reason`. 204 No Content on success.
 
 Pydantic enforces `reason` is non-empty (1-500 chars) at the API
@@ -26,7 +26,7 @@ from cora.supply.features.mark_supply_available.handler import Handler
 
 
 class MarkSupplyAvailableRequest(BaseModel):
-    """Body for `POST /supplies/{supply_id}/mark_available`.
+    """Body for `POST /supplies/{supply_id}/mark-available`.
 
     `reason` is operator-supplied free text (audit-log breadcrumb)
     explaining the first-observation declaration. Examples:
@@ -55,7 +55,7 @@ router = APIRouter(tags=["supply"])
 
 
 @router.post(
-    "/supplies/{supply_id}/mark_available",
+    "/supplies/{supply_id}/mark-available",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

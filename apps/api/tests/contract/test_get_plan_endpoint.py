@@ -33,7 +33,7 @@ def _setup_full_plan(client: TestClient) -> tuple[str, str, str]:
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
+    client.post(f"/assets/{asset_id}/add-family", json={"family_id": cap_id})
     plan_id = client.post(
         "/plans",
         json={
@@ -99,7 +99,7 @@ def test_get_plan_returns_sorted_asset_ids_for_deterministic_response() -> None:
                 "/assets",
                 json={"name": f"Asset{i}", "level": "Enterprise", "parent_id": None},
             ).json()["asset_id"]
-            client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
+            client.post(f"/assets/{asset_id}/add-family", json={"family_id": cap_id})
             asset_ids.append(asset_id)
         plan_id = client.post(
             "/plans",

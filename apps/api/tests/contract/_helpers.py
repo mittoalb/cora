@@ -121,7 +121,7 @@ def seed_method_chain(
     asset_id = client.post(
         "/assets", json={"name": "A", "level": "Enterprise", "parent_id": None}
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": family_id})
+    client.post(f"/assets/{asset_id}/add-family", json={"family_id": family_id})
     return MethodChainIds(
         capability_id=capability_id,
         family_id=family_id,

@@ -68,7 +68,7 @@ def _add_member(client: TestClient, app: FastAPI, cid: str) -> UUID:
     """Seed a Run and add it as a member of the given Campaign."""
     run_id = uuid4()
     _seed_run(app, run_id)
-    client.post(f"/campaigns/{cid}/runs/{run_id}")
+    client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     return run_id
 
 

@@ -45,7 +45,7 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
 
         # Submitted -> UnderReview
         r = client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "BeamlineScientist"},
         )
         assert r.status_code == 204
@@ -53,7 +53,7 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
 
         # UnderReview -- record one Approved review step
         r = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "BeamlineScientist",
@@ -97,7 +97,7 @@ def test_full_fsm_walk_to_rejected_via_rest() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "ESH"},
         )
         # No need for an approving step; reject_clearance has no chain invariant.
@@ -132,12 +132,12 @@ def test_append_clearance_review_step_rejects_wrong_step_index_with_400() -> Non
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "BeamlineScientist"},
         )
         # Submit step_index=5 when state has 0 review_steps
         response = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 5,
                 "role": "ESH",
@@ -155,11 +155,11 @@ def test_append_clearance_review_step_rejects_future_decided_at_with_400() -> No
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "ESH"},
         )
         response = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",
@@ -179,12 +179,12 @@ def test_append_clearance_review_step_rejects_non_monotonic_decided_at_with_400(
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "ESH"},
         )
         # First step: a recent timestamp
         first = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",
@@ -195,7 +195,7 @@ def test_append_clearance_review_step_rejects_non_monotonic_decided_at_with_400(
         assert first.status_code == 204
         # Second step: an earlier timestamp (monotonicity violation)
         response = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 1,
                 "role": "BeamlineScientist",
@@ -213,12 +213,12 @@ def test_approve_rejects_when_no_approving_review_step() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "ESH"},
         )
         # Add a RequestedChanges step (NOT Approved)
         client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",
@@ -238,11 +238,11 @@ def test_approve_accepts_validity_window_overrides() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "ESH"},
         )
         client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",
@@ -290,7 +290,7 @@ def test_append_clearance_review_step_returns_409_when_not_under_review(
         for verb, body in intermediate_action:
             client.post(f"/clearances/{cid}/{verb}", json=body or {})
         response = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "BeamlineScientist",
@@ -308,9 +308,9 @@ def test_append_clearance_review_step_returns_409_when_in_approved_status() -> N
     with TestClient(create_app()) as client:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
-        client.post(f"/clearances/{cid}/start_review", json={"first_reviewer_role": "ESH"})
+        client.post(f"/clearances/{cid}/start-review", json={"first_reviewer_role": "ESH"})
         client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",
@@ -321,7 +321,7 @@ def test_append_clearance_review_step_returns_409_when_in_approved_status() -> N
         client.post(f"/clearances/{cid}/approve", json={})
         # Clearance is now Approved; try to append another step
         response = client.post(
-            f"/clearances/{cid}/review_steps",
+            f"/clearances/{cid}/review-steps",
             json={
                 "step_index": 1,
                 "role": "ESH",
@@ -344,7 +344,7 @@ def test_three_step_chain_walk_succeeds() -> None:
         cid = _register(client)
         client.post(f"/clearances/{cid}/submit")
         client.post(
-            f"/clearances/{cid}/start_review",
+            f"/clearances/{cid}/start-review",
             json={"first_reviewer_role": "LocalContact"},
         )
 
@@ -353,7 +353,7 @@ def test_three_step_chain_walk_succeeds() -> None:
             ["LocalContact", "BeamlineSci+Coordinator", "SafetyGroup"]
         ):
             r = client.post(
-                f"/clearances/{cid}/review_steps",
+                f"/clearances/{cid}/review-steps",
                 json={
                     "step_index": step_index,
                     "role": role,
@@ -386,11 +386,11 @@ def _drive_to_active(client: TestClient) -> str:
     cid = _register(client)
     client.post(f"/clearances/{cid}/submit")
     client.post(
-        f"/clearances/{cid}/start_review",
+        f"/clearances/{cid}/start-review",
         json={"first_reviewer_role": "ESH"},
     )
     client.post(
-        f"/clearances/{cid}/review_steps",
+        f"/clearances/{cid}/review-steps",
         json={
             "step_index": 0,
             "role": "ESH",

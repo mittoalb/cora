@@ -3,7 +3,7 @@
 Action endpoint with body `{reason}`. Target-state semantics:
 any condition -> Nominal. No-op when already Nominal.
 
-Distinct path from `POST /assets/{asset_id}/exit_maintenance`
+Distinct path from `POST /assets/{asset_id}/exit-maintenance`
 (which moves lifecycle).
 """
 
@@ -88,5 +88,5 @@ def test_post_restore_path_distinct_from_exit_maintenance() -> None:
         # lifecycle exit_maintenance from a fresh Commissioned
         # asset must 409 (it requires Maintenance source); both
         # endpoints exist but they aren't routed to the same handler.
-        lifecycle = client.post(f"/assets/{asset_id}/exit_maintenance")
+        lifecycle = client.post(f"/assets/{asset_id}/exit-maintenance")
         assert lifecycle.status_code == 409

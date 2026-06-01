@@ -30,13 +30,13 @@ def _register_then_mark_recovering(client: TestClient) -> UUID:
     supply_id = UUID(response.json()["supply_id"])
     assert (
         client.post(
-            f"/supplies/{supply_id}/mark_unavailable", json={"reason": "beam dump"}
+            f"/supplies/{supply_id}/mark-unavailable", json={"reason": "beam dump"}
         ).status_code
         == 204
     )
     assert (
         client.post(
-            f"/supplies/{supply_id}/mark_recovering", json={"reason": "beam returning"}
+            f"/supplies/{supply_id}/mark-recovering", json={"reason": "beam returning"}
         ).status_code
         == 204
     )

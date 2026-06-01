@@ -1,4 +1,4 @@
-"""Contract tests for `POST /agents/caution_drafter/decisions/{id}/promote`.
+"""Contract tests for `POST /agents/caution-drafter/decisions/{id}/promote`.
 
 Drives the route end-to-end through TestClient: seeds a
 CautionProposal Decision via the app's wired kernel, then
@@ -142,7 +142,7 @@ async def test_post_promote_happy_path_register_dispatch_returns_201() -> None:
         decision_id = uuid4()
         await _seed_caution_proposal_decision(cast("FastAPI", client.app), decision_id=decision_id)
         response = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
         )
     assert response.status_code == 201, response.text
     body = response.json()
@@ -167,7 +167,7 @@ async def test_post_promote_happy_path_supersede_dispatch_returns_201() -> None:
             inputs={"proposed_caution": proposed},
         )
         response = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
         )
     assert response.status_code == 201, response.text
     body = response.json()
@@ -180,7 +180,7 @@ async def test_post_promote_happy_path_supersede_dispatch_returns_201() -> None:
 def test_post_promote_returns_404_on_unknown_decision_id() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/agents/caution_drafter/decisions/{uuid4()}/promote",
+            f"/agents/caution-drafter/decisions/{uuid4()}/promote",
         )
     assert response.status_code == 404, response.text
 
@@ -198,7 +198,7 @@ async def test_post_promote_returns_400_on_wrong_context() -> None:
             inputs={"run_id": str(uuid4())},
         )
         response = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
         )
     assert response.status_code == 400, response.text
     assert "CautionProposal" in response.json()["detail"]
@@ -216,7 +216,7 @@ async def test_post_promote_returns_400_on_no_action_choice() -> None:
             inputs={"reason": "no signal worth a caution"},
         )
         response = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
         )
     assert response.status_code == 400, response.text
     assert "NoAction" in response.json()["detail"]
@@ -234,7 +234,7 @@ async def test_post_promote_returns_400_on_malformed_proposed_caution() -> None:
             inputs={},  # no proposed_caution
         )
         response = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
         )
     assert response.status_code == 400, response.text
     assert "malformed" in response.json()["detail"].lower()
@@ -245,7 +245,7 @@ def test_post_promote_returns_422_on_malformed_uuid_path_param() -> None:
     """Pydantic path validation: malformed UUID in URL -> 422."""
     with TestClient(create_app()) as client:
         response = client.post(
-            "/agents/caution_drafter/decisions/not-a-uuid/promote",
+            "/agents/caution-drafter/decisions/not-a-uuid/promote",
         )
     assert response.status_code == 422, response.text
 
@@ -262,7 +262,7 @@ async def test_post_promote_same_idempotency_key_replays_cached_caution_id() -> 
         decision_id = uuid4()
         await _seed_caution_proposal_decision(cast("FastAPI", client.app), decision_id=decision_id)
         first = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
             headers={"Idempotency-Key": "test-key-001"},
         )
         # NOTE: a second call with the same Idempotency-Key against the
@@ -271,7 +271,7 @@ async def test_post_promote_same_idempotency_key_replays_cached_caution_id() -> 
         # the read side). The Brandur cache should short-circuit and
         # return the cached caution_id from the first call.
         second = client.post(
-            f"/agents/caution_drafter/decisions/{decision_id}/promote",
+            f"/agents/caution-drafter/decisions/{decision_id}/promote",
             headers={"Idempotency-Key": "test-key-001"},
         )
     assert first.status_code == 201
@@ -301,7 +301,7 @@ async def test_post_promote_returns_403_when_authorize_denies() -> None:
 
     with TestClient(app) as client:
         response = client.post(
-            f"/agents/caution_drafter/decisions/{uuid4()}/promote",
+            f"/agents/caution-drafter/decisions/{uuid4()}/promote",
         )
     assert response.status_code == 403, response.text
     assert response.json()["detail"] == "denied for contract test"

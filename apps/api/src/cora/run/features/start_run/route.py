@@ -100,7 +100,7 @@ class StartRunRequest(BaseModel):
             "Run stream AND `CampaignRunAdded` on the Campaign stream "
             "via `EventStore.append_streams`. Omit (or null) for a "
             "standalone Run; membership can also be added post-hoc "
-            "via `POST /campaigns/{id}/runs/{run_id}`."
+            "via `POST /campaigns/{id}/runs/{run_id}/add`."
         ),
     )
     decided_by_decision_id: UUID | None = Field(

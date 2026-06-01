@@ -1,6 +1,6 @@
 """HTTP route for the `remove_asset_port` slice.
 
-Action endpoint at `POST /assets/{asset_id}/remove_port`. Body
+Action endpoint at `POST /assets/{asset_id}/remove-port`. Body
 carries `port_name`. 204 No Content on success. Mirror of
 `add_asset_port` route.
 """
@@ -23,7 +23,7 @@ from cora.infrastructure.routing import (
 
 
 class RemoveAssetPortRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/remove_port`."""
+    """Body for `POST /assets/{asset_id}/remove-port`."""
 
     port_name: str = Field(
         ...,
@@ -42,7 +42,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/remove_port",
+    "/assets/{asset_id}/remove-port",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

@@ -80,7 +80,7 @@ router = APIRouter(tags=["equipment"])
     },
     summary="Set, replace, or clear a Family's settings_schema",
 )
-async def post_families_schema(
+async def post_families_settings_schema(
     family_id: Annotated[UUID, Path(description="Target family's id.")],
     body: UpdateFamilySettingsSchemaRequest,
     handler: Annotated[Handler, Depends(_get_handler)],

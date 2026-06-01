@@ -48,7 +48,7 @@ def _seed_practice_with_capability(
         "/assets",
         json={"name": "Camera-04", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": family_id})
+    client.post(f"/assets/{asset_id}/add-family", json={"family_id": family_id})
     return practice_id, family_id, asset_id
 
 
@@ -205,7 +205,7 @@ def test_endpoint_returns_sorted_wired_assets_for_deterministic_response() -> No
                 "/assets",
                 json={"name": f"Asset{i}", "level": "Enterprise", "parent_id": None},
             ).json()["asset_id"]
-            client.post(f"/assets/{asset_id}/add_family", json={"family_id": family_id})
+            client.post(f"/assets/{asset_id}/add-family", json={"family_id": family_id})
             extra_asset_ids.append(asset_id)
 
         response = client.post(

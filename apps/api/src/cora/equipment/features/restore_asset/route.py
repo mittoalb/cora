@@ -3,7 +3,7 @@
 Action endpoint at `POST /assets/{asset_id}/restore`. Body carries
 `reason`. 204 No Content on success.
 
-Distinct from `POST /assets/{asset_id}/exit_maintenance`
+Distinct from `POST /assets/{asset_id}/exit-maintenance`
 which moves lifecycle (Maintenance -> Active); this endpoint moves
 condition (any -> Nominal).
 """

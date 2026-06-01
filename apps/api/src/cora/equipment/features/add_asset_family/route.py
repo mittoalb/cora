@@ -1,6 +1,6 @@
 """HTTP route for the `add_asset_family` slice.
 
-Action endpoint at `POST /assets/{asset_id}/add_family`. Body
+Action endpoint at `POST /assets/{asset_id}/add-family`. Body
 carries `family_id`. 204 No Content on success. Same action-
 endpoint pattern as the other Asset transition slices.
 """
@@ -22,7 +22,7 @@ from cora.infrastructure.routing import (
 
 
 class AddAssetFamilyRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/add_family`.
+    """Body for `POST /assets/{asset_id}/add-family`.
 
     Eventual-consistency: `family_id` is NOT verified against the
     Family stream at decide time; mismatch surfaces at Plan
@@ -47,7 +47,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/add_family",
+    "/assets/{asset_id}/add-family",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

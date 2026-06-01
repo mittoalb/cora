@@ -68,7 +68,7 @@ def _setup_plan_with_schema(
         "/assets",
         json={"name": "TestAsset", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": cap_id})
+    client.post(f"/assets/{asset_id}/add-family", json={"family_id": cap_id})
     plan_id: str = client.post(
         "/plans",
         json={

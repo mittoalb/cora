@@ -1,6 +1,6 @@
 """HTTP route for the `start_clearance_review` slice.
 
-Action endpoint at `POST /clearances/{clearance_id}/start_review`.
+Action endpoint at `POST /clearances/{clearance_id}/start-review`.
 Body carries `first_reviewer_role`. 204 No Content on success.
 """
 
@@ -24,7 +24,7 @@ from cora.safety.features.start_clearance_review.handler import Handler
 
 
 class StartClearanceReviewRequest(BaseModel):
-    """Body for `POST /clearances/{clearance_id}/start_review`."""
+    """Body for `POST /clearances/{clearance_id}/start-review`."""
 
     first_reviewer_role: str = Field(
         ...,
@@ -46,7 +46,7 @@ router = APIRouter(tags=["safety"])
 
 
 @router.post(
-    "/clearances/{clearance_id}/start_review",
+    "/clearances/{clearance_id}/start-review",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

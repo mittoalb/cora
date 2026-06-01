@@ -125,8 +125,8 @@ stateDiagram-v2
 | `RevokeToolFromAgent` | MODIFIED | `POST /agents/{agent_id}/tools/revoke` | `revoke_tool_from_agent` | none |
 | `ReviseAgentBudget` | MODIFIED | `POST /agents/{agent_id}/budget` | `revise_agent_budget` | none |
 | `GetAgent` | QUERY | `GET /agents/{agent_id}` | `get_agent` | none |
-| `ReDebriefRun` | CROSS-BC | `POST /agents/run_debriefer/invoke` | `re_debrief_run` | required |
-| `PromoteCautionProposal` | CROSS-BC | `POST /agents/caution_drafter/decisions/{decision_id}/promote` | `promote_caution_proposal` | required |
+| `ReDebriefRun` | CROSS-BC | `POST /agents/run-debriefer/invoke` | `re_debrief_run` | required |
+| `PromoteCautionProposal` | CROSS-BC | `POST /agents/caution-drafter/decisions/{decision_id}/promote` | `promote_caution_proposal` | required |
 
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
@@ -270,7 +270,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
 === "REST"
 
     ```http
-    POST /agents/run_debriefer/invoke
+    POST /agents/run-debriefer/invoke
     Content-Type: application/json
     Idempotency-Key: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
     X-Principal-Id: 22222222-3333-4444-5555-666666666666
@@ -300,7 +300,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
 === "REST"
 
     ```http
-    POST /agents/caution_drafter/decisions/<decision-id>/promote
+    POST /agents/caution-drafter/decisions/<decision-id>/promote
     Idempotency-Key: 9c0d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f
     X-Principal-Id: 33333333-4444-5555-6666-777777777777
     ```

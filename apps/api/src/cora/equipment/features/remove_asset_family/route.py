@@ -1,9 +1,9 @@
 """HTTP route for the `remove_asset_family` slice.
 
-Action endpoint at `POST /assets/{asset_id}/remove_family`. Body
+Action endpoint at `POST /assets/{asset_id}/remove-family`. Body
 carries `family_id`. 204 No Content on success.
 
-POST (not DELETE) for symmetry with `add_family` and the rest of
+POST (not DELETE) for symmetry with `add-family` and the rest of
 Equipment's action-endpoint convention. The semantics aren't really
 "REST collection management" — they're "operator decommissions a
 family on this asset," which is a state-change verb.
@@ -26,7 +26,7 @@ from cora.infrastructure.routing import (
 
 
 class RemoveAssetFamilyRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/remove_family`."""
+    """Body for `POST /assets/{asset_id}/remove-family`."""
 
     family_id: UUID = Field(
         ...,
@@ -43,7 +43,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/remove_family",
+    "/assets/{asset_id}/remove-family",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

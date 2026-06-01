@@ -18,7 +18,7 @@ from cora.supply.features.mark_supply_recovering.handler import Handler
 
 
 class MarkSupplyRecoveringRequest(BaseModel):
-    """Body for `POST /supplies/{supply_id}/mark_recovering`.
+    """Body for `POST /supplies/{supply_id}/mark-recovering`.
 
     `reason` is operator-supplied free text (audit-log breadcrumb)
     explaining why the supply is being marked Recovering. Examples:
@@ -45,7 +45,7 @@ router = APIRouter(tags=["supply"])
 
 
 @router.post(
-    "/supplies/{supply_id}/mark_recovering",
+    "/supplies/{supply_id}/mark-recovering",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

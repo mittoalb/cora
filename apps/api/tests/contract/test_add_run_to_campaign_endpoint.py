@@ -1,4 +1,4 @@
-"""Contract tests for `POST /campaigns/{campaign_id}/runs/{run_id}`."""
+"""Contract tests for `POST /campaigns/{campaign_id}/runs/{run_id}/add`."""
 
 import asyncio
 from datetime import UTC, datetime
@@ -73,7 +73,7 @@ def test_post_add_run_returns_204_on_happy_path() -> None:
         run_id = uuid4()
         _seed_run(app, run_id)
 
-        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     assert response.status_code == 204, response.text
 
 
@@ -83,7 +83,7 @@ def test_post_add_run_returns_404_when_campaign_absent() -> None:
     with TestClient(app) as client:
         run_id = uuid4()
         _seed_run(app, run_id)
-        response = client.post(f"/campaigns/{uuid4()}/runs/{run_id}")
+        response = client.post(f"/campaigns/{uuid4()}/runs/{run_id}/add")
     assert response.status_code == 404
 
 
@@ -92,7 +92,7 @@ def test_post_add_run_returns_404_when_run_absent() -> None:
     app = create_app()
     with TestClient(app) as client:
         cid = _register_and_start_campaign(client)
-        response = client.post(f"/campaigns/{cid}/runs/{uuid4()}")
+        response = client.post(f"/campaigns/{cid}/runs/{uuid4()}/add")
     assert response.status_code == 404
 
 
@@ -104,7 +104,7 @@ def test_post_add_run_returns_409_when_campaign_terminal() -> None:
         client.post(f"/campaigns/{cid}/close")  # Active -> Closed
         run_id = uuid4()
         _seed_run(app, run_id)
-        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     assert response.status_code == 409
 
 
@@ -115,9 +115,9 @@ def test_post_add_run_returns_409_when_already_member() -> None:
         cid = _register_and_start_campaign(client)
         run_id = uuid4()
         _seed_run(app, run_id)
-        first = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        first = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
         assert first.status_code == 204
-        second = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        second = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     assert second.status_code == 409
 
 
@@ -129,9 +129,9 @@ def test_post_add_run_returns_409_when_assigned_to_different_campaign() -> None:
         cid_two = _register_and_start_campaign(client)
         run_id = uuid4()
         _seed_run(app, run_id)
-        first = client.post(f"/campaigns/{cid_one}/runs/{run_id}")
+        first = client.post(f"/campaigns/{cid_one}/runs/{run_id}/add")
         assert first.status_code == 204
-        cross = client.post(f"/campaigns/{cid_two}/runs/{run_id}")
+        cross = client.post(f"/campaigns/{cid_two}/runs/{run_id}/add")
     assert cross.status_code == 409
 
 
@@ -152,7 +152,7 @@ def test_post_add_run_returns_409_when_campaign_closed() -> None:
         assert close.status_code == 204
         run_id = uuid4()
         _seed_run(app, run_id)
-        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     assert response.status_code == 409, response.text
 
 
@@ -169,7 +169,7 @@ def test_post_add_run_returns_409_when_campaign_abandoned() -> None:
         assert abandon.status_code == 204
         run_id = uuid4()
         _seed_run(app, run_id)
-        response = client.post(f"/campaigns/{cid}/runs/{run_id}")
+        response = client.post(f"/campaigns/{cid}/runs/{run_id}/add")
     assert response.status_code == 409, response.text
 
 
@@ -183,6 +183,6 @@ def test_post_add_run_returns_403_when_authorize_denies() -> None:
 
     app.dependency_overrides[_get_add_run_handler] = lambda: fake_handler
     with TestClient(app) as client:
-        response = client.post(f"/campaigns/{uuid4()}/runs/{uuid4()}")
+        response = client.post(f"/campaigns/{uuid4()}/runs/{uuid4()}/add")
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"

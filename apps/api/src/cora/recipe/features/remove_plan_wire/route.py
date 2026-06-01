@@ -1,6 +1,6 @@
 """HTTP route for the `remove_plan_wire` slice.
 
-Action endpoint at `POST /plans/{plan_id}/remove_wire`. Body
+Action endpoint at `POST /plans/{plan_id}/remove-wire`. Body
 carries the four port-reference fields (the Wire's identity).
 204 No Content on success. Same action-endpoint pattern as
 `remove_asset_port` (5h).
@@ -24,7 +24,7 @@ from cora.recipe.features.remove_plan_wire.handler import Handler
 
 
 class RemovePlanWireRequest(BaseModel):
-    """Body for `POST /plans/{plan_id}/remove_wire`.
+    """Body for `POST /plans/{plan_id}/remove-wire`.
 
     All four fields are required (the 4-tuple identifies the Wire to
     remove). Pydantic enforces non-empty port names at the boundary.
@@ -57,7 +57,7 @@ router = APIRouter(tags=["recipe"])
 
 
 @router.post(
-    "/plans/{plan_id}/remove_wire",
+    "/plans/{plan_id}/remove-wire",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

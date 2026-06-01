@@ -1,6 +1,6 @@
 """HTTP route for the `append_clearance_review_step` slice.
 
-Action endpoint at `POST /clearances/{clearance_id}/review_steps`.
+Action endpoint at `POST /clearances/{clearance_id}/review-steps`.
 Body carries one ReviewStep's worth of data. The reviewing-actor id
 is filled from the request's authenticated principal. 204 on success.
 
@@ -34,7 +34,7 @@ from cora.safety.features.append_clearance_review_step.handler import Handler
 
 
 class AppendClearanceReviewStepRequest(BaseModel):
-    """Body for `POST /clearances/{clearance_id}/review_steps`."""
+    """Body for `POST /clearances/{clearance_id}/review-steps`."""
 
     step_index: int = Field(
         ...,
@@ -78,7 +78,7 @@ router = APIRouter(tags=["safety"])
 
 
 @router.post(
-    "/clearances/{clearance_id}/review_steps",
+    "/clearances/{clearance_id}/review-steps",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

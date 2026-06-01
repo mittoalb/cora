@@ -22,7 +22,7 @@ def _register_and_mark_available(client: TestClient) -> UUID:
     assert response.status_code == 201
     supply_id = UUID(response.json()["supply_id"])
     mark = client.post(
-        f"/supplies/{supply_id}/mark_available",
+        f"/supplies/{supply_id}/mark-available",
         json={"reason": "walkdown"},
     )
     assert mark.status_code == 204

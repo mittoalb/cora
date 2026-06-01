@@ -1,4 +1,4 @@
-"""Contract tests for `POST /supplies/{supply_id}/mark_recovering` (10a-b)."""
+"""Contract tests for `POST /supplies/{supply_id}/mark-recovering` (10a-b)."""
 
 from uuid import UUID, uuid4
 
@@ -22,7 +22,7 @@ def _register_and_mark_unavailable(client: TestClient) -> UUID:
     )
     assert response.status_code == 201
     supply_id = UUID(response.json()["supply_id"])
-    mark = client.post(f"/supplies/{supply_id}/mark_unavailable", json={"reason": "beam dump"})
+    mark = client.post(f"/supplies/{supply_id}/mark-unavailable", json={"reason": "beam dump"})
     assert mark.status_code == 204
     return supply_id
 
@@ -32,7 +32,7 @@ def test_post_mark_recovering_returns_204_for_unavailable_supply() -> None:
     with TestClient(create_app()) as client:
         supply_id = _register_and_mark_unavailable(client)
         response = client.post(
-            f"/supplies/{supply_id}/mark_recovering",
+            f"/supplies/{supply_id}/mark-recovering",
             json={"reason": "beam returning"},
         )
     assert response.status_code == 204
@@ -41,7 +41,7 @@ def test_post_mark_recovering_returns_204_for_unavailable_supply() -> None:
 @pytest.mark.contract
 def test_post_mark_recovering_returns_404_for_unknown_id() -> None:
     with TestClient(create_app()) as client:
-        response = client.post(f"/supplies/{uuid4()}/mark_recovering", json={"reason": "r"})
+        response = client.post(f"/supplies/{uuid4()}/mark-recovering", json={"reason": "r"})
     assert response.status_code == 404
 
 
@@ -54,7 +54,7 @@ def test_post_mark_recovering_returns_409_when_supply_is_unknown() -> None:
             json={"scope": "Beamline", "kind": "X", "name": "Y"},
         )
         supply_id = UUID(register.json()["supply_id"])
-        response = client.post(f"/supplies/{supply_id}/mark_recovering", json={"reason": "r"})
+        response = client.post(f"/supplies/{supply_id}/mark-recovering", json={"reason": "r"})
     assert response.status_code == 409
 
 
@@ -62,7 +62,7 @@ def test_post_mark_recovering_returns_409_when_supply_is_unknown() -> None:
 def test_post_mark_recovering_rejects_missing_reason_with_422() -> None:
     with TestClient(create_app()) as client:
         supply_id = _register_and_mark_unavailable(client)
-        response = client.post(f"/supplies/{supply_id}/mark_recovering", json={})
+        response = client.post(f"/supplies/{supply_id}/mark-recovering", json={})
     assert response.status_code == 422
 
 
@@ -71,7 +71,7 @@ def test_post_mark_recovering_rejects_too_long_reason_with_422() -> None:
     with TestClient(create_app()) as client:
         supply_id = _register_and_mark_unavailable(client)
         response = client.post(
-            f"/supplies/{supply_id}/mark_recovering",
+            f"/supplies/{supply_id}/mark-recovering",
             json={"reason": "a" * (SUPPLY_REASON_MAX_LENGTH + 1)},
         )
     assert response.status_code == 422
@@ -80,7 +80,7 @@ def test_post_mark_recovering_rejects_too_long_reason_with_422() -> None:
 @pytest.mark.contract
 def test_post_mark_recovering_rejects_malformed_supply_id_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/supplies/not-a-uuid/mark_recovering", json={"reason": "r"})
+        response = client.post("/supplies/not-a-uuid/mark-recovering", json={"reason": "r"})
     assert response.status_code == 422
 
 
@@ -88,7 +88,7 @@ def test_post_mark_recovering_rejects_malformed_supply_id_with_422() -> None:
 def test_post_mark_recovering_rejects_whitespace_only_reason_with_400() -> None:
     with TestClient(create_app()) as client:
         supply_id = _register_and_mark_unavailable(client)
-        response = client.post(f"/supplies/{supply_id}/mark_recovering", json={"reason": "   "})
+        response = client.post(f"/supplies/{supply_id}/mark-recovering", json={"reason": "   "})
     assert response.status_code == 400
 
 
@@ -105,5 +105,5 @@ def test_post_mark_recovering_returns_403_when_authorize_denies() -> None:
 
     app.dependency_overrides[_get_mark_supply_recovering_handler] = _override
     with TestClient(app) as client:
-        response = client.post(f"/supplies/{uuid4()}/mark_recovering", json={"reason": "r"})
+        response = client.post(f"/supplies/{uuid4()}/mark-recovering", json={"reason": "r"})
     assert response.status_code == 403

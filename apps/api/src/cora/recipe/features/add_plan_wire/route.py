@@ -1,6 +1,6 @@
 """HTTP route for the `add_plan_wire` slice.
 
-Action endpoint at `POST /plans/{plan_id}/add_wire`. Body carries
+Action endpoint at `POST /plans/{plan_id}/add-wire`. Body carries
 the four port-reference fields. 204 No Content on success. Same
 action-endpoint pattern as `add_asset_port` (5h) and the rest of
 the per-edge mutation slices.
@@ -24,7 +24,7 @@ from cora.recipe.features.add_plan_wire.handler import Handler
 
 
 class AddPlanWireRequest(BaseModel):
-    """Body for `POST /plans/{plan_id}/add_wire`.
+    """Body for `POST /plans/{plan_id}/add-wire`.
 
     All four fields are required. Pydantic enforces non-empty port
     names at the boundary; the `Wire` VO then trims and re-validates
@@ -74,7 +74,7 @@ router = APIRouter(tags=["recipe"])
 
 
 @router.post(
-    "/plans/{plan_id}/add_wire",
+    "/plans/{plan_id}/add-wire",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

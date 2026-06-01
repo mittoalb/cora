@@ -99,7 +99,7 @@ Transitioning-actor identity lives only on `StoredEvent.principal_id`; the genes
 | `ResumeCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/resume` | `resume_campaign` | none |
 | `CloseCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/close` | `close_campaign` | none |
 | `AbandonCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/abandon` | `abandon_campaign` | none |
-| `AddRunToCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/runs/{run_id}` | `add_run_to_campaign` | none |
+| `AddRunToCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/runs/{run_id}/add` | `add_run_to_campaign` | none |
 | `RemoveRunFromCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/runs/{run_id}/remove` | `remove_run_from_campaign` | none |
 | `GetCampaign` | QUERY | `GET /campaigns/{campaign_id}` | `get_campaign` | none |
 | `ListCampaigns` | QUERY | `GET /campaigns` | `list_campaigns` | none |
@@ -258,7 +258,7 @@ The four examples below follow the canonical Campaign path: register a Planned C
 === "REST"
 
     ```http
-    POST /campaigns/{campaign_id}/runs/{run_id}
+    POST /campaigns/{campaign_id}/runs/{run_id}/add
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
     ```
 

@@ -18,7 +18,7 @@ from cora.supply.features.mark_supply_unavailable.handler import Handler
 
 
 class MarkSupplyUnavailableRequest(BaseModel):
-    """Body for `POST /supplies/{supply_id}/mark_unavailable`.
+    """Body for `POST /supplies/{supply_id}/mark-unavailable`.
 
     `reason` is operator-supplied free text (audit-log breadcrumb)
     explaining why the supply is being marked Unavailable. Examples:
@@ -45,7 +45,7 @@ router = APIRouter(tags=["supply"])
 
 
 @router.post(
-    "/supplies/{supply_id}/mark_unavailable",
+    "/supplies/{supply_id}/mark-unavailable",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

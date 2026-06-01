@@ -28,7 +28,7 @@ async def test_mount_then_dismount_clears_mounted_on_asset_id(
     asset_id = UUID(asset.json()["asset_id"])
 
     add_cap = await e2e_client.post(
-        f"/assets/{asset_id}/add_family",
+        f"/assets/{asset_id}/add-family",
         json={"family_id": str(family_id)},
     )
     assert add_cap.status_code == 204

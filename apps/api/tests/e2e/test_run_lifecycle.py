@@ -50,13 +50,13 @@ async def _register_and_activate_clearance(
     assert submitted.status_code == 204, submitted.text
 
     started = await client.post(
-        f"/clearances/{clearance_id}/start_review",
+        f"/clearances/{clearance_id}/start-review",
         json={"first_reviewer_role": "BeamlineScientist"},
     )
     assert started.status_code == 204, started.text
 
     appended = await client.post(
-        f"/clearances/{clearance_id}/review_steps",
+        f"/clearances/{clearance_id}/review-steps",
         json={
             "step_index": 0,
             "role": "BeamlineScientist",
@@ -116,7 +116,7 @@ async def test_full_run_cascade_to_completed(
     )
     plan_asset_id = plan_asset.json()["asset_id"]
     add = await e2e_client.post(
-        f"/assets/{plan_asset_id}/add_family",
+        f"/assets/{plan_asset_id}/add-family",
         json={"family_id": family_id},
     )
     assert add.status_code == 204

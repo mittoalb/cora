@@ -49,7 +49,7 @@ def test_get_supply_returns_200_with_available_status_after_mark_available() -> 
     with TestClient(create_app()) as client:
         supply_id = _register_supply(client)
         mark = client.post(
-            f"/supplies/{supply_id}/mark_available",
+            f"/supplies/{supply_id}/mark-available",
             json={"reason": "operator walkdown"},
         )
         assert mark.status_code == 204

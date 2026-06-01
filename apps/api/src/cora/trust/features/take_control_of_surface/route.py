@@ -1,6 +1,6 @@
 """HTTP route for the `take_control_of_surface` slice.
 
-Action endpoint at `POST /visits/{visit_id}/take-control`. JSON body
+Action endpoint at `POST /visits/{visit_id}/take-control-of-surface`. JSON body
 carries `surface_id`. 204 on success.
 """
 
@@ -29,7 +29,7 @@ router = APIRouter(tags=["trust"])
 
 
 class TakeControlOfSurfaceBody(BaseModel):
-    """Body for POST /visits/{visit_id}/take-control."""
+    """Body for POST /visits/{visit_id}/take-control-of-surface."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -42,7 +42,7 @@ class TakeControlOfSurfaceBody(BaseModel):
 
 
 @router.post(
-    "/visits/{visit_id}/take-control",
+    "/visits/{visit_id}/take-control-of-surface",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

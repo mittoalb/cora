@@ -129,6 +129,24 @@ Operators wanting "this Capability or Method genuinely has no values to constrai
 
 These rules cost nothing at write time and apply equally to `method.parameters_schema` for the same reason.
 
+## REST URL paths
+
+URL path segments use kebab-case. Hyphens, not underscores, separate words inside a literal segment.
+
+```
+GOOD: POST /assets/{asset_id}/add-family
+BAD:  POST /assets/{asset_id}/add_family
+
+GOOD: POST /clearances/{clearance_id}/start-review
+BAD:  POST /clearances/{clearance_id}/start_review
+```
+
+Path parameter placeholders (`{asset_id}`, `{clearance_id}`, `{visit_id}`) keep snake_case because FastAPI binds them to Python function arguments, which follow PEP 8.
+
+Python handler function names, slice directory names, and command class names are unaffected by this rule. They stay PEP 8 (`post_assets_add_family`, `add_asset_family/`, `AddAssetFamily`). The convention only governs the literal URL strings that external API consumers and OpenAPI specifications see.
+
+An architecture fitness test in `apps/api/tests/architecture/test_rest_url_kebab_case.py` enforces this across every slice's `route.py`.
+
 ## Documentation
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.

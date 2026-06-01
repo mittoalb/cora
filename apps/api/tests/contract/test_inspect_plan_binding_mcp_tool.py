@@ -41,7 +41,7 @@ def _seed_practice_with_capability(
         "/assets",
         json={"name": "Camera-04", "level": "Enterprise", "parent_id": None},
     ).json()["asset_id"]
-    client.post(f"/assets/{asset_id}/add_family", json={"family_id": family_id})
+    client.post(f"/assets/{asset_id}/add-family", json={"family_id": family_id})
     return practice_id, asset_id
 
 

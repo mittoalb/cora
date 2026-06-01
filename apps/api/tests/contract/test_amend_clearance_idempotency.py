@@ -42,14 +42,14 @@ def _walk_parent_to_active(client: TestClient) -> str:
     assert client.post(f"/clearances/{parent_id}/submit").status_code == 204
     assert (
         client.post(
-            f"/clearances/{parent_id}/start_review",
+            f"/clearances/{parent_id}/start-review",
             json={"first_reviewer_role": "ESH"},
         ).status_code
         == 204
     )
     assert (
         client.post(
-            f"/clearances/{parent_id}/review_steps",
+            f"/clearances/{parent_id}/review-steps",
             json={
                 "step_index": 0,
                 "role": "ESH",

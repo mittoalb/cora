@@ -350,7 +350,7 @@ def test_take_control_returns_204_on_free_surface_from_in_progress() -> None:
     with TestClient(create_app()) as client:
         vid, surface_id = _register_in_progress_visit(client)
         response = client.post(
-            f"/visits/{vid}/take-control",
+            f"/visits/{vid}/take-control-of-surface",
             json={"surface_id": surface_id},
         )
     assert response.status_code == 204, response.text
@@ -374,7 +374,7 @@ def test_take_control_returns_409_when_visit_status_not_eligible() -> None:
             },
         )
         response = client.post(
-            f"/visits/{visit_id}/take-control",
+            f"/visits/{visit_id}/take-control-of-surface",
             json={"surface_id": surface_id},
         )
     assert response.status_code == 409
@@ -386,7 +386,7 @@ def test_take_control_returns_409_on_surface_mismatch() -> None:
     with TestClient(create_app()) as client:
         vid, _ = _register_in_progress_visit(client)
         response = client.post(
-            f"/visits/{vid}/take-control",
+            f"/visits/{vid}/take-control-of-surface",
             json={"surface_id": str(uuid4())},
         )
     assert response.status_code == 409
@@ -396,7 +396,7 @@ def test_take_control_returns_409_on_surface_mismatch() -> None:
 def test_take_control_returns_404_when_visit_absent() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/visits/{uuid4()}/take-control",
+            f"/visits/{uuid4()}/take-control-of-surface",
             json={"surface_id": str(uuid4())},
         )
     assert response.status_code == 404
@@ -406,7 +406,7 @@ def test_take_control_returns_404_when_visit_absent() -> None:
 def test_take_control_returns_422_when_surface_id_missing() -> None:
     with TestClient(create_app()) as client:
         vid, _ = _register_in_progress_visit(client)
-        response = client.post(f"/visits/{vid}/take-control", json={})
+        response = client.post(f"/visits/{vid}/take-control-of-surface", json={})
     assert response.status_code == 422
 
 
@@ -416,7 +416,7 @@ def test_release_control_returns_409_when_not_holding_on_pool_less_kernel() -> N
     with TestClient(create_app()) as client:
         vid, surface_id = _register_in_progress_visit(client)
         response = client.post(
-            f"/visits/{vid}/release-control",
+            f"/visits/{vid}/release-control-of-surface",
             json={"surface_id": surface_id},
         )
     assert response.status_code == 409
@@ -426,7 +426,7 @@ def test_release_control_returns_409_when_not_holding_on_pool_less_kernel() -> N
 def test_release_control_returns_404_when_visit_absent() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/visits/{uuid4()}/release-control",
+            f"/visits/{uuid4()}/release-control-of-surface",
             json={"surface_id": str(uuid4())},
         )
     assert response.status_code == 404

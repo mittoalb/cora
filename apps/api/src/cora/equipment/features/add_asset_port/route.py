@@ -1,6 +1,6 @@
 """HTTP route for the `add_asset_port` slice.
 
-Action endpoint at `POST /assets/{asset_id}/add_port`. Body
+Action endpoint at `POST /assets/{asset_id}/add-port`. Body
 carries `port_name`, `direction` (Input/Output), `signal_type`.
 204 No Content on success. Same action-endpoint pattern as
 `add_asset_family`.
@@ -28,7 +28,7 @@ from cora.infrastructure.routing import (
 
 
 class AddAssetPortRequest(BaseModel):
-    """Body for `POST /assets/{asset_id}/add_port`.
+    """Body for `POST /assets/{asset_id}/add-port`.
 
     All three fields are required. Pydantic enforces non-empty
     name/signal_type at the boundary; the AssetPort VO then trims
@@ -70,7 +70,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/add_port",
+    "/assets/{asset_id}/add-port",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {

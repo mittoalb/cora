@@ -1,6 +1,6 @@
 """HTTP route for the `enter_maintenance` slice.
 
-Action endpoint at `POST /assets/{asset_id}/enter_maintenance`. Same
+Action endpoint at `POST /assets/{asset_id}/enter-maintenance`. Same
 action-endpoint pattern as the other Asset transition slices. 204 No
 Content on success.
 """
@@ -29,7 +29,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/enter_maintenance",
+    "/assets/{asset_id}/enter-maintenance",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

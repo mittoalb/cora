@@ -1,6 +1,6 @@
 """HTTP route for the `append_reasoning_entries` slice.
 
-`POST /decisions/{decision_id}/reasoning_entries` returns 200 OK
+`POST /decisions/{decision_id}/reasoning-entries` returns 200 OK
 with `{"event_count": N}` on success. Body shape carries a list
 of OTel gen_ai.* entries; producer supplies UUIDv7 event_ids per
 entry; the store dedups silently via Postgres PK.
@@ -135,7 +135,7 @@ class ReasoningEntryRequest(BaseModel):
 
 
 class AppendReasoningEntriesRequest(BaseModel):
-    """Body for `POST /decisions/{decision_id}/reasoning_entries`."""
+    """Body for `POST /decisions/{decision_id}/reasoning-entries`."""
 
     entries: list[ReasoningEntryRequest] = Field(
         ...,
@@ -170,7 +170,7 @@ router = APIRouter(tags=["decision"])
 
 
 @router.post(
-    "/decisions/{decision_id}/reasoning_entries",
+    "/decisions/{decision_id}/reasoning-entries",
     status_code=status.HTTP_200_OK,
     response_model=AppendReasoningEntriesResponse,
     responses={

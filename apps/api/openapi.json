@@ -224,7 +224,7 @@
         "type": "object"
       },
       "AddAssetFamilyRequest": {
-        "description": "Body for `POST /assets/{asset_id}/add_family`.\n\nEventual-consistency: `family_id` is NOT verified against the\nFamily stream at decide time; mismatch surfaces at Plan\nbinding (6e).",
+        "description": "Body for `POST /assets/{asset_id}/add-family`.\n\nEventual-consistency: `family_id` is NOT verified against the\nFamily stream at decide time; mismatch surfaces at Plan\nbinding (6e).",
         "properties": {
           "family_id": {
             "description": "Family id to add to the asset's family set. Eventual-consistency: existence is NOT verified.",
@@ -240,7 +240,7 @@
         "type": "object"
       },
       "AddAssetPortRequest": {
-        "description": "Body for `POST /assets/{asset_id}/add_port`.\n\nAll three fields are required. Pydantic enforces non-empty\nname/signal_type at the boundary; the AssetPort VO then trims\nand re-validates length within the decider.",
+        "description": "Body for `POST /assets/{asset_id}/add-port`.\n\nAll three fields are required. Pydantic enforces non-empty\nname/signal_type at the boundary; the AssetPort VO then trims\nand re-validates length within the decider.",
         "properties": {
           "direction": {
             "description": "Port direction: 'Input' or 'Output' (PortDirection enum value).",
@@ -275,7 +275,7 @@
         "type": "object"
       },
       "AddPlanWireRequest": {
-        "description": "Body for `POST /plans/{plan_id}/add_wire`.\n\nAll four fields are required. Pydantic enforces non-empty port\nnames at the boundary; the `Wire` VO then trims and re-validates\nlength within the decider. Direction + signal_type validation\nhappens in the decider against the loaded Asset.ports.",
+        "description": "Body for `POST /plans/{plan_id}/add-wire`.\n\nAll four fields are required. Pydantic enforces non-empty port\nnames at the boundary; the `Wire` VO then trims and re-validates\nlength within the decider. Direction + signal_type validation\nhappens in the decider against the loaded Asset.ports.",
         "properties": {
           "source_asset_id": {
             "description": "The Asset whose OUTPUT port is the wire's source.",
@@ -660,7 +660,7 @@
         "type": "object"
       },
       "AppendClearanceReviewStepRequest": {
-        "description": "Body for `POST /clearances/{clearance_id}/review_steps`.",
+        "description": "Body for `POST /clearances/{clearance_id}/review-steps`.",
         "properties": {
           "decided_at": {
             "description": "Operator-supplied timestamp when the reviewer made the decision.",
@@ -753,7 +753,7 @@
       },
       "AppendReasoningEntriesRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /decisions/{decision_id}/reasoning_entries`.",
+        "description": "Body for `POST /decisions/{decision_id}/reasoning-entries`.",
         "properties": {
           "entries": {
             "description": "List of reasoning entries to append (1-100).",
@@ -5430,7 +5430,7 @@
         "type": "object"
       },
       "MarkSupplyAvailableRequest": {
-        "description": "Body for `POST /supplies/{supply_id}/mark_available`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining the first-observation declaration. Examples:\n\"operator walkdown confirms LN2 dewar pressure nominal\", \"control\nroom reports beam delivered after morning startup\", \"first-time\ncommissioning verified by ops\".",
+        "description": "Body for `POST /supplies/{supply_id}/mark-available`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining the first-observation declaration. Examples:\n\"operator walkdown confirms LN2 dewar pressure nominal\", \"control\nroom reports beam delivered after morning startup\", \"first-time\ncommissioning verified by ops\".",
         "properties": {
           "reason": {
             "description": "Operator-supplied reason for declaring the supply Available for the first time (audit-log breadcrumb).",
@@ -5447,7 +5447,7 @@
         "type": "object"
       },
       "MarkSupplyRecoveringRequest": {
-        "description": "Body for `POST /supplies/{supply_id}/mark_recovering`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the supply is being marked Recovering. Examples:\n\"beam current detected at 50% nominal\", \"LN2 dewar refill in\nprogress\", \"vacuum pump-down underway, awaiting target pressure\".",
+        "description": "Body for `POST /supplies/{supply_id}/mark-recovering`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the supply is being marked Recovering. Examples:\n\"beam current detected at 50% nominal\", \"LN2 dewar refill in\nprogress\", \"vacuum pump-down underway, awaiting target pressure\".",
         "properties": {
           "reason": {
             "description": "Operator-supplied reason for the mark-recovering transition (audit-log breadcrumb).",
@@ -5464,7 +5464,7 @@
         "type": "object"
       },
       "MarkSupplyUnavailableRequest": {
-        "description": "Body for `POST /supplies/{supply_id}/mark_unavailable`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the supply is being marked Unavailable. Examples:\n\"beam dump at 09:32\", \"LN2 dewar empty\", \"vacuum loss in\nsample chamber\", \"scheduled maintenance window starts\".",
+        "description": "Body for `POST /supplies/{supply_id}/mark-unavailable`.\n\n`reason` is operator-supplied free text (audit-log breadcrumb)\nexplaining why the supply is being marked Unavailable. Examples:\n\"beam dump at 09:32\", \"LN2 dewar empty\", \"vacuum loss in\nsample chamber\", \"scheduled maintenance window starts\".",
         "properties": {
           "reason": {
             "description": "Operator-supplied reason for the mark-unavailable transition (audit-log breadcrumb).",
@@ -7007,7 +7007,7 @@
         "type": "object"
       },
       "ReDebriefRunRequest": {
-        "description": "Body for `POST /agents/run_debriefer/invoke`.",
+        "description": "Body for `POST /agents/run-debriefer/invoke`.",
         "properties": {
           "parent_decision_id": {
             "anyOf": [
@@ -7036,7 +7036,7 @@
         "type": "object"
       },
       "ReDebriefRunResponse": {
-        "description": "Response body for `POST /agents/run_debriefer/invoke`.",
+        "description": "Response body for `POST /agents/run-debriefer/invoke`.",
         "properties": {
           "decision_id": {
             "format": "uuid",
@@ -8508,7 +8508,7 @@
       },
       "ReleaseControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/release-control.",
+        "description": "Body for POST /visits/{visit_id}/release-control-of-surface.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit relinquishes control of. Must match the Visit's surface_id.",
@@ -8548,7 +8548,7 @@
         "type": "object"
       },
       "RemoveAssetFamilyRequest": {
-        "description": "Body for `POST /assets/{asset_id}/remove_family`.",
+        "description": "Body for `POST /assets/{asset_id}/remove-family`.",
         "properties": {
           "family_id": {
             "description": "Family id to remove from the asset's family set.",
@@ -8564,7 +8564,7 @@
         "type": "object"
       },
       "RemoveAssetPortRequest": {
-        "description": "Body for `POST /assets/{asset_id}/remove_port`.",
+        "description": "Body for `POST /assets/{asset_id}/remove-port`.",
         "properties": {
           "port_name": {
             "description": "Name of the port to remove.",
@@ -8581,7 +8581,7 @@
         "type": "object"
       },
       "RemovePlanWireRequest": {
-        "description": "Body for `POST /plans/{plan_id}/remove_wire`.\n\nAll four fields are required (the 4-tuple identifies the Wire to\nremove). Pydantic enforces non-empty port names at the boundary.\nRemoval is strict-not-idempotent: the Wire MUST currently exist\nin the Plan's wire set.",
+        "description": "Body for `POST /plans/{plan_id}/remove-wire`.\n\nAll four fields are required (the 4-tuple identifies the Wire to\nremove). Pydantic enforces non-empty port names at the boundary.\nRemoval is strict-not-idempotent: the Wire MUST currently exist\nin the Plan's wire set.",
         "properties": {
           "source_asset_id": {
             "description": "The source-side Asset of the Wire to remove.",
@@ -9641,7 +9641,7 @@
         "type": "object"
       },
       "StartClearanceReviewRequest": {
-        "description": "Body for `POST /clearances/{clearance_id}/start_review`.",
+        "description": "Body for `POST /clearances/{clearance_id}/start-review`.",
         "properties": {
           "first_reviewer_role": {
             "description": "Facility-vocabulary label for the first reviewer in the chain (for example, 'BeamlineScientist', 'LocalContact', 'ESH', 'ESRB').",
@@ -9699,7 +9699,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional Campaign id this Run joins at start time. When provided, the handler pre-loads the Campaign (404 if missing), verifies it is in Planned, Active, or Held (409 RunCannotJoinCampaign otherwise), and atomically writes both `RunStarted` (carrying campaign_id) on the Run stream AND `CampaignRunAdded` on the Campaign stream via `EventStore.append_streams`. Omit (or null) for a standalone Run; membership can also be added post-hoc via `POST /campaigns/{id}/runs/{run_id}`.",
+            "description": "Optional Campaign id this Run joins at start time. When provided, the handler pre-loads the Campaign (404 if missing), verifies it is in Planned, Active, or Held (409 RunCannotJoinCampaign otherwise), and atomically writes both `RunStarted` (carrying campaign_id) on the Run stream AND `CampaignRunAdded` on the Campaign stream via `EventStore.append_streams`. Omit (or null) for a standalone Run; membership can also be added post-hoc via `POST /campaigns/{id}/runs/{run_id}/add`.",
             "title": "Campaign Id"
           },
           "decided_by_decision_id": {
@@ -10289,7 +10289,7 @@
       },
       "TakeControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/take-control.",
+        "description": "Body for POST /visits/{visit_id}/take-control-of-surface.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit assumes operational control of. Must match the Visit's surface_id.",
@@ -11945,7 +11945,7 @@
         ]
       }
     },
-    "/agents/caution_drafter/decisions/{decision_id}/promote": {
+    "/agents/caution-drafter/decisions/{decision_id}/promote": {
       "post": {
         "operationId": "post_promote_caution_proposal_agents_caution_drafter_decisions__decision_id__promote_post",
         "parameters": [
@@ -12060,7 +12060,7 @@
         ]
       }
     },
-    "/agents/run_debriefer/invoke": {
+    "/agents/run-debriefer/invoke": {
       "post": {
         "operationId": "post_re_debrief_run_agents_run_debriefer_invoke_post",
         "parameters": [
@@ -13289,7 +13289,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/add_family": {
+    "/assets/{asset_id}/add-family": {
       "post": {
         "operationId": "post_assets_add_family_assets__asset_id__add_family_post",
         "parameters": [
@@ -13379,7 +13379,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/add_port": {
+    "/assets/{asset_id}/add-port": {
       "post": {
         "operationId": "post_assets_add_port_assets__asset_id__add_port_post",
         "parameters": [
@@ -13656,7 +13656,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/enter_maintenance": {
+    "/assets/{asset_id}/enter-maintenance": {
       "post": {
         "operationId": "post_assets_enter_maintenance_assets__asset_id__enter_maintenance_post",
         "parameters": [
@@ -13743,7 +13743,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/exit_maintenance": {
+    "/assets/{asset_id}/exit-maintenance": {
       "post": {
         "operationId": "post_assets_exit_maintenance_assets__asset_id__exit_maintenance_post",
         "parameters": [
@@ -14087,7 +14087,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/remove_family": {
+    "/assets/{asset_id}/remove-family": {
       "post": {
         "operationId": "post_assets_remove_family_assets__asset_id__remove_family_post",
         "parameters": [
@@ -14177,7 +14177,7 @@
         ]
       }
     },
-    "/assets/{asset_id}/remove_port": {
+    "/assets/{asset_id}/remove-port": {
       "post": {
         "operationId": "post_assets_remove_port_assets__asset_id__remove_port_post",
         "parameters": [
@@ -15665,9 +15665,9 @@
         ]
       }
     },
-    "/campaigns/{campaign_id}/runs/{run_id}": {
+    "/campaigns/{campaign_id}/runs/{run_id}/add": {
       "post": {
-        "operationId": "post_campaign_runs_campaigns__campaign_id__runs__run_id__post",
+        "operationId": "post_campaign_runs_add_campaigns__campaign_id__runs__run_id__add_post",
         "parameters": [
           {
             "description": "Target Campaign's id.",
@@ -17783,7 +17783,7 @@
         ]
       }
     },
-    "/clearances/{clearance_id}/review_steps": {
+    "/clearances/{clearance_id}/review-steps": {
       "post": {
         "operationId": "post_clearances_review_steps_clearances__clearance_id__review_steps_post",
         "parameters": [
@@ -17883,7 +17883,7 @@
         ]
       }
     },
-    "/clearances/{clearance_id}/start_review": {
+    "/clearances/{clearance_id}/start-review": {
       "post": {
         "operationId": "post_clearances_start_review_clearances__clearance_id__start_review_post",
         "parameters": [
@@ -19442,7 +19442,7 @@
         ]
       }
     },
-    "/decisions/{decision_id}/reasoning_entries": {
+    "/decisions/{decision_id}/reasoning-entries": {
       "post": {
         "operationId": "post_decisions_reasoning_entries_decisions__decision_id__reasoning_entries_post",
         "parameters": [
@@ -19886,7 +19886,7 @@
     },
     "/families/{family_id}/settings-schema": {
       "post": {
-        "operationId": "post_families_schema_families__family_id__settings_schema_post",
+        "operationId": "post_families_settings_schema_families__family_id__settings_schema_post",
         "parameters": [
           {
             "description": "Target family's id.",
@@ -23961,7 +23961,7 @@
         ]
       }
     },
-    "/plans/{plan_id}/add_wire": {
+    "/plans/{plan_id}/add-wire": {
       "post": {
         "operationId": "post_plans_add_wire_plans__plan_id__add_wire_post",
         "parameters": [
@@ -24248,7 +24248,7 @@
         ]
       }
     },
-    "/plans/{plan_id}/remove_wire": {
+    "/plans/{plan_id}/remove-wire": {
       "post": {
         "operationId": "post_plans_remove_wire_plans__plan_id__remove_wire_post",
         "parameters": [
@@ -28771,7 +28771,7 @@
         ]
       }
     },
-    "/supplies/{supply_id}/mark_available": {
+    "/supplies/{supply_id}/mark-available": {
       "post": {
         "operationId": "post_supplies_mark_available_supplies__supply_id__mark_available_post",
         "parameters": [
@@ -28871,7 +28871,7 @@
         ]
       }
     },
-    "/supplies/{supply_id}/mark_recovering": {
+    "/supplies/{supply_id}/mark-recovering": {
       "post": {
         "operationId": "post_supplies_mark_recovering_supplies__supply_id__mark_recovering_post",
         "parameters": [
@@ -28971,7 +28971,7 @@
         ]
       }
     },
-    "/supplies/{supply_id}/mark_unavailable": {
+    "/supplies/{supply_id}/mark-unavailable": {
       "post": {
         "operationId": "post_supplies_mark_unavailable_supplies__supply_id__mark_unavailable_post",
         "parameters": [
@@ -30092,9 +30092,9 @@
         ]
       }
     },
-    "/visits/{visit_id}/release-control": {
+    "/visits/{visit_id}/release-control-of-surface": {
       "post": {
-        "operationId": "post_visits_release_control_visits__visit_id__release_control_post",
+        "operationId": "post_visits_release_control_visits__visit_id__release_control_of_surface_post",
         "parameters": [
           {
             "description": "Requesting Visit's id.",
@@ -30363,9 +30363,9 @@
         ]
       }
     },
-    "/visits/{visit_id}/take-control": {
+    "/visits/{visit_id}/take-control-of-surface": {
       "post": {
-        "operationId": "post_visits_take_control_visits__visit_id__take_control_post",
+        "operationId": "post_visits_take_control_visits__visit_id__take_control_of_surface_post",
         "parameters": [
           {
             "description": "Requesting Visit's id.",

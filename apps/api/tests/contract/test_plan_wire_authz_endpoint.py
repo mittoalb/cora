@@ -144,12 +144,12 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
     ).json()["asset_id"]
     for asset_id in (src_id, tgt_id):
         client.post(
-            f"/assets/{asset_id}/add_family",
+            f"/assets/{asset_id}/add-family",
             json={"family_id": cap_id},
             headers=h,
         )
     client.post(
-        f"/assets/{src_id}/add_port",
+        f"/assets/{src_id}/add-port",
         json={
             "port_name": "trigger_out",
             "direction": "Output",
@@ -158,7 +158,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
         headers=h,
     )
     client.post(
-        f"/assets/{tgt_id}/add_port",
+        f"/assets/{tgt_id}/add-port",
         json={
             "port_name": "trigger_in",
             "direction": "Input",
@@ -183,13 +183,13 @@ def test_p2_gets_403_when_adding_a_wire_to_p1s_plan(
     wire_authz_app: tuple[TestClient, UUID, UUID],
 ) -> None:
     """Authz contract: P2 is not in `permitted_principals` for AddPlanWire,
-    so POST /plans/{id}/add_wire returns 403 before any decider logic
+    so POST /plans/{id}/add-wire returns 403 before any decider logic
     runs. Pins the full route -> handler -> deps.authz.authorize -> 403 stack."""
     client, p1, p2 = wire_authz_app
     ctx = _setup_plan_with_two_wired_assets(client, p1)
 
     response = client.post(
-        f"/plans/{ctx['plan_id']}/add_wire",
+        f"/plans/{ctx['plan_id']}/add-wire",
         json={
             "source_asset_id": ctx["src_id"],
             "source_port_name": "trigger_out",
@@ -212,7 +212,7 @@ def test_p2_gets_403_when_removing_a_wire_from_p1s_plan(
 
     # P1 adds a wire so there's something to attempt removing.
     add_resp = client.post(
-        f"/plans/{ctx['plan_id']}/add_wire",
+        f"/plans/{ctx['plan_id']}/add-wire",
         json={
             "source_asset_id": ctx["src_id"],
             "source_port_name": "trigger_out",
@@ -225,7 +225,7 @@ def test_p2_gets_403_when_removing_a_wire_from_p1s_plan(
 
     # P2 attempts the remove.
     response = client.post(
-        f"/plans/{ctx['plan_id']}/remove_wire",
+        f"/plans/{ctx['plan_id']}/remove-wire",
         json={
             "source_asset_id": ctx["src_id"],
             "source_port_name": "trigger_out",
@@ -248,7 +248,7 @@ def test_p1_can_still_add_and_remove_wires(
     ctx = _setup_plan_with_two_wired_assets(client, p1)
 
     add_resp = client.post(
-        f"/plans/{ctx['plan_id']}/add_wire",
+        f"/plans/{ctx['plan_id']}/add-wire",
         json={
             "source_asset_id": ctx["src_id"],
             "source_port_name": "trigger_out",
@@ -260,7 +260,7 @@ def test_p1_can_still_add_and_remove_wires(
     assert add_resp.status_code == 204, add_resp.text
 
     remove_resp = client.post(
-        f"/plans/{ctx['plan_id']}/remove_wire",
+        f"/plans/{ctx['plan_id']}/remove-wire",
         json={
             "source_asset_id": ctx["src_id"],
             "source_port_name": "trigger_out",

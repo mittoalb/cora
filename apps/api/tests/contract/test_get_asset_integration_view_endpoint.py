@@ -72,7 +72,7 @@ def test_get_integration_view_carries_combined_family_affordances() -> None:
             json={"name": "RotaryStage", "affordances": ["Posable"]},
         ).json()["family_id"]
         client.post(
-            f"/assets/{asset_id}/add_family",
+            f"/assets/{asset_id}/add-family",
             json={"family_id": family_id},
         )
 

@@ -1,7 +1,7 @@
 """HTTP route for the `promote_caution_proposal` slice.
 
 Operator-triggered cross-BC promotion endpoint at
-`POST /agents/caution_drafter/decisions/{decision_id}/promote`.
+`POST /agents/caution-drafter/decisions/{decision_id}/promote`.
 No request body (the proposed-Caution payload is carried by the
 referenced Decision's `inputs`).
 
@@ -40,7 +40,7 @@ router = APIRouter(tags=["agent"])
 
 
 @router.post(
-    "/agents/caution_drafter/decisions/{decision_id}/promote",
+    "/agents/caution-drafter/decisions/{decision_id}/promote",
     status_code=status.HTTP_201_CREATED,
     response_model=PromoteCautionProposalResponse,
     responses={

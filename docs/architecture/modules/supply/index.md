@@ -106,10 +106,10 @@ Every transition event carries `from_status` explicitly (even though the FSM con
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
 | `RegisterSupply` | NEW | `POST /supplies` | `register_supply` | required |
-| `MarkSupplyAvailable` | MODIFIED | `POST /supplies/{supply_id}/mark_available` | `mark_supply_available` | none |
+| `MarkSupplyAvailable` | MODIFIED | `POST /supplies/{supply_id}/mark-available` | `mark_supply_available` | none |
 | `DegradeSupply` | MODIFIED | `POST /supplies/{supply_id}/degrade` | `degrade_supply` | none |
-| `MarkSupplyUnavailable` | MODIFIED | `POST /supplies/{supply_id}/mark_unavailable` | `mark_supply_unavailable` | none |
-| `MarkSupplyRecovering` | MODIFIED | `POST /supplies/{supply_id}/mark_recovering` | `mark_supply_recovering` | none |
+| `MarkSupplyUnavailable` | MODIFIED | `POST /supplies/{supply_id}/mark-unavailable` | `mark_supply_unavailable` | none |
+| `MarkSupplyRecovering` | MODIFIED | `POST /supplies/{supply_id}/mark-recovering` | `mark_supply_recovering` | none |
 | `RestoreSupply` | MODIFIED | `POST /supplies/{supply_id}/restore` | `restore_supply` | none |
 | `DeregisterSupply` | TERMINAL | `POST /supplies/{supply_id}/deregister` | `deregister_supply` | none |
 | `ObserveSupplyStatus` | IN-PROCESS | (none — by design) | (none — by design) | none |
@@ -230,7 +230,7 @@ The four examples below follow the canonical Supply path: register a beamline-lo
 === "REST"
 
     ```http
-    POST /supplies/{supply_id}/mark_available
+    POST /supplies/{supply_id}/mark-available
     Content-Type: application/json
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
 
@@ -262,7 +262,7 @@ The four examples below follow the canonical Supply path: register a beamline-lo
 === "REST"
 
     ```http
-    POST /supplies/{supply_id}/mark_unavailable
+    POST /supplies/{supply_id}/mark-unavailable
     Content-Type: application/json
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
 
@@ -294,7 +294,7 @@ The four examples below follow the canonical Supply path: register a beamline-lo
 === "REST"
 
     ```http
-    POST /supplies/{supply_id}/mark_recovering
+    POST /supplies/{supply_id}/mark-recovering
     Content-Type: application/json
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
 

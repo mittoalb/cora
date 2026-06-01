@@ -1,7 +1,7 @@
 """HTTP route for the `add_run_to_campaign` slice.
 
-Action endpoint at `POST /campaigns/{campaign_id}/runs/{run_id}`. No
-body. 204 No Content on success. Both ids come from the URL path.
+Action endpoint at `POST /campaigns/{campaign_id}/runs/{run_id}/add`.
+No body. 204 No Content on success. Both ids come from the URL path.
 """
 
 from typing import Annotated
@@ -28,7 +28,7 @@ router = APIRouter(tags=["campaign"])
 
 
 @router.post(
-    "/campaigns/{campaign_id}/runs/{run_id}",
+    "/campaigns/{campaign_id}/runs/{run_id}/add",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -52,7 +52,7 @@ router = APIRouter(tags=["campaign"])
     },
     summary="Add a Run as a member of a Campaign (atomic two-stream write)",
 )
-async def post_campaign_runs(
+async def post_campaign_runs_add(
     campaign_id: Annotated[UUID, Path(description="Target Campaign's id.")],
     run_id: Annotated[UUID, Path(description="Run to add as a member.")],
     handler: Annotated[Handler, Depends(_get_handler)],

@@ -96,7 +96,7 @@ def test_post_plans_same_key_with_reordered_asset_ids_returns_same_plan_id() -> 
             "family_id"
         ]
         # Add OtherCap to first asset.
-        client.post(f"/assets/{asset_id_1}/add_family", json={"family_id": cap_id})
+        client.post(f"/assets/{asset_id_1}/add-family", json={"family_id": cap_id})
         asset_id_2 = client.post(
             "/assets",
             json={"name": "Asset2", "level": "Enterprise", "parent_id": None},
@@ -104,7 +104,7 @@ def test_post_plans_same_key_with_reordered_asset_ids_returns_same_plan_id() -> 
         # asset_id_2 doesn't need any capability beyond what's already
         # required (the single FlyMotion). Add it.
         first_cap_id = client.post(
-            f"/assets/{asset_id_2}/add_family",
+            f"/assets/{asset_id_2}/add-family",
             json={"family_id": cap_id},
         )
         # Skip the asset_id_2 capability check; for this test we just
