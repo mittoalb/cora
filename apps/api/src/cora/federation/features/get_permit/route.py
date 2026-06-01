@@ -39,7 +39,7 @@ class _OutboundTermsResponse(BaseModel):
     """Wire shape for outbound terms in the response."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefResponse]
+    scopes: list[_ScopeRefResponse]
     read_scope: str
     onward_action_scope: str
 
@@ -88,10 +88,10 @@ class PermitResponse(BaseModel):
 
 def _terms_from_view(view: PermitView) -> _TermsResponse:
     if view.terms_kind == "Outbound":
-        scopes = view.scope_set or []
+        scopes = view.scopes or []
         return _OutboundTermsResponse(
             kind="Outbound",
-            scope_set=[
+            scopes=[
                 _ScopeRefResponse(
                     kind=s["kind"],
                     name=s["name"],

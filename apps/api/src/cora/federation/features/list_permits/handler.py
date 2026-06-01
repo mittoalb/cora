@@ -6,7 +6,7 @@ optional scalar filters: `direction` / `status` / `peer_facility_id`.
 Cursor pagination keyed on `(defined_at, permit_id)`.
 
 List output deliberately OMITS the per-arc terms detail
-(read_scope / onward_action_scope / scope_set / accepted_canonicalization_versions /
+(read_scope / onward_action_scope / scopes / accepted_canonicalization_versions /
 required_receipt_kinds / publisher_grant_correlation_handle /
 inbound_allowed_artifact_kinds) to keep the list payload thin;
 surfaces only the discriminator `terms_kind` + the cross-direction

@@ -148,7 +148,7 @@ def make_jwt_verifier(
     jwks_url: str,
     audience_for_surface: dict[UUID, str] | None = None,
     subject_mapper: Callable[[str, str], Awaitable[tuple[UUID, PrincipalKind]]] | None = None,
-    algorithms_allowed: list[str] | None = None,
+    allowed_algorithms: list[str] | None = None,
 ) -> JwtTokenVerifier:
     """Common JwtTokenVerifier construction shape for unit tests.
 
@@ -161,7 +161,7 @@ def make_jwt_verifier(
         jwks_url=jwks_url,
         audience_for_surface=audience_for_surface or {TEST_SURFACE_HTTP: TEST_AUD_HTTP},
         subject_mapper=subject_mapper or make_mapper(),
-        algorithms_allowed=algorithms_allowed or ["RS256"],
+        allowed_algorithms=allowed_algorithms or ["RS256"],
         allow_insecure_jwks_url=True,
     )
 

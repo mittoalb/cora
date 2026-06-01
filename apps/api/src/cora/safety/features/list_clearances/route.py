@@ -52,17 +52,20 @@ from cora.safety.features.list_clearances.query import (
 class BindingsByKind(BaseModel):
     """Per-kind binding-id arrays surfaced on the list response.
 
-    Four explicit named fields (matching the projection's UUID[] columns
-    1:1) instead of a `dict[str, list[UUID]]`: OpenAPI codegen produces
-    typed accessors; SDK consumers see the locked set of keys without
-    `additionalProperties` ambiguity. ExternalBinding refs are NOT
-    surfaced here (anti-corruption refs, not projected; see route summary).
+    Four explicit `<kind>_ids` fields (matching the projection's UUID[]
+    columns 1:1, mirroring the view-model's `subject_binding_ids` /
+    `asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`
+    plural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen
+    produces typed accessors; SDK consumers see the locked set of keys
+    without `additionalProperties` ambiguity. ExternalBinding refs are
+    NOT surfaced here (anti-corruption refs, not projected; see route
+    summary).
     """
 
-    subject: list[UUID] = Field(default_factory=list[UUID])
-    asset: list[UUID] = Field(default_factory=list[UUID])
-    run: list[UUID] = Field(default_factory=list[UUID])
-    procedure: list[UUID] = Field(default_factory=list[UUID])
+    subject_ids: list[UUID] = Field(default_factory=list[UUID])
+    asset_ids: list[UUID] = Field(default_factory=list[UUID])
+    run_ids: list[UUID] = Field(default_factory=list[UUID])
+    procedure_ids: list[UUID] = Field(default_factory=list[UUID])
 
 
 class ClearanceSummaryDTO(BaseModel):
@@ -198,10 +201,10 @@ async def list_clearances(
                 status=ClearanceStatus(item.status),
                 risk_band=RiskBand(item.risk_band) if item.risk_band is not None else None,
                 bindings=BindingsByKind(
-                    subject=item.subject_binding_ids,
-                    asset=item.asset_binding_ids,
-                    run=item.run_binding_ids,
-                    procedure=item.procedure_binding_ids,
+                    subject_ids=item.subject_binding_ids,
+                    asset_ids=item.asset_binding_ids,
+                    run_ids=item.run_binding_ids,
+                    procedure_ids=item.procedure_binding_ids,
                 ),
                 parent_clearance_id=item.parent_clearance_id,
                 registered_at=item.registered_at,

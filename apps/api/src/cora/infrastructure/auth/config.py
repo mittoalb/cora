@@ -161,7 +161,7 @@ class IdentityProviderConfig(BaseModel):
         ),
     )
 
-    algorithms_allowed: list[str] = Field(
+    allowed_algorithms: list[str] = Field(
         default_factory=lambda: ["RS256", "ES256"],
         description=(
             "JWT signature algorithms accepted by the JwtTokenVerifier. "

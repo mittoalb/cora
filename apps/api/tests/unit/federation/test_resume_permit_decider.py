@@ -38,7 +38,7 @@ _EXPIRES_AT = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
 
 def _terms() -> OutboundTerms:
     return OutboundTerms(
-        scope_set=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
+        scopes=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
         read_scope=ReadScope.READ_ALL_ARTIFACTS,
         onward_action_scope=OnwardActionScope.READ_ONLY,
     )

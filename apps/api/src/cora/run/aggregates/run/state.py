@@ -1130,7 +1130,7 @@ class RunCannotAdjustError(Exception):
 
 
 class InvalidRunAdjustPatchError(ValueError):
-    """The supplied `parameter_patch` is empty or otherwise unusable.
+    """The supplied `parameters_patch` is empty or otherwise unusable.
 
     Empty patches are rejected at the decider so the audit log never
     carries a no-op "operator adjusted with no change" entry. The API

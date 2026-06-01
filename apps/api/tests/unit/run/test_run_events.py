@@ -901,7 +901,7 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
     decision_id = uuid4()
     event = RunAdjusted(
         run_id=run_id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         effective_parameters={"energy": 12.0, "exposure": 100},
         reason="re-center on ROI",
         decided_by_decision_id=decision_id,
@@ -910,7 +910,7 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
     payload = to_payload(event)
     assert payload == {
         "run_id": str(run_id),
-        "parameter_patch": {"energy": 12.0},
+        "parameters_patch": {"energy": 12.0},
         "effective_parameters": {"energy": 12.0, "exposure": 100},
         "reason": "re-center on ROI",
         "decided_by_decision_id": str(decision_id),
@@ -926,7 +926,7 @@ def test_to_payload_serializes_run_adjusted_without_decision_id_as_null() -> Non
 
     event = RunAdjusted(
         run_id=uuid4(),
-        parameter_patch={"a": 1},
+        parameters_patch={"a": 1},
         effective_parameters={"a": 1},
         reason="x",
         occurred_at=_NOW,
@@ -940,7 +940,7 @@ def test_from_stored_rebuilds_run_adjusted_with_decision_id() -> None:
 
     original = RunAdjusted(
         run_id=uuid4(),
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         effective_parameters={"energy": 12.0, "exposure": 100},
         reason="agent steering iteration 5",
         decided_by_decision_id=uuid4(),
@@ -956,7 +956,7 @@ def test_from_stored_rebuilds_run_adjusted_without_decision_id() -> None:
 
     original = RunAdjusted(
         run_id=uuid4(),
-        parameter_patch={"a": 1},
+        parameters_patch={"a": 1},
         effective_parameters={"a": 1},
         reason="x",
         decided_by_decision_id=None,
@@ -978,7 +978,7 @@ def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -
         "RunAdjusted",
         {
             "run_id": str(run_id),
-            "parameter_patch": {"a": 1},
+            "parameters_patch": {"a": 1},
             "effective_parameters": {"a": 1},
             "reason": "x",
             # NOTE: no decided_by_decision_id key

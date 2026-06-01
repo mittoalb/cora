@@ -163,7 +163,7 @@ class Settings(BaseSettings):
     #   IDENTITY_PROVIDERS='[{"issuer":"https://idp.example.com",
     #     "jwks_url":"https://idp.example.com/jwks.json",
     #     "audiences":{"00000000-0000-0000-0000-000000000020":"https://cora.example/http"},
-    #     "algorithms_allowed":["RS256"]}]'
+    #     "allowed_algorithms":["RS256"]}]'
     #
     # pydantic-settings parses the JSON automatically when the env
     # value starts with `[`. Schema validation runs at startup so

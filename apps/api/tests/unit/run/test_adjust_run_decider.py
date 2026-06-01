@@ -72,7 +72,7 @@ def test_decide_emits_run_adjusted_for_valid_patch_against_schema() -> None:
     state = _run(effective={"energy": 10.0, "exposure": 100})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="narrow ROI",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
@@ -82,7 +82,7 @@ def test_decide_emits_run_adjusted_for_valid_patch_against_schema() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.run_id == state.id
-    assert event.parameter_patch == {"energy": 12.0}
+    assert event.parameters_patch == {"energy": 12.0}
     assert event.effective_parameters == {"energy": 12.0, "exposure": 100}
     assert event.reason == "narrow ROI"
     assert event.decided_by_decision_id is None
@@ -95,7 +95,7 @@ def test_decide_threads_decision_id_through_to_event() -> None:
     decision_id = uuid4()
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="agent decided",
         decided_by_decision_id=decision_id,
     )
@@ -111,7 +111,7 @@ def test_decide_accepts_held_state() -> None:
     state = _run(status=RunStatus.HELD, effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="adjust during pause",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -127,7 +127,7 @@ def test_decide_skips_schema_validation_when_schemaless() -> None:
     state = _run(effective={})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"undeclared_key": "any value"},
+        parameters_patch={"undeclared_key": "any value"},
         reason="agent steering",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -142,7 +142,7 @@ def test_decide_preserves_prior_keys_untouched_by_patch() -> None:
     state = _run(effective={"energy": 10.0, "exposure": 100, "rotation": 180.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="re-energize only",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -158,7 +158,7 @@ def test_decide_clears_key_when_patch_value_is_null() -> None:
     state = _run(effective={"energy": 10.0, "exposure": 100})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"exposure": None},
+        parameters_patch={"exposure": None},
         reason="drop exposure override",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -186,7 +186,7 @@ def test_decide_raises_cannot_adjust_for_terminal_states(
     state = _run(status=bad_status, effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="x",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -204,7 +204,7 @@ def test_decide_raises_cannot_adjust_for_terminal_states(
 def test_decide_raises_run_not_found_when_state_is_none() -> None:
     cmd = AdjustRun(
         run_id=uuid4(),
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="x",
     )
     placeholder = _run()
@@ -220,7 +220,7 @@ def test_decide_raises_invalid_patch_for_empty_patch() -> None:
     state = _run(effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={},
+        parameters_patch={},
         reason="x",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -234,7 +234,7 @@ def test_decide_raises_invalid_schema_for_post_merge_violation() -> None:
     state = _run(effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 1.0},  # below minimum=5
+        parameters_patch={"energy": 1.0},  # below minimum=5
         reason="x",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
@@ -248,7 +248,7 @@ def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
     state = _run(effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="   ",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -262,7 +262,7 @@ def test_decide_raises_invalid_reason_for_too_long() -> None:
     state = _run(effective={"energy": 10.0})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"energy": 12.0},
+        parameters_patch={"energy": 12.0},
         reason="x" * 501,
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -276,7 +276,7 @@ def test_decide_trims_reason_before_event_emission() -> None:
     state = _run(effective={})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"a": 1},
+        parameters_patch={"a": 1},
         reason="  re-centering  ",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -294,7 +294,7 @@ def test_decide_accepts_reason_at_exactly_max_length() -> None:
     state = _run(effective={})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"a": 1},
+        parameters_patch={"a": 1},
         reason="x" * 500,
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -310,7 +310,7 @@ def test_decide_accepts_reason_at_exactly_one_char() -> None:
     state = _run(effective={})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"a": 1},
+        parameters_patch={"a": 1},
         reason="x",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
@@ -327,7 +327,7 @@ def test_decide_adds_new_key_when_patch_introduces_one() -> None:
     state = _run(effective={"a": 1})
     cmd = AdjustRun(
         run_id=state.id,
-        parameter_patch={"b": 2},
+        parameters_patch={"b": 2},
         reason="add new key",
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)

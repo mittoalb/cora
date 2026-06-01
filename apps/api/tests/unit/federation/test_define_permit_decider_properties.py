@@ -57,7 +57,7 @@ def _scope_ref() -> ScopeRef:
 
 def _outbound_terms() -> OutboundTerms:
     return OutboundTerms(
-        scope_set=frozenset({_scope_ref()}),
+        scopes=frozenset({_scope_ref()}),
         read_scope=ReadScope.READ_ALL_ARTIFACTS,
         onward_action_scope=OnwardActionScope.READ_ONLY,
     )

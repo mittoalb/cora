@@ -25,7 +25,7 @@ def _define_permit_arguments() -> dict[str, Any]:
         "expires_at": "2027-05-30T12:00:00+00:00",
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
+            "scopes": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },

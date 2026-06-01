@@ -44,7 +44,7 @@ def test_mcp_list_cautions_tool_returns_empty_page_with_no_data() -> None:
 
 @pytest.mark.contract
 def test_mcp_list_cautions_tool_accepts_combined_filters() -> None:
-    """Multi-value severity + status are passed as lists per the canonical
+    """Multi-value severities + statuses are passed as lists per the canonical
     shape; the tool layer translates the 'all' sentinel and the ladder."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
@@ -59,8 +59,8 @@ def test_mcp_list_cautions_tool_accepts_combined_filters() -> None:
                     "arguments": {
                         "target_kind": "Asset",
                         "category": "Wear",
-                        "severity": ["Caution", "Warning"],
-                        "status": ["all"],
+                        "severities": ["Caution", "Warning"],
+                        "statuses": ["all"],
                         "tag": "hexapod",
                         "limit": 25,
                     },
@@ -113,7 +113,7 @@ def test_mcp_list_cautions_tool_iserror_on_severity_and_min_severity_together() 
                 "params": {
                     "name": "list_cautions",
                     "arguments": {
-                        "severity": ["Caution"],
+                        "severities": ["Caution"],
                         "min_severity": "Warning",
                     },
                 },

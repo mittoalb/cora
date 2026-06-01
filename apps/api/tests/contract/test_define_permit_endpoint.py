@@ -37,7 +37,7 @@ def _body(**overrides: object) -> dict[str, Any]:
         "expires_at": _EXPIRES_AT,
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "public"}],
+            "scopes": [{"kind": "dataset", "name": "public"}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },
@@ -125,7 +125,7 @@ def test_post_federation_permits_rejects_outbound_terms_collapse_with_422() -> N
             json=_body(
                 terms={
                     "kind": "Outbound",
-                    "scope_set": [{"kind": "dataset", "name": "public"}],
+                    "scopes": [{"kind": "dataset", "name": "public"}],
                     "read_scope": "ListMetadataOnly",
                     "onward_action_scope": "MayExportOffPlatform",
                 },

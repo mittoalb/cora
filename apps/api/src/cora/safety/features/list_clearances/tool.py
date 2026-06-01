@@ -30,15 +30,16 @@ class BindingsByKindOutput(BaseModel):
     """Per-kind binding-id arrays surfaced on the list MCP tool output.
 
     Mirrors `cora.safety.features.list_clearances.route.BindingsByKind`
-    shape exactly (4 named fields, no `additionalProperties`).
+    shape exactly (4 named `<kind>_ids` fields aligned with the
+    projection's plural column names, no `additionalProperties`).
     ExternalBinding refs are NOT surfaced (anti-corruption refs, not
     projected; see tool description).
     """
 
-    subject: list[UUID] = Field(default_factory=list[UUID])
-    asset: list[UUID] = Field(default_factory=list[UUID])
-    run: list[UUID] = Field(default_factory=list[UUID])
-    procedure: list[UUID] = Field(default_factory=list[UUID])
+    subject_ids: list[UUID] = Field(default_factory=list[UUID])
+    asset_ids: list[UUID] = Field(default_factory=list[UUID])
+    run_ids: list[UUID] = Field(default_factory=list[UUID])
+    procedure_ids: list[UUID] = Field(default_factory=list[UUID])
 
 
 class ClearanceSummaryItemOutput(BaseModel):
@@ -144,10 +145,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     status=ClearanceStatus(item.status),
                     risk_band=RiskBand(item.risk_band) if item.risk_band is not None else None,
                     bindings=BindingsByKindOutput(
-                        subject=item.subject_binding_ids,
-                        asset=item.asset_binding_ids,
-                        run=item.run_binding_ids,
-                        procedure=item.procedure_binding_ids,
+                        subject_ids=item.subject_binding_ids,
+                        asset_ids=item.asset_binding_ids,
+                        run_ids=item.run_binding_ids,
+                        procedure_ids=item.procedure_binding_ids,
                     ),
                     parent_clearance_id=item.parent_clearance_id,
                     registered_at=item.registered_at,

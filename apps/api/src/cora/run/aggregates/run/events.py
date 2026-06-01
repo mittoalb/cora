@@ -440,7 +440,7 @@ class RunAdjusted:
     """
 
     run_id: UUID
-    parameter_patch: dict[str, Any]
+    parameters_patch: dict[str, Any]
     effective_parameters: dict[str, Any]
     reason: str
     occurred_at: datetime
@@ -609,7 +609,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             }
         case RunAdjusted(
             run_id=run_id,
-            parameter_patch=parameter_patch,
+            parameters_patch=parameters_patch,
             effective_parameters=effective_parameters,
             reason=reason,
             decided_by_decision_id=decided_by_decision_id,
@@ -617,7 +617,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
         ):
             return {
                 "run_id": str(run_id),
-                "parameter_patch": parameter_patch,
+                "parameters_patch": parameters_patch,
                 "effective_parameters": effective_parameters,
                 "reason": reason,
                 "decided_by_decision_id": (
@@ -794,12 +794,12 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # `decided_by_decision_id` is optional on the
                 # event payload. Forward-compat additive: synthetic / future
                 # callers omitting the key (None semantically) deserialize
-                # as decided_by_decision_id=None. `parameter_patch` and
+                # as decided_by_decision_id=None. `parameters_patch` and
                 # `effective_parameters` are always carried (never optional).
                 raw_decision_id = payload.get("decided_by_decision_id")
                 return RunAdjusted(
                     run_id=UUID(payload["run_id"]),
-                    parameter_patch=payload["parameter_patch"],
+                    parameters_patch=payload["parameters_patch"],
                     effective_parameters=payload["effective_parameters"],
                     reason=payload["reason"],
                     decided_by_decision_id=(

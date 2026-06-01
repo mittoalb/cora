@@ -52,7 +52,7 @@ class _OutboundTermsRequest(BaseModel):
     """JSON wire shape for `OutboundTerms`."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefRequest] = Field(..., min_length=1)
+    scopes: list[_ScopeRefRequest] = Field(..., min_length=1)
     read_scope: ReadScope
     onward_action_scope: OnwardActionScope
 
@@ -122,7 +122,7 @@ class DefinePermitRequest(BaseModel):
         ...,
         description=(
             "Direction-specific contractual fields. Discriminated by `kind`: "
-            "`Outbound` carries `scope_set` + `read_scope` + "
+            "`Outbound` carries `scopes` + `read_scope` + "
             "`onward_action_scope`; `Inbound` carries "
             "`inbound_allowed_artifact_kinds` + optional canonicalization / receipt "
             "config."
@@ -146,8 +146,8 @@ def _get_handler(request: Request) -> IdempotentHandler:
 def _build_terms(body: _TermsRequest) -> OutboundTerms | InboundTerms:
     if isinstance(body, _OutboundTermsRequest):
         return OutboundTerms(
-            scope_set=frozenset(
-                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scope_set
+            scopes=frozenset(
+                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scopes
             ),
             read_scope=body.read_scope,
             onward_action_scope=body.onward_action_scope,

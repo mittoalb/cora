@@ -43,7 +43,7 @@ _OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fed003")
 
 def _terms() -> OutboundTerms:
     return OutboundTerms(
-        scope_set=frozenset({ScopeRef(kind="dataset", name="alpha")}),
+        scopes=frozenset({ScopeRef(kind="dataset", name="alpha")}),
         read_scope=ReadScope.READ_ALL_ARTIFACTS,
         onward_action_scope=OnwardActionScope.READ_ONLY,
     )

@@ -23,7 +23,7 @@ lifecycle.
 
 `OutboundTerms` (this facility publishes to the peer):
 
-  - `scope_set` is the bounded set of publishable scopes the peer may
+  - `scopes` is the bounded set of publishable scopes the peer may
     pull under this permit.
   - `read_scope` and `onward_action_scope` are orthogonal axes.
     Combinations that collapse the matrix (for example onward
@@ -202,7 +202,7 @@ class ScopeRef:
 class OutboundTerms:
     """Direction-specific contractual fields when this facility publishes."""
 
-    scope_set: frozenset[ScopeRef]
+    scopes: frozenset[ScopeRef]
     read_scope: ReadScope
     onward_action_scope: OnwardActionScope
 

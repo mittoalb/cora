@@ -53,7 +53,7 @@ def _command() -> DefinePermit:
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         terms=OutboundTerms(
-            scope_set=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
+            scopes=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
             read_scope=ReadScope.READ_ALL_ARTIFACTS,
             onward_action_scope=OnwardActionScope.READ_ONLY,
         ),

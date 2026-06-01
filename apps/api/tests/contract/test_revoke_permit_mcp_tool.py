@@ -26,7 +26,7 @@ def _register_args() -> dict[str, Any]:
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "public", "qualifier": None}],
+            "scopes": [{"kind": "dataset", "name": "public", "qualifier": None}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },

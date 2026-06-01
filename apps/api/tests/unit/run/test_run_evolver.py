@@ -816,7 +816,7 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
             started,
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"energy": 12.0},
+                parameters_patch={"energy": 12.0},
                 effective_parameters={"energy": 12.0},
                 reason="x",
                 occurred_at=later,
@@ -849,14 +849,14 @@ def test_two_run_adjusted_events_increment_count_cumulatively() -> None:
             started,
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"a": 2},
+                parameters_patch={"a": 2},
                 effective_parameters={"a": 2},
                 reason="first",
                 occurred_at=_NOW,
             ),
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"b": 3},
+                parameters_patch={"b": 3},
                 effective_parameters={"a": 2, "b": 3},
                 reason="second",
                 occurred_at=_NOW,
@@ -877,7 +877,7 @@ def test_run_adjusted_on_empty_state_raises() -> None:
             None,
             RunAdjusted(
                 run_id=uuid4(),
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 effective_parameters={"x": 1},
                 reason="x",
                 occurred_at=_NOW,
@@ -906,7 +906,7 @@ def test_held_then_resumed_preserves_adjustment_denorm() -> None:
             started,
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"a": 2},
+                parameters_patch={"a": 2},
                 effective_parameters={"a": 2},
                 reason="first",
                 occurred_at=adjusted_at,
@@ -947,7 +947,7 @@ def test_each_terminal_preserves_adjustment_denorm(
             ),
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"a": 1},
+                parameters_patch={"a": 1},
                 effective_parameters={"a": 1},
                 reason="adjust",
                 occurred_at=adjusted_at,
@@ -1107,7 +1107,7 @@ def test_adjust_run_preserves_pinned_calibrations() -> None:
             ),
             RunAdjusted(
                 run_id=run_id,
-                parameter_patch={"a": 1},
+                parameters_patch={"a": 1},
                 effective_parameters={"a": 1},
                 reason="adjust",
                 occurred_at=_NOW,

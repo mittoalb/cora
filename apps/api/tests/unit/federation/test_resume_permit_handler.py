@@ -68,7 +68,7 @@ def _build_deps(
 
 def _outbound_terms() -> OutboundTerms:
     return OutboundTerms(
-        scope_set=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
+        scopes=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
         read_scope=ReadScope.READ_ALL_ARTIFACTS,
         onward_action_scope=OnwardActionScope.READ_ONLY,
     )

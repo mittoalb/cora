@@ -4,7 +4,7 @@
 `cursor`, `limit`, `direction`, `status`, `peer_facility_id`.
 Returns `{"items": [...], "next_cursor": "..." | null}`.
 
-Per-arc terms detail (read_scope / scope_set /
+Per-arc terms detail (read_scope / scopes /
 accepted_canonicalization_versions / etc.) is NOT surfaced here;
 fetch by id via `get_permit` for the full polymorphic terms VO.
 The list response surfaces only `terms_kind` plus the cross-

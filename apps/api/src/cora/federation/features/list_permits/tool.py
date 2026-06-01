@@ -55,7 +55,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "List federation Permits with cursor pagination + 3 optional "
             "filters: direction (Outbound / Inbound) / status (Defined / "
             "Active / Suspended / Revoked) / peer_facility_id. Returns "
-            "sorted by defined_at ASC. Per-arc terms detail (scope_set / "
+            "sorted by defined_at ASC. Per-arc terms detail (scopes / "
             "read_scope / onward_action_scope / accepted_canonicalization_versions "
             "/ etc.) is NOT in the response; fetch get_permit for the full "
             "polymorphic terms VO."

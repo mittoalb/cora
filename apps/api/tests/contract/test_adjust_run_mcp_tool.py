@@ -100,7 +100,7 @@ def test_mcp_adjust_run_tool_succeeds_on_happy_path() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy": 12.0},
+                        "parameters_patch": {"energy": 12.0},
                         "reason": "re-center",
                     },
                 },
@@ -126,7 +126,7 @@ def test_mcp_adjust_run_tool_passes_decision_id_through() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy": 13.0},
+                        "parameters_patch": {"energy": 13.0},
                         "reason": "agent steering",
                         "decided_by_decision_id": str(uuid4()),
                     },
@@ -152,7 +152,7 @@ def test_mcp_adjust_run_tool_surfaces_run_not_found_error() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": str(uuid4()),
-                        "parameter_patch": {"x": 1},
+                        "parameters_patch": {"x": 1},
                         "reason": "x",
                     },
                 },
@@ -178,7 +178,7 @@ def test_mcp_adjust_run_tool_surfaces_whitespace_reason_error() -> None:
                     "name": "adjust_run",
                     "arguments": {
                         "run_id": run_id,
-                        "parameter_patch": {"energy": 12.0},
+                        "parameters_patch": {"energy": 12.0},
                         "reason": "   ",
                     },
                 },

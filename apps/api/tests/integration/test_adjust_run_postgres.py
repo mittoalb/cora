@@ -188,7 +188,7 @@ async def test_adjust_run_persists_run_adjusted_and_folds_into_state(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy": 12.0},
+            parameters_patch={"energy": 12.0},
             reason="re-center on ROI",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -226,7 +226,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy": 12.0},
+            parameters_patch={"energy": 12.0},
             reason="first",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -235,7 +235,7 @@ async def test_two_consecutive_adjust_run_increments_count_cumulatively(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"exposure": 200},
+            parameters_patch={"exposure": 200},
             reason="second",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -285,7 +285,7 @@ async def test_adjust_run_with_decision_id_persists_link_on_payload(
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy": 13.0},
+            parameters_patch={"energy": 13.0},
             reason="agent steering iteration",
             decided_by_decision_id=decision_id,
         ),
@@ -298,6 +298,6 @@ async def test_adjust_run_with_decision_id_persists_link_on_payload(
     assert types == ["RunStarted", "RunAdjusted"]
     adjusted_payload = stored[1].payload
     assert adjusted_payload["decided_by_decision_id"] == str(decision_id)
-    assert adjusted_payload["parameter_patch"] == {"energy": 13.0}
+    assert adjusted_payload["parameters_patch"] == {"energy": 13.0}
     assert adjusted_payload["effective_parameters"] == {"energy": 13.0}
     assert adjusted_payload["reason"] == "agent steering iteration"

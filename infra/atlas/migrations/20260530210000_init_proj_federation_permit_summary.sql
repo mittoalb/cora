@@ -47,7 +47,7 @@ CREATE TABLE proj_federation_permit_summary (
 
     read_scope                             JSONB,
     onward_action_scope                    JSONB,
-    scope_set                              JSONB,
+    scopes                                 JSONB,
 
     accepted_canonicalization_versions     JSONB,
     required_receipt_kinds                 JSONB,
@@ -65,7 +65,7 @@ CREATE TABLE proj_federation_permit_summary (
         (terms_kind = 'Outbound'
          AND read_scope IS NOT NULL
          AND onward_action_scope IS NOT NULL
-         AND scope_set IS NOT NULL
+         AND scopes IS NOT NULL
          AND accepted_canonicalization_versions IS NULL
          AND required_receipt_kinds IS NULL
          AND publisher_grant_correlation_handle IS NULL
@@ -77,7 +77,7 @@ CREATE TABLE proj_federation_permit_summary (
          AND inbound_allowed_artifact_kinds IS NOT NULL
          AND read_scope IS NULL
          AND onward_action_scope IS NULL
-         AND scope_set IS NULL)
+         AND scopes IS NULL)
     ),
 
     CONSTRAINT proj_federation_permit_summary_terms_kind_matches_direction CHECK (

@@ -33,7 +33,7 @@ class _OutboundTermsOutput(BaseModel):
     """Structured-output sub-shape for outbound terms."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefOutput]
+    scopes: list[_ScopeRefOutput]
     read_scope: str
     onward_action_scope: str
 
@@ -82,10 +82,10 @@ class GetPermitOutput(BaseModel):
 
 def _terms_output(view: PermitView) -> _TermsOutput:
     if view.terms_kind == "Outbound":
-        scopes = view.scope_set or []
+        scopes = view.scopes or []
         return _OutboundTermsOutput(
             kind="Outbound",
-            scope_set=[
+            scopes=[
                 _ScopeRefOutput(
                     kind=s["kind"],
                     name=s["name"],

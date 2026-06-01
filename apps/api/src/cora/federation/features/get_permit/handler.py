@@ -46,7 +46,7 @@ _SELECT_PERMIT_SQL = """
 SELECT permit_id, peer_facility_id, direction,
        allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
        abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
-       read_scope, onward_action_scope, scope_set,
+       read_scope, onward_action_scope, scopes,
        accepted_canonicalization_versions, required_receipt_kinds,
        publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
        defined_at, activated_at, suspended_at, resumed_at, revoked_at
@@ -78,7 +78,7 @@ class PermitView:
     terms_kind: str
     read_scope: str | None
     onward_action_scope: str | None
-    scope_set: list[dict[str, Any]] | None
+    scopes: list[dict[str, Any]] | None
     accepted_canonicalization_versions: list[str] | None
     required_receipt_kinds: list[str] | None
     publisher_grant_correlation_handle: str | None
@@ -121,7 +121,7 @@ def _row_to_view(row: Any) -> PermitView:
         terms_kind=row["terms_kind"],
         read_scope=row["read_scope"],
         onward_action_scope=row["onward_action_scope"],
-        scope_set=_jsonb_to_list(row["scope_set"]),
+        scopes=_jsonb_to_list(row["scopes"]),
         accepted_canonicalization_versions=_jsonb_to_list(
             row["accepted_canonicalization_versions"]
         ),

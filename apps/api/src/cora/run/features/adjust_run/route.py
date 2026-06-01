@@ -1,7 +1,7 @@
 """HTTP route for the `adjust_run` slice.
 
 Action endpoint at `POST /runs/{run_id}/adjust`. Body carries
-`parameter_patch`, `reason`, and optional `decided_by_decision_id`.
+`parameters_patch`, `reason`, and optional `decided_by_decision_id`.
 Idempotency-Key header is honored (the slice is idempotency-wrapped
 at wire.py per the create-style retry-safe convention; operator
 retries on flaky network must NOT double-apply patches).
@@ -27,7 +27,7 @@ from cora.run.features.adjust_run.handler import IdempotentHandler
 class AdjustRunRequest(BaseModel):
     """Body for `POST /runs/{run_id}/adjust`."""
 
-    parameter_patch: dict[str, Any] = Field(
+    parameters_patch: dict[str, Any] = Field(
         ...,
         description=(
             "RFC 7396 JSON Merge Patch on top of the Run's current "
@@ -78,7 +78,7 @@ router = APIRouter(tags=["run"])
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
-                "Domain invariant violated: empty parameter_patch, "
+                "Domain invariant violated: empty parameters_patch, "
                 "whitespace-only reason, or post-merge effective set "
                 "fails the Method's parameters_schema."
             ),
@@ -135,7 +135,7 @@ async def post_runs_adjust(
     await handler(
         AdjustRun(
             run_id=run_id,
-            parameter_patch=body.parameter_patch,
+            parameters_patch=body.parameters_patch,
             reason=body.reason,
             decided_by_decision_id=body.decided_by_decision_id,
         ),

@@ -336,7 +336,7 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id
         expires_at=_EXPIRES_AT,
         defined_by_actor_id=other_actor_id,
         terms=OutboundTerms(
-            scope_set=frozenset({ScopeRef(kind="dataset", name="alpha")}),
+            scopes=frozenset({ScopeRef(kind="dataset", name="alpha")}),
             read_scope=ReadScope.READ_ALL_ARTIFACTS,
             onward_action_scope=OnwardActionScope.READ_ONLY,
         ),

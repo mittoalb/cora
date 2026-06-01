@@ -89,7 +89,7 @@ class JwtTokenVerifier:
         jwks_url: str,
         audience_for_surface: dict[UUID, str],
         subject_mapper: SubjectMapper,
-        algorithms_allowed: list[str],
+        allowed_algorithms: list[str],
         principal_kind: PrincipalKind = "human",
         allow_insecure_jwks_url: bool = False,
     ) -> None:
@@ -103,7 +103,7 @@ class JwtTokenVerifier:
         IdP signs into the token's `aud` claim for that Surface.
         `subject_mapper` — async callable resolving (iss, sub) to
         (principal_id, kind). See SubjectMapper docstring.
-        `algorithms_allowed` — explicit whitelist. RFC 9068 §4
+        `allowed_algorithms` — explicit whitelist. RFC 9068 §4
         rejects `alg=none`; we go further with a small list. Typical:
         `["RS256", "ES256"]`. Pinning the list per-issuer matches
         the IdP's actual capabilities + locks out algorithm-
@@ -119,18 +119,18 @@ class JwtTokenVerifier:
         (gate-review F2). Localhost is implicitly safe but explicit
         opt-in > implicit allow.
         """
-        if not algorithms_allowed:
+        if not allowed_algorithms:
             msg = (
                 f"JwtTokenVerifier for issuer={issuer!r} requires a non-empty "
-                "algorithms_allowed whitelist (no alg=none). "
+                "allowed_algorithms whitelist (no alg=none). "
                 "Explicit > implicit."
             )
             raise ValueError(msg)
         # Strip + lowercase so " None ", "NONE", "noNe" are all caught.
-        if "none" in (a.strip().lower() for a in algorithms_allowed):
+        if "none" in (a.strip().lower() for a in allowed_algorithms):
             msg = (
                 f"JwtTokenVerifier for issuer={issuer!r}: "
-                "algorithms_allowed must not include 'none'."
+                "allowed_algorithms must not include 'none'."
             )
             raise ValueError(msg)
         if not jwks_url.startswith("https://") and not allow_insecure_jwks_url:
@@ -144,7 +144,7 @@ class JwtTokenVerifier:
         self._issuer = issuer
         self._audience_for_surface = audience_for_surface
         self._subject_mapper = subject_mapper
-        self._algorithms = list(algorithms_allowed)
+        self._algorithms = list(allowed_algorithms)
         self._principal_kind = principal_kind
         self._jwks_client = PyJWKClient(jwks_url)
 

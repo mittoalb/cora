@@ -30,7 +30,7 @@ def _register_body(**overrides: object) -> dict[str, Any]:
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
+            "scopes": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },

@@ -31,10 +31,10 @@ Invariants:
   - direction must mirror type(command.terms): OUTBOUND with
     OutboundTerms, INBOUND with InboundTerms
     -> InvalidPermitScopeError
-  - When terms is OutboundTerms: scope_set non-empty; read_scope
+  - When terms is OutboundTerms: scopes non-empty; read_scope
     and onward_action_scope not None
     -> PermitScopeCollapseError for the read / onward collapse
-    matrix; InvalidPermitScopeError for empty scope_set.
+    matrix; InvalidPermitScopeError for empty scope set.
 
 Initial status is implicit `Defined` (event type IS the state-change
 indicator; the genesis evolver hardcodes the mapping).
@@ -82,7 +82,7 @@ def decide(
         non-empty after trim -> InvalidPermitScopeError
       - direction must mirror type(terms) (OUTBOUND with OutboundTerms,
         INBOUND with InboundTerms) -> InvalidPermitScopeError
-      - OutboundTerms.scope_set must be non-empty
+      - OutboundTerms.scopes must be non-empty
         -> InvalidPermitScopeError
       - OutboundTerms read_scope=ListMetadataOnly with
         onward_action_scope=MayExportOffPlatform collapses the matrix
@@ -153,8 +153,8 @@ def _ensure_direction_matches_terms(
 
 
 def _validate_outbound_terms(terms: OutboundTerms) -> None:
-    if not terms.scope_set:
-        raise InvalidPermitScopeError("OutboundTerms.scope_set must be non-empty")
+    if not terms.scopes:
+        raise InvalidPermitScopeError("OutboundTerms.scopes must be non-empty")
     if (
         terms.read_scope is ReadScope.LIST_METADATA_ONLY
         and terms.onward_action_scope is OnwardActionScope.MAY_EXPORT_OFF_PLATFORM

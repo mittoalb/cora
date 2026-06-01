@@ -89,7 +89,7 @@ def _idps(jwks_url: str, bindings: dict[str, UUID]) -> list[IdentityProviderConf
             issuer=TEST_ISSUER,
             jwks_url=jwks_url,
             audiences={SYSTEM_HTTP_SURFACE_ID: TEST_AUD_HTTP},
-            algorithms_allowed=["RS256"],
+            allowed_algorithms=["RS256"],
             principal_kind="human",
             allow_insecure_jwks_url=True,
             subject_bindings=[

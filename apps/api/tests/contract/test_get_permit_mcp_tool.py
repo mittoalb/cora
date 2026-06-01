@@ -42,7 +42,7 @@ def _outbound_view() -> PermitView:
         terms_kind="Outbound",
         read_scope="ReadAllArtifacts",
         onward_action_scope="ReadOnly",
-        scope_set=[{"kind": "dataset", "name": "alpha", "qualifier": None}],
+        scopes=[{"kind": "dataset", "name": "alpha", "qualifier": None}],
         accepted_canonicalization_versions=None,
         required_receipt_kinds=None,
         publisher_grant_correlation_handle=None,

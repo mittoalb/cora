@@ -40,7 +40,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             UUID,
             Field(description="Target run's id."),
         ],
-        parameter_patch: Annotated[
+        parameters_patch: Annotated[
             dict[str, Any],
             Field(
                 description=(
@@ -75,7 +75,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         await handler(
             AdjustRun(
                 run_id=run_id,
-                parameter_patch=parameter_patch,
+                parameters_patch=parameters_patch,
                 reason=reason,
                 decided_by_decision_id=decided_by_decision_id,
             ),

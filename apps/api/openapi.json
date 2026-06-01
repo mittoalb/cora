@@ -329,10 +329,10 @@
             "description": "Optional Decision id that justified this adjustment. Maps to `prov:wasInformedBy` at the future PROV-O export adapter (same export contract used by Decision.parent_id). NOT verified at the write path (eventual-consistency stance per cross-BC reference precedent). Operators can record ad-hoc adjustments without a Decision.",
             "title": "Decided By Decision Id"
           },
-          "parameter_patch": {
+          "parameters_patch": {
             "additionalProperties": true,
             "description": "RFC 7396 JSON Merge Patch on top of the Run's current `effective_parameters`. The post-merge result is validated against the owning Method's `parameters_schema` (when the Method declares one). Must be non-empty (empty patches rejected with 400; they would silently no-op and mislead the audit).",
-            "title": "Parameter Patch",
+            "title": "Parameters Patch",
             "type": "object"
           },
           "reason": {
@@ -344,7 +344,7 @@
           }
         },
         "required": [
-          "parameter_patch",
+          "parameters_patch",
           "reason"
         ],
         "title": "AdjustRunRequest",
@@ -1351,38 +1351,38 @@
         "type": "object"
       },
       "BindingsByKind": {
-        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit named fields (matching the projection's UUID[] columns\n1:1) instead of a `dict[str, list[UUID]]`: OpenAPI codegen produces\ntyped accessors; SDK consumers see the locked set of keys without\n`additionalProperties` ambiguity. ExternalBinding refs are NOT\nsurfaced here (anti-corruption refs, not projected; see route summary).",
+        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit `<kind>_ids` fields (matching the projection's UUID[]\ncolumns 1:1, mirroring the view-model's `subject_binding_ids` /\n`asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`\nplural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen\nproduces typed accessors; SDK consumers see the locked set of keys\nwithout `additionalProperties` ambiguity. ExternalBinding refs are\nNOT surfaced here (anti-corruption refs, not projected; see route\nsummary).",
         "properties": {
-          "asset": {
+          "asset_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Asset",
+            "title": "Asset Ids",
             "type": "array"
           },
-          "procedure": {
+          "procedure_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Procedure",
+            "title": "Procedure Ids",
             "type": "array"
           },
-          "run": {
+          "run_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Run",
+            "title": "Run Ids",
             "type": "array"
           },
-          "subject": {
+          "subject_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Subject",
+            "title": "Subject Ids",
             "type": "array"
           }
         },
@@ -4227,7 +4227,7 @@
             "type": "string"
           },
           "terms": {
-            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scope_set` + `read_scope` + `onward_action_scope`; `Inbound` carries `inbound_allowed_artifact_kinds` + optional canonicalization / receipt config.",
+            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scopes` + `read_scope` + `onward_action_scope`; `Inbound` carries `inbound_allowed_artifact_kinds` + optional canonicalization / receipt config.",
             "discriminator": {
               "mapping": {
                 "Inbound": "#/components/schemas/_InboundTermsRequest",
@@ -11165,18 +11165,18 @@
           "read_scope": {
             "$ref": "#/components/schemas/ReadScope"
           },
-          "scope_set": {
+          "scopes": {
             "items": {
               "$ref": "#/components/schemas/_ScopeRefRequest"
             },
             "minItems": 1,
-            "title": "Scope Set",
+            "title": "Scopes",
             "type": "array"
           }
         },
         "required": [
           "kind",
-          "scope_set",
+          "scopes",
           "read_scope",
           "onward_action_scope"
         ],
@@ -11199,17 +11199,17 @@
             "title": "Read Scope",
             "type": "string"
           },
-          "scope_set": {
+          "scopes": {
             "items": {
               "$ref": "#/components/schemas/_ScopeRefResponse"
             },
-            "title": "Scope Set",
+            "title": "Scopes",
             "type": "array"
           }
         },
         "required": [
           "kind",
-          "scope_set",
+          "scopes",
           "read_scope",
           "onward_action_scope"
         ],
@@ -26747,7 +26747,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: empty parameter_patch, whitespace-only reason, or post-merge effective set fails the Method's parameters_schema."
+            "description": "Domain invariant violated: empty parameters_patch, whitespace-only reason, or post-merge effective set fails the Method's parameters_schema."
           },
           "403": {
             "content": {

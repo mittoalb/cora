@@ -268,26 +268,26 @@ async def test_verify_rejects_unsupported_algorithm_in_whitelist(
 
 @pytest.mark.unit
 def test_constructor_rejects_empty_algorithms() -> None:
-    with pytest.raises(ValueError, match="algorithms_allowed"):
+    with pytest.raises(ValueError, match="allowed_algorithms"):
         JwtTokenVerifier(
             issuer=TEST_ISSUER,
             jwks_url="https://example.com/jwks",
             audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
             subject_mapper=make_mapper(),
-            algorithms_allowed=[],
+            allowed_algorithms=[],
         )
 
 
 @pytest.mark.unit
 def test_constructor_rejects_alg_none_case_insensitive() -> None:
     for variant in ["none", "NONE", "NoNe", " none ", "None "]:
-        with pytest.raises(ValueError, match=r"algorithms_allowed must not include 'none'"):
+        with pytest.raises(ValueError, match=r"allowed_algorithms must not include 'none'"):
             JwtTokenVerifier(
                 issuer=TEST_ISSUER,
                 jwks_url="https://example.com/jwks",
                 audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
                 subject_mapper=make_mapper(),
-                algorithms_allowed=[variant, "RS256"],
+                allowed_algorithms=[variant, "RS256"],
             )
 
 
@@ -299,7 +299,7 @@ def test_constructor_rejects_http_jwks_url_without_opt_in() -> None:
             jwks_url="http://example.com/jwks",
             audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
             subject_mapper=make_mapper(),
-            algorithms_allowed=["RS256"],
+            allowed_algorithms=["RS256"],
         )
 
 
@@ -310,7 +310,7 @@ def test_constructor_accepts_http_jwks_url_with_opt_in() -> None:
         jwks_url="http://127.0.0.1:8000/jwks",
         audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
         subject_mapper=make_mapper(),
-        algorithms_allowed=["RS256"],
+        allowed_algorithms=["RS256"],
         allow_insecure_jwks_url=True,
     )
 
@@ -408,6 +408,6 @@ def test_verifier_exposes_its_issuer() -> None:
         jwks_url="https://example.com/jwks",
         audience_for_surface={TEST_SURFACE_HTTP: TEST_AUD_HTTP},
         subject_mapper=make_mapper(),
-        algorithms_allowed=["RS256"],
+        allowed_algorithms=["RS256"],
     )
     assert verifier.issuer == TEST_ISSUER

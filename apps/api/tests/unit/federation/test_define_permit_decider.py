@@ -39,13 +39,13 @@ _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed004")
 
 def _outbound_terms(
     *,
-    scope_set: frozenset[ScopeRef] | None = None,
+    scopes: frozenset[ScopeRef] | None = None,
     read_scope: ReadScope = ReadScope.READ_ALL_ARTIFACTS,
     onward_action_scope: OnwardActionScope = OnwardActionScope.READ_ONLY,
 ) -> OutboundTerms:
     return OutboundTerms(
-        scope_set=scope_set
-        if scope_set is not None
+        scopes=scopes
+        if scopes is not None
         else frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
         read_scope=read_scope,
         onward_action_scope=onward_action_scope,
@@ -286,11 +286,11 @@ def test_define_permit_rejects_inbound_direction_with_outbound_terms() -> None:
 
 
 @pytest.mark.unit
-def test_define_permit_rejects_outbound_terms_with_empty_scope_set() -> None:
+def test_define_permit_rejects_outbound_terms_with_empty_scopes() -> None:
     with pytest.raises(InvalidPermitScopeError):
         define_permit.decide(
             state=None,
-            command=_command(terms=_outbound_terms(scope_set=frozenset())),
+            command=_command(terms=_outbound_terms(scopes=frozenset())),
             now=_NOW,
             new_id=_NEW_ID,
             defined_by_actor_id=_PRINCIPAL_ID,

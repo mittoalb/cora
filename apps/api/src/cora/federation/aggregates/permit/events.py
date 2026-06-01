@@ -17,7 +17,7 @@ state-change indicator (matches `PermitActivated -> ACTIVE`,
 round-trips. The decoder rebuilds the typed dataclass from the
 discriminator; unknown discriminators raise tagged `ValueError`.
 
-`scope_set` on OutboundTerms is serialized as a sorted list of
+`scopes` on OutboundTerms is serialized as a sorted list of
 `[kind, name, qualifier]` triples for jsonb stability;
 `allowed_credentials`, `allowed_payload_types`,
 `allowed_artifact_kinds`, and the inbound-side
@@ -48,14 +48,14 @@ from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
-def _serialize_scope_set(scope_set: frozenset[ScopeRef]) -> list[list[str | None]]:
+def _serialize_scopes(scopes: frozenset[ScopeRef]) -> list[list[str | None]]:
     return sorted(
-        ([s.kind, s.name, s.qualifier] for s in scope_set),
+        ([s.kind, s.name, s.qualifier] for s in scopes),
         key=lambda triple: (triple[0] or "", triple[1] or "", triple[2] or ""),
     )
 
 
-def _deserialize_scope_set(raw: list[Any]) -> frozenset[ScopeRef]:
+def _deserialize_scopes(raw: list[Any]) -> frozenset[ScopeRef]:
     return frozenset(
         ScopeRef(kind=triple[0], name=triple[1], qualifier=triple[2]) for triple in raw
     )
@@ -64,13 +64,13 @@ def _deserialize_scope_set(raw: list[Any]) -> frozenset[ScopeRef]:
 def serialize_terms(terms: OutboundTerms | InboundTerms) -> dict[str, Any]:
     match terms:
         case OutboundTerms(
-            scope_set=scope_set,
+            scopes=scopes,
             read_scope=read_scope,
             onward_action_scope=onward_action_scope,
         ):
             return {
                 "kind": "Outbound",
-                "scope_set": _serialize_scope_set(scope_set),
+                "scopes": _serialize_scopes(scopes),
                 "read_scope": read_scope.value,
                 "onward_action_scope": onward_action_scope.value,
             }
@@ -96,7 +96,7 @@ def deserialize_terms(raw: dict[str, Any]) -> OutboundTerms | InboundTerms:
     match kind:
         case "Outbound":
             return OutboundTerms(
-                scope_set=_deserialize_scope_set(raw["scope_set"]),
+                scopes=_deserialize_scopes(raw["scopes"]),
                 read_scope=ReadScope(raw["read_scope"]),
                 onward_action_scope=OnwardActionScope(raw["onward_action_scope"]),
             )
