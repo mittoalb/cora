@@ -31,7 +31,7 @@ def _define_policy(client: TestClient) -> str:
         json={
             "name": "Beam-team",
             "conduit_id": _CONDUIT,
-            "permitted_principals": [_ALLOWED_PRINCIPAL],
+            "permitted_principal_ids": [_ALLOWED_PRINCIPAL],
             "permitted_commands": ["RegisterActor"],
         },
     )
@@ -162,7 +162,7 @@ def test_get_evaluate_caller_principal_does_not_affect_decision() -> None:
     with TestClient(create_app()) as client:
         policy_id = _define_policy(client)
         # The caller is SYSTEM_PRINCIPAL_ID (NOT in the policy's
-        # permitted_principals); the subject is _ALLOWED_PRINCIPAL.
+        # permitted_principal_ids); the subject is _ALLOWED_PRINCIPAL.
         # If the handler were using the caller's principal_id by
         # mistake, this would Deny. Correct behaviour: Allow.
         response = client.get(_evaluate_url(policy_id))

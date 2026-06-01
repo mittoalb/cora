@@ -20,7 +20,7 @@ def _body(name: str = "Beam-team") -> dict[str, object]:
     return {
         "name": name,
         "conduit_id": _CONDUIT,
-        "permitted_principals": [_PRINCIPAL],
+        "permitted_principal_ids": [_PRINCIPAL],
         "permitted_commands": ["RegisterActor"],
     }
 

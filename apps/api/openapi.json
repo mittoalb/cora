@@ -4349,13 +4349,13 @@
             "title": "Permitted Commands",
             "type": "array"
           },
-          "permitted_principals": {
+          "permitted_principal_ids": {
             "description": "Principals (UUIDs) allowed to act via this conduit. Empty list yields a deny-all policy.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Permitted Principals",
+            "title": "Permitted Principal Ids",
             "type": "array"
           },
           "surface_id": {
@@ -4368,7 +4368,7 @@
         "required": [
           "name",
           "conduit_id",
-          "permitted_principals",
+          "permitted_principal_ids",
           "permitted_commands"
         ],
         "title": "DefinePolicyRequest",

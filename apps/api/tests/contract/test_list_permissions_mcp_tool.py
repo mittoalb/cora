@@ -25,7 +25,7 @@ def _define_policy_via_rest(client: TestClient) -> str:
         json={
             "name": "Beam-team",
             "conduit_id": _CONDUIT,
-            "permitted_principals": [_ALLOWED_PRINCIPAL],
+            "permitted_principal_ids": [_ALLOWED_PRINCIPAL],
             "permitted_commands": ["RegisterActor", "DefinePolicy"],
         },
     )

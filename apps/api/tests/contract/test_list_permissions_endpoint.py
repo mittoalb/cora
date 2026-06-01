@@ -36,7 +36,7 @@ def _define_policy(client: TestClient) -> str:
         json={
             "name": "Beam-team",
             "conduit_id": _CONDUIT,
-            "permitted_principals": [_ALLOWED_PRINCIPAL],
+            "permitted_principal_ids": [_ALLOWED_PRINCIPAL],
             "permitted_commands": ["RegisterActor", "DefinePolicy"],
         },
     )
@@ -170,7 +170,7 @@ def test_get_permissions_caller_principal_does_not_affect_decision() -> None:
     determines the result, not the caller's principal_id. The caller
     today is SYSTEM_PRINCIPAL_ID (the dev fallback). If the handler were
     using the caller's principal_id by mistake, the policy below would
-    return an empty list since SYSTEM isn't in `permitted_principals`.
+    return an empty list since SYSTEM isn't in `permitted_principal_ids`.
     Correct behaviour: returns the policy's commands for the named
     subject."""
     with TestClient(create_app()) as client:

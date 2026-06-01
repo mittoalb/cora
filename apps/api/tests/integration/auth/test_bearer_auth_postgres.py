@@ -187,7 +187,7 @@ async def test_bearer_trust_authorize_end_to_end_postgres(
         DefinePolicy(
             name="BearerGate-PermitRegisterActor",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PRINCIPAL_PERMITTED}),
+            permitted_principal_ids=frozenset({_PRINCIPAL_PERMITTED}),
             permitted_commands=frozenset({"RegisterActor"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,

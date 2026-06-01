@@ -30,7 +30,7 @@ class PermissionListing:
 
     `permitted_commands` is sorted alphabetically. Returns the
     intersection of the principal's eligibility (must be in
-    `policy.permitted_principals`) AND conduit match (must equal
+    `policy.permitted_principal_ids`) AND conduit match (must equal
     `policy.conduit_id`) AND the policy's permitted_commands. If
     either eligibility check fails, returns the empty list.
 

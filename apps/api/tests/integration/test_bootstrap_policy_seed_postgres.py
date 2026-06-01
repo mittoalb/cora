@@ -47,7 +47,7 @@ async def test_bootstrap_policy_stream_exists_with_expected_payload(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Raw-SQL check: the migration appended one PolicyDefined row with
-    the locked payload shape (sorted permitted_principals + sorted
+    the locked payload shape (sorted permitted_principal_ids + sorted
     permitted_commands per `to_payload`)."""
     rows = await db_pool.fetch(
         """
@@ -73,7 +73,7 @@ async def test_bootstrap_policy_stream_exists_with_expected_payload(
         "policy_id": str(SYSTEM_BOOTSTRAP_POLICY_ID),
         "name": "System Bootstrap Policy",
         "conduit_id": str(_NIL_CONDUIT),
-        "permitted_principals": [str(SYSTEM_PRINCIPAL_ID)],
+        "permitted_principal_ids": [str(SYSTEM_PRINCIPAL_ID)],
         "permitted_commands": ["DefinePolicy", "RegisterActor"],
         "occurred_at": "2026-05-18T00:00:00+00:00",
     }
@@ -96,7 +96,7 @@ async def test_bootstrap_policy_folds_and_evaluates_correctly(
     assert policy is not None
     assert policy.id == SYSTEM_BOOTSTRAP_POLICY_ID
     assert policy.conduit_id == _NIL_CONDUIT
-    assert policy.permitted_principals == frozenset({SYSTEM_PRINCIPAL_ID})
+    assert policy.permitted_principal_ids == frozenset({SYSTEM_PRINCIPAL_ID})
     assert policy.permitted_commands == frozenset({"DefinePolicy", "RegisterActor"})
 
     # Allow on the two permitted commands.
@@ -190,7 +190,7 @@ async def test_bootstrap_policy_can_define_a_real_policy_end_to_end(
         DefinePolicy(
             name="Real Admin Policy",
             conduit_id=_NIL_CONDUIT,
-            permitted_principals=frozenset({admin_principal}),
+            permitted_principal_ids=frozenset({admin_principal}),
             permitted_commands=frozenset({"DefinePolicy", "RegisterActor", "DefineZone"}),
         ),
         principal_id=SYSTEM_PRINCIPAL_ID,
@@ -202,7 +202,7 @@ async def test_bootstrap_policy_can_define_a_real_policy_end_to_end(
     loaded = await load_policy(event_store, new_policy_id)
     assert loaded is not None
     assert loaded.name.value == "Real Admin Policy"
-    assert loaded.permitted_principals == frozenset({admin_principal})
+    assert loaded.permitted_principal_ids == frozenset({admin_principal})
 
 
 @pytest.mark.integration
@@ -300,7 +300,7 @@ async def test_concurrent_writes_against_bootstrap_stream_fail_loud(
         policy_id=SYSTEM_BOOTSTRAP_POLICY_ID,
         name="Accidental Overwrite Attempt",
         conduit_id=_NIL_CONDUIT,
-        permitted_principals=(UUID("01900000-0000-7000-8000-000000000d01"),),
+        permitted_principal_ids=(UUID("01900000-0000-7000-8000-000000000d01"),),
         permitted_commands=("DefineEverything",),
         occurred_at=_NOW,
     )

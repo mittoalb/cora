@@ -7,7 +7,7 @@ No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler.
 
 Does NOT verify that `conduit_id` references an existing Conduit or
-that each `permitted_principals` UUID corresponds to a registered
+that each `permitted_principal_ids` UUID corresponds to a registered
 Actor — see `cora.trust.aggregates.policy.state` for the eventual-
 consistency rationale.
 
@@ -51,7 +51,7 @@ def decide(
             policy_id=new_id,
             name=name.value,
             conduit_id=command.conduit_id,
-            permitted_principals=tuple(command.permitted_principals),
+            permitted_principal_ids=tuple(command.permitted_principal_ids),
             permitted_commands=tuple(command.permitted_commands),
             occurred_at=now,
             surface_id=command.surface_id,

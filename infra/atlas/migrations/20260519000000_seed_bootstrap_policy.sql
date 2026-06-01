@@ -23,7 +23,7 @@ INSERT INTO events (
         'policy_id',            '00000000-0000-0000-0000-000000000001',
         'name',                 'System Bootstrap Policy',
         'conduit_id',           '00000000-0000-0000-0000-000000000000',
-        'permitted_principals', jsonb_build_array('00000000-0000-0000-0000-000000000000'),
+        'permitted_principal_ids', jsonb_build_array('00000000-0000-0000-0000-000000000000'),
         'permitted_commands',   jsonb_build_array('DefinePolicy', 'RegisterActor'),
         'occurred_at',          '2026-05-18T00:00:00+00:00'
     ),

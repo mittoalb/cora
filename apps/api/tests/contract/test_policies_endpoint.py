@@ -1,7 +1,7 @@
 """Contract tests for `POST /policies`.
 
 Mirror of `test_conduits_endpoint.py`. Verifies request/response
-shape, UUID parsing for `conduit_id` and `permitted_principals`, and
+shape, UUID parsing for `conduit_id` and `permitted_principal_ids`, and
 domain-error mapping for whitespace-only policy names.
 """
 
@@ -21,7 +21,7 @@ def _body(name: str = "Beam-team", **overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
         "name": name,
         "conduit_id": _CONDUIT,
-        "permitted_principals": [_PRINCIPAL],
+        "permitted_principal_ids": [_PRINCIPAL],
         "permitted_commands": ["RegisterActor"],
     }
     base.update(overrides)
@@ -53,7 +53,7 @@ def test_post_policies_rejects_missing_name_with_422() -> None:
             "/policies",
             json={
                 "conduit_id": _CONDUIT,
-                "permitted_principals": [_PRINCIPAL],
+                "permitted_principal_ids": [_PRINCIPAL],
                 "permitted_commands": ["RegisterActor"],
             },
         )
@@ -67,7 +67,7 @@ def test_post_policies_rejects_missing_conduit_id_with_422() -> None:
             "/policies",
             json={
                 "name": "Beam-team",
-                "permitted_principals": [_PRINCIPAL],
+                "permitted_principal_ids": [_PRINCIPAL],
                 "permitted_commands": ["RegisterActor"],
             },
         )
@@ -82,11 +82,11 @@ def test_post_policies_rejects_invalid_uuid_in_conduit_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_policies_rejects_invalid_uuid_in_permitted_principals_with_422() -> None:
+def test_post_policies_rejects_invalid_uuid_in_permitted_principal_ids_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/policies",
-            json=_body(permitted_principals=["not-a-uuid"]),
+            json=_body(permitted_principal_ids=["not-a-uuid"]),
         )
     assert response.status_code == 422
 
@@ -133,7 +133,7 @@ def test_post_policies_accepts_empty_permission_lists_as_deny_all() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/policies",
-            json=_body(permitted_principals=[], permitted_commands=[]),
+            json=_body(permitted_principal_ids=[], permitted_commands=[]),
         )
     assert response.status_code == 201
 

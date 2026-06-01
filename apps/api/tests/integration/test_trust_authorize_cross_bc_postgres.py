@@ -75,7 +75,7 @@ async def _seed_policy(
         DefinePolicy(
             name=name,
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_principal_ids=frozenset({_PERMITTED_PRINCIPAL}),
             permitted_commands=permitted_commands,
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,
@@ -318,7 +318,7 @@ async def test_documented_bootstrap_workflow_produces_working_authz(
             name="GateB-BootstrapPolicy",
             conduit_id=_CONDUIT_ID,
             # Permissive enough to keep working post-restart.
-            permitted_principals=frozenset({_PERMITTED_PRINCIPAL}),
+            permitted_principal_ids=frozenset({_PERMITTED_PRINCIPAL}),
             permitted_commands=frozenset({"RegisterSubject"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,

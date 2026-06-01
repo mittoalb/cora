@@ -107,7 +107,7 @@ The operator's bootstrap path:
    {
      "name": "Real Admin Policy",
      "conduit_id": "00000000-0000-0000-0000-000000000000",
-     "permitted_principals": ["<actor_id from step 3>"],
+     "permitted_principal_ids": ["<actor_id from step 3>"],
      "permitted_commands": ["DefinePolicy", "RegisterActor", "DefineZone", "DefineConduit", "..."]
    }
    ```

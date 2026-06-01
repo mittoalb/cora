@@ -11,7 +11,7 @@
 --
 -- Filters: conduit_id (NOT NULL on the aggregate -> full index).
 --
--- The list-typed `permitted_principals` and `permitted_commands`
+-- The list-typed `permitted_principal_ids` and `permitted_commands`
 -- payload fields are intentionally NOT projected as filter columns:
 -- they are list-shaped and a future `proj_trust_policy_principals`
 -- join projection covers "all policies allowing Principal X" if

@@ -169,12 +169,12 @@ async def test_2bm_facility_install_plays_out_end_to_end(
     assert ops_policy is not None
     assert ops_policy.name.value == "2-BM Operations Policy"
     assert ops_policy.conduit_id == BM2_LOCAL_CONDUIT_ID
-    assert ops_policy.permitted_principals == frozenset(OPERATOR_POOL_IDS)
+    assert ops_policy.permitted_principal_ids == frozenset(OPERATOR_POOL_IDS)
     assert "ActivateAsset" in ops_policy.permitted_commands  # representative
 
     agent_policy = await load_policy(deps.event_store, BM2_AGENT_POLICY_ID)
     assert agent_policy is not None
     assert agent_policy.name.value == "2-BM Agent Policy"
     assert agent_policy.conduit_id == BM2_LOCAL_CONDUIT_ID
-    assert agent_policy.permitted_principals == frozenset({RUN_DEBRIEF_ACTOR_ID})
+    assert agent_policy.permitted_principal_ids == frozenset({RUN_DEBRIEF_ACTOR_ID})
     assert "RegisterDecision" in agent_policy.permitted_commands  # representative

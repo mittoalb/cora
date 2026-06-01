@@ -51,7 +51,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        permitted_principals: Annotated[
+        permitted_principal_ids: Annotated[
             list[UUID],
             Field(
                 description=("Principals (UUIDs) allowed via this conduit. Empty -> deny-all."),
@@ -77,7 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefinePolicy(
                 name=name,
                 conduit_id=conduit_id,
-                permitted_principals=frozenset(permitted_principals),
+                permitted_principal_ids=frozenset(permitted_principal_ids),
                 permitted_commands=frozenset(permitted_commands),
                 surface_id=surface_id,
             ),

@@ -24,7 +24,7 @@ def test_evolve_policy_defined_from_empty_state() -> None:
             policy_id=policy_id,
             name="Beam-team",
             conduit_id=conduit,
-            permitted_principals=(p1,),
+            permitted_principal_ids=(p1,),
             permitted_commands=("RegisterActor",),
             occurred_at=_NOW,
         ),
@@ -33,7 +33,7 @@ def test_evolve_policy_defined_from_empty_state() -> None:
         id=policy_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset({p1}),
+        permitted_principal_ids=frozenset({p1}),
         permitted_commands=frozenset({"RegisterActor"}),
     )
 
@@ -50,12 +50,12 @@ def test_evolve_converts_lists_to_frozensets() -> None:
             policy_id=policy_id,
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=(p1, p2, p1),  # duplicate intentionally
+            permitted_principal_ids=(p1, p2, p1),  # duplicate intentionally
             permitted_commands=("A", "B", "A"),
             occurred_at=_NOW,
         ),
     )
-    assert state.permitted_principals == frozenset({p1, p2})
+    assert state.permitted_principal_ids == frozenset({p1, p2})
     assert state.permitted_commands == frozenset({"A", "B"})
 
 
@@ -74,7 +74,7 @@ def test_fold_single_policy_defined_returns_policy() -> None:
                 policy_id=policy_id,
                 name="Beam-team",
                 conduit_id=conduit,
-                permitted_principals=(),
+                permitted_principal_ids=(),
                 permitted_commands=(),
                 occurred_at=_NOW,
             )
@@ -84,7 +84,7 @@ def test_fold_single_policy_defined_returns_policy() -> None:
         id=policy_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset(),
+        permitted_principal_ids=frozenset(),
         permitted_commands=frozenset(),
     )
 
@@ -96,7 +96,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
             policy_id=uuid4(),
             name="X",
             conduit_id=uuid4(),
-            permitted_principals=(uuid4(),),
+            permitted_principal_ids=(uuid4(),),
             permitted_commands=("X",),
             occurred_at=_NOW,
         )
@@ -113,7 +113,7 @@ def test_decider_and_evolver_round_trip() -> None:
     command = DefinePolicy(
         name="  Beam-team  ",  # whitespace exercises the VO trim
         conduit_id=conduit,
-        permitted_principals=frozenset({p1, p2}),
+        permitted_principal_ids=frozenset({p1, p2}),
         permitted_commands=frozenset({"RegisterActor", "DefineZone"}),
     )
 
@@ -124,6 +124,6 @@ def test_decider_and_evolver_round_trip() -> None:
         id=new_id,
         name=PolicyName("Beam-team"),
         conduit_id=conduit,
-        permitted_principals=frozenset({p1, p2}),
+        permitted_principal_ids=frozenset({p1, p2}),
         permitted_commands=frozenset({"RegisterActor", "DefineZone"}),
     )

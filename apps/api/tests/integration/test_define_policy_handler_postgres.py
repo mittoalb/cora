@@ -36,7 +36,7 @@ async def test_handler_persists_policy_defined_to_postgres(
         DefinePolicy(
             name="Beam-team",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_ALLOWED_PRINCIPAL}),
+            permitted_principal_ids=frozenset({_ALLOWED_PRINCIPAL}),
             permitted_commands=frozenset({"RegisterActor"}),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -57,7 +57,7 @@ async def test_handler_persists_policy_defined_to_postgres(
         "conduit_id": str(_CONDUIT_ID),
         # for V1-shape callers.
         "surface_id": "00000000-0000-0000-0000-000000000000",
-        "permitted_principals": [str(_ALLOWED_PRINCIPAL)],
+        "permitted_principal_ids": [str(_ALLOWED_PRINCIPAL)],
         "permitted_commands": ["RegisterActor"],
         "occurred_at": _NOW.isoformat(),
     }

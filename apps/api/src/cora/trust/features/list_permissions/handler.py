@@ -139,7 +139,7 @@ def bind(deps: Kernel) -> Handler:
         # Principal eligibility + conduit match: if either fails, the
         # principal can't execute ANY command under this policy.
         eligible = (
-            query.evaluated_principal_id in policy.permitted_principals
+            query.evaluated_principal_id in policy.permitted_principal_ids
             and query.evaluated_conduit_id == policy.conduit_id
         )
         permitted_commands = sorted(policy.permitted_commands) if eligible else []

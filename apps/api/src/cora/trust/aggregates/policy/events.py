@@ -5,7 +5,7 @@ classes, discriminated union, `event_type_name`, `to_payload`,
 `from_stored`. The persistence-envelope construction (`NewEvent`)
 lives at `cora.infrastructure.event_envelope.to_new_event`.
 
-`PolicyDefined.permitted_principals` / `.permitted_commands` are
+`PolicyDefined.permitted_principal_ids` / `.permitted_commands` are
 stored as `list[UUID]` / `list[str]` here (events carry primitives
 per CONTRIBUTING.md; lists JSON-serialize cleanly). The evolver
 converts them to `frozenset` when folding into Policy state, where
@@ -37,7 +37,7 @@ class PolicyDefined:
     policy_id: UUID
     name: str
     conduit_id: UUID
-    permitted_principals: tuple[UUID, ...]
+    permitted_principal_ids: tuple[UUID, ...]
     permitted_commands: tuple[str, ...]
     occurred_at: datetime
     surface_id: UUID = NIL_SENTINEL_ID
@@ -65,7 +65,7 @@ def to_payload(event: PolicyEvent) -> dict[str, Any]:
             policy_id=policy_id,
             name=name,
             conduit_id=conduit_id,
-            permitted_principals=permitted_principals,
+            permitted_principal_ids=permitted_principal_ids,
             permitted_commands=permitted_commands,
             occurred_at=occurred_at,
             surface_id=surface_id,
@@ -75,7 +75,7 @@ def to_payload(event: PolicyEvent) -> dict[str, Any]:
                 "name": name,
                 "conduit_id": str(conduit_id),
                 "surface_id": str(surface_id),
-                "permitted_principals": sorted(str(p) for p in permitted_principals),
+                "permitted_principal_ids": sorted(str(p) for p in permitted_principal_ids),
                 "permitted_commands": sorted(permitted_commands),
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -94,7 +94,9 @@ def from_stored(stored: StoredEvent) -> PolicyEvent:
                     policy_id=UUID(payload["policy_id"]),
                     name=payload["name"],
                     conduit_id=UUID(payload["conduit_id"]),
-                    permitted_principals=tuple(UUID(p) for p in payload["permitted_principals"]),
+                    permitted_principal_ids=tuple(
+                        UUID(p) for p in payload["permitted_principal_ids"]
+                    ),
                     permitted_commands=tuple(payload["permitted_commands"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     surface_id=UUID(payload.get("surface_id", str(NIL_SENTINEL_ID))),

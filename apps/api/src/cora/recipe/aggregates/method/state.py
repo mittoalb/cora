@@ -61,7 +61,7 @@ rationale.
 (deduplicated, hashable, set-membership in O(1) for Plan-binding
 checks) and `list[UUID]` in event payloads (JSON-friendly, sorted
 for determinism). Same precedent as Trust's Policy
-`permitted_principals` / `permitted_commands`. The evolver bridges
+`permitted_principal_ids` / `permitted_commands`. The evolver bridges
 the two. Sorting in `to_payload` keeps the persisted bytes
 deterministic — same logical family set, same payload, same
 idempotency hash.

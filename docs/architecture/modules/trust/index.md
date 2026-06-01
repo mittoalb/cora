@@ -26,7 +26,7 @@ Out of scope
 | `Zone` | `id: UUID` | `id`, `name: ZoneName` | additive, no transitions today |
 | `Conduit` | `id: UUID` | `id`, `name: ConduitName`, `source_zone_id`, `target_zone_id`, `logbooks: dict[str, UUID]` | additive, no transitions today |
 | `Surface` | `id: UUID` | `id`, `name: SurfaceName`, `kind: SurfaceKind`, `status: SurfaceStatus` | additive, only `Defined` emitted today |
-| `Policy` | `id: UUID` | `id`, `name: PolicyName`, `conduit_id`, `permitted_principals: frozenset[UUID]`, `permitted_commands: frozenset[str]`, `surface_id` | additive, no transitions today |
+| `Policy` | `id: UUID` | `id`, `name: PolicyName`, `conduit_id`, `permitted_principal_ids: frozenset[UUID]`, `permitted_commands: frozenset[str]`, `surface_id` | additive, no transitions today |
 
 A `Zone` is a trust-requirement-homogeneous grouping of principals and assets, defined by trust posture rather than physical location. A `Conduit` is the governed comms path between two Zones; the source-target naming is for clarity at the API layer, since the conduit itself is undirected per the topology standard. A `Surface` is the process-level arrival socket the request crossed: the protocol-bound endpoint, not the inter-zone path. A `Policy` is the explicit allow-list that gates a `(principal, command)` pair on a specific Conduit and Surface.
 
@@ -81,7 +81,7 @@ The logbook sub-lifecycle on `Conduit` is captured in the events table below; to
 | `ConduitLogbookOpened` | `conduit_id`, `logbook_id`, `kind`, `schema`, `occurred_at` | a logbook of `kind` is attached to the Conduit; carries the per-entry schema for audit |
 | `ConduitLogbookClosed` | `conduit_id`, `logbook_id`, `occurred_at` | a previously-opened logbook is terminated (additive; no current command path emits it) |
 | `SurfaceDefined` | `surface_id`, `name`, `kind`, `occurred_at` | `define_surface` succeeds (genesis); today only the three seeded Surfaces ever emit this |
-| `PolicyDefined` | `policy_id`, `name`, `conduit_id`, `surface_id`, `permitted_principals`, `permitted_commands`, `occurred_at` | `define_policy` succeeds (genesis); permitted sets serialize as sorted lists for deterministic payloads |
+| `PolicyDefined` | `policy_id`, `name`, `conduit_id`, `surface_id`, `permitted_principal_ids`, `permitted_commands`, `occurred_at` | `define_policy` succeeds (genesis); permitted sets serialize as sorted lists for deterministic payloads |
 
 `ConduitLogbookOpened.schema` declares the per-row column shape of the entries that will land in the typed entries table for this logbook kind. Carrying the schema on the open event means the Conduit lifecycle audit captures the schema as of the moment the logbook was opened, which supports per-logbook schema evolution by opening a new logbook with an updated schema.
 
@@ -219,17 +219,17 @@ CREATE INDEX entries_conduit_traversals_recorded_at_brin_idx
 
 `ConduitLogbookOpened` and `ConduitLogbookClosed` events are intentionally not subscribed by `proj_trust_conduit_summary`: they are internal logbook bookkeeping that does not mutate the summary's columns. The same precedent holds in Decision's summary projection.
 
-`Policy.permitted_principals` and `Policy.permitted_commands` are intentionally not projected as filter columns on `proj_trust_policy_summary`: they are list-shaped, and a future join projection covers "all policies allowing principal X" if that read pattern crystallizes.
+`Policy.permitted_principal_ids` and `Policy.permitted_commands` are intentionally not projected as filter columns on `proj_trust_policy_summary`: they are list-shaped, and a future join projection covers "all policies allowing principal X" if that read pattern crystallizes.
 
 ## Cross-Module boundaries
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
-| Access | reads-from | `Policy.permitted_principals` contains `Actor.id` values; the Authorize port carries `actor_id` resolved by the Access layer |
+| Access | reads-from | `Policy.permitted_principal_ids` contains `Actor.id` values; the Authorize port carries `actor_id` resolved by the Access layer |
 | All BCs | provides-port | every write-side decider behind the kernel's PEP is gated by the Authorize port, which resolves a `Policy` and calls the pure `evaluate(policy, ...)` |
 | Conduit / Surface ids on inbound calls | reads-from | the HTTP and MCP entry adapters set `conduit_id` from the entry topology and `surface_id` from the transport, then pass both on the Authorize call |
 | Equipment | aligns-with | every `Asset` is conventionally a member of exactly one Trust Zone for security policy; the link is read-time, not stored on either aggregate |
-| Decision | shared-id-with | `Decision.actor_id` is an Actor id that may appear in `Policy.permitted_principals`; the link is read-time |
+| Decision | shared-id-with | `Decision.actor_id` is an Actor id that may appear in `Policy.permitted_principal_ids`; the link is read-time |
 
 The Authorize port is the only path through which Trust state influences command execution. Deciders never read Policy state directly; the kernel's PEP holds the only reference and answers a single `Allow` or `Deny`. This keeps every BC's write path pure and makes the Policy decider trivially testable as a function from `(policy, principal, command, conduit, surface)` to `AuthzResult`.
 
@@ -311,12 +311,12 @@ The five examples below cover the canonical Trust authoring and evaluation flow:
       "name": "Operators may start runs over the operator → detector conduit",
       "conduit_id": "<conduit-id>",
       "surface_id": "<seeded-http-surface-id>",
-      "permitted_principals": ["<operator-actor-id>"],
+      "permitted_principal_ids": ["<operator-actor-id>"],
       "permitted_commands": ["StartRun"]
     }
     ```
 
-    Returns `201 Created` with `policy_id`. The permitted sets are stored as `frozenset` on the aggregate and serialized as sorted lists in the payload for deterministic bytes. An empty `permitted_principals` or `permitted_commands` is allowed and yields a deny-all policy by construction.
+    Returns `201 Created` with `policy_id`. The permitted sets are stored as `frozenset` on the aggregate and serialized as sorted lists in the payload for deterministic bytes. An empty `permitted_principal_ids` or `permitted_commands` is allowed and yields a deny-all policy by construction.
 
 === "MCP"
 
@@ -327,7 +327,7 @@ The five examples below cover the canonical Trust authoring and evaluation flow:
             "name": "Operators may start runs over the operator → detector conduit",
             "conduit_id": "<conduit-id>",
             "surface_id": "<seeded-http-surface-id>",
-            "permitted_principals": ["<operator-actor-id>"],
+            "permitted_principal_ids": ["<operator-actor-id>"],
             "permitted_commands": ["StartRun"],
         },
     )
