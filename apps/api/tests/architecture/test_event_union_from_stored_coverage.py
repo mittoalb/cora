@@ -135,8 +135,35 @@ def _builder_target_class(call: ast.Call, case_scope: ast.AST) -> str | None:
     return None
 
 
+def _string_literals_in_pattern(pattern: ast.pattern) -> list[str]:
+    """Return every string-literal value covered by a ``case`` pattern.
+
+    Handles two shapes:
+      - ``case "X":`` (single literal; ``ast.MatchValue``)
+      - ``case "X" | "Y" | ...:`` (legacy-rename dual-match per the
+        Marten/Axon precedent; ``ast.MatchOr`` of MatchValues)
+
+    Other pattern shapes (capture, class, mapping) return empty:
+    they don't dispatch on the discriminator string and are out of
+    scope for this audit.
+    """
+    if (
+        isinstance(pattern, ast.MatchValue)
+        and isinstance(pattern.value, ast.Constant)
+        and isinstance(pattern.value.value, str)
+    ):
+        return [pattern.value.value]
+    if isinstance(pattern, ast.MatchOr):
+        out: list[str] = []
+        for sub in pattern.patterns:
+            out.extend(_string_literals_in_pattern(sub))
+        return out
+    return []
+
+
 def _collect_case_targets(func: ast.FunctionDef) -> dict[str, str | None]:
-    """For each ``case "X":`` arm, return ``{X: ClassName}`` it constructs.
+    """For each ``case "X":`` (or ``case "X" | "Y":``) arm, return
+    ``{X: ClassName, Y: ClassName}`` it constructs.
 
     Maps a case string to the name of the dataclass returned by its body.
     Recognises both the legacy ``return ClassName(...)`` shape and the
@@ -149,14 +176,9 @@ def _collect_case_targets(func: ast.FunctionDef) -> dict[str, str | None]:
         if not isinstance(node, ast.Match):
             continue
         for case in node.cases:
-            pattern = case.pattern
-            if not (
-                isinstance(pattern, ast.MatchValue)
-                and isinstance(pattern.value, ast.Constant)
-                and isinstance(pattern.value.value, str)
-            ):
+            case_strings = _string_literals_in_pattern(case.pattern)
+            if not case_strings:
                 continue
-            case_str = pattern.value.value
             target: str | None = None
             for body_node in ast.walk(case):
                 if not (
@@ -170,7 +192,8 @@ def _collect_case_targets(func: ast.FunctionDef) -> dict[str, str | None]:
                 if isinstance(call.func, ast.Name):
                     target = call.func.id
                     break
-            out[case_str] = target
+            for case_str in case_strings:
+                out[case_str] = target
     return out
 
 
