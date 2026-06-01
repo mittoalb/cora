@@ -94,7 +94,7 @@ from cora.run.aggregates.run.state import (
     RunTruncateReason,
     SamplingProcedure,
     SubjectNotMountableError,
-    validate_pinned_calibrations,
+    validate_pinned_calibration_ids,
 )
 
 __all__ = [
@@ -179,5 +179,5 @@ __all__ = [
     "to_payload",
     "validate_adjusted_parameters_against_method_schema",
     "validate_effective_parameters_against_method_schema",
-    "validate_pinned_calibrations",
+    "validate_pinned_calibration_ids",
 ]

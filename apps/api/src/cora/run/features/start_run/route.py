@@ -116,7 +116,7 @@ class StartRunRequest(BaseModel):
             "ad-hoc Runs without a Decision (Decision→Run linkage)."
         ),
     )
-    pinned_calibrations: list[UUID] = Field(
+    pinned_calibration_ids: list[UUID] = Field(
         default_factory=list[UUID],
         description=(
             "Optional list of `CalibrationRevision.id`s pinned at this "
@@ -216,7 +216,7 @@ async def post_runs(
             trigger_source=body.trigger_source,
             campaign_id=body.campaign_id,
             decided_by_decision_id=body.decided_by_decision_id,
-            pinned_calibrations=frozenset(body.pinned_calibrations),
+            pinned_calibration_ids=frozenset(body.pinned_calibration_ids),
         ),
         principal_id=principal_id,
         correlation_id=cid,

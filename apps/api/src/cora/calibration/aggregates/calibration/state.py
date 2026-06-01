@@ -95,7 +95,7 @@ class ComputedSource:
     center; flat-field correction derived from a flat baseline Dataset.
     The Dataset id is carried for PROV-O `wasDerivedFrom` provenance.
     The same Dataset's reconstruction may then cite the *refined*
-    revision; the AsShot anchor on Run.pinned_calibrations stays unchanged.
+    revision; the AsShot anchor on Run.pinned_calibration_ids stays unchanged.
     """
 
     dataset_id: UUID

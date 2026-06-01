@@ -441,14 +441,14 @@ def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
     assert events[0].intent == "Trial"
 
 
-# ---------- used_calibrations AsShot citation ----------
+# ---------- used_calibration_ids AsShot citation ----------
 
 
 @pytest.mark.unit
-def test_decide_defaults_used_calibrations_to_empty_tuple_on_event_payload() -> None:
-    """Default command (no used_calibrations) lands an empty tuple
+def test_decide_defaults_used_calibration_ids_to_empty_tuple_on_event_payload() -> None:
+    """Default command (no used_calibration_ids) lands an empty tuple
     on the event payload — uniform shape; readers without the new field
-    fold via `payload.get("used_calibrations", [])` either way."""
+    fold via `payload.get("used_calibration_ids", [])` either way."""
     cmd = _good_command()
     events = register_dataset.decide(
         state=None,
@@ -457,16 +457,16 @@ def test_decide_defaults_used_calibrations_to_empty_tuple_on_event_payload() -> 
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].used_calibrations == ()
+    assert events[0].used_calibration_ids == ()
 
 
 @pytest.mark.unit
-def test_decide_threads_used_calibrations_through_to_event() -> None:
+def test_decide_threads_used_calibration_ids_through_to_event() -> None:
     """The decider threads the AsShot citation set verbatim from
     command to event (after sort-before-emit)."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
     cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
-    cmd = _good_command(used_calibrations=frozenset({cal_a, cal_b}))
+    cmd = _good_command(used_calibration_ids=frozenset({cal_a, cal_b}))
     events = register_dataset.decide(
         state=None,
         command=cmd,
@@ -474,19 +474,19 @@ def test_decide_threads_used_calibrations_through_to_event() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert set(events[0].used_calibrations) == {cal_a, cal_b}
+    assert set(events[0].used_calibration_ids) == {cal_a, cal_b}
 
 
 @pytest.mark.unit
-def test_decide_sorts_used_calibrations_before_emit_for_deterministic_bytes() -> None:
+def test_decide_sorts_used_calibration_ids_before_emit_for_deterministic_bytes() -> None:
     """Decider sorts the AsShot citation set so the
     event-payload bytes are deterministic regardless of frozenset
-    iteration order (mirrors Run.pinned_calibrations decider-time
+    iteration order (mirrors Run.pinned_calibration_ids decider-time
     treatment + derived_from sorted-list precedent)."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
     cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
     cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
-    cmd = _good_command(used_calibrations=frozenset({cal_c, cal_a, cal_b}))
+    cmd = _good_command(used_calibration_ids=frozenset({cal_c, cal_a, cal_b}))
     events = register_dataset.decide(
         state=None,
         command=cmd,
@@ -497,16 +497,16 @@ def test_decide_sorts_used_calibrations_before_emit_for_deterministic_bytes() ->
     # The decider emits sorted by UUID natural ordering — pin the
     # exact tuple order (NOT just set equality) to defend against
     # a future refactor dropping the sort.
-    assert events[0].used_calibrations == (cal_a, cal_b, cal_c)
+    assert events[0].used_calibration_ids == (cal_a, cal_b, cal_c)
 
 
 @pytest.mark.unit
-def test_decide_raises_invalid_used_calibrations_for_too_many_entries() -> None:
+def test_decide_raises_invalid_used_calibration_ids_for_too_many_entries() -> None:
     """Cardinality cap: more than DATASET_USED_CALIBRATIONS_MAX_ENTRIES
     raises. Mirrors derived_from cardinality cap; same shape, same
     error-class precedent."""
     too_many = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES + 1))
-    cmd = _good_command(used_calibrations=too_many)
+    cmd = _good_command(used_calibration_ids=too_many)
     with pytest.raises(InvalidUsedCalibrationsError):
         register_dataset.decide(
             state=None,
@@ -518,10 +518,10 @@ def test_decide_raises_invalid_used_calibrations_for_too_many_entries() -> None:
 
 
 @pytest.mark.unit
-def test_decide_accepts_used_calibrations_at_cardinality_cap() -> None:
+def test_decide_accepts_used_calibration_ids_at_cardinality_cap() -> None:
     """Boundary: exactly at the cap is accepted (off-by-one guard)."""
     exactly_at_cap = frozenset(uuid4() for _ in range(DATASET_USED_CALIBRATIONS_MAX_ENTRIES))
-    cmd = _good_command(used_calibrations=exactly_at_cap)
+    cmd = _good_command(used_calibration_ids=exactly_at_cap)
     events = register_dataset.decide(
         state=None,
         command=cmd,
@@ -529,11 +529,11 @@ def test_decide_accepts_used_calibrations_at_cardinality_cap() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(events[0].used_calibrations) == DATASET_USED_CALIBRATIONS_MAX_ENTRIES
+    assert len(events[0].used_calibration_ids) == DATASET_USED_CALIBRATIONS_MAX_ENTRIES
 
 
 @pytest.mark.unit
-def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
+def test_decide_does_not_cross_bc_validate_used_calibration_ids() -> None:
     """Eventual-consistency stance per
     [[project_calibration_design]] anti-hook #3: the write path
     does NOT look up the CalibrationRevision ids; any well-formed
@@ -541,7 +541,7 @@ def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
     pin ids that will never exist in any Calibration BC stream
     pass validation."""
     synthetic = frozenset(uuid4() for _ in range(5))
-    cmd = _good_command(used_calibrations=synthetic)
+    cmd = _good_command(used_calibration_ids=synthetic)
     events = register_dataset.decide(
         state=None,
         command=cmd,
@@ -550,13 +550,13 @@ def test_decide_does_not_cross_bc_validate_used_calibrations() -> None:
         new_id=uuid4(),
     )
     assert len(events) == 1
-    assert set(events[0].used_calibrations) == synthetic
+    assert set(events[0].used_calibration_ids) == synthetic
 
 
 @pytest.mark.unit
-def test_decide_does_not_compare_used_calibrations_against_producing_run() -> None:
-    """The decider does NOT compare the Dataset's used_calibrations
-    against producing_run.pinned_calibrations. The two sets are
+def test_decide_does_not_compare_used_calibration_ids_against_producing_run() -> None:
+    """The decider does NOT compare the Dataset's used_calibration_ids
+    against producing_run.pinned_calibration_ids. The two sets are
     independent (Git-blob-reference analog; "partial override" is a
     category error in the revision-cited atomic-ID model). The
     decider trusts what command supplies, even when the cited
@@ -565,10 +565,10 @@ def test_decide_does_not_compare_used_calibrations_against_producing_run() -> No
     cal_dataset_only = UUID("01900000-0000-7000-8000-00000cd00001")
     cmd = _good_command(
         producing_run_id=uuid4(),
-        used_calibrations=frozenset({cal_dataset_only}),
+        used_calibration_ids=frozenset({cal_dataset_only}),
     )
     fake_run = _fake_run()
-    # The Run pre-loaded in context has its own pinned_calibrations
+    # The Run pre-loaded in context has its own pinned_calibration_ids
     # (irrelevant to this slice's decider, since we do NOT compare).
     events = register_dataset.decide(
         state=None,
@@ -577,4 +577,4 @@ def test_decide_does_not_compare_used_calibrations_against_producing_run() -> No
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].used_calibrations == (cal_dataset_only,)
+    assert events[0].used_calibration_ids == (cal_dataset_only,)

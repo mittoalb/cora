@@ -102,7 +102,7 @@ from cora.run.aggregates.run import (
     RunSupplyCoverageMismatchError,
     SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
-    validate_pinned_calibrations,
+    validate_pinned_calibration_ids,
 )
 from cora.run.features.start_run.command import StartRun
 from cora.run.features.start_run.context import RunStartContext
@@ -182,9 +182,9 @@ def decide(
       - When campaign_id is set, Campaign must exist and be in
         Planned, Active, or Held -> RunCannotJoinCampaignError
       - Name must be valid -> InvalidRunNameError (via RunName VO)
-      - pinned_calibrations cardinality must be within bound
+      - pinned_calibration_ids cardinality must be within bound
         -> InvalidPinnedCalibrationsError
-        (via validate_pinned_calibrations)
+        (via validate_pinned_calibration_ids)
 
     `needed_family_ids_snapshot` is the Method's needed_family_ids
     set the handler resolved transitively from `plan.practice_id →
@@ -328,8 +328,8 @@ def decide(
     # existence check (revision-cited atomic-ID model; eventual-
     # consistency stance per [[project_calibration_design]] anti-hook
     # #3). Mirrors Data BC's register_dataset decider-time treatment
-    # for Dataset.used_calibrations exactly.
-    pinned_calibrations = validate_pinned_calibrations(command.pinned_calibrations)
+    # for Dataset.used_calibration_ids exactly.
+    pinned_calibration_ids = validate_pinned_calibration_ids(command.pinned_calibration_ids)
 
     # build the acknowledged_cautions snapshot for the
     # RunStarted event payload. Per the Caution design memo, this
@@ -370,8 +370,8 @@ def decide(
             decided_by_decision_id=command.decided_by_decision_id,
             # sort for deterministic byte-form on the event
             # payload (frozenset has no inherent order). The cardinality
-            # check ran earlier via validate_pinned_calibrations (12b-5).
-            pinned_calibrations=tuple(sorted(pinned_calibrations)),
+            # check ran earlier via validate_pinned_calibration_ids (12b-5).
+            pinned_calibration_ids=tuple(sorted(pinned_calibration_ids)),
             occurred_at=now,
         )
     ]

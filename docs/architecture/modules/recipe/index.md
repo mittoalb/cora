@@ -12,7 +12,7 @@ Out of scope
 
 - **Approval workflow.** No `approve_plan` / `withdraw_plan` slices today. Whether a Plan is allowed to run is a question owned by the Decision module (with a `RecipeApproval` context shape that lands when the first facility needs gated rollout). Recipe's lifecycle is purely declarative.
 - **Per-Plan parameter overrides.** `Plan.default_parameters` is the operator's "what to use when nothing is overridden" baseline. The per-Run override and merged `effective_parameters` snapshot live on the Run aggregate.
-- **Calibration binding.** Plans do not pin calibrations today; the [Calibration module](../calibration/index.md) resolves the active revision at Run start. A `Plan.pinned_calibrations` field lands when a facility needs reproducible runs against a frozen calibration set.
+- **Calibration binding.** Plans do not pin calibrations today; the [Calibration module](../calibration/index.md) resolves the active revision at Run start. A `Plan.pinned_calibration_ids` field lands when a facility needs reproducible runs against a frozen calibration set.
 - **Capability code namespaces beyond `cora.capability.*`.** Facility-scoped extensions under `cora.capability.<facility>.*` are reserved but rejected today; the closed core opens when the first real cross-facility divergence demands it.
 - **PaNET / EXPO trajectory facets.** Capability carries an executor-agnostic parameter schema and a required-affordance set; richer scientific-taxonomy facets defer until a pilot consumer asks for them.
 - **Plan archiving and bulk export.** Plans accumulate forever today. Cold-storage hooks land when the first deployment outgrows the projection's working set.
@@ -318,7 +318,7 @@ All four summaries carry `versioned_at` + `deprecated_at` lifecycle timestamps (
 | Operation | shared-enum-with | `Capability.executor_shapes` lists `Procedure` as a valid implementer; `Procedure.capability_id` (Operation BC) points back at a Capability declared here |
 | Supply | depends-on-kind | `Method.needed_supplies` references `Supply.kind` strings (instance-aggregate vs type-aggregate asymmetry, since kinds are facility-portable and instance UUIDs are not) |
 | Run | upstream-of | `Run.plan_id` references a Plan; the Method's `parameters_schema` is the validation contract for Run parameter overrides |
-| Calibration | upstream-of | `Run.pinned_calibrations` (resolved at Run start) is keyed by Asset and Capability/quantity tuples that originate in the Recipe ladder |
+| Calibration | upstream-of | `Run.pinned_calibration_ids` (resolved at Run start) is keyed by Asset and Capability/quantity tuples that originate in the Recipe ladder |
 | Decision | shared-id-with | `Decision.subject_id` may point at a Plan when the decision relates to recipe approval or rollback (advisory today) |
 | Trust | gated-by | every Recipe slice is gated by an `Authorize` check; new Plan-binding may carry a Zone scope when a facility wires policy against beamline ownership |
 | Access | shared-id-with | every event carries `actor_id` on the envelope; the originating principal is an Actor |

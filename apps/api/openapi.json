@@ -7989,14 +7989,14 @@
             "title": "Uri",
             "type": "string"
           },
-          "used_calibrations": {
-            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibrations on the acquired-from Run; the two sets are independent: reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant; the aggregate carries a frozenset and the decider sorts for deterministic event-payload bytes.",
+          "used_calibration_ids": {
+            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibration_ids on the acquired-from Run; the two sets are independent: reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant; the aggregate carries a frozenset and the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "maxItems": 64,
-            "title": "Used Calibrations",
+            "title": "Used Calibration Ids",
             "type": "array"
           }
         },
@@ -9719,13 +9719,13 @@
             "title": "Override Parameters",
             "type": "object"
           },
-          "pinned_calibrations": {
+          "pinned_calibration_ids": {
             "description": "Optional list of `CalibrationRevision.id`s pinned at this Run's start time (Calibration BC AsShot anchor per Phase 12b / Q5/Q6 design memo). IMMUTABLE on the aggregate after start \u2014 every Run transition arm preserves it verbatim. NOT verified at the write path (cross-BC eventual-consistency stance). Empty list when no calibrations apply (today's default; legacy Runs fold the same way via `payload.get(..., [])`). Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Pinned Calibrations",
+            "title": "Pinned Calibration Ids",
             "type": "array"
           },
           "plan_id": {

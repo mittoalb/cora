@@ -132,12 +132,12 @@ The `UNIQUE (target_id, quantity, operating_point)` constraint is the enforcemen
 | Trust | gated-by | Every write-side Calibration slice is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Equipment | shared-id-with | `Calibration.target_id` references the Asset whose behaviour is being measured (the rotary stage whose rotation centre is tracked, the detector whose pixel pitch is measured) |
 | Operation | shared-id-with | `MeasuredSource.procedure_id` references the alignment Procedure whose run produced the value |
-| Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibrations` records the reverse direction |
+| Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibration_ids` records the reverse direction |
 | Access | shared-id-with | `AssertedSource.actor_id`, `Calibration.defined_by_actor_id`, and each revision's `established_by_actor_id` reference Actors |
 | Decision | shared-id-with | `CalibrationRevision.decided_by_decision_id` references the Decision that justified appending the revision (operator pivot, agent advisory); not verified at the write path |
-| Run | reads-from | `Run.pinned_calibrations` carries an AsShot `(calibration_id, revision_id)` tuple set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle |
+| Run | reads-from | `Run.pinned_calibration_ids` carries an AsShot `(calibration_id, revision_id)` tuple set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle |
 
-Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `(calibration_id, revision_id)` pin on `Run.pinned_calibrations` is the AsShot anchor that makes a reconstruction reproducible: even if a later revision supersedes the pinned one, the Run still cites the exact value it consumed.
+Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `(calibration_id, revision_id)` pin on `Run.pinned_calibration_ids` is the AsShot anchor that makes a reconstruction reproducible: even if a later revision supersedes the pinned one, the Run still cites the exact value it consumed.
 
 ## Examples
 

@@ -275,7 +275,7 @@ def test_get_datasets_rejects_invalid_path_uuid_with_422() -> None:
 def _load_dataset_payload(app: FastAPI, dataset_id: UUID) -> dict[str, object]:
     """Load the DatasetRegistered payload directly from the in-memory event store.
 
-    The `GET /datasets/{id}` DTO does not expose `used_calibrations`
+    The `GET /datasets/{id}` DTO does not expose `used_calibration_ids`
     today, so we drop down to the event store to inspect the
     persisted DatasetRegistered event. Same pattern as
     `_load_run_payload` in `test_start_run_endpoint.py`.
@@ -286,12 +286,12 @@ def _load_dataset_payload(app: FastAPI, dataset_id: UUID) -> dict[str, object]:
 
 
 @pytest.mark.contract
-def test_post_datasets_with_used_calibrations_returns_201() -> None:
-    """POST /datasets with used_calibrations returns 201 and the
+def test_post_datasets_with_used_calibration_ids_returns_201() -> None:
+    """POST /datasets with used_calibration_ids returns 201 and the
     persisted DatasetRegistered payload carries the sorted list of
     citations (no cross-BC validation of the CalibrationRevision ids
     — eventual-consistency stance per the Dataset lineage design,
-    mirrors Run.pinned_calibrations exactly)."""
+    mirrors Run.pinned_calibration_ids exactly)."""
     app = create_app()
     cal_a = uuid4()
     cal_b = uuid4()
@@ -301,20 +301,20 @@ def test_post_datasets_with_used_calibrations_returns_201() -> None:
             json=_good_body(
                 name="cited-reconstruction",
                 # Scrambled order; decider sorts before emit.
-                used_calibrations=[str(cal_b), str(cal_a)],
+                used_calibration_ids=[str(cal_b), str(cal_a)],
             ),
         )
         assert response.status_code == 201, response.text
         dataset_id = UUID(response.json()["dataset_id"])
         payload = _load_dataset_payload(app, dataset_id)
-    assert payload["used_calibrations"] == sorted([str(cal_a), str(cal_b)])
+    assert payload["used_calibration_ids"] == sorted([str(cal_a), str(cal_b)])
 
 
 @pytest.mark.contract
-def test_post_datasets_defaults_used_calibrations_to_empty_list() -> None:
-    """Omitted used_calibrations serializes as `[]` on the payload
+def test_post_datasets_defaults_used_calibration_ids_to_empty_list() -> None:
+    """Omitted used_calibration_ids serializes as `[]` on the payload
     (forward-compat-clean default; DatasetRegistered readers without
-    the used_calibrations field fold the same way via
+    the used_calibration_ids field fold the same way via
     `payload.get(..., [])`)."""
     app = create_app()
     with TestClient(app) as client:
@@ -322,7 +322,7 @@ def test_post_datasets_defaults_used_calibrations_to_empty_list() -> None:
         assert response.status_code == 201, response.text
         dataset_id = UUID(response.json()["dataset_id"])
         payload = _load_dataset_payload(app, dataset_id)
-    assert payload["used_calibrations"] == []
+    assert payload["used_calibration_ids"] == []
 
 
 @pytest.mark.contract
@@ -332,7 +332,7 @@ def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
     NOT look up the CalibrationRevision ids. Any well-formed UUID
     list is accepted; downstream consumers that need to dereference
     still go through the Calibration BC. Mirrors
-    Run.pinned_calibrations exactly."""
+    Run.pinned_calibration_ids exactly."""
     with TestClient(create_app()) as client:
         # Fully synthetic citation ids that will never exist in any
         # Calibration BC stream.
@@ -340,7 +340,7 @@ def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
             "/datasets",
             json=_good_body(
                 name="synthetic-citations-dataset",
-                used_calibrations=[str(uuid4()) for _ in range(5)],
+                used_calibration_ids=[str(uuid4()) for _ in range(5)],
             ),
         )
     assert response.status_code == 201, response.text
@@ -350,13 +350,13 @@ def test_post_datasets_does_not_validate_used_calibration_existence() -> None:
 def test_post_datasets_rejects_malformed_used_calibration_uuid_with_422() -> None:
     """Pydantic enforces UUID format at the wire layer (the decider
     never sees malformed strings). Mirrors the malformed-UUID
-    422 guard for Run.pinned_calibrations."""
+    422 guard for Run.pinned_calibration_ids."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/datasets",
             json=_good_body(
                 name="bad-citation-uuid-dataset",
-                used_calibrations=["not-a-uuid"],
+                used_calibration_ids=["not-a-uuid"],
             ),
         )
     assert response.status_code == 422

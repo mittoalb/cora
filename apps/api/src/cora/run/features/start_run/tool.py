@@ -125,7 +125,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
-        pinned_calibrations: Annotated[
+        pinned_calibration_ids: Annotated[
             list[UUID] | None,
             Field(
                 default=None,
@@ -149,8 +149,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 trigger_source=trigger_source,
                 campaign_id=campaign_id,
                 decided_by_decision_id=decided_by_decision_id,
-                pinned_calibrations=frozenset(pinned_calibrations)
-                if pinned_calibrations
+                pinned_calibration_ids=frozenset(pinned_calibration_ids)
+                if pinned_calibration_ids
                 else frozenset(),
             ),
             principal_id=get_mcp_principal_id(ctx),

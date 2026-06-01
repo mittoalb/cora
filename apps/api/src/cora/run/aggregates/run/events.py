@@ -209,9 +209,9 @@ class RunStarted:
     # with adjust_run + the cross-BC eventual-consistency stance).
     # IMMUTABLE after start by aggregate-level invariant — every Run
     # transition arm preserves it verbatim. Forward-compat via
-    # `payload.get("pinned_calibrations", [])` returning an empty list
+    # `payload.get("pinned_calibration_ids", [])` returning an empty list
     # for legacy streams without the field.
-    pinned_calibrations: tuple[UUID, ...] = ()
+    pinned_calibration_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -524,7 +524,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=campaign_id,
             decided_by_decision_id=decided_by_decision_id,
-            pinned_calibrations=pinned_calibrations,
+            pinned_calibration_ids=pinned_calibration_ids,
             occurred_at=occurred_at,
         ):
             return {
@@ -556,7 +556,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 # CalibrationRevision ids sorted lexicographically for
                 # deterministic byte ordering (the typed in-memory shape is
                 # frozenset; the wire shape is a sorted list for stable bytes).
-                "pinned_calibrations": sorted(str(pin) for pin in pinned_calibrations),
+                "pinned_calibration_ids": sorted(str(pin) for pin in pinned_calibration_ids),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -683,7 +683,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # `trigger_source`, `external_refs`,
                 # `acknowledged_cautions`, `campaign_id`,
                 # `decided_by_decision_id` (Decision-to-Run linkage),
-                # `pinned_calibrations` (Calibration AsShot anchor)
+                # `pinned_calibration_ids` (Calibration AsShot anchor)
                 # were all added additively. Each .get(...) returns
                 # the field's default when the key isn't in the jsonb
                 # payload, so legacy streams replay without an upcaster.
@@ -715,8 +715,8 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     decided_by_decision_id=UUID(raw_decided_by)
                     if raw_decided_by is not None
                     else None,
-                    pinned_calibrations=tuple(
-                        UUID(p) for p in payload.get("pinned_calibrations", [])
+                    pinned_calibration_ids=tuple(
+                        UUID(p) for p in payload.get("pinned_calibration_ids", [])
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )

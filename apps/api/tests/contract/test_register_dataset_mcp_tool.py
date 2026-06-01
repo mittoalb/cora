@@ -179,8 +179,8 @@ def test_mcp_get_dataset_tool_returns_iserror_for_unknown_id() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_register_dataset_tool_accepts_used_calibrations() -> None:
-    """The MCP tool's `used_calibrations` arg is wired through to
+def test_mcp_register_dataset_tool_accepts_used_calibration_ids() -> None:
+    """The MCP tool's `used_calibration_ids` arg is wired through to
     the decider. Pins the wire-level contract on the MCP surface
     (mirrors the REST endpoint contract test pattern). NO cross-BC
     existence check at the write path per anti-hook #3."""
@@ -196,7 +196,7 @@ def test_mcp_register_dataset_tool_accepts_used_calibrations() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "register_dataset",
-                    "arguments": _register_args(used_calibrations=[cal_b, cal_a]),
+                    "arguments": _register_args(used_calibration_ids=[cal_b, cal_a]),
                 },
             },
             headers=headers,
@@ -206,10 +206,10 @@ def test_mcp_register_dataset_tool_accepts_used_calibrations() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_register_dataset_tool_omitting_used_calibrations_succeeds() -> None:
-    """Forward-compat: legacy MCP callers that omit `used_calibrations`
+def test_mcp_register_dataset_tool_omitting_used_calibration_ids_succeeds() -> None:
+    """Forward-compat: legacy MCP callers that omit `used_calibration_ids`
     succeed; the optional arg defaults to empty (mirrors
-    Run.pinned_calibrations MCP-tool optional-arg shape)."""
+    Run.pinned_calibration_ids MCP-tool optional-arg shape)."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         response = client.post(

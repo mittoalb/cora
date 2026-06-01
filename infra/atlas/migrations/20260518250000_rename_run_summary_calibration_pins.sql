@@ -1,7 +1,7 @@
--- Phase 12b-4: rename `Run.calibration_pins` -> `Run.pinned_calibrations`
+-- Phase 12b-4: rename `Run.calibration_pins` -> `Run.pinned_calibration_ids`
 -- to align with the [[project-naming-conventions]] R3 family-noun-LAST
 -- convention and stay symmetric with the upcoming Phase 12c
--- `Dataset.used_calibrations`. The rename is mechanical: column +
+-- `Dataset.used_calibration_ids`. The rename is mechanical: column +
 -- index name only; column type, NOT NULL, DEFAULT, and constraint
 -- semantics are identical to the pre-12b-4 shape.
 --
@@ -17,7 +17,7 @@
 -- on data). `RENAME INDEX` is also metadata-only.
 
 ALTER TABLE proj_run_summary
-    RENAME COLUMN calibration_pins TO pinned_calibrations;
+    RENAME COLUMN calibration_pins TO pinned_calibration_ids;
 
 ALTER INDEX proj_run_summary_calibration_pins_gin_idx
-    RENAME TO proj_run_summary_pinned_calibrations_gin_idx;
+    RENAME TO proj_run_summary_pinned_calibration_ids_gin_idx;

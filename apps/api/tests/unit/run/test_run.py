@@ -25,7 +25,7 @@ from cora.run.aggregates.run import (
     RunStatus,
     RunStopReason,
     SubjectNotMountableError,
-    validate_pinned_calibrations,
+    validate_pinned_calibration_ids,
 )
 
 # ---------- RunName VO ----------
@@ -458,45 +458,45 @@ def test_run_dataclass_has_no_adjustments_logbook_id_field() -> None:
     assert "adjustments_logbook_id" not in field_names
 
 
-# ---------- pinned_calibrations validation ----------
+# ---------- pinned_calibration_ids validation ----------
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_empty() -> None:
+def test_validate_pinned_calibration_ids_accepts_empty() -> None:
     """Empty pin set is the default (Run with no AsShot citations)."""
-    assert validate_pinned_calibrations(frozenset()) == frozenset()
+    assert validate_pinned_calibration_ids(frozenset()) == frozenset()
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_within_cap() -> None:
+def test_validate_pinned_calibration_ids_accepts_within_cap() -> None:
     """A reasonable-size pin set (under the cap) is accepted verbatim
     — no element-level existence check at this layer."""
     s = frozenset(uuid4() for _ in range(10))
-    assert validate_pinned_calibrations(s) == s
+    assert validate_pinned_calibration_ids(s) == s
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_exactly_at_cap() -> None:
+def test_validate_pinned_calibration_ids_accepts_exactly_at_cap() -> None:
     """Boundary: exactly RUN_PINNED_CALIBRATIONS_MAX_ENTRIES is accepted
-    (off-by-one guard mirrors Data BC's validate_used_calibrations boundary
+    (off-by-one guard mirrors Data BC's validate_used_calibration_ids boundary
     test)."""
     s = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES))
-    assert validate_pinned_calibrations(s) == s
+    assert validate_pinned_calibration_ids(s) == s
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_rejects_over_cap() -> None:
+def test_validate_pinned_calibration_ids_rejects_over_cap() -> None:
     """Cardinality cap rejects > RUN_PINNED_CALIBRATIONS_MAX_ENTRIES;
     raises InvalidPinnedCalibrationsError. Mirrors Data BC's
     InvalidUsedCalibrationsError shape exactly (same precedent + same
     default cap of 64)."""
     s = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES + 1))
     with pytest.raises(InvalidPinnedCalibrationsError):
-        validate_pinned_calibrations(s)
+        validate_pinned_calibration_ids(s)
 
 
 @pytest.mark.unit
-def test_invalid_pinned_calibrations_error_carries_count() -> None:
+def test_invalid_pinned_calibration_ids_error_carries_count() -> None:
     """The error class exposes `.count` for observability + debugging
     (matches Data BC's InvalidUsedCalibrationsError contract)."""
     bad_count = RUN_PINNED_CALIBRATIONS_MAX_ENTRIES + 5

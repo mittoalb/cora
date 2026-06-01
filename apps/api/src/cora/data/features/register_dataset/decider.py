@@ -58,7 +58,7 @@ from cora.data.aggregates.dataset import (
     ProducingRunNotFoundError,
     validate_byte_size,
     validate_derived_from,
-    validate_used_calibrations,
+    validate_used_calibration_ids,
 )
 from cora.data.aggregates.dataset.state import Dataset
 from cora.data.features.register_dataset.command import RegisterDataset
@@ -89,8 +89,8 @@ def decide(
         -> InvalidDatasetEncodingError (via DatasetEncoding VO)
       - derived_from must satisfy cardinality + UUID shape
         -> InvalidDerivedFromError (via validate_derived_from)
-      - used_calibrations must satisfy cardinality
-        -> InvalidUsedCalibrationsError (via validate_used_calibrations)
+      - used_calibration_ids must satisfy cardinality
+        -> InvalidUsedCalibrationsError (via validate_used_calibration_ids)
       - When producing_run_id is set, the Run must exist
         -> ProducingRunNotFoundError
       - When subject_id is set, the Subject must exist
@@ -121,9 +121,9 @@ def decide(
     # cardinality-only check on the AsShot citation set.
     # NO cross-BC existence check (revision-cited atomic-ID model;
     # eventual-consistency stance per [[project_calibration_design]]
-    # anti-hook #3; mirrors Run.pinned_calibrations decider-time
+    # anti-hook #3; mirrors Run.pinned_calibration_ids decider-time
     # treatment exactly).
-    used_calibrations = validate_used_calibrations(command.used_calibrations)
+    used_calibration_ids = validate_used_calibration_ids(command.used_calibration_ids)
 
     # Cross-aggregate checks (existence-only per Q2 lock B).
     # The handler's pre-loads either populate context.* or raise
@@ -184,9 +184,9 @@ def decide(
             # intent defaults to "Trial" on the dataclass; promotion is a
             # separate explicit slice (promote_dataset).
             # sort before emit so the event-payload bytes are
-            # deterministic (matches Run.pinned_calibrations
+            # deterministic (matches Run.pinned_calibration_ids
             # decider-time treatment + the derived_from sorted-list
             # precedent on the same payload).
-            used_calibrations=tuple(sorted(used_calibrations)),
+            used_calibration_ids=tuple(sorted(used_calibration_ids)),
         )
     ]

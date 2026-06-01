@@ -290,9 +290,9 @@ def test_evolve_demoted_raises_on_empty_state() -> None:
 
 
 @pytest.mark.unit
-def test_demote_preserves_used_calibrations_asshot_invariant() -> None:
+def test_demote_preserves_used_calibration_ids_asshot_invariant() -> None:
     """AsShot invariant: DatasetDemoted preserves
-    `used_calibrations` (the citation set never changes after
+    `used_calibration_ids` (the citation set never changes after
     register — even when demoting the dataset's authority)."""
     revision_id = uuid4()
     register = DatasetRegistered(
@@ -310,7 +310,7 @@ def test_demote_preserves_used_calibrations_asshot_invariant() -> None:
         occurred_at=_NOW,
         producing_run_end_state=None,
         intent="Trial",
-        used_calibrations=(revision_id,),
+        used_calibration_ids=(revision_id,),
     )
     promoted = DatasetPromoted(
         dataset_id=register.dataset_id,
@@ -324,7 +324,7 @@ def test_demote_preserves_used_calibrations_asshot_invariant() -> None:
     )
     state = fold([register, promoted, demoted])
     assert state is not None
-    assert state.used_calibrations == frozenset({revision_id})
+    assert state.used_calibration_ids == frozenset({revision_id})
 
 
 @pytest.mark.unit
@@ -393,17 +393,17 @@ def test_evolve_promoted_preserves_producing_run_end_state() -> None:
     assert state.producing_run_end_state == "Completed"
 
 
-# ---------- Dataset.used_calibrations AsShot citation ----------
+# ---------- Dataset.used_calibration_ids AsShot citation ----------
 
 
 from uuid import UUID  # noqa: E402
 
 
 @pytest.mark.unit
-def test_register_genesis_populates_used_calibrations_as_frozenset() -> None:
+def test_register_genesis_populates_used_calibration_ids_as_frozenset() -> None:
     """DatasetRegistered carries the tuple on the event payload; the
     evolver coerces to frozenset for in-memory equality semantics
-    (mirrors Run.pinned_calibrations exactly)."""
+    (mirrors Run.pinned_calibration_ids exactly)."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
     cal_b = UUID("01900000-0000-7000-8000-00000000ca02")
     event = DatasetRegistered(
@@ -419,15 +419,15 @@ def test_register_genesis_populates_used_calibrations_as_frozenset() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
-        used_calibrations=(cal_a, cal_b),
+        used_calibration_ids=(cal_a, cal_b),
     )
     state = evolve(state=None, event=event)
-    assert state.used_calibrations == frozenset({cal_a, cal_b})
+    assert state.used_calibration_ids == frozenset({cal_a, cal_b})
 
 
 @pytest.mark.unit
-def test_legacy_pre_12c_register_folds_with_empty_used_calibrations() -> None:
-    """Pre-12c DatasetRegistered events have no used_calibrations
+def test_legacy_pre_12c_register_folds_with_empty_used_calibration_ids() -> None:
+    """Pre-12c DatasetRegistered events have no used_calibration_ids
     field (defaults to empty tuple via the additive-state pattern).
     They MUST fold to an empty frozenset — additive backward-compat
     contract mirrors derived_from / producing_run_end_state / intent
@@ -447,11 +447,11 @@ def test_legacy_pre_12c_register_folds_with_empty_used_calibrations() -> None:
         occurred_at=_NOW,
     )
     state = evolve(state=None, event=event)
-    assert state.used_calibrations == frozenset()
+    assert state.used_calibration_ids == frozenset()
 
 
 @pytest.mark.unit
-def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
+def test_discard_preserves_used_calibration_ids_asshot_invariant() -> None:
     """AsShot invariant: terminal discard MUST preserve the
     citation set verbatim. A regression that wiped it would silently
     break 'what calibration revisions did this Dataset use?' queries
@@ -471,7 +471,7 @@ def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
-        used_calibrations=(cal_a, cal_b),
+        used_calibration_ids=(cal_a, cal_b),
     )
     discarded = DatasetDiscarded(
         dataset_id=register.dataset_id,
@@ -481,11 +481,11 @@ def test_discard_preserves_used_calibrations_asshot_invariant() -> None:
     state = fold([register, discarded])
     assert state is not None
     assert state.status is DatasetStatus.DISCARDED
-    assert state.used_calibrations == frozenset({cal_a, cal_b})
+    assert state.used_calibration_ids == frozenset({cal_a, cal_b})
 
 
 @pytest.mark.unit
-def test_promote_preserves_used_calibrations_asshot_invariant() -> None:
+def test_promote_preserves_used_calibration_ids_asshot_invariant() -> None:
     """AsShot invariant: intent flip MUST preserve the
     citation set verbatim. Mirrors the discard-arm preserve test;
     same silent-wipe risk if a future evolver refactor swaps to
@@ -504,7 +504,7 @@ def test_promote_preserves_used_calibrations_asshot_invariant() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
-        used_calibrations=(cal_a,),
+        used_calibration_ids=(cal_a,),
     )
     promoted = DatasetPromoted(
         dataset_id=register.dataset_id,
@@ -514,4 +514,4 @@ def test_promote_preserves_used_calibrations_asshot_invariant() -> None:
     state = fold([register, promoted])
     assert state is not None
     assert state.intent is Intent.PRODUCTION
-    assert state.used_calibrations == frozenset({cal_a})
+    assert state.used_calibration_ids == frozenset({cal_a})

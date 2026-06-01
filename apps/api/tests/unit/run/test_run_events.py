@@ -98,9 +98,9 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
         # sorted list of CalibrationRevision ids. Empty when
-        # StartRun.pinned_calibrations was empty; forward-compat via
-        # `payload.get("pinned_calibrations", [])`.
-        "pinned_calibrations": [],
+        # StartRun.pinned_calibration_ids was empty; forward-compat via
+        # `payload.get("pinned_calibration_ids", [])`.
+        "pinned_calibration_ids": [],
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -1052,7 +1052,7 @@ def test_run_started_decision_id_round_trips() -> None:
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_run_started_with_pinned_calibrations_sorted() -> None:
+def test_to_payload_serializes_run_started_with_pinned_calibration_ids_sorted() -> None:
     """The wire form is a list sorted lexicographically for deterministic
     byte ordering (the in-memory frozenset has no order)."""
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1065,16 +1065,16 @@ def test_to_payload_serializes_run_started_with_pinned_calibrations_sorted() -> 
         subject_id=None,
         occurred_at=_NOW,
         # Tuple input in scrambled order; payload must come out sorted.
-        pinned_calibrations=(pin_c, pin_a, pin_b),
+        pinned_calibration_ids=(pin_c, pin_a, pin_b),
     )
     payload = to_payload(event)
-    assert payload["pinned_calibrations"] == sorted([str(pin_a), str(pin_b), str(pin_c)])
+    assert payload["pinned_calibration_ids"] == sorted([str(pin_a), str(pin_b), str(pin_c)])
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_run_started_without_pinned_calibrations_key_as_empty() -> None:
+def test_from_stored_rebuilds_run_started_without_pinned_calibration_ids_key_as_empty() -> None:
     """Forward-compat: legacy RunStarted payloads have no
-    pinned_calibrations key. from_stored returns an empty tuple via
+    pinned_calibration_ids key. from_stored returns an empty tuple via
     `payload.get(..., [])`."""
     run_id = uuid4()
     plan_id = uuid4()
@@ -1086,17 +1086,17 @@ def test_from_stored_rebuilds_run_started_without_pinned_calibrations_key_as_emp
             "plan_id": str(plan_id),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: no "pinned_calibrations" key — legacy shape.
+            # NOTE: no "pinned_calibration_ids" key — legacy shape.
         },
     )
     event = from_stored(stored)
     assert isinstance(event, RunStarted)
-    assert event.pinned_calibrations == ()
+    assert event.pinned_calibration_ids == ()
 
 
 @pytest.mark.unit
-def test_run_started_pinned_calibrations_round_trip() -> None:
-    """RunStarted with pinned_calibrations round-trips through to_payload +
+def test_run_started_pinned_calibration_ids_round_trip() -> None:
+    """RunStarted with pinned_calibration_ids round-trips through to_payload +
     from_stored. The event class holds them as a tuple; equality on the
     tuple is order-sensitive but to_payload sorts before serialise."""
     pin_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -1110,7 +1110,7 @@ def test_run_started_pinned_calibrations_round_trip() -> None:
         plan_id=uuid4(),
         subject_id=None,
         occurred_at=_NOW,
-        pinned_calibrations=(pin_a, pin_b),
+        pinned_calibration_ids=(pin_a, pin_b),
     )
     stored = _stored("RunStarted", to_payload(original))
     assert from_stored(stored) == original

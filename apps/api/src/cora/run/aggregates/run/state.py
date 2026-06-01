@@ -122,7 +122,7 @@ RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 # same triggers as RunAbortReason.
 RUN_ADJUST_REASON_MAX_LENGTH = 500
 # cardinality cap on the AsShot pin set
-# (Run.pinned_calibrations). Mirrors Data BC's
+# (Run.pinned_calibration_ids). Mirrors Data BC's
 # DATASET_USED_CALIBRATIONS_MAX_ENTRIES exactly (same default + same
 # precedent justification: per-entry existence is NOT checked at the
 # write path — revision-cited atomic IDs are cross-BC eventual-
@@ -1078,15 +1078,15 @@ class Run:
     # transition arm in the evolver (RunHeld / RunResumed /
     # RunCompleted / RunAborted / RunStopped / RunTruncated /
     # RunAdjusted / RunAddedToCampaign / RunRemovedFromCampaign /
-    # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
+    # RunReadingLogbookOpened) preserves `prior.pinned_calibration_ids`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
     # reconstruction in the Data BC, RunDebriefer AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically
     # months later, even if later refined revisions arrive on the
     # same Calibration aggregate. DNG AsShot vs Current precedent
     # (Q5/Q6 research). Defaults to empty frozenset so legacy streams
-    # without the field fold cleanly via `payload.get("pinned_calibrations", [])`.
-    pinned_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # without the field fold cleanly via `payload.get("pinned_calibration_ids", [])`.
+    pinned_calibration_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
 
 
 class InvalidRunParametersError(ValueError):
@@ -1187,7 +1187,7 @@ class InvalidRunAdjustReasonError(ValueError):
 
 
 class InvalidPinnedCalibrationsError(ValueError):
-    """The supplied pinned_calibrations set has too many entries.
+    """The supplied pinned_calibration_ids set has too many entries.
 
     Per-entry validation (each is a UUID) is type-enforced; the
     set-cardinality cap protects against accidentally massive AsShot-
@@ -1208,20 +1208,20 @@ class InvalidPinnedCalibrationsError(ValueError):
 
     def __init__(self, count: int) -> None:
         super().__init__(
-            f"Run pinned_calibrations must have at most "
+            f"Run pinned_calibration_ids must have at most "
             f"{RUN_PINNED_CALIBRATIONS_MAX_ENTRIES} entries (got: {count})"
         )
         self.count = count
 
 
-def validate_pinned_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
-    """Normalize / validate pinned_calibrations for the Run state and decider.
+def validate_pinned_calibration_ids(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate pinned_calibration_ids for the Run state and decider.
 
     Cardinality-only check. NO per-element existence
     check (revision-cited atomic-ID model; cross-BC eventual-
     consistency per [[project_calibration_design]] anti-hook #3 +
     Vernon/Evans DDD canon). Mirrors Data BC's
-    `validate_used_calibrations` exactly — same shape, same default
+    `validate_used_calibration_ids` exactly — same shape, same default
     cap, same justification.
     """
     if len(value) > RUN_PINNED_CALIBRATIONS_MAX_ENTRIES:

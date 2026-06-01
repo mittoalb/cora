@@ -261,7 +261,7 @@ def _create_campaign_as(client: TestClient, principal: UUID) -> UUID:
 
 def _create_dataset_as(client: TestClient, principal: UUID) -> UUID:
     """Create a Dataset via POST /datasets. All cross-aggregate FKs
-    (producing_run_id, subject_id, derived_from, used_calibrations) are
+    (producing_run_id, subject_id, derived_from, used_calibration_ids) are
     optional and omitted here; checksum is a 64-char zero string
     (well-formed sha256 hex)."""
     response = client.post(

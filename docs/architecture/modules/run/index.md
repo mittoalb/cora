@@ -26,7 +26,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Run` | `id: UUID` | `name`, `plan_id`, `subject_id?`, `raid?`, `status`, `override_parameters`, `effective_parameters`, `trigger_source?`, `reading_logbook_id?`, `external_refs`, `campaign_id?`, `last_adjusted_at?`, `adjustment_count`, `pinned_calibrations` | yes |
+| `Run` | `id: UUID` | `name`, `plan_id`, `subject_id?`, `raid?`, `status`, `override_parameters`, `effective_parameters`, `trigger_source?`, `reading_logbook_id?`, `external_refs`, `campaign_id?`, `last_adjusted_at?`, `adjustment_count`, `pinned_calibration_ids` | yes |
 | `RunReading` (sub-aggregate VO on `Run`) | `event_id: UUID` (per row) | `channel_name`, `value`, `units?`, `sampling_procedure`, `sampled_at`, `occurred_at`, `recorded_at` | no |
 
 `Run.subject_id` is optional because some execution shapes have no Subject: dark-field acquisition, flat-field acquisition, energy calibration with a standard reference. These share the full Run lifecycle with sample Runs; only the Subject binding differs.
@@ -98,7 +98,7 @@ stateDiagram-v2
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `RunStarted` | `run_id`, `name`, `plan_id`, `subject_id?`, `raid?`, `override_parameters`, `effective_parameters`, `trigger_source?`, `external_refs`, `campaign_id?`, `pinned_calibrations`, `occurred_at` | `start_run` succeeds |
+| `RunStarted` | `run_id`, `name`, `plan_id`, `subject_id?`, `raid?`, `override_parameters`, `effective_parameters`, `trigger_source?`, `external_refs`, `campaign_id?`, `pinned_calibration_ids`, `occurred_at` | `start_run` succeeds |
 | `RunHeld` | `run_id`, `occurred_at` | `hold_run` succeeds |
 | `RunResumed` | `run_id`, `occurred_at` | `resume_run` succeeds |
 | `RunCompleted` | `run_id`, `occurred_at` | `complete_run` succeeds |
@@ -226,7 +226,7 @@ Clock skew between the sensor (`sampled_at`) and the handler (`occurred_at`) is 
 | Caution | reads-from | `CautionLookup` returns Active Cautions for the Run scope; non-blocking, surfaced as a banner on the response, never refuses start |
 | Campaign | shared-id-with | `Run.campaign_id` (single-Campaign-per-Run invariant); the post-hoc `add_run_to_campaign` / `remove_run_from_campaign` slices are owned by the Campaign module and atomically write `RunAddedToCampaign` / `RunRemovedFromCampaign` plus the Campaign-side membership event via `EventStore.append_streams` |
 | Decision | shared-id-with | `RunAdjusted.decided_by_decision_id` cites the Decision that justified a mid-flight adjustment; no existence check at write time (eventual-consistency stance) |
-| Calibration | reads-from | `Run.pinned_calibrations` is a frozen set of `CalibrationRevision.id`s captured at `start_run` and **immutable** for the life of the Run; every FSM transition preserves the set verbatim, and downstream consumers cite this set to answer "what calibration was this scan acquired against?" deterministically |
+| Calibration | reads-from | `Run.pinned_calibration_ids` is a frozen set of `CalibrationRevision.id`s captured at `start_run` and **immutable** for the life of the Run; every FSM transition preserves the set verbatim, and downstream consumers cite this set to answer "what calibration was this scan acquired against?" deterministically |
 | Agent | writes-to | Terminal Run events (`RunCompleted`, `RunAborted`, `RunStopped`, `RunTruncated`) are subscribed by the RunDebriefer agent, which emits an advisory `Decision` per terminal Run |
 | Access | shared-id-with | Every Run event envelope carries `actor_id` for principal attribution; cross-module references are bare UUIDs and not verified at write time |
 
@@ -257,7 +257,7 @@ The four examples below follow the happy path for one Run: start it, steer it mi
         "exposure_time_ms": 50
       },
       "trigger_source": "operator:opid:42",
-      "pinned_calibrations": [
+      "pinned_calibration_ids": [
         "cal-rev-aaaa1111-2222-3333-4444-555555555555",
         "cal-rev-bbbb2222-3333-4444-5555-666666666666"
       ]
@@ -280,7 +280,7 @@ The four examples below follow the happy path for one Run: start it, steer it mi
                 "exposure_time_ms": 50,
             },
             "trigger_source": "operator:opid:42",
-            "pinned_calibrations": [
+            "pinned_calibration_ids": [
                 "cal-rev-aaaa1111-2222-3333-4444-555555555555",
                 "cal-rev-bbbb2222-3333-4444-5555-666666666666",
             ],

@@ -1518,7 +1518,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
 
 
 @pytest.mark.unit
-def test_decide_defaults_pinned_calibrations_to_empty_when_omitted() -> None:
+def test_decide_defaults_pinned_calibration_ids_to_empty_when_omitted() -> None:
     """Pin set defaults to empty frozenset; emitted event payload is `()`."""
     cap = uuid4()
     asset_id = uuid4()
@@ -1541,11 +1541,11 @@ def test_decide_defaults_pinned_calibrations_to_empty_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].pinned_calibrations == ()
+    assert decision.run_events[0].pinned_calibration_ids == ()
 
 
 @pytest.mark.unit
-def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
+def test_decide_threads_pinned_calibration_ids_sorted_through_to_event() -> None:
     """The decider sorts the operator-supplied frozenset before
     emit so the event payload has deterministic bytes."""
     cap = uuid4()
@@ -1569,7 +1569,7 @@ def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
             plan_id=plan.id,
             subject_id=subject.id,
             # Frozenset has no order; the decider must sort.
-            pinned_calibrations=frozenset({pin_c, pin_a, pin_b}),
+            pinned_calibration_ids=frozenset({pin_c, pin_a, pin_b}),
         ),
         context=context,
         needed_family_ids_snapshot=frozenset({cap}),
@@ -1578,13 +1578,13 @@ def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].pinned_calibrations == tuple(sorted([pin_a, pin_b, pin_c]))
+    assert decision.run_events[0].pinned_calibration_ids == tuple(sorted([pin_a, pin_b, pin_c]))
 
 
-def test_decide_rejects_pinned_calibrations_over_cap() -> None:
+def test_decide_rejects_pinned_calibration_ids_over_cap() -> None:
     """Cardinality cap on the AsShot pin set. Symmetric to Data BC's
     register_dataset decider rejecting > 64 entries on
-    used_calibrations. Mirrors the Data BC cardinality boundary
+    used_calibration_ids. Mirrors the Data BC cardinality boundary
     test."""
     from cora.run.aggregates.run import (
         RUN_PINNED_CALIBRATIONS_MAX_ENTRIES,
@@ -1610,7 +1610,7 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
                 name="Too many pins",
                 plan_id=plan.id,
                 subject_id=subject.id,
-                pinned_calibrations=too_many,
+                pinned_calibration_ids=too_many,
             ),
             context=context,
             needed_family_ids_snapshot=frozenset({cap}),
@@ -1621,10 +1621,10 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
         )
 
 
-def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
+def test_decide_accepts_pinned_calibration_ids_exactly_at_cap() -> None:
     """Boundary guard: exactly at the cap is accepted (off-by-one
     mirror of Data BC's
-    test_decide_accepts_used_calibrations_at_cardinality_cap)."""
+    test_decide_accepts_used_calibration_ids_at_cardinality_cap)."""
     from cora.run.aggregates.run import RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
 
     cap = uuid4()
@@ -1645,7 +1645,7 @@ def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
             name="Cap pins",
             plan_id=plan.id,
             subject_id=subject.id,
-            pinned_calibrations=at_cap,
+            pinned_calibration_ids=at_cap,
         ),
         context=context,
         needed_family_ids_snapshot=frozenset({cap}),
@@ -1654,4 +1654,4 @@ def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(decision.run_events[0].pinned_calibrations) == RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
+    assert len(decision.run_events[0].pinned_calibration_ids) == RUN_PINNED_CALIBRATIONS_MAX_ENTRIES

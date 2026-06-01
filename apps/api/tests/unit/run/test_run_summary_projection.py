@@ -102,9 +102,9 @@ async def test_run_started_inserts_with_running_status_and_genesis_refs() -> Non
     assert args.args[8] is None
 
     # regression that drops or misorders the projection's UUID[]
-    # parameter for pinned_calibrations fails loud at the unit tier
+    # parameter for pinned_calibration_ids fails loud at the unit tier
     # instead of slipping through to integration. Pre-12b RunStarted
-    # payloads have no `pinned_calibrations` key; .get(..., []) lands
+    # payloads have no `pinned_calibration_ids` key; .get(..., []) lands
     # an empty UUID list.
     assert args.args[9] == []
 
@@ -306,18 +306,18 @@ async def test_unknown_event_type_falls_through() -> None:
     conn.execute.assert_not_awaited()
 
 
-# ---------- pinned_calibrations args[9] binding ----------
+# ---------- pinned_calibration_ids args[9] binding ----------
 
 
 @pytest.mark.unit
-async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibrations() -> None:
-    """Pre-12b RunStarted events lack the `pinned_calibrations` key
+async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibration_ids() -> None:
+    """Pre-12b RunStarted events lack the `pinned_calibration_ids` key
     in the payload entirely. The projection's `payload.get(
-    "pinned_calibrations", [])` fallback MUST land an empty UUID list
+    "pinned_calibration_ids", [])` fallback MUST land an empty UUID list
     on the column so legacy rows backfill cleanly (matches the
     in-memory frozenset default + the from_stored forward-compat
     fold). Mirror of Data BC's
-    test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibrations
+    test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibration_ids
     that 12c-3 added."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
@@ -329,7 +329,7 @@ async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibratio
             "plan_id": str(_PLAN_ID),
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: pinned_calibrations deliberately ABSENT
+            # NOTE: pinned_calibration_ids deliberately ABSENT
         },
     )
 
@@ -341,8 +341,8 @@ async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibratio
 
 
 @pytest.mark.unit
-async def test_run_started_with_pinned_calibrations_inserts_uuid_array() -> None:
-    """When the payload carries `pinned_calibrations`, the projection
+async def test_run_started_with_pinned_calibration_ids_inserts_uuid_array() -> None:
+    """When the payload carries `pinned_calibration_ids`, the projection
     parses each entry into a UUID and passes the list as the 9th arg.
     The decider sorts before emit; the projection passes through
     verbatim. Mirror of Data BC's
@@ -360,7 +360,7 @@ async def test_run_started_with_pinned_calibrations_inserts_uuid_array() -> None
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # Sorted (decider's responsibility); projection trusts.
-            "pinned_calibrations": sorted([str(pin_a), str(pin_b)]),
+            "pinned_calibration_ids": sorted([str(pin_a), str(pin_b)]),
         },
     )
 

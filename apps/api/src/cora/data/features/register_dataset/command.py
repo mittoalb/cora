@@ -26,15 +26,15 @@ already-existing artefact). Same convention as `register_actor`,
 All three are validated by the handler at load time (existence
 only, no status check; gate-review Q2 lock B).
 
-## Addition: `used_calibrations`
+## Addition: `used_calibration_ids`
 
-`used_calibrations: frozenset[UUID]` is an optional set of
+`used_calibration_ids: frozenset[UUID]` is an optional set of
 CalibrationRevision IDs the reconstruction actually used (AsShot
 citation per Calibration BC's revision-cited atomic-ID model).
 NO cross-BC existence check at decider per
 [[project_calibration_design]] anti-hook #3 + canonical DDD
-eventual-consistency stance; mirrors `Run.pinned_calibrations`
-Mirrors Run.pinned_calibrations precedent. Cardinality cap only (64 entries).
+eventual-consistency stance; mirrors `Run.pinned_calibration_ids`
+Mirrors Run.pinned_calibration_ids precedent. Cardinality cap only (64 entries).
 
 ## Encoding shape
 
@@ -65,4 +65,4 @@ class RegisterDataset:
     derived_from: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # optional Calibration BC AsShot citation set
     # (revision-cited atomic IDs; see state.py for full rationale).
-    used_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    used_calibration_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])

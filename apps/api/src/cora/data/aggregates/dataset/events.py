@@ -65,14 +65,14 @@ class DatasetRegistered:
         on register. Legacy events fold cleanly with default "Trial".
 
     Calibration-citation addition (additive, forward-compat):
-      - `used_calibrations: tuple[UUID, ...]`: revision-cited atomic
+      - `used_calibration_ids: tuple[UUID, ...]`: revision-cited atomic
         IDs naming the CalibrationRevisions the reconstruction
         actually used (Calibration BC AsShot citation; symmetric to
-        Run.pinned_calibrations). Tuple on the event payload for
+        Run.pinned_calibration_ids). Tuple on the event payload for
         deterministic byte ordering on replay (the decider sorts
         before emit); the evolver reconstructs the frozenset.
         Pre-12c events fold cleanly with `payload.get(
-        "used_calibrations", [])` returning an empty list.
+        "used_calibration_ids", [])` returning an empty list.
     """
 
     dataset_id: UUID
@@ -94,12 +94,12 @@ class DatasetRegistered:
     # atomic-ID model per [[project_calibration_design]]. See state.py
     # for the full rationale. NO cross-BC existence check at the
     # decider (operator/agent supplies the citation set; symmetry
-    # with Run.pinned_calibrations + the cross-BC eventual-
+    # with Run.pinned_calibration_ids + the cross-BC eventual-
     # consistency stance). IMMUTABLE after register by aggregate-
     # level invariant (mirrors AsShot pattern). Forward-compat via
-    # `payload.get("used_calibrations", [])` returning an empty
+    # `payload.get("used_calibration_ids", [])` returning an empty
     # list for legacy streams lacking the field.
-    used_calibrations: tuple[UUID, ...] = ()
+    used_calibration_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -203,7 +203,7 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             occurred_at=occurred_at,
             producing_run_end_state=producing_run_end_state,
             intent=intent,
-            used_calibrations=used_calibrations,
+            used_calibration_ids=used_calibration_ids,
         ):
             return {
                 "dataset_id": str(dataset_id),
@@ -228,8 +228,8 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "producing_run_end_state": producing_run_end_state,
                 "intent": intent,
                 # addition (sorted for deterministic jsonb bytes,
-                # mirrors derived_from + Run.pinned_calibrations precedent).
-                "used_calibrations": sorted(str(c) for c in used_calibrations),
+                # mirrors derived_from + Run.pinned_calibration_ids precedent).
+                "used_calibration_ids": sorted(str(c) for c in used_calibration_ids),
             }
         case DatasetDiscarded(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
             return {
@@ -286,7 +286,9 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
-                    used_calibrations=tuple(UUID(c) for c in payload.get("used_calibrations", [])),
+                    used_calibration_ids=tuple(
+                        UUID(c) for c in payload.get("used_calibration_ids", [])
+                    ),
                 )
 
             return deserialize_or_raise("DatasetRegistered", _build_registered)
