@@ -3,7 +3,7 @@
 Pinned response shape:
     {
       practice_id, method_id, capability_id,
-      method_needed_families[], capability_required_affordances[],
+      method_needed_family_ids[], capability_required_affordances[],
       wired_assets: [{asset_id, asset_name, condition, lifecycle,
                       family_ids[], contributed_affordances[]}],
       missing_families[], missing_affordances[], binding_status
@@ -37,7 +37,7 @@ def _seed_practice_with_capability(
         json={
             "name": "Test Method",
             "capability_id": cap_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     ).json()["method_id"]
     practice_id = client.post(
@@ -71,7 +71,7 @@ def test_endpoint_returns_satisfied_for_complete_binding() -> None:
     assert body["binding_status"] == "Satisfied"
     assert body["missing_families"] == []
     assert body["missing_affordances"] == []
-    assert body["method_needed_families"] == [family_id]
+    assert body["method_needed_family_ids"] == [family_id]
     assert body["capability_required_affordances"] == ["Marking", "Rotatable"]
     assert len(body["wired_assets"]) == 1
     wired = body["wired_assets"][0]
@@ -121,7 +121,7 @@ def test_endpoint_returns_missing_families_when_asset_lacks_required_family() ->
             json={
                 "name": "Test Method",
                 "capability_id": cap_id,
-                "needed_families": [family_id],
+                "needed_family_ids": [family_id],
             },
         ).json()["method_id"]
         practice_id = client.post(

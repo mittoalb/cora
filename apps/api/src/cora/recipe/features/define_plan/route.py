@@ -54,7 +54,7 @@ class DefinePlanRequest(BaseModel):
             "least one required. Each Asset's existence verified at "
             "handler-load time (missing → 404); decider checks no Asset "
             "is Decommissioned (→ 409) and that the union of bound "
-            "Assets' families covers the Method's needed_families."
+            "Assets' families covers the Method's needed_family_ids."
         ),
     )
 
@@ -96,7 +96,7 @@ router = APIRouter(tags=["recipe"])
                 "Binding rejected: upstream Practice or Method is "
                 "Deprecated, a bound Asset is Decommissioned, or the "
                 "bound Assets' families don't cover the Method's "
-                "needed_families."
+                "needed_family_ids."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {

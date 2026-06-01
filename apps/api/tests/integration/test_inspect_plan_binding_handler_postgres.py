@@ -84,7 +84,7 @@ async def test_inspect_plan_binding_returns_satisfied_against_real_postgres(
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset({family_id}),
+            needed_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -176,7 +176,7 @@ async def test_inspect_plan_binding_enumerates_candidates_for_missing_affordance
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset({wired_family_id}),
+            needed_family_ids=frozenset({wired_family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -291,7 +291,7 @@ async def test_inspect_plan_binding_enumerates_candidates_for_multiple_missing_a
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -377,7 +377,7 @@ async def test_inspect_plan_binding_returns_empty_candidates_when_no_facility_fa
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset({rotary_family_id}),
+            needed_family_ids=frozenset({rotary_family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -449,7 +449,7 @@ async def test_inspect_plan_binding_surfaces_degraded_candidate_state(
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

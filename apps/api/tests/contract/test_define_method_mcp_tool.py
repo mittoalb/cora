@@ -1,7 +1,7 @@
 """Contract tests for the `define_method` MCP tool.
 
 Mirrors `test_define_family_mcp_tool.py`. Adds a pin that the
-needed_families argument round-trips through the MCP boundary
+needed_family_ids argument round-trips through the MCP boundary
 (pydantic UUID list serialization) — the first MCP tool in the
 codebase to take a list-of-UUIDs argument.
 """
@@ -48,7 +48,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
                     "arguments": {
                         "name": "XRF Mapping",
                         "capability_id": cap_id,
-                        "needed_families": [cap1],
+                        "needed_family_ids": [cap1],
                     },
                 },
             },
@@ -63,7 +63,7 @@ def test_mcp_define_method_tool_returns_structured_method_id() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_define_method_tool_accepts_empty_needed_families() -> None:
+def test_mcp_define_method_tool_accepts_empty_needed_family_ids() -> None:
     """Procedural Method via MCP."""
     with TestClient(create_app()) as client:
         cap_id = create_capability_via_api(client)
@@ -79,7 +79,7 @@ def test_mcp_define_method_tool_accepts_empty_needed_families() -> None:
                     "arguments": {
                         "name": "Sample Cleaning",
                         "capability_id": cap_id,
-                        "needed_families": [],
+                        "needed_family_ids": [],
                     },
                 },
             },
@@ -108,7 +108,7 @@ def test_mcp_define_method_tool_returns_iserror_on_invalid_input() -> None:
                     "arguments": {
                         "name": "   ",
                         "capability_id": cap_id,
-                        "needed_families": [],
+                        "needed_family_ids": [],
                     },
                 },
             },

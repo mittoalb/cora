@@ -79,7 +79,7 @@ async def test_update_method_parameters_schema_round_trips_through_event_store_a
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="Phase-Contrast Micro-CT",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -123,7 +123,7 @@ async def test_clearing_schema_flips_projection_present_back_to_false(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="Phase-Contrast Micro-CT",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -166,7 +166,7 @@ async def test_no_op_on_unchanged_schema_does_not_emit_event(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="Phase-Contrast Micro-CT",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

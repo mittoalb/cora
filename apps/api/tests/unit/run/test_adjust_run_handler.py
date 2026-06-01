@@ -92,7 +92,7 @@ async def _seed_method(
     define_event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=(),
+        needed_family_ids=(),
         occurred_at=_NOW,
     )
     await _append(
@@ -159,7 +159,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=tuple(sorted(asset_ids, key=str)),
         method_id=method_id,
-        method_needed_families_snapshot=(),
+        method_needed_family_ids_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )

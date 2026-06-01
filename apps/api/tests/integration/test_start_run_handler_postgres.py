@@ -114,7 +114,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
         DefineMethod(
-            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_families=frozenset({cap_id})
+            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_family_ids=frozenset({cap_id})
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

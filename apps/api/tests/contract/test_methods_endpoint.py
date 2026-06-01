@@ -4,7 +4,7 @@ Mirror of `test_families_endpoint.py`. Verifies request schema,
 response schema, status codes, and that the whitespace-only-name
 domain error maps to 400 via the BC's exception handler.
 
-Pinned: needed_families is required (use [] for procedural
+Pinned: needed_family_ids is required (use [] for procedural
 Methods); empty list accepted; non-list rejected as 422.
 """
 
@@ -31,7 +31,7 @@ def test_post_methods_returns_201_with_method_id() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_families": [cap1]},
+            json={"name": "XRF Mapping", "capability_id": _cap_id, "needed_family_ids": [cap1]},
         )
 
     assert response.status_code == 201
@@ -41,13 +41,13 @@ def test_post_methods_returns_201_with_method_id() -> None:
 
 
 @pytest.mark.contract
-def test_post_methods_accepts_empty_needed_families() -> None:
+def test_post_methods_accepts_empty_needed_family_ids() -> None:
     """Procedural Methods (no equipment requirement)."""
     with TestClient(create_app()) as client:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "Sample Cleaning", "capability_id": _cap_id, "needed_families": []},
+            json={"name": "Sample Cleaning", "capability_id": _cap_id, "needed_family_ids": []},
         )
     assert response.status_code == 201
 
@@ -58,7 +58,7 @@ def test_post_methods_trims_whitespace_in_name() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "  XRF Mapping  ", "capability_id": _cap_id, "needed_families": []},
+            json={"name": "  XRF Mapping  ", "capability_id": _cap_id, "needed_family_ids": []},
         )
     assert response.status_code == 201
 
@@ -67,13 +67,13 @@ def test_post_methods_trims_whitespace_in_name() -> None:
 def test_post_methods_rejects_missing_name_with_422() -> None:
     with TestClient(create_app()) as client:
         _cap_id = create_capability_via_api(client)
-        response = client.post("/methods", json={"needed_families": []})
+        response = client.post("/methods", json={"needed_family_ids": []})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_methods_rejects_missing_needed_families_with_422() -> None:
-    """needed_families is required (no default at the API
+def test_post_methods_rejects_missing_needed_family_ids_with_422() -> None:
+    """needed_family_ids is required (no default at the API
     boundary); use [] explicitly for procedural Methods."""
     with TestClient(create_app()) as client:
         _cap_id = create_capability_via_api(client)
@@ -86,7 +86,7 @@ def test_post_methods_rejects_empty_name_with_422() -> None:
     with TestClient(create_app()) as client:
         _cap_id = create_capability_via_api(client)
         response = client.post(
-            "/methods", json={"name": "", "capability_id": _cap_id, "needed_families": []}
+            "/methods", json={"name": "", "capability_id": _cap_id, "needed_family_ids": []}
         )
     assert response.status_code == 422
 
@@ -97,7 +97,7 @@ def test_post_methods_rejects_too_long_name_with_422() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "a" * 201, "capability_id": _cap_id, "needed_families": []},
+            json={"name": "a" * 201, "capability_id": _cap_id, "needed_family_ids": []},
         )
     assert response.status_code == 422
 
@@ -109,7 +109,7 @@ def test_post_methods_rejects_whitespace_only_name_with_400() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "   ", "capability_id": _cap_id, "needed_families": []},
+            json={"name": "   ", "capability_id": _cap_id, "needed_family_ids": []},
         )
     assert response.status_code == 400
     body = response.json()
@@ -122,7 +122,7 @@ def test_post_methods_rejects_non_uuid_needed_family_with_422() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "X", "capability_id": _cap_id, "needed_families": ["not-a-uuid"]},
+            json={"name": "X", "capability_id": _cap_id, "needed_family_ids": ["not-a-uuid"]},
         )
     assert response.status_code == 422
 
@@ -137,7 +137,7 @@ def test_post_methods_uses_max_length_constant_from_domain() -> None:
             json={
                 "name": "a" * METHOD_NAME_MAX_LENGTH,
                 "capability_id": _cap_id,
-                "needed_families": [],
+                "needed_family_ids": [],
             },
         )
     assert response.status_code == 201
@@ -153,7 +153,7 @@ def test_post_methods_accepts_family_ids_without_verifying_existence() -> None:
         _cap_id = create_capability_via_api(client)
         response = client.post(
             "/methods",
-            json={"name": "X", "capability_id": _cap_id, "needed_families": [bogus_cap]},
+            json={"name": "X", "capability_id": _cap_id, "needed_family_ids": [bogus_cap]},
         )
     assert response.status_code == 201
 
@@ -177,7 +177,7 @@ def test_post_methods_returns_409_when_method_already_exists() -> None:
             # well-formed UUID (no Capability stream seeding required).
             response = client.post(
                 "/methods",
-                json={"name": "X", "capability_id": str(uuid4()), "needed_families": []},
+                json={"name": "X", "capability_id": str(uuid4()), "needed_family_ids": []},
             )
     finally:
         app.dependency_overrides.clear()

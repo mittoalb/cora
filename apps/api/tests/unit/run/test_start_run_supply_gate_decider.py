@@ -62,7 +62,7 @@ def _context(
     needed_supplies_satisfaction: dict[str, tuple[SupplyReference, ...]],
 ) -> tuple[RunStartContext, frozenset[UUID]]:
     """Build a RunStartContext that passes every check EXCEPT the
-    Supply gate. Returns the context + the needed_families the handler
+    Supply gate. Returns the context + the needed_family_ids the handler
     would resolve so the decider sees a satisfied Plan on the non-
     Supply dimensions."""
     cap = uuid4()
@@ -98,7 +98,10 @@ def _context(
 
 
 def _start(
-    needs: frozenset[str], context: RunStartContext, new_id: UUID, needed_families: frozenset[UUID]
+    needs: frozenset[str],
+    context: RunStartContext,
+    new_id: UUID,
+    needed_family_ids: frozenset[UUID],
 ):
     return start_run.decide(
         state=None,
@@ -108,7 +111,7 @@ def _start(
             subject_id=context.subject.id if context.subject else None,
         ),
         context=context,
-        needed_families_snapshot=needed_families,
+        needed_family_ids_snapshot=needed_family_ids,
         needed_supplies_snapshot=needs,
         effective_parameters={},
         method_parameters_schema=None,

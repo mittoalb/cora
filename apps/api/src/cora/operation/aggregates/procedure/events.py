@@ -34,7 +34,7 @@ so the fold step can't alias a mutable list into state). The evolver
 converts to `frozenset` when folding into Procedure state. The values
 are sorted by string form in `to_payload` so the same logical Asset
 set serializes deterministically -- important for hash-based
-idempotency. Same precedent as Method's needed_families and Plan's
+idempotency. Same precedent as Method's needed_family_ids and Plan's
 asset_ids.
 
 `parent_run_id` is stored as `str | None` in payloads (UUID

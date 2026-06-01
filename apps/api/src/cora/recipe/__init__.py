@@ -21,7 +21,7 @@ type hierarchy (General → Site → Master → Control):
     but binds back to Plan + Subject.
 
 Track-A BC: depends on `Equipment.Family` (referenced by
-`Method.needed_families`) and `Equipment.Asset` (referenced by
+`Method.needed_family_ids`) and `Equipment.Asset` (referenced by
 `Plan` binding). Cross-aggregate refs use the eventual-consistency
 stance: the decider does NOT verify the referenced Family / Asset
 exists; the precedent comes from Trust BC's Conduit zone refs.

@@ -68,7 +68,7 @@ treats them as opaque domain data and validates:
   - subject (if present) must be in {Mounted, Measured}
   - no bound Asset may be Decommissioned
   - capability superset RE-VALIDATED: union(asset.families) ⊇
-    method.needed_families (from current Asset state, not the
+    method.needed_family_ids (from current Asset state, not the
     Plan-bind snapshot — drift is real and Run is the last gate)
   - name validation (via RunName VO)
 

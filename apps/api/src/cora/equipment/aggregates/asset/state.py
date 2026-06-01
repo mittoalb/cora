@@ -389,7 +389,7 @@ class AssetCannotAddFamilyError(Exception):
 
     Eventual-consistency: the decider does NOT verify the referenced
     Family id refers to a real Family stream. Same precedent
-    as Trust Conduit zone refs (3b) and Method.needed_families
+    as Trust Conduit zone refs (3b) and Method.needed_family_ids
     (6a).
     """
 
@@ -514,7 +514,7 @@ class Asset:
     commissioning a new device-class on the asset, remove via
     `remove_asset_family` when retiring one. Used at Plan binding
     time (6e) for the structural check
-    `asset.families ⊇ method.needed_families`. Eventual-
+    `asset.families ⊇ method.needed_family_ids`. Eventual-
     consistency: each Family id is NOT verified against the
     Family stream at decide time. Defaults to empty so prior
     `AssetRegistered`-only streams fold cleanly without an upcaster
@@ -568,7 +568,7 @@ class Asset:
     # `frozenset` as default_factory triggers reportUnknownVariableType
     # under pyright strict because the empty frozenset has no element
     # type to infer. The parametrized form gives pyright the type
-    # without runtime cost. Same trick used in Method.needed_families.
+    # without runtime cost. Same trick used in Method.needed_family_ids.
     families: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # dict[str, Any] for runtime-typed operator-supplied settings.
     # Same default_factory pattern as families — the empty dict

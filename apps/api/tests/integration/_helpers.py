@@ -259,7 +259,7 @@ async def seed_run_upstream_chain_postgres(
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset({family_id}),
+            needed_family_ids=frozenset({family_id}),
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,

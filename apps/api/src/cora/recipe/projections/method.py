@@ -40,7 +40,7 @@ payload was non-NULL; the schema content itself lives in the event
 stream (loaded on demand, not projected to keep the summary table
 small). Mirrors `FamilySummaryProjection` (Equipment 5g-a).
 
-`needed_families` from the genesis payload is intentionally NOT
+`needed_family_ids` from the genesis payload is intentionally NOT
 in this projection: it's a list, the keyset+filter shape doesn't
 need it, and a future `proj_recipe_method_capabilities` join
 projection can carry it when use cases demand "all methods needing

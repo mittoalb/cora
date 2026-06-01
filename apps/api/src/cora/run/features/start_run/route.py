@@ -174,7 +174,7 @@ router = APIRouter(tags=["run"])
                 "Run-start rejected: Plan is Deprecated, Subject is not "
                 "in Mounted or Measured, a bound Asset is Decommissioned, "
                 "the bound Assets' current capabilities don't cover "
-                "the Method's needed_families, OR the "
+                "the Method's needed_family_ids, OR the "
                 "supplied Campaign is in a terminal status (Closed / "
                 "Abandoned) and refuses new members."
             ),

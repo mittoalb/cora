@@ -3,7 +3,7 @@
 Pins the Candidate A adoption on the Method aggregate per
 [[project_content_addressed_identity_design]]. The decider computes a
 SHA-256 of the canonical body bytes for the Method's content subset
-(`name + parameters_schema + capability_id + needed_families +
+(`name + parameters_schema + capability_id + needed_family_ids +
 needed_supplies`) and pins it in the emitted MethodVersioned event.
 Tests in this module cover:
 
@@ -55,7 +55,7 @@ def _method(
     name: str = "XRF Mapping",
     parameters_schema: dict[str, Any] | None = None,
     capability_id: UUID | None = None,
-    needed_families: frozenset[UUID] = frozenset(),
+    needed_family_ids: frozenset[UUID] = frozenset(),
     needed_supplies: frozenset[str] = frozenset(),
     status: MethodStatus = MethodStatus.DEFINED,
     version: str | None = None,
@@ -63,7 +63,7 @@ def _method(
     return Method(
         id=_FIXED_METHOD_ID,
         name=MethodName(name),
-        needed_families=needed_families,
+        needed_family_ids=needed_family_ids,
         status=status,
         version=version,
         parameters_schema=parameters_schema,
@@ -108,7 +108,7 @@ def test_decide_content_hash_matches_golden_for_populated_method() -> None:
             "properties": {"energy": {"type": "number"}},
         },
         capability_id=_FIXED_CAP_ID,
-        needed_families=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B}),
+        needed_family_ids=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B}),
         needed_supplies=frozenset({"nitrogen"}),
     )
     event = _decide(state)
@@ -136,7 +136,7 @@ def test_decide_content_hash_matches_helper_output_directly() -> None:
     state = _method(
         name="XRF Fly Mapping",
         capability_id=_FIXED_CAP_ID,
-        needed_families=frozenset({_FIXED_FAMILY_A}),
+        needed_family_ids=frozenset({_FIXED_FAMILY_A}),
         needed_supplies=frozenset({"nitrogen"}),
     )
     event = _decide(state)
@@ -146,7 +146,7 @@ def test_decide_content_hash_matches_helper_output_directly() -> None:
             "name": "XRF Fly Mapping",
             "parameters_schema": None,
             "capability_id": str(_FIXED_CAP_ID),
-            "needed_families": [str(_FIXED_FAMILY_A)],
+            "needed_family_ids": [str(_FIXED_FAMILY_A)],
             "needed_supplies": ["nitrogen"],
         },
     )
@@ -191,11 +191,11 @@ def test_decide_hash_invariant_under_source_status() -> None:
 
 
 @pytest.mark.unit
-def test_decide_hash_invariant_under_needed_families_ordering() -> None:
+def test_decide_hash_invariant_under_needed_family_ids_ordering() -> None:
     """Set-typed fields are unordered; canonicalization sorts members
     so the hash is independent of iteration order across processes."""
-    state_a = _method(needed_families=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B}))
-    state_b = _method(needed_families=frozenset({_FIXED_FAMILY_B, _FIXED_FAMILY_A}))
+    state_a = _method(needed_family_ids=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B}))
+    state_b = _method(needed_family_ids=frozenset({_FIXED_FAMILY_B, _FIXED_FAMILY_A}))
     assert _decide(state_a).content_hash == _decide(state_b).content_hash
 
 
@@ -226,9 +226,9 @@ def test_decide_hash_sensitive_to_capability_id() -> None:
 
 
 @pytest.mark.unit
-def test_decide_hash_sensitive_to_needed_families_membership() -> None:
-    a = _decide(_method(needed_families=frozenset({_FIXED_FAMILY_A})))
-    b = _decide(_method(needed_families=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B})))
+def test_decide_hash_sensitive_to_needed_family_ids_membership() -> None:
+    a = _decide(_method(needed_family_ids=frozenset({_FIXED_FAMILY_A})))
+    b = _decide(_method(needed_family_ids=frozenset({_FIXED_FAMILY_A, _FIXED_FAMILY_B})))
     assert a.content_hash != b.content_hash
 
 

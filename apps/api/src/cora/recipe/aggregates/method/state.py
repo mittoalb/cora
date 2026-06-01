@@ -12,11 +12,11 @@ concrete Asset binding lives in `Plan`.
 
 Minimal Method:
   - `id` + `name`
-  - `needed_families: frozenset[UUID]` — the Family ids this
+  - `needed_family_ids: frozenset[UUID]` — the Family ids this
     Method requires. Composable: a "Fly Tomography" Method has
-    needed_families = {Tomography_id, FlyScan_id}. At Plan
+    needed_family_ids = {Tomography_id, FlyScan_id}. At Plan
     binding time, the operator picks an Asset whose
-    families ⊇ method.needed_families.
+    families ⊇ method.needed_family_ids.
   - `status` (defaults `Defined`).
 
 `Versioned` and `Deprecated` transitions land in the lifecycle
@@ -32,7 +32,7 @@ mismatch will surface (Asset can't satisfy the requirement). For
 day-one ergonomics this is fine; structural validation can be
 layered on at the API boundary later if pilot demand emerges.
 
-Empty `needed_families` is allowed (a Method that needs no
+Empty `needed_family_ids` is allowed (a Method that needs no
 specific equipment family — rare but operationally valid for
 purely procedural Methods like "Sample Cleaning").
 
@@ -57,7 +57,7 @@ rationale.
 
 ## Frozensets in state, lists in payloads
 
-`needed_families` is `frozenset[UUID]` in domain state
+`needed_family_ids` is `frozenset[UUID]` in domain state
 (deduplicated, hashable, set-membership in O(1) for Plan-binding
 checks) and `list[UUID]` in event payloads (JSON-friendly, sorted
 for determinism). Same precedent as Trust's Policy
@@ -196,7 +196,7 @@ class InvalidMethodNeededSuppliesError(ValueError):
     references kind values that Supply registrations carry). See
     [[project_supply_design]] §"Method.needed_supplies consumer" for
     the design lock + asymmetry rationale (frozenset[str] on Method
-    vs frozenset[UUID] for needed_families: Supply is INSTANCE-aggregate
+    vs frozenset[UUID] for needed_family_ids: Supply is INSTANCE-aggregate
     per facility, sharing a `kind` label; Family is TYPE-aggregate,
     one global definition referenced by UUID).
     """
@@ -253,7 +253,7 @@ class MethodName:
 class Method:
     """Aggregate root: an abstract technique-class recipe.
 
-    `needed_families` is a frozenset of Family ids the Method
+    `needed_family_ids` is a frozenset of Family ids the Method
     requires. Eventual-consistency stance: existence is not verified
     at decide time; mismatch surfaces at Plan binding.
 
@@ -282,12 +282,12 @@ class Method:
 
     id: UUID
     name: MethodName
-    needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needed_family_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: MethodStatus = MethodStatus.DEFINED
     version: str | None = None
     # content_hash captures the SHA-256 of the canonical body bytes for
     # the most recently versioned content subset (`name +
-    # parameters_schema + capability_id + needed_families +
+    # parameters_schema + capability_id + needed_family_ids +
     # needed_supplies`). None until first MethodVersioned (Defined-only
     # streams have no attested revision yet) AND for pre-rollout legacy
     # MethodVersioned events that predate the content-hash field
@@ -303,7 +303,7 @@ class Method:
     # executor. REQUIRED at define_method now; defaults None at the
     # STATE level for evolver-back-compat with older streams (additive-
     # state pattern; same shape as Method.parameters_schema).
-    # Distinct from `needed_families` (hardware compatibility, what
+    # Distinct from `needed_family_ids` (hardware compatibility, what
     # Family classes the Method needs available), both fields stay,
     # answering DIFFERENT questions per [[project-capability-aggregate-design]]
     # see [[project-capability-aggregate-design]] watch item 10. The cross-BC validation that
@@ -312,7 +312,7 @@ class Method:
     # [[project-asset-settings-design]] cross-BC anchor).
     capability_id: UUID | None = field(default=None)
     # needed_supplies references Supply.kind STRINGS (not
-    # UUIDs). Asymmetric with needed_families (frozenset[UUID]) by
+    # UUIDs). Asymmetric with needed_family_ids (frozenset[UUID]) by
     # design: Family is a TYPE registry (one global definition,
     # referenced by UUID); Supply is an INSTANCE aggregate (multiple
     # per facility, each with its own availability state, sharing a
@@ -328,7 +328,7 @@ class Method:
         """Canonical content subset hashed into MethodVersioned.content_hash.
 
         Pins identity per [[project_content_addressed_identity_design]]:
-        `name + parameters_schema + capability_id + needed_families +
+        `name + parameters_schema + capability_id + needed_family_ids +
         needed_supplies`. Identity-bearing fields excluded: `id`
         (identity, not content); `status` and `version` (lifecycle,
         derived in evolver from event type and version_tag).
@@ -345,7 +345,7 @@ class Method:
             "name": self.name.value,
             "parameters_schema": self.parameters_schema,
             "capability_id": str(self.capability_id) if self.capability_id is not None else None,
-            "needed_families": sorted(str(f) for f in self.needed_families),
+            "needed_family_ids": sorted(str(f) for f in self.needed_family_ids),
             "needed_supplies": sorted(self.needed_supplies),
         }
 

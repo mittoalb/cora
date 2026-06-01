@@ -123,7 +123,7 @@ def bind(deps: Kernel) -> Handler:
         union_families: frozenset[UUID] = frozenset(
             fid for asset in assets.values() for fid in asset.families
         )
-        missing_families = method.needed_families - union_families
+        missing_families = method.needed_family_ids - union_families
 
         if method.capability_id is not None:
             capability = await load_capability(deps.event_store, method.capability_id)
@@ -191,7 +191,7 @@ def bind(deps: Kernel) -> Handler:
             practice_id=query.practice_id,
             method_id=method.id,
             capability_id=method.capability_id,
-            method_needed_families=method.needed_families,
+            method_needed_family_ids=method.needed_family_ids,
             capability_required_affordances=required_affordances,
             wired_assets=wired_assets,
             missing_families=missing_families,

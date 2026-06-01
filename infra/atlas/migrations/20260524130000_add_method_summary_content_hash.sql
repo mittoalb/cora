@@ -3,7 +3,7 @@
 --
 -- Per project_content_addressed_identity_design, MethodVersioned now
 -- carries a SHA-256 over the Method's content subset (name +
--- parameters_schema + capability_id + needed_families +
+-- parameters_schema + capability_id + needed_family_ids +
 -- needed_supplies), captured in the event payload by the decider per
 -- the non-determinism principle and projected here so equivalence
 -- lookups (Candidate G cherry-pick analogue, BCO etag export,

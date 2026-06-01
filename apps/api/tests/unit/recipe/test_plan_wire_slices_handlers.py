@@ -121,7 +121,7 @@ async def _seed_plan(
         practice_id=_PRACTICE_ID,
         asset_ids=asset_ids,
         method_id=_METHOD_ID,
-        method_needed_families_snapshot=(),
+        method_needed_family_ids_snapshot=(),
         asset_families_snapshot={a: () for a in asset_ids},
         occurred_at=_NOW,
     )

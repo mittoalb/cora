@@ -18,7 +18,7 @@ Minimal Practice:
   - `id` + `name`
   - `method_id: UUID` — the Method this Practice adapts (eventual-
     consistency stance: existence is NOT verified at decide time;
-    same precedent as Method.needed_families and Trust Conduit zone refs)
+    same precedent as Method.needed_family_ids and Trust Conduit zone refs)
   - `site_id: UUID` — the Site-level Asset this Practice belongs to
     (institutional ownership; eventual-consistency: not verified)
   - `status: PracticeStatus` (Defined → Versioned → Deprecated FSM)
@@ -27,7 +27,7 @@ Minimal Practice:
 Additional facets are deferred if pilot demand emerges:
   - `additional_families: frozenset[FamilyId]` (facility-
     specific Family requirements that go beyond Method's
-    needed_families — for example a facility that always pairs
+    needed_family_ids — for example a facility that always pairs
     Tomography with FlyScan)
   - `default_parameters` (parameter envelope dict)
   - `safety_overlay` (free-text or structured operator instructions)
@@ -45,7 +45,7 @@ generalize.
 ## Eventual-consistency stance for cross-aggregate refs
 
 Same precedent as everywhere else (Trust Conduit zone refs,
-Method needed_families, Asset.families entries):
+Method needed_family_ids, Asset.families entries):
 the decider does NOT verify `method_id` refers to a real
 Method or `site_id` refers to a real Site-level Asset. Typos
 produce "dangling" Practices; downstream Plan binding is where

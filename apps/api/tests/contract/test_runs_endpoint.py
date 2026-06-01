@@ -31,7 +31,7 @@ def _setup_full_chain(client: TestClient) -> tuple[str, str]:
     ]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_family_ids": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -265,7 +265,7 @@ def test_post_runs_returns_409_when_asset_decommissioned_after_plan_bind() -> No
             "family_id"
         ]
         method_id = client.post(
-            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_family_ids": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",
@@ -295,7 +295,7 @@ def test_post_runs_returns_409_when_asset_capabilities_drifted_off() -> None:
             "family_id"
         ]
         method_id = client.post(
-            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+            "/methods", json={"name": "M", "capability_id": _cap_id, "needed_family_ids": [cap_id]}
         ).json()["method_id"]
         practice_id = client.post(
             "/practices",

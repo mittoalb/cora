@@ -41,7 +41,7 @@ def _method(
     return Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
-        needed_families=frozenset(),
+        needed_family_ids=frozenset(),
         status=status,
         version=version,
         parameters_schema=parameters_schema,

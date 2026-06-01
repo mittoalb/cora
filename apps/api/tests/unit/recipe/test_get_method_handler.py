@@ -2,7 +2,7 @@
 
 Mirrors `test_get_family_handler.py`. Round-trips through the
 write side (define → get) verify fold-on-read returns the registered
-Method with the right needed_families frozenset.
+Method with the right needed_family_ids frozenset.
 """
 
 from datetime import UTC, datetime
@@ -40,7 +40,7 @@ async def test_handler_returns_method_for_known_id() -> None:
         DefineMethod(
             name="XRF Fly Mapping",
             capability_id=_CAPABILITY_ID,
-            needed_families=frozenset({_CAP1, _CAP2}),
+            needed_family_ids=frozenset({_CAP1, _CAP2}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -57,7 +57,7 @@ async def test_handler_returns_method_for_known_id() -> None:
     assert view.method == Method(
         id=_NEW_ID,
         name=MethodName("XRF Fly Mapping"),
-        needed_families=frozenset({_CAP1, _CAP2}),
+        needed_family_ids=frozenset({_CAP1, _CAP2}),
         capability_id=_CAPABILITY_ID,
         status=MethodStatus.DEFINED,
     )
@@ -68,7 +68,7 @@ async def test_handler_returns_method_for_known_id() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_returns_method_with_empty_needed_families() -> None:
+async def test_handler_returns_method_with_empty_needed_family_ids() -> None:
     """Procedural Methods (no equipment requirement) round-trip
     through fold-on-read with empty frozenset preserved."""
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW)
@@ -87,7 +87,7 @@ async def test_handler_returns_method_with_empty_needed_families() -> None:
     )
 
     assert view is not None
-    assert view.method.needed_families == frozenset()
+    assert view.method.needed_family_ids == frozenset()
 
 
 @pytest.mark.unit

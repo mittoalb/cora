@@ -21,7 +21,7 @@ cross-aggregate validation in CORA.
 Loads run sequentially; could be optimized to async-gather later
 but not the bottleneck at MVP scale.
 
-The handler resolves `needed_families` from the loaded Method
+The handler resolves `needed_family_ids` from the loaded Method
 and passes it to the decider as a plain frozenset (so the decider
 doesn't need a Method reference; cleaner separation). Decider
 re-validates the capability superset against current Asset state
@@ -274,7 +274,7 @@ def bind(deps: Kernel) -> Handler:
             state=None,
             command=command,
             context=context,
-            needed_families_snapshot=method.needed_families,
+            needed_family_ids_snapshot=method.needed_family_ids,
             needed_supplies_snapshot=method.needed_supplies,
             effective_parameters=effective_parameters,
             method_parameters_schema=method.parameters_schema,

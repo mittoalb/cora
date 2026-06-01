@@ -76,7 +76,7 @@ async def _seed_plan(deps, plan_id: UUID) -> None:
         practice_id=_PRACTICE_ID,
         asset_ids=(_ASSET_ID,),
         method_id=_METHOD_ID,
-        method_needed_families_snapshot=(),
+        method_needed_family_ids_snapshot=(),
         asset_families_snapshot={_ASSET_ID: ()},
         occurred_at=_NOW,
     )

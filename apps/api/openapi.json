@@ -4116,7 +4116,7 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design; see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
+        "description": "Body for `POST /methods`.\n\n`needed_family_ids` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_family_ids by design; see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
         "properties": {
           "capability_id": {
             "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time; a missing stream surfaces as 404 via CapabilityNotFoundError.",
@@ -4131,13 +4131,13 @@
             "title": "Name",
             "type": "string"
           },
-          "needed_families": {
+          "needed_family_ids": {
             "description": "Family ids this Method requires. May be empty. Eventual-consistency: ids are NOT verified against the Family stream at decide time; mismatch surfaces at Plan binding.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Needed Families",
+            "title": "Needed Family Ids",
             "type": "array"
           },
           "needed_supplies": {
@@ -4154,7 +4154,7 @@
         "required": [
           "name",
           "capability_id",
-          "needed_families"
+          "needed_family_ids"
         ],
         "title": "DefineMethodRequest",
         "type": "object"
@@ -4278,7 +4278,7 @@
         "description": "Body for `POST /plans`.",
         "properties": {
           "asset_ids": {
-            "description": "Set of Asset ids this Plan binds. Multi-asset binding; at least one required. Each Asset's existence verified at handler-load time (missing \u2192 404); decider checks no Asset is Decommissioned (\u2192 409) and that the union of bound Assets' families covers the Method's needed_families.",
+            "description": "Set of Asset ids this Plan binds. Multi-asset binding; at least one required. Each Asset's existence verified at handler-load time (missing \u2192 404); decider checks no Asset is Decommissioned (\u2192 409) and that the union of bound Assets' families covers the Method's needed_family_ids.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -5385,12 +5385,12 @@
             "title": "Method Id",
             "type": "string"
           },
-          "method_needed_families": {
+          "method_needed_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Method Needed Families",
+            "title": "Method Needed Family Ids",
             "type": "array"
           },
           "missing_affordance_candidates": {
@@ -5432,7 +5432,7 @@
           "practice_id",
           "method_id",
           "capability_id",
-          "method_needed_families",
+          "method_needed_family_ids",
           "capability_required_affordances",
           "wired_assets",
           "missing_families",
@@ -5579,7 +5579,7 @@
         "type": "object"
       },
       "MethodResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_family_ids` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
         "properties": {
           "created_at": {
             "anyOf": [
@@ -5615,12 +5615,12 @@
             "title": "Name",
             "type": "string"
           },
-          "needed_families": {
+          "needed_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Needed Families",
+            "title": "Needed Family Ids",
             "type": "array"
           },
           "needed_supplies": {
@@ -5661,7 +5661,7 @@
         "required": [
           "id",
           "name",
-          "needed_families",
+          "needed_family_ids",
           "needed_supplies",
           "status",
           "version"
@@ -23827,7 +23827,7 @@
                 }
               }
             },
-            "description": "Binding rejected: upstream Practice or Method is Deprecated, a bound Asset is Decommissioned, or the bound Assets' families don't cover the Method's needed_families."
+            "description": "Binding rejected: upstream Practice or Method is Deprecated, a bound Asset is Decommissioned, or the bound Assets' families don't cover the Method's needed_family_ids."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
@@ -26492,7 +26492,7 @@
                 }
               }
             },
-            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_families, OR the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
+            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_family_ids, OR the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."

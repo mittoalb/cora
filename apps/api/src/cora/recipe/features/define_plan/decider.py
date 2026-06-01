@@ -29,7 +29,7 @@ fundamental issues surface first:
 4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
    `AssetDecommissionedError` carrying the offending asset_ids.
-6. `union(asset.families) ⊇ method.needed_families`. Raises
+6. `union(asset.families) ⊇ method.needed_family_ids`. Raises
    `PlanFamiliesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
@@ -98,7 +98,7 @@ def decide(
       - No bound Asset may be Decommissioned
         -> AssetDecommissionedError
       - Union of bound Assets' families must cover Method's
-        needed_families -> PlanFamiliesNotSatisfiedError
+        needed_family_ids -> PlanFamiliesNotSatisfiedError
       - When Method has a Capability, union of bound Families'
         affordances must cover Capability.required_affordances
         -> PlanAffordancesNotSatisfiedError
@@ -133,7 +133,7 @@ def decide(
     union_capabilities: frozenset[UUID] = frozenset(
         cap for asset in context.assets.values() for cap in asset.families
     )
-    missing = context.method.needed_families - union_capabilities
+    missing = context.method.needed_family_ids - union_capabilities
     if missing:
         raise PlanFamiliesNotSatisfiedError(missing)
 
@@ -161,7 +161,9 @@ def decide(
             practice_id=command.practice_id,
             asset_ids=tuple(sorted(command.asset_ids, key=str)),
             method_id=context.method.id,
-            method_needed_families_snapshot=tuple(sorted(context.method.needed_families, key=str)),
+            method_needed_family_ids_snapshot=tuple(
+                sorted(context.method.needed_family_ids, key=str)
+            ),
             asset_families_snapshot={
                 asset_id: tuple(sorted(context.assets[asset_id].families, key=str))
                 for asset_id in sorted(context.assets.keys(), key=str)

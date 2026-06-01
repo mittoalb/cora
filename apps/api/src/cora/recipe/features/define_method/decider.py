@@ -7,7 +7,7 @@ No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports.
 
-## Eventual-consistency stance for needed_families
+## Eventual-consistency stance for needed_family_ids
 
 The decider does NOT verify each Family id refers to a real
 Family stream in the event store. Same precedent as Trust's
@@ -16,7 +16,7 @@ Conduit zone refs (3b) and Asset parent refs (5b). Typos produce
 validation can be layered at the API boundary if pilot demand
 emerges.
 
-Empty `needed_families` is allowed (a Method that needs no
+Empty `needed_family_ids` is allowed (a Method that needs no
 specific equipment family — operationally valid for purely
 procedural Methods like "Sample Cleaning").
 """
@@ -98,7 +98,7 @@ def decide(
         MethodDefined(
             method_id=new_id,
             name=name.value,
-            needed_families=tuple(command.needed_families),
+            needed_family_ids=tuple(command.needed_family_ids),
             needed_supplies=tuple(trimmed_supplies),
             capability_id=command.capability_id,
             occurred_at=now,

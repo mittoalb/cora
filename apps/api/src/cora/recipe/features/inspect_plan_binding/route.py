@@ -105,7 +105,7 @@ class InspectPlanBindingResponse(BaseModel):
     practice_id: UUID
     method_id: UUID
     capability_id: UUID | None
-    method_needed_families: list[UUID]
+    method_needed_family_ids: list[UUID]
     capability_required_affordances: list[str]
     wired_assets: list[WiredAssetItem]
     missing_families: list[UUID]
@@ -157,7 +157,7 @@ async def inspect_plan_binding(
         practice_id=view.practice_id,
         method_id=view.method_id,
         capability_id=view.capability_id,
-        method_needed_families=sorted(view.method_needed_families, key=str),
+        method_needed_family_ids=sorted(view.method_needed_family_ids, key=str),
         capability_required_affordances=sorted(
             a.value for a in view.capability_required_affordances
         ),

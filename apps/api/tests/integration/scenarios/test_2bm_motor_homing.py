@@ -316,7 +316,7 @@ async def test_motor_homing_plays_out_end_to_end(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="motor_homing",
-            needed_families=frozenset({_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID}),
+            needed_family_ids=frozenset({_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

@@ -26,7 +26,7 @@ precedent as `FamilyDefined → DEFINED` / `SubjectMounted →
 MOUNTED`. Mirrors Family's transition evolver shape from
 Equipment BC.
 
-`needed_families` is converted from `list[UUID]` (event payload)
+`needed_family_ids` is converted from `list[UUID]` (event payload)
 to `frozenset[UUID]` (state) here. Order doesn't matter at the state
 layer (set semantics for Plan-binding superset checks); the payload
 already sorted in `to_payload` for persistence determinism.
@@ -36,11 +36,11 @@ PRESERVED by MethodDeprecated. MethodDefined-only streams fold
 cleanly with version=None (the additive-state pattern).
 
 **Critical invariant**: every transition arm MUST carry
-`needed_families`, `version`, `parameters_schema`, AND
+`needed_family_ids`, `version`, `parameters_schema`, AND
 `needed_supplies` through from prior state. Constructing
 `Method(id=..., name=..., status=...)` without explicitly passing
 the additive frozenset/optional fields would silently WIPE them to
-defaults. Pinned by `test_evolve_<transition>_preserves_needed_families`,
+defaults. Pinned by `test_evolve_<transition>_preserves_needed_family_ids`,
 the existing `version` preservation tests, the
 `test_evolve_<transition>_preserves_parameters_schema`, and the
 `test_evolve_<transition>_preserves_needed_supplies` cases.
@@ -80,7 +80,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
         case MethodDefined(
             method_id=method_id,
             name=name,
-            needed_families=needed_families,
+            needed_family_ids=needed_family_ids,
             needed_supplies=needed_supplies,
             capability_id=capability_id,
         ):
@@ -88,7 +88,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             return Method(
                 id=method_id,
                 name=MethodName(name),
-                needed_families=frozenset(needed_families),
+                needed_family_ids=frozenset(needed_family_ids),
                 status=MethodStatus.DEFINED,
                 # version defaults to None.
                 needed_supplies=frozenset(needed_supplies),
@@ -101,7 +101,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             return Method(
                 id=prior.id,
                 name=prior.name,
-                needed_families=prior.needed_families,
+                needed_family_ids=prior.needed_family_ids,
                 status=MethodStatus.VERSIONED,
                 version=version_tag,
                 # content_hash loaded from event payload (captured by
@@ -120,7 +120,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             return Method(
                 id=prior.id,
                 name=prior.name,
-                needed_families=prior.needed_families,
+                needed_family_ids=prior.needed_family_ids,
                 status=MethodStatus.DEPRECATED,
                 # version preserved across deprecation.
                 version=prior.version,
@@ -141,7 +141,7 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
             return Method(
                 id=prior.id,
                 name=prior.name,
-                needed_families=prior.needed_families,
+                needed_family_ids=prior.needed_family_ids,
                 status=prior.status,
                 version=prior.version,
                 # content_hash preserved: schema updates between

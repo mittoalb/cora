@@ -1,7 +1,7 @@
 """Contract tests for `GET /methods/{method_id}`.
 
 Mirrors `test_get_family_endpoint.py`. Pinned response shape:
-`{id, name, needed_families, status}`. needed_families is a
+`{id, name, needed_family_ids, status}`. needed_family_ids is a
 sorted list of UUIDs (deterministic ordering).
 """
 
@@ -18,14 +18,14 @@ def _define_method(
     client: TestClient,
     *,
     name: str = "XRF Mapping",
-    needed_families: list[str] | None = None,
+    needed_family_ids: list[str] | None = None,
     needed_supplies: list[str] | None = None,
 ) -> UUID:
     body: dict[str, object] = {
         "name": name,
         # Capability per call so tests stay isolated.
         "capability_id": create_capability_via_api(client),
-        "needed_families": needed_families if needed_families is not None else [],
+        "needed_family_ids": needed_family_ids if needed_family_ids is not None else [],
     }
     if needed_supplies is not None:
         body["needed_supplies"] = needed_supplies
@@ -42,7 +42,7 @@ def test_get_method_returns_200_with_defined_status_for_new_method() -> None:
         method_id = _define_method(
             client,
             name="XRF Fly Mapping",
-            needed_families=[cap1, cap2],
+            needed_family_ids=[cap1, cap2],
         )
         response = client.get(f"/methods/{method_id}")
 
@@ -52,20 +52,20 @@ def test_get_method_returns_200_with_defined_status_for_new_method() -> None:
     assert body["name"] == "XRF Fly Mapping"
     assert body["status"] == "Defined"
     # Sorted by UUID string form (deterministic).
-    assert body["needed_families"] == sorted([cap1, cap2])
+    assert body["needed_family_ids"] == sorted([cap1, cap2])
     # Null until version_method runs (6b).
     assert body["version"] is None
 
 
 @pytest.mark.contract
-def test_get_method_returns_empty_needed_families_for_procedural_method() -> None:
+def test_get_method_returns_empty_needed_family_ids_for_procedural_method() -> None:
     with TestClient(create_app()) as client:
-        method_id = _define_method(client, name="Sample Cleaning", needed_families=[])
+        method_id = _define_method(client, name="Sample Cleaning", needed_family_ids=[])
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["needed_families"] == []
+    assert body["needed_family_ids"] == []
 
 
 # ---------- needed_supplies on response ----------
@@ -85,7 +85,7 @@ def test_get_method_returns_needed_supplies_sorted_lexically() -> None:
 
     assert response.status_code == 200
     body = response.json()
-    # Sorted lexically (deterministic ordering, mirrors needed_families convention).
+    # Sorted lexically (deterministic ordering, mirrors needed_family_ids convention).
     assert body["needed_supplies"] == ["LiquidNitrogen", "PhotonBeam"]
 
 
@@ -94,7 +94,7 @@ def test_get_method_returns_empty_needed_supplies_when_unspecified() -> None:
     """Backward-compat: omit needed_supplies in POST body, response
     still includes the field as []. Pre-10b clients keep working."""
     with TestClient(create_app()) as client:
-        method_id = _define_method(client, name="X", needed_families=[])
+        method_id = _define_method(client, name="X", needed_family_ids=[])
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200
@@ -112,7 +112,7 @@ def test_define_method_returns_422_for_oversized_supply_kind() -> None:
             json={
                 "name": "X",
                 "capability_id": _cap_id,
-                "needed_families": [],
+                "needed_family_ids": [],
                 "needed_supplies": ["x" * 51],
             },
         )
@@ -129,7 +129,7 @@ def test_define_method_returns_422_for_empty_supply_kind() -> None:
             json={
                 "name": "X",
                 "capability_id": _cap_id,
-                "needed_families": [],
+                "needed_family_ids": [],
                 "needed_supplies": [""],
             },
         )
@@ -164,7 +164,7 @@ def test_get_method_response_includes_lifecycle_timestamp_fields() -> None:
     null because no projection runs; the postgres integration suite
     pins the populated path."""
     with TestClient(create_app()) as client:
-        method_id = _define_method(client, name="X", needed_families=[])
+        method_id = _define_method(client, name="X", needed_family_ids=[])
         response = client.get(f"/methods/{method_id}")
 
     assert response.status_code == 200

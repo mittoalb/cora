@@ -51,7 +51,7 @@ shape.
 projection: it's a list, the keyset+filter shape doesn't need it,
 and a future `proj_recipe_plan_assets` join projection can carry
 it when use cases demand "all plans using Asset X". Same precedent
-as Method.needed_families.
+as Method.needed_family_ids.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

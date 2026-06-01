@@ -27,7 +27,7 @@ field landed when the first mutating event (`PlanVersioned`)
 arrived, not speculatively. Same precedent as Method and Practice.
 
 Audit data captured at bind time (`method_id`, snapshots of the
-Method's needed_families and each bound Asset's families)
+Method's needed_family_ids and each bound Asset's families)
 lives in the `PlanDefined` event payload only — NOT in state.
 Slim Aggregate principle (gate-review Q4): state holds only what
 future deciders need to validate invariants. version_plan and
@@ -50,7 +50,7 @@ treats them as opaque domain data and validates:
   - Practice not Deprecated → `PracticeDeprecatedError`
   - Method not Deprecated → `MethodDeprecatedError`
   - No bound Asset is Decommissioned → `AssetDecommissionedError`
-  - `union(asset.families) ⊇ method.needed_families` →
+  - `union(asset.families) ⊇ method.needed_family_ids` →
     `PlanFamiliesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /

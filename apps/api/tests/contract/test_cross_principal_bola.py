@@ -406,7 +406,7 @@ def _seed_recipe_chain(client: TestClient, principal: UUID) -> UUID:
         json={
             "name": "BOLA test method",
             "capability_id": str(capability_id),
-            "needed_families": [],
+            "needed_family_ids": [],
         },
         headers={"X-Principal-Id": str(principal)},
     )
@@ -462,7 +462,7 @@ def _create_method_as(client: TestClient, principal: UUID) -> UUID:
         json={
             "name": "P1's method",
             "capability_id": str(capability_id),
-            "needed_families": [],
+            "needed_family_ids": [],
         },
         headers={"X-Principal-Id": str(principal)},
     )

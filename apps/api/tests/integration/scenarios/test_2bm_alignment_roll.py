@@ -341,7 +341,7 @@ async def test_roll_alignment_plays_out_end_to_end(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="roll_alignment",
-            needed_families=frozenset(
+            needed_family_ids=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

@@ -120,7 +120,7 @@ class InspectPlanBindingView:
     practice_id: UUID
     method_id: UUID
     capability_id: UUID | None
-    method_needed_families: frozenset[UUID]
+    method_needed_family_ids: frozenset[UUID]
     capability_required_affordances: frozenset[Affordance]
     wired_assets: tuple[WiredAsset, ...]
     missing_families: frozenset[UUID]

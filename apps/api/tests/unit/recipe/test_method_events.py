@@ -1,6 +1,6 @@
 """Unit tests for the Method aggregate's event (de)serialization helpers.
 
-`needed_families` is the first event-payload field in Recipe
+`needed_family_ids` is the first event-payload field in Recipe
 that uses the list-in-payload-frozenset-in-state pattern (precedent
 from Trust's Policy). Pinned: payload sorted by UUID string form
 for determinism (idempotency-key hashing relies on it).
@@ -53,7 +53,7 @@ def test_event_type_name_returns_class_name() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="XRF Mapping",
-        needed_families=(),
+        needed_family_ids=(),
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "MethodDefined"
@@ -66,13 +66,13 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
     event = MethodDefined(
         method_id=method_id,
         name="XRF Fly Mapping",
-        needed_families=(cap1,),
+        needed_family_ids=(cap1,),
         occurred_at=_NOW,
     )
     assert to_payload(event) == {
         "method_id": str(method_id),
         "name": "XRF Fly Mapping",
-        "needed_families": [str(cap1)],
+        "needed_family_ids": [str(cap1)],
         # needed_supplies (default factory). Sorted lexically when
         # populated; pinned by tests/unit/recipe/test_method_needed_supplies.py.
         "needed_supplies": [],
@@ -84,24 +84,24 @@ def test_to_payload_serializes_method_defined_to_primitives() -> None:
 
 
 @pytest.mark.unit
-def test_to_payload_handles_empty_needed_families() -> None:
+def test_to_payload_handles_empty_needed_family_ids() -> None:
     """Procedural Methods (for example, 'Sample Cleaning') need no specific
-    Family; payload's needed_families is `[]`. Pinned because
+    Family; payload's needed_family_ids is `[]`. Pinned because
     a future change that omits the field on empty would break the
     fold-on-read contract."""
     method_id = uuid4()
     event = MethodDefined(
         method_id=method_id,
         name="Sample Cleaning",
-        needed_families=(),
+        needed_family_ids=(),
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    assert payload["needed_families"] == []
+    assert payload["needed_family_ids"] == []
 
 
 @pytest.mark.unit
-def test_to_payload_sorts_needed_families_deterministically() -> None:
+def test_to_payload_sorts_needed_family_ids_deterministically() -> None:
     """Same logical capability set must produce same payload bytes
     regardless of input ordering. Critical for idempotency-key hashing
     (Stripe-style replay returns cached result only when bodies match
@@ -114,12 +114,12 @@ def test_to_payload_sorts_needed_families_deterministically() -> None:
     event_in_one_order = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_families=(c3, c1, c2),
+        needed_family_ids=(c3, c1, c2),
         occurred_at=_NOW,
     )
     payload = to_payload(event_in_one_order)
 
-    assert payload["needed_families"] == sorted([str(c1), str(c2), str(c3)])
+    assert payload["needed_family_ids"] == sorted([str(c1), str(c2), str(c3)])
 
 
 @pytest.mark.unit
@@ -132,7 +132,7 @@ def test_from_stored_rebuilds_method_defined() -> None:
         {
             "method_id": str(method_id),
             "name": "XRF Fly Mapping",
-            "needed_families": sorted([str(cap1), str(cap2)]),
+            "needed_family_ids": sorted([str(cap1), str(cap2)]),
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -140,24 +140,24 @@ def test_from_stored_rebuilds_method_defined() -> None:
     assert isinstance(rebuilt, MethodDefined)
     assert rebuilt.method_id == method_id
     assert rebuilt.name == "XRF Fly Mapping"
-    assert set(rebuilt.needed_families) == {cap1, cap2}
+    assert set(rebuilt.needed_family_ids) == {cap1, cap2}
 
 
 @pytest.mark.unit
-def test_from_stored_handles_empty_needed_families() -> None:
+def test_from_stored_handles_empty_needed_family_ids() -> None:
     method_id = uuid4()
     stored = _stored(
         "MethodDefined",
         {
             "method_id": str(method_id),
             "name": "Sample Cleaning",
-            "needed_families": [],
+            "needed_family_ids": [],
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, MethodDefined)
-    assert rebuilt.needed_families == ()
+    assert rebuilt.needed_family_ids == ()
 
 
 @pytest.mark.unit
@@ -169,7 +169,7 @@ def test_to_payload_then_from_stored_round_trips() -> None:
     original = MethodDefined(
         method_id=uuid4(),
         name="XRF Fly Mapping",
-        needed_families=(cap1, cap2),
+        needed_family_ids=(cap1, cap2),
         occurred_at=_NOW,
     )
     stored = _stored("MethodDefined", to_payload(original))
@@ -179,7 +179,7 @@ def test_to_payload_then_from_stored_round_trips() -> None:
     assert isinstance(rebuilt, MethodDefined)
     assert rebuilt.method_id == original.method_id
     assert rebuilt.name == original.name
-    assert set(rebuilt.needed_families) == set(original.needed_families)
+    assert set(rebuilt.needed_family_ids) == set(original.needed_family_ids)
     assert rebuilt.occurred_at == original.occurred_at
 
 

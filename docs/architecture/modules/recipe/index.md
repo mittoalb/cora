@@ -24,7 +24,7 @@ Out of scope
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
 | `Capability` | `id: UUID` | `id`, `code`, `name`, `status`, `version`, `description`, `required_affordances`, `executor_shapes`, `parameters_schema`, `replaced_by_capability_id` | yes (3-state) |
-| `Method` | `id: UUID` | `id`, `name`, `capability_id`, `needed_families`, `needed_supplies`, `parameters_schema`, `status`, `version` | yes (3-state) |
+| `Method` | `id: UUID` | `id`, `name`, `capability_id`, `needed_family_ids`, `needed_supplies`, `parameters_schema`, `status`, `version` | yes (3-state) |
 | `Practice` | `id: UUID` | `id`, `name`, `method_id`, `site_id`, `status`, `version` | yes (3-state) |
 | `Plan` | `id: UUID` | `id`, `name`, `practice_id`, `method_id`, `asset_ids`, `default_parameters`, `wires`, `status`, `version` | yes (3-state) |
 
@@ -86,7 +86,7 @@ Schema and wiring updates (`update_method_parameters_schema`, `update_plan_defau
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `MethodDefined` | `method_id`, `name`, `capability_id`, `needed_families`, `needed_supplies`, `occurred_at` | `define_method` succeeds (genesis) |
+| `MethodDefined` | `method_id`, `name`, `capability_id`, `needed_family_ids`, `needed_supplies`, `occurred_at` | `define_method` succeeds (genesis) |
 | `MethodVersioned` | `method_id`, `version_tag`, `occurred_at` | `version_method` succeeds |
 | `MethodDeprecated` | `method_id`, `occurred_at` | `deprecate_method` succeeds |
 | `MethodParametersSchemaUpdated` | `method_id`, `parameters_schema?`, `occurred_at` | `update_method_parameters_schema` succeeds; the schema replaces wholesale (None clears) |
@@ -103,14 +103,14 @@ Schema and wiring updates (`update_method_parameters_schema`, `update_plan_defau
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `PlanDefined` | `plan_id`, `name`, `practice_id`, `asset_ids`, `method_id`, `method_needed_families_snapshot`, `asset_families_snapshot`, `occurred_at` | `define_plan` succeeds (genesis); audit snapshots are payload-only, not folded into state |
+| `PlanDefined` | `plan_id`, `name`, `practice_id`, `asset_ids`, `method_id`, `method_needed_family_ids_snapshot`, `asset_families_snapshot`, `occurred_at` | `define_plan` succeeds (genesis); audit snapshots are payload-only, not folded into state |
 | `PlanVersioned` | `plan_id`, `version_tag`, `occurred_at` | `version_plan` succeeds |
 | `PlanDeprecated` | `plan_id`, `occurred_at` | `deprecate_plan` succeeds |
 | `PlanDefaultParametersUpdated` | `plan_id`, `default_parameters`, `occurred_at` | `update_plan_default_parameters` succeeds; the resolved post-merge dict is captured |
 | `PlanWireAdded` | `plan_id`, `source_asset_id`, `source_port_name`, `target_asset_id`, `target_port_name`, `occurred_at` | `add_plan_wire` succeeds |
 | `PlanWireRemoved` | `plan_id`, `source_asset_id`, `source_port_name`, `target_asset_id`, `target_port_name`, `occurred_at` | `remove_plan_wire` succeeds |
 
-The `PlanDefined` audit snapshots pin what was checked at bind time (`method_needed_families_snapshot`, `asset_families_snapshot`) so the audit trail reproduces the validation even if Method or Asset state evolves later. The snapshots are payload-only; the evolver does not fold them into state.
+The `PlanDefined` audit snapshots pin what was checked at bind time (`method_needed_family_ids_snapshot`, `asset_families_snapshot`) so the audit trail reproduces the validation even if Method or Asset state evolves later. The snapshots are payload-only; the evolver does not fold them into state.
 
 ## Slices
 
@@ -314,7 +314,7 @@ All four summaries carry `versioned_at` + `deprecated_at` lifecycle timestamps (
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
-| Equipment | depends-on | `Method.needed_families` references `Family.id` values; `Plan.asset_ids` references `Asset.id` values; `Plan.wires` reference `Asset.ports` declared on bound Assets; `Capability.required_affordances` uses the `Affordance` enum owned by Equipment |
+| Equipment | depends-on | `Method.needed_family_ids` references `Family.id` values; `Plan.asset_ids` references `Asset.id` values; `Plan.wires` reference `Asset.ports` declared on bound Assets; `Capability.required_affordances` uses the `Affordance` enum owned by Equipment |
 | Operation | shared-enum-with | `Capability.executor_shapes` lists `Procedure` as a valid implementer; `Procedure.capability_id` (Operation BC) points back at a Capability declared here |
 | Supply | depends-on-kind | `Method.needed_supplies` references `Supply.kind` strings (instance-aggregate vs type-aggregate asymmetry, since kinds are facility-portable and instance UUIDs are not) |
 | Run | upstream-of | `Run.plan_id` references a Plan; the Method's `parameters_schema` is the validation contract for Run parameter overrides |
@@ -393,7 +393,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     {
       "name": "Fly-Scan Tomography",
       "capability_id": "<capability-id>",
-      "needed_families": ["<rotary-stage-family-id>", "<camera-family-id>"],
+      "needed_family_ids": ["<rotary-stage-family-id>", "<camera-family-id>"],
       "needed_supplies": ["liquid_nitrogen"],
       "parameters_schema": {
         "type": "object",
@@ -422,7 +422,7 @@ The four examples below cover a typical declaration walk: a universal Capability
         {
             "name": "Fly-Scan Tomography",
             "capability_id": "<capability-id>",
-            "needed_families": ["<rotary-stage-family-id>", "<camera-family-id>"],
+            "needed_family_ids": ["<rotary-stage-family-id>", "<camera-family-id>"],
             "needed_supplies": ["liquid_nitrogen"],
             "parameters_schema": {...},
         },
@@ -449,7 +449,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     }
     ```
 
-    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `families`; if that union does not cover the Method's `needed_families` the response is `409 Conflict` with `PlanCapabilitiesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
+    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `families`; if that union does not cover the Method's `needed_family_ids` the response is `409 Conflict` with `PlanCapabilitiesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
 
 === "MCP"
 

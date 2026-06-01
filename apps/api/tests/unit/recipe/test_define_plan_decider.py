@@ -79,13 +79,13 @@ def _practice(
 def _method(
     *,
     method_id: UUID | None = None,
-    needed_families: frozenset[UUID] | None = None,
+    needed_family_ids: frozenset[UUID] | None = None,
     status: MethodStatus = MethodStatus.DEFINED,
 ) -> Method:
     return Method(
         id=method_id or uuid4(),
         name=MethodName("XRF Fly Scan Mapping"),
-        needed_families=needed_families if needed_families is not None else frozenset(),
+        needed_family_ids=needed_family_ids if needed_family_ids is not None else frozenset(),
         status=status,
     )
 
@@ -129,7 +129,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
     """All checks pass: bound Assets satisfy Method's capabilities,
     upstream is non-Deprecated, asset is non-Decommissioned."""
     cap = uuid4()
-    method = _method(needed_families=frozenset({cap}))
+    method = _method(needed_family_ids=frozenset({cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, families=frozenset({cap}))
@@ -153,7 +153,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
             practice_id=practice.id,
             asset_ids=(asset_id,),
             method_id=method.id,
-            method_needed_families_snapshot=(cap,),
+            method_needed_family_ids_snapshot=(cap,),
             asset_families_snapshot={asset_id: (cap,)},
             occurred_at=_NOW,
         )
@@ -192,7 +192,7 @@ def test_decide_captures_asset_families_snapshot_at_bind_time() -> None:
     cap2 = uuid4()
     a1 = uuid4()
     a2 = uuid4()
-    method = _method(needed_families=frozenset({cap1, cap2}))
+    method = _method(needed_family_ids=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     assets = {
         a1: _asset(asset_id=a1, families=frozenset({cap1})),
@@ -368,7 +368,7 @@ def test_decide_accepts_commissioned_lifecycle_for_bound_assets() -> None:
 def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_capability() -> None:
     needed_cap = uuid4()
     different_cap = uuid4()
-    method = _method(needed_families=frozenset({needed_cap}))
+    method = _method(needed_family_ids=frozenset({needed_cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
@@ -391,7 +391,7 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction_check()
     distributed across multiple Assets binds successfully."""
     cap1 = uuid4()
     cap2 = uuid4()
-    method = _method(needed_families=frozenset({cap1, cap2}))
+    method = _method(needed_family_ids=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     a1 = uuid4()
     a2 = uuid4()
@@ -418,7 +418,7 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
     the Method needs (extras are fine)."""
     needed = uuid4()
     extra = uuid4()
-    method = _method(needed_families=frozenset({needed}))
+    method = _method(needed_family_ids=frozenset({needed}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, families=frozenset({needed, extra}))
@@ -434,10 +434,10 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
 
 
 @pytest.mark.unit
-def test_decide_accepts_method_with_empty_needed_families() -> None:
+def test_decide_accepts_method_with_empty_needed_family_ids() -> None:
     """Procedural Methods (no equipment requirement) bind to any set
     of Assets without capability-check failure."""
-    method = _method(needed_families=frozenset())
+    method = _method(needed_family_ids=frozenset())
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     asset = _asset(asset_id=asset_id, families=frozenset())
@@ -542,7 +542,7 @@ def test_decide_skips_affordance_guard_when_context_capability_is_none() -> None
     contract to compare against. Pinned to lock the additive transition
     window."""
     family_id = uuid4()
-    method = _method(needed_families=frozenset({family_id}))
+    method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
@@ -569,7 +569,7 @@ def test_decide_accepts_binding_when_family_affordances_cover_capability_require
     that covers the Capability's required affordances."""
     family_id = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
-    method = _method(needed_families=frozenset({family_id}))
+    method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
@@ -602,7 +602,7 @@ def test_decide_raises_affordances_not_satisfied_when_union_misses_required() ->
     values."""
     family_id = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
-    method = _method(needed_families=frozenset({family_id}))
+    method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
@@ -634,7 +634,7 @@ def test_decide_unions_affordances_across_multiple_bound_assets() -> None:
     fam_rot = uuid4()
     fam_trig = uuid4()
     capability = _capability(required=frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE}))
-    method = _method(needed_families=frozenset({fam_rot, fam_trig}))
+    method = _method(needed_family_ids=frozenset({fam_rot, fam_trig}))
     practice = _practice(method_id=method.id)
     a_rot = uuid4()
     a_trig = uuid4()
@@ -674,7 +674,7 @@ def test_decide_affordance_guard_runs_after_family_id_check() -> None:
     needed_family = uuid4()
     bound_family = uuid4()  # different from needed_family
     capability = _capability(required=frozenset({Affordance.ROTATABLE}))
-    method = _method(needed_families=frozenset({needed_family}))
+    method = _method(needed_family_ids=frozenset({needed_family}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({bound_family}))}
@@ -721,7 +721,7 @@ def test_decide_uses_current_capability_state_when_versioned_between_method_and_
         status=CapabilityStatus.VERSIONED,
         version="v2",
     )
-    method = _method(needed_families=frozenset({family_id}))
+    method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
@@ -760,7 +760,7 @@ def test_decide_accepts_method_bound_to_deprecated_capability() -> None:
         status=CapabilityStatus.DEPRECATED,
         version="v1",
     )
-    method = _method(needed_families=frozenset({family_id}))
+    method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
     assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}

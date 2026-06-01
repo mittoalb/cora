@@ -30,7 +30,7 @@ def _seed_practice_with_capability(
         json={
             "name": "Test Method",
             "capability_id": cap_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     ).json()["method_id"]
     practice_id = client.post(

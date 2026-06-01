@@ -135,7 +135,7 @@ async def test_recipe_capability_method_procedure_events_coexist_on_replay() -> 
     method_event = MethodDefined(
         method_id=method_id,
         name="CohabitMethod",
-        needed_families=(family_id,),
+        needed_family_ids=(family_id,),
         capability_id=capability_id,
         occurred_at=_NOW,
     )

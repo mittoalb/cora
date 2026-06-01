@@ -133,7 +133,7 @@ def test_decide_does_not_validate_capability_existence() -> None:
     """Eventual-consistency stance: decider does NOT verify the
     referenced Family id refers to a real Family stream. Same
     precedent as Trust Conduit zone refs (3b) and
-    Method.needed_families (6a)."""
+    Method.needed_family_ids (6a)."""
     state = _asset()
     bogus_cap = uuid4()
     events = add_asset_family.decide(

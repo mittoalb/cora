@@ -39,7 +39,7 @@ def _start_run(client: TestClient) -> str:
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_family_ids": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

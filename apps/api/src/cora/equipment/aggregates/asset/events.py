@@ -159,7 +159,7 @@ class AssetFamilyAdded:
 
     Eventual-consistency: `family_id` is NOT verified against the
     Family stream. Same precedent as Conduit zone refs (3b),
-    Asset parent refs (5b), Method.needed_families (6a).
+    Asset parent refs (5b), Method.needed_family_ids (6a).
     """
 
     asset_id: UUID

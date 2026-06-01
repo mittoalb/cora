@@ -6,7 +6,7 @@ None to 404 via HTTPException (idiomatic in routes; the BC's
 exception-handler infrastructure stays focused on domain /
 application errors raised deeper in the stack).
 
-`needed_families` serializes as a list of UUIDs in the response
+`needed_family_ids` serializes as a list of UUIDs in the response
 (JSON arrays don't have set semantics). The list is sorted by
 string form for determinism — same logical family set, same
 response bytes (helps test reproducibility and any future ETag-
@@ -45,7 +45,7 @@ class MethodResponse(BaseModel):
 
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
-    `needed_families` is sorted by UUID string form.
+    `needed_family_ids` is sorted by UUID string form.
     `needed_supplies` is sorted lexically by kind string;
     Supply.kind values (NOT instance UUIDs).
     `status` is the StrEnum's string value (Defined / Versioned /
@@ -67,7 +67,7 @@ class MethodResponse(BaseModel):
 
     id: UUID
     name: str = Field(..., max_length=METHOD_NAME_MAX_LENGTH)
-    needed_families: list[UUID]
+    needed_family_ids: list[UUID]
     needed_supplies: list[str]
     status: str
     version: str | None
@@ -122,7 +122,7 @@ async def get_methods(
     return MethodResponse(
         id=method.id,
         name=method.name.value,
-        needed_families=sorted(method.needed_families, key=str),
+        needed_family_ids=sorted(method.needed_family_ids, key=str),
         needed_supplies=sorted(method.needed_supplies),
         status=method.status.value,
         version=method.version,

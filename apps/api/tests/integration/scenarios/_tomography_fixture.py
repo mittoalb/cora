@@ -55,7 +55,7 @@ _TOMO_ASSETS = TomographyAssetIds(
 _RECIPE = RecipeSpec(
     method_id=_METHOD_ID,
     method_name="tomography",
-    needed_families=frozenset({_CAP_ROTARY_ID, _CAP_LINEAR_ID, _CAP_CAMERA_ID, _CAP_SCIN_ID}),
+    needed_family_ids=frozenset({_CAP_ROTARY_ID, _CAP_LINEAR_ID, _CAP_CAMERA_ID, _CAP_SCIN_ID}),
     parameters_schema={...},
     practice_id=_PRACTICE_ID,
     practice_name="2BM_tomography_practice",
@@ -244,7 +244,7 @@ class RecipeSpec:
 
     method_id: UUID
     method_name: str
-    needed_families: frozenset[UUID]
+    needed_family_ids: frozenset[UUID]
     practice_id: UUID
     practice_name: str
     site_id: UUID
@@ -305,7 +305,7 @@ async def define_recipe_ladder(
         DefineMethod(
             name=spec.method_name,
             capability_id=spec.capability_id,
-            needed_families=spec.needed_families,
+            needed_family_ids=spec.needed_family_ids,
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,

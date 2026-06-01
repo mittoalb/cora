@@ -136,13 +136,13 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_families: frozenset[UUID] = frozenset(),
+    needed_family_ids: frozenset[UUID] = frozenset(),
     capability_id: UUID | None = None,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=tuple(sorted(needed_families, key=str)),
+        needed_family_ids=tuple(sorted(needed_family_ids, key=str)),
         capability_id=capability_id,
         occurred_at=_NOW,
     )
@@ -374,7 +374,7 @@ async def test_handler_returns_satisfied_when_families_and_affordances_covered()
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -407,7 +407,7 @@ async def test_handler_returns_missing_families_when_asset_lacks_family() -> Non
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -439,7 +439,7 @@ async def test_handler_returns_missing_affordances_when_family_lacks_affordance(
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -473,7 +473,7 @@ async def test_handler_populates_both_missing_sets_when_both_dimensions_fail() -
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID, _FAMILY_CAMERA_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID, _FAMILY_CAMERA_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -703,7 +703,7 @@ async def test_handler_skips_candidate_lookup_when_pool_is_none() -> None:
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
@@ -737,7 +737,7 @@ async def test_handler_returns_empty_candidates_when_no_affordances_missing() ->
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
