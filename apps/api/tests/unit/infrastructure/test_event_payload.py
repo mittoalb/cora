@@ -1,6 +1,6 @@
-"""Unit tests for `cora.infrastructure.deserialize_or_raise`.
+"""Unit tests for `cora.infrastructure.event_payload` helpers.
 
-Coverage:
+Coverage for `deserialize_or_raise` (event-type wrap):
   - Successful build returns the constructed event unchanged
   - KeyError / TypeError / AttributeError each become `ValueError`
     tagged `Malformed {event_type} payload`
@@ -12,13 +12,27 @@ Coverage:
   - `message_suffix` is placed after `payload` so the architecture
     fitness substring (`Malformed {n} payload`) survives unchanged
   - Exceptions outside the catch tuple propagate unchanged
+
+Coverage for `deserialize_vo_or_raise` (nested-VO wrap):
+  - Successful build returns the constructed VO unchanged
+  - KeyError / TypeError / AttributeError each become `ValueError`
+    tagged `Malformed {vo_type} payload`
+  - Raw payload is NEVER echoed into the `ValueError` message
+  - Original exception preserved via `__cause__`
+  - `raise_as` re-raises a typed `ValueError` subclass (covers
+    calibration's `InvalidCalibrationSourceError`)
+  - `extra` widens the catch tuple
+  - Exceptions outside the catch tuple propagate unchanged
 """
 
 from dataclasses import dataclass
 
 import pytest
 
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import (
+    deserialize_or_raise,
+    deserialize_vo_or_raise,
+)
 
 
 @dataclass(frozen=True)
@@ -148,4 +162,118 @@ def test_deserialize_or_raise_carries_event_type_into_message() -> None:
         deserialize_or_raise(
             "SomeOtherEvent",
             lambda: (_ for _ in ()).throw(KeyError("x")),
+        )
+
+
+@dataclass(frozen=True)
+class _BarVo:
+    name: str
+    count: int
+
+
+class _TypedVoError(ValueError):
+    """Mirrors calibration's `InvalidCalibrationSourceError`."""
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_returns_built_vo_on_success() -> None:
+    result = deserialize_vo_or_raise(
+        "BarVo",
+        lambda: _BarVo(name="alpha", count=3),
+    )
+    assert result == _BarVo(name="alpha", count=3)
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_wraps_key_error_as_value_error() -> None:
+    payload: dict[str, str] = {}
+    with pytest.raises(ValueError, match="Malformed ModelRef payload"):
+        deserialize_vo_or_raise(
+            "ModelRef",
+            lambda: _BarVo(name=payload["missing"], count=0),
+        )
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_wraps_type_error_as_value_error() -> None:
+    payload: dict[str, object] = {"name": ["not", "a", "string"]}
+    with pytest.raises(ValueError, match="Malformed ModelRef payload"):
+        deserialize_vo_or_raise(
+            "ModelRef",
+            lambda: _BarVo(name=payload["name"] + 1, count=0),  # type: ignore[operator]
+        )
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_wraps_attribute_error_as_value_error() -> None:
+    def builder() -> _BarVo:
+        bogus: object = object()
+        return _BarVo(name=bogus.missing, count=1)  # type: ignore[attr-defined]
+
+    with pytest.raises(ValueError, match="Malformed ModelRef payload"):
+        deserialize_vo_or_raise("ModelRef", builder)
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_does_not_echo_payload_in_message() -> None:
+    """Raw payload contents must NOT leak into the ValueError text.
+    Same PII-vault correlation hygiene as `deserialize_or_raise`."""
+    sensitive = "actor-id-7b3f1a8e-secret"
+    payload = {"name": sensitive}
+    with pytest.raises(ValueError) as exc_info:
+        deserialize_vo_or_raise(
+            "ModelRef",
+            lambda: _BarVo(name=payload["missing"], count=0),
+        )
+    assert sensitive not in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_preserves_original_via_cause() -> None:
+    original = KeyError("provider")
+    with pytest.raises(ValueError) as exc_info:
+        deserialize_vo_or_raise(
+            "ModelRef",
+            lambda: (_ for _ in ()).throw(original),
+        )
+    assert exc_info.value.__cause__ is original
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_raise_as_uses_subclass() -> None:
+    """`raise_as` re-raises the typed `ValueError` subclass instead
+    of bare `ValueError`. Mirrors calibration's `deserialize_source`
+    which raises `InvalidCalibrationSourceError(ValueError)`."""
+    with pytest.raises(_TypedVoError) as exc_info:
+        deserialize_vo_or_raise(
+            "CalibrationSource",
+            lambda: (_ for _ in ()).throw(TypeError("bad shape")),
+            raise_as=_TypedVoError,
+        )
+    assert isinstance(exc_info.value, _TypedVoError)
+    assert str(exc_info.value).startswith("Malformed CalibrationSource payload")
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_extra_widens_catch_tuple() -> None:
+    with pytest.raises(ValueError, match="Malformed BarVo payload"):
+        deserialize_vo_or_raise(
+            "BarVo",
+            lambda: (_ for _ in ()).throw(ValueError("bad enum value")),
+            extra=(ValueError,),
+        )
+
+
+@pytest.mark.unit
+def test_deserialize_vo_or_raise_propagates_unrelated_exception_types() -> None:
+    """Exceptions outside the catch tuple (and outside `extra`) reach
+    the caller unchanged."""
+
+    class _DomainError(Exception):
+        pass
+
+    with pytest.raises(_DomainError):
+        deserialize_vo_or_raise(
+            "BarVo",
+            lambda: (_ for _ in ()).throw(_DomainError("domain-specific")),
         )

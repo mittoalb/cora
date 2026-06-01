@@ -34,7 +34,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.agent.aggregates.agent.state import ModelRef
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -66,15 +66,14 @@ def deserialize_model_ref(payload: dict[str, Any]) -> ModelRef:
     Raises ValueError on any field violation so a contaminated event
     payload fails loud at replay time.
     """
-    try:
-        return ModelRef(
+    return deserialize_vo_or_raise(
+        "ModelRef",
+        lambda: ModelRef(
             provider=payload["provider"],
             model=payload["model"],
             snapshot_pin=payload.get("snapshot_pin"),
-        )
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed ModelRef payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

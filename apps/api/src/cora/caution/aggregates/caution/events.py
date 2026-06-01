@@ -51,7 +51,7 @@ from cora.caution.aggregates.caution.state import (
     CautionTarget,
     ProcedureTarget,
 )
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -86,7 +86,8 @@ def deserialize_target(payload: dict[str, Any]) -> CautionTarget:
     callers don't see leaked low-level exceptions). Mirrors Safety's
     `deserialize_binding` defensive shape.
     """
-    try:
+
+    def _build() -> CautionTarget:
         kind = payload["kind"]
         match kind:
             case "Asset":
@@ -96,9 +97,8 @@ def deserialize_target(payload: dict[str, Any]) -> CautionTarget:
             case _:
                 msg = f"Unknown CautionTarget kind: {kind!r}"
                 raise ValueError(msg)
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed CautionTarget payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+
+    return deserialize_vo_or_raise("CautionTarget", _build)
 
 
 # ---------------------------------------------------------------------------

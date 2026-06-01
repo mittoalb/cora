@@ -1,5 +1,25 @@
-"""Stored-event payload deserialization helper.
+"""Stored-event payload deserialization helpers.
 
+Two free functions sharing the same try / wrap / re-raise body but
+keyed on different identity dimensions:
+
+  - `deserialize_or_raise(event_type, ...)` -- wraps each `case "X":`
+    arm in an aggregate's `from_stored` dispatch; first argument names
+    the EVENT TYPE.
+  - `deserialize_vo_or_raise(vo_type, ...)` -- wraps each nested VO
+    decoder (e.g. `deserialize_target`, `deserialize_binding`,
+    `deserialize_classification`) that sits ABOVE `from_stored` as a
+    sub-helper; first argument names the VO TYPE.
+
+The two helpers stay separate because the first-argument identity
+differs (event-type vs vo-type) and because the VO helper needs a
+`raise_as` knob (calibration's `deserialize_source` raises typed
+`InvalidCalibrationSourceError(ValueError)` rather than bare
+`ValueError`). Combining them under a `no_payload_echo` flag would
+conflate two domains and risk silent message-shape drift.
+
+Why these helpers exist
+-----------------------
 Hoisted after the 28th `from_stored` shipped 162 inline
 `except (KeyError, TypeError, AttributeError)` wrap sites that
 re-raise as `ValueError("Malformed {event_type} payload ...")`.
@@ -55,6 +75,16 @@ Exactly one call site (Actor's `ActorRegistered` V1 arm) carries a
 modern `ActorRegisteredV2` arm. The suffix is placed AFTER the
 `payload` token so the fitness substring (`Malformed
 ActorRegistered payload`) survives unchanged.
+
+Why `raise_as` lives only on the VO helper
+------------------------------------------
+The event-type wrap always re-raises as bare `ValueError` (callers
+in `from_stored` arms then opt into wider catches via `extra`).
+Nested VO helpers occasionally need a typed `ValueError` subclass:
+calibration's `deserialize_source` raises
+`InvalidCalibrationSourceError(ValueError)` so the outer
+`from_stored` arm's `extra=(ValueError,)` absorbs it at the
+event-type wrap layer.
 """
 
 from collections.abc import Callable
@@ -84,4 +114,35 @@ def deserialize_or_raise[EventT](
         raise ValueError(msg) from exc
 
 
-__all__ = ["deserialize_or_raise"]
+def deserialize_vo_or_raise[VoT](
+    vo_type: str,
+    builder: Callable[[], VoT],
+    *,
+    extra: tuple[type[BaseException], ...] = (),
+    raise_as: type[ValueError] = ValueError,
+) -> VoT:
+    """Run `builder` and re-raise nested-VO decoding failures as `raise_as`.
+
+    Catches `KeyError`, `TypeError`, `AttributeError`, plus any
+    classes in `extra`; re-raises `raise_as` (default `ValueError`)
+    carrying the canonical `"Malformed {vo_type} payload: {exc}"`
+    text. The original exception is chained via `__cause__`.
+
+    The raw payload is intentionally NOT included in the message;
+    see module docstring for the PII-hygiene rationale (same as
+    `deserialize_or_raise`).
+
+    The `raise_as` knob covers calibration's `deserialize_source`
+    whose VO helper raises typed
+    `InvalidCalibrationSourceError(ValueError)` so the outer
+    `from_stored` arm's `extra=(ValueError,)` absorbs it at the
+    event-type wrap layer.
+    """
+    try:
+        return builder()
+    except (KeyError, TypeError, AttributeError, *extra) as exc:
+        msg = f"Malformed {vo_type} payload: {exc}"
+        raise raise_as(msg) from exc
+
+
+__all__ = ["deserialize_or_raise", "deserialize_vo_or_raise"]

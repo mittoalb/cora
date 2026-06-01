@@ -52,7 +52,7 @@ from cora.calibration.aggregates.calibration.state import (
     InvalidCalibrationSourceError,
     MeasuredSource,
 )
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,8 @@ def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
     one set, or all three missing keys) so a contaminated payload fails
     loud rather than silently degrading to the first non-null match.
     """
-    try:
+
+    def _build() -> CalibrationSource:
         procedure_id_raw = payload.get("source_procedure_id")
         dataset_id_raw = payload.get("source_dataset_id")
         actor_id_raw = payload.get("source_actor_id")
@@ -129,9 +130,12 @@ def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
             case _:  # pragma: no cover  # exhaustiveness guard via len-check above
                 msg = f"Unknown source_*_id key {key!r}"
                 raise InvalidCalibrationSourceError(msg)
-    except (TypeError, AttributeError) as exc:
-        msg = f"Malformed CalibrationSource payload {payload!r}: {exc}"
-        raise InvalidCalibrationSourceError(msg) from exc
+
+    return deserialize_vo_or_raise(
+        "CalibrationSource",
+        _build,
+        raise_as=InvalidCalibrationSourceError,
+    )
 
 
 # ---------------------------------------------------------------------------

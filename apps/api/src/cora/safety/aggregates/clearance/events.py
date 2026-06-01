@@ -32,7 +32,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance.hazard_classification import (
     GHSPictogram,
@@ -277,7 +277,8 @@ def deserialize_binding(payload: dict[str, Any]) -> ClearanceBinding:
     payload fails loud (KeyError + TypeError are wrapped to ValueError
     so callers don't see leaked low-level exceptions).
     """
-    try:
+
+    def _build() -> ClearanceBinding:
         kind = payload["kind"]
         match kind:
             case "Subject":
@@ -293,9 +294,8 @@ def deserialize_binding(payload: dict[str, Any]) -> ClearanceBinding:
             case _:
                 msg = f"Unknown ClearanceBinding kind: {kind!r}"
                 raise ValueError(msg)
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed ClearanceBinding payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+
+    return deserialize_vo_or_raise("ClearanceBinding", _build)
 
 
 def serialize_classification(c: HazardClassification) -> dict[str, Any]:
@@ -347,7 +347,8 @@ def deserialize_classification(payload: dict[str, Any]) -> HazardClassification:
     access failure (missing key, wrong type, invalid enum value, etc.)
     is re-raised as ValueError so a contaminated stream fails loud.
     """
-    try:
+
+    def _build() -> HazardClassification:
         kind = payload["kind"]
         match kind:
             case "NFPA704":
@@ -373,9 +374,8 @@ def deserialize_classification(payload: dict[str, Any]) -> HazardClassification:
             case _:
                 msg = f"Unknown HazardClassification kind: {kind!r}"
                 raise ValueError(msg)
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed HazardClassification payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+
+    return deserialize_vo_or_raise("HazardClassification", _build)
 
 
 def serialize_declaration(d: HazardDeclaration) -> dict[str, Any]:
@@ -394,18 +394,17 @@ def deserialize_declaration(payload: dict[str, Any]) -> HazardDeclaration:
     Defensive: KeyError / TypeError on inner fields are wrapped to
     ValueError so a contaminated stream fails loud at the evolver.
     """
-    try:
-        return HazardDeclaration(
+    return deserialize_vo_or_raise(
+        "HazardDeclaration",
+        lambda: HazardDeclaration(
             target=deserialize_binding(payload["target"]),
             classifications=frozenset(
                 deserialize_classification(c) for c in payload.get("classifications", [])
             ),
             mitigations=frozenset(payload.get("mitigations", [])),
             notes=payload.get("notes"),
-        )
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed HazardDeclaration payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+        ),
+    )
 
 
 def to_payload(event: ClearanceEvent) -> dict[str, Any]:
