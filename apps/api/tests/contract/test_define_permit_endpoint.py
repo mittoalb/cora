@@ -30,7 +30,7 @@ def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
-        "allowed_credentials": [str(uuid4())],
+        "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
         "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
@@ -83,12 +83,12 @@ def test_post_federation_permits_rejects_missing_required_body_field_with_422() 
 
 
 @pytest.mark.contract
-def test_post_federation_permits_rejects_empty_allowed_credentials_with_422() -> None:
+def test_post_federation_permits_rejects_empty_allowed_credential_ids_with_422() -> None:
     """min_length=1 on the request schema rejects empty lists at Pydantic."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/permits",
-            json=_body(allowed_credentials=[]),
+            json=_body(allowed_credential_ids=[]),
         )
     assert response.status_code == 422
 

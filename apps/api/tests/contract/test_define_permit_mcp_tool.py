@@ -21,7 +21,7 @@ def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
-        "allowed_credentials": [str(uuid4())],
+        "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
         "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",

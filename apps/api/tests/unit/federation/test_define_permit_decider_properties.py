@@ -81,7 +81,7 @@ def _command(
     return DefinePermit(
         peer_facility_id=peer_facility_id,
         direction=direction,
-        allowed_credentials=frozenset({credential_id}),
+        allowed_credential_ids=frozenset({credential_id}),
         allowed_payload_types=frozenset({payload_type}),
         allowed_artifact_kinds=frozenset({artifact_kind}),
         abi_tier_floor=abi_tier,
@@ -95,7 +95,7 @@ def _existing_permit(permit_id: UUID, actor_id: UUID) -> Permit:
         id=permit_id,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({actor_id}),
+        allowed_credential_ids=frozenset({actor_id}),
         allowed_payload_types=frozenset({"application/json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,

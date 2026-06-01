@@ -22,7 +22,7 @@ Invariants:
     -> InvalidPermitScopeError
   - expires_at must lie strictly after now
     -> InvalidPermitScopeError
-  - allowed_credentials non-empty
+  - allowed_credential_ids non-empty
     -> InvalidPermitScopeError
   - allowed_payload_types non-empty + every member non-empty after trim
     -> InvalidPermitScopeError
@@ -74,7 +74,7 @@ def decide(
         -> InvalidPermitScopeError
       - expires_at must lie strictly after now
         -> InvalidPermitScopeError
-      - allowed_credentials must be non-empty
+      - allowed_credential_ids must be non-empty
         -> InvalidPermitScopeError
       - allowed_payload_types must be non-empty and every member
         non-empty after trim -> InvalidPermitScopeError
@@ -101,8 +101,8 @@ def decide(
             f"got {command.expires_at.isoformat()}"
         )
 
-    if not command.allowed_credentials:
-        raise InvalidPermitScopeError("allowed_credentials must be non-empty")
+    if not command.allowed_credential_ids:
+        raise InvalidPermitScopeError("allowed_credential_ids must be non-empty")
 
     if not command.allowed_payload_types:
         raise InvalidPermitScopeError("allowed_payload_types must be non-empty")
@@ -130,7 +130,7 @@ def decide(
             permit_id=new_id,
             peer_facility_id=peer_facility_id,
             direction=command.direction,
-            allowed_credentials=command.allowed_credentials,
+            allowed_credential_ids=command.allowed_credential_ids,
             allowed_payload_types=command.allowed_payload_types,
             allowed_artifact_kinds=command.allowed_artifact_kinds,
             abi_tier_floor=command.abi_tier_floor,

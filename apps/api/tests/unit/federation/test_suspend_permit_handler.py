@@ -329,7 +329,7 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
+        allowed_credential_ids=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
         allowed_payload_types=frozenset({"application/vnd.cora.dataset+json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,

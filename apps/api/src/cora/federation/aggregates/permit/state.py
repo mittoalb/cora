@@ -238,7 +238,7 @@ class Permit:
     discriminator; the decider enforces the invariant on every
     transition.
 
-    `allowed_credentials`, `allowed_payload_types`, and
+    `allowed_credential_ids`, `allowed_payload_types`, and
     `allowed_artifact_kinds` narrow the permit across both
     directions: only the named Credential ids, payload-type strings,
     and artifact kinds are valid under this permit. Each MUST be
@@ -259,7 +259,7 @@ class Permit:
     id: UUID
     peer_facility_id: str
     direction: Direction
-    allowed_credentials: frozenset[UUID]
+    allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier

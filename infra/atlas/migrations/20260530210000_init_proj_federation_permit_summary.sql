@@ -31,7 +31,7 @@ CREATE TABLE proj_federation_permit_summary (
     direction                              TEXT        NOT NULL CHECK (
         direction IN ('Outbound', 'Inbound')
     ),
-    allowed_credentials                    JSONB       NOT NULL,
+    allowed_credential_ids                    JSONB       NOT NULL,
     allowed_payload_types                  JSONB       NOT NULL,
     allowed_artifact_kinds                 JSONB       NOT NULL,
     abi_tier_floor                         TEXT        NOT NULL,

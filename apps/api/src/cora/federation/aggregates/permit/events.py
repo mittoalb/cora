@@ -19,7 +19,7 @@ discriminator; unknown discriminators raise tagged `ValueError`.
 
 `scopes` on OutboundTerms is serialized as a sorted list of
 `[kind, name, qualifier]` triples for jsonb stability;
-`allowed_credentials`, `allowed_payload_types`,
+`allowed_credential_ids`, `allowed_payload_types`,
 `allowed_artifact_kinds`, and the inbound-side
 `inbound_allowed_artifact_kinds` frozenset fields ride through as
 sorted string lists.
@@ -121,7 +121,7 @@ class PermitDefined:
     permit_id: UUID
     peer_facility_id: str
     direction: Direction
-    allowed_credentials: frozenset[UUID]
+    allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier
@@ -175,7 +175,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
             permit_id=permit_id,
             peer_facility_id=peer_facility_id,
             direction=direction,
-            allowed_credentials=allowed_credentials,
+            allowed_credential_ids=allowed_credential_ids,
             allowed_payload_types=allowed_payload_types,
             allowed_artifact_kinds=allowed_artifact_kinds,
             abi_tier_floor=abi_tier_floor,
@@ -188,7 +188,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
                 "permit_id": str(permit_id),
                 "peer_facility_id": peer_facility_id,
                 "direction": direction.value,
-                "allowed_credentials": sorted(str(c) for c in allowed_credentials),
+                "allowed_credential_ids": sorted(str(c) for c in allowed_credential_ids),
                 "allowed_payload_types": sorted(allowed_payload_types),
                 "allowed_artifact_kinds": sorted(allowed_artifact_kinds),
                 "abi_tier_floor": abi_tier_floor.value,
@@ -261,7 +261,9 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     permit_id=UUID(payload["permit_id"]),
                     peer_facility_id=payload["peer_facility_id"],
                     direction=Direction(payload["direction"]),
-                    allowed_credentials=frozenset(UUID(c) for c in payload["allowed_credentials"]),
+                    allowed_credential_ids=frozenset(
+                        UUID(c) for c in payload["allowed_credential_ids"]
+                    ),
                     allowed_payload_types=frozenset(payload["allowed_payload_types"]),
                     allowed_artifact_kinds=frozenset(payload["allowed_artifact_kinds"]),
                     abi_tier_floor=AbiTier(payload["abi_tier_floor"]),

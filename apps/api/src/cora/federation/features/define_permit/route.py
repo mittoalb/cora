@@ -95,7 +95,7 @@ class DefinePermitRequest(BaseModel):
             "Must match the `terms.kind` arm; the decider rejects mismatches."
         ),
     )
-    allowed_credentials: list[UUID] = Field(
+    allowed_credential_ids: list[UUID] = Field(
         ...,
         min_length=1,
         description="Bounded set of Credential ids permitted under this permit.",
@@ -229,7 +229,7 @@ async def post_federation_permits(
         DefinePermit(
             peer_facility_id=body.peer_facility_id,
             direction=body.direction,
-            allowed_credentials=frozenset(body.allowed_credentials),
+            allowed_credential_ids=frozenset(body.allowed_credential_ids),
             allowed_payload_types=frozenset(body.allowed_payload_types),
             allowed_artifact_kinds=frozenset(body.allowed_artifact_kinds),
             abi_tier_floor=body.abi_tier_floor,

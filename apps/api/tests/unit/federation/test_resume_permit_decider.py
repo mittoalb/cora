@@ -49,7 +49,7 @@ def _existing_permit(*, status: PermitStatus) -> Permit:
         id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset(),
+        allowed_credential_ids=frozenset(),
         allowed_payload_types=frozenset({"application/cora.dataset+json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,

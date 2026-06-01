@@ -39,7 +39,7 @@ class PermitSummaryDTO(BaseModel):
     permit_id: UUID
     peer_facility_id: str = Field(..., min_length=1)
     direction: Direction
-    allowed_credentials: list[UUID] = Field(default_factory=list[UUID])
+    allowed_credential_ids: list[UUID] = Field(default_factory=list[UUID])
     allowed_payload_types: list[str] = Field(default_factory=list[str])
     allowed_artifact_kinds: list[str] = Field(default_factory=list[str])
     abi_tier_floor: AbiTier
@@ -143,7 +143,7 @@ async def list_permits(
                 permit_id=item.permit_id,
                 peer_facility_id=item.peer_facility_id,
                 direction=Direction(item.direction),
-                allowed_credentials=[UUID(str(c)) for c in item.allowed_credentials],
+                allowed_credential_ids=[UUID(str(c)) for c in item.allowed_credential_ids],
                 allowed_payload_types=[str(p) for p in item.allowed_payload_types],
                 allowed_artifact_kinds=[str(k) for k in item.allowed_artifact_kinds],
                 abi_tier_floor=AbiTier(item.abi_tier_floor),

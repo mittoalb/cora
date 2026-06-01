@@ -40,7 +40,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_PERMIT_SQL = """
 INSERT INTO proj_federation_permit_summary
     (permit_id, peer_facility_id, direction,
-     allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
+     allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds,
      abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
      read_scope, onward_action_scope, scopes,
      accepted_canonicalization_versions, required_receipt_kinds,
@@ -158,7 +158,7 @@ class PermitSummaryProjection:
                     UUID(payload["permit_id"]),
                     payload["peer_facility_id"],
                     payload["direction"],
-                    json.dumps(payload["allowed_credentials"]),
+                    json.dumps(payload["allowed_credential_ids"]),
                     json.dumps(payload["allowed_payload_types"]),
                     json.dumps(payload["allowed_artifact_kinds"]),
                     payload["abi_tier_floor"],

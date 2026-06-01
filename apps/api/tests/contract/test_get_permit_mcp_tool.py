@@ -32,7 +32,7 @@ def _outbound_view() -> PermitView:
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction="Outbound",
-        allowed_credentials=[_CREDENTIAL_ID],
+        allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",

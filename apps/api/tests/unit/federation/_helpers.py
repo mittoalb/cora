@@ -75,7 +75,7 @@ async def seed_defined_permit(
         permit_id=permit_id,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
+        allowed_credential_ids=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
         allowed_payload_types=frozenset({"application/vnd.cora.dataset+json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,

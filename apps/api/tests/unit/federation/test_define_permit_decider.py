@@ -62,7 +62,7 @@ def _command(**overrides: object) -> DefinePermit:
     base: dict[str, object] = {
         "peer_facility_id": "aps-2bm",
         "direction": Direction.OUTBOUND,
-        "allowed_credentials": frozenset({_CREDENTIAL_ID}),
+        "allowed_credential_ids": frozenset({_CREDENTIAL_ID}),
         "allowed_payload_types": frozenset({"application/json"}),
         "allowed_artifact_kinds": frozenset({"dataset"}),
         "abi_tier_floor": AbiTier.STABLE,
@@ -78,7 +78,7 @@ def _existing_state() -> Permit:
         id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({_CREDENTIAL_ID}),
+        allowed_credential_ids=frozenset({_CREDENTIAL_ID}),
         allowed_payload_types=frozenset({"application/json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
@@ -103,7 +103,7 @@ def test_define_permit_emits_event_for_valid_outbound_command() -> None:
     assert event.permit_id == _NEW_ID
     assert event.peer_facility_id == "aps-2bm"
     assert event.direction is Direction.OUTBOUND
-    assert event.allowed_credentials == frozenset({_CREDENTIAL_ID})
+    assert event.allowed_credential_ids == frozenset({_CREDENTIAL_ID})
     assert event.allowed_payload_types == frozenset({"application/json"})
     assert event.allowed_artifact_kinds == frozenset({"dataset"})
     assert event.abi_tier_floor is AbiTier.STABLE
@@ -202,11 +202,11 @@ def test_define_permit_rejects_expires_at_equal_to_now() -> None:
 
 
 @pytest.mark.unit
-def test_define_permit_rejects_empty_allowed_credentials() -> None:
+def test_define_permit_rejects_empty_allowed_credential_ids() -> None:
     with pytest.raises(InvalidPermitScopeError):
         define_permit.decide(
             state=None,
-            command=_command(allowed_credentials=frozenset[str]()),
+            command=_command(allowed_credential_ids=frozenset[str]()),
             now=_NOW,
             new_id=_NEW_ID,
             defined_by_actor_id=_PRINCIPAL_ID,

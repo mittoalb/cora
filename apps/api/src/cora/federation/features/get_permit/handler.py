@@ -44,7 +44,7 @@ _log = get_logger(__name__)
 
 _SELECT_PERMIT_SQL = """
 SELECT permit_id, peer_facility_id, direction,
-       allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
+       allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds,
        abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
        read_scope, onward_action_scope, scopes,
        accepted_canonicalization_versions, required_receipt_kinds,
@@ -68,7 +68,7 @@ class PermitView:
     permit_id: UUID
     peer_facility_id: str
     direction: str
-    allowed_credentials: list[UUID]
+    allowed_credential_ids: list[UUID]
     allowed_payload_types: list[str]
     allowed_artifact_kinds: list[str]
     abi_tier_floor: str
@@ -106,12 +106,12 @@ def _jsonb_to_list(value: Any) -> list[Any] | None:
 
 
 def _row_to_view(row: Any) -> PermitView:
-    raw_credentials = _jsonb_to_list(row["allowed_credentials"]) or []
+    raw_credentials = _jsonb_to_list(row["allowed_credential_ids"]) or []
     return PermitView(
         permit_id=row["permit_id"],
         peer_facility_id=row["peer_facility_id"],
         direction=row["direction"],
-        allowed_credentials=[UUID(c) if isinstance(c, str) else c for c in raw_credentials],
+        allowed_credential_ids=[UUID(c) if isinstance(c, str) else c for c in raw_credentials],
         allowed_payload_types=_jsonb_to_list(row["allowed_payload_types"]) or [],
         allowed_artifact_kinds=_jsonb_to_list(row["allowed_artifact_kinds"]) or [],
         abi_tier_floor=row["abi_tier_floor"],

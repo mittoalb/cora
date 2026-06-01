@@ -4191,14 +4191,14 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "description": "Bounded set of Credential ids permitted under this permit.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "minItems": 1,
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {
@@ -4249,7 +4249,7 @@
         "required": [
           "peer_facility_id",
           "direction",
-          "allowed_credentials",
+          "allowed_credential_ids",
           "allowed_payload_types",
           "allowed_artifact_kinds",
           "abi_tier_floor",
@@ -5950,12 +5950,12 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {
@@ -6056,7 +6056,7 @@
           "id",
           "peer_facility_id",
           "direction",
-          "allowed_credentials",
+          "allowed_credential_ids",
           "allowed_payload_types",
           "allowed_artifact_kinds",
           "abi_tier_floor",
@@ -6105,12 +6105,12 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {

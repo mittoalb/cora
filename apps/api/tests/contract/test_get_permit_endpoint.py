@@ -33,7 +33,7 @@ def _outbound_view() -> PermitView:
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction="Outbound",
-        allowed_credentials=[_CREDENTIAL_ID],
+        allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
@@ -61,7 +61,7 @@ def _inbound_view() -> PermitView:
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction="Inbound",
-        allowed_credentials=[_CREDENTIAL_ID],
+        allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
@@ -102,7 +102,7 @@ def test_get_federation_permit_returns_200_with_outbound_terms() -> None:
     assert body["peer_facility_id"] == "aps-2bm"
     assert body["direction"] == "Outbound"
     assert body["status"] == "Active"
-    assert body["allowed_credentials"] == [str(_CREDENTIAL_ID)]
+    assert body["allowed_credential_ids"] == [str(_CREDENTIAL_ID)]
     assert body["defined_by_actor_id"] == str(_ACTOR_ID)
     assert body["terms"]["kind"] == "Outbound"
     assert body["terms"]["read_scope"] == "ReadAllArtifacts"
