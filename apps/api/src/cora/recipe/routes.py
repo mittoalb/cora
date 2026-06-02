@@ -86,6 +86,19 @@ from cora.recipe.aggregates.practice import (
     PracticeCannotVersionError,
     PracticeNotFoundError,
 )
+from cora.recipe.aggregates.recipe import (
+    EmptyRecipeStepsError,
+    InvalidRecipeNameError,
+    InvalidRecipeStepShapeError,
+    InvalidRecipeVersionTagError,
+    RecipeAlreadyExistsError,
+    RecipeBindingReferencesUnknownParameterError,
+    RecipeCannotDeprecateError,
+    RecipeCannotVersionError,
+    RecipeNotFoundError,
+    RecipeRequiresCapabilityParametersSchemaError,
+    UnboundRecipeBindingError,
+)
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     add_plan_wire,
@@ -171,6 +184,23 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_unprocessable(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 422 handler for parse-shape failures past the Pydantic boundary.
+
+    Covers Recipe BindingRef-against-schema mismatches, malformed step
+    shapes, and unbound BindingRefs at expansion time. The 400
+    Invalid<X> family is reserved for VO constructor failures
+    (name / version_tag); 422 is reserved for downstream parse-shape
+    or schema-cross-check failures that pass Pydantic but fail at the
+    cross-aggregate boundary.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc)},
+    )
+
+
 def register_recipe_routes(app: FastAPI) -> None:
     """Attach Recipe slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_method.router)
@@ -215,6 +245,12 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPlanDefaultParametersError,
         InvalidPlanVersionTagError,
         InvalidWireError,
+        # Recipe Invalid<X> name + version-tag VO constructor failures.
+        InvalidRecipeNameError,
+        InvalidRecipeVersionTagError,
+        # Recipe __post_init__ invariant; domain error, not a Pydantic
+        # boundary parse failure.
+        EmptyRecipeStepsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -225,6 +261,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         # 6h: removing a Wire that's not currently in the Plan's wire
         # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
         PlanWireNotFoundError,
+        RecipeNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -235,6 +272,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         # 6h: re-adding an already-present Wire (strict-not-idempotent;
         # mirrors 5h add_asset_port).
         PlanWireAlreadyExistsError,
+        RecipeAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -271,6 +309,22 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanWireDirectionMismatchError,
         PlanWireSignalTypeMismatchError,
         PlanWireSelfLoopError,
+        # Recipe transition guards.
+        RecipeCannotVersionError,
+        RecipeCannotDeprecateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for unprocessable_cls in (
+        # Recipe parse-shape / schema-cross-check failures past the
+        # Pydantic boundary. Distinct from the Invalid<X> 400 family
+        # because these fire AFTER the request body validates: the
+        # wire-format step shape, the BindingRef-vs-Capability-schema
+        # cross-aggregate check, the missing-schema-with-bindings case,
+        # and the unbound-binding-at-expansion case.
+        InvalidRecipeStepShapeError,
+        RecipeBindingReferencesUnknownParameterError,
+        RecipeRequiresCapabilityParametersSchemaError,
+        UnboundRecipeBindingError,
+    ):
+        app.add_exception_handler(unprocessable_cls, _handle_unprocessable)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
