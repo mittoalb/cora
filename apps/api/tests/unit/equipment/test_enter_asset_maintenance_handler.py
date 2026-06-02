@@ -1,8 +1,8 @@
-"""Unit tests for the `enter_maintenance` application handler.
+"""Unit tests for the `enter_asset_maintenance` application handler.
 
 Mirror of `activate_asset` handler tests (same single-source
 update-style template). Asset path: register + activate (to reach
-Active) + enter_maintenance.
+Active) + enter_asset_maintenance.
 """
 
 from datetime import UTC, datetime
@@ -17,9 +17,9 @@ from cora.equipment.aggregates.asset import (
     AssetLifecycle,
     AssetNotFoundError,
 )
-from cora.equipment.features import activate_asset, enter_maintenance, register_asset
+from cora.equipment.features import activate_asset, enter_asset_maintenance, register_asset
 from cora.equipment.features.activate_asset import ActivateAsset
-from cora.equipment.features.enter_maintenance import EnterMaintenance
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
@@ -69,8 +69,8 @@ async def test_handler_returns_none_on_success() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_and_activate(deps)
 
-    result = await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    result = await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -83,8 +83,8 @@ async def test_handler_appends_asset_maintenance_entered_event() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_and_activate(deps)
 
-    await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -98,24 +98,24 @@ async def test_handler_appends_asset_maintenance_entered_event() -> None:
     ]
     entered = events[2]
     assert entered.event_id == _ENTER_EVENT_ID
-    assert entered.metadata == {"command": "EnterMaintenance"}
+    assert entered.metadata == {"command": "EnterAssetMaintenance"}
 
 
 @pytest.mark.unit
 async def test_handler_raises_asset_not_found_when_asset_does_not_exist() -> None:
     deps = _build_deps()
-    handler = enter_maintenance.bind(deps)
+    handler = enter_asset_maintenance.bind(deps)
 
     with pytest.raises(AssetNotFoundError):
         await handler(
-            EnterMaintenance(asset_id=uuid4()),
+            EnterAssetMaintenance(asset_id=uuid4()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
 
 
 @pytest.mark.unit
-async def test_handler_raises_cannot_enter_maintenance_from_commissioned() -> None:
+async def test_handler_raises_cannot_enter_asset_maintenance_from_commissioned() -> None:
     """Pre-service Commissioned assets cannot enter maintenance."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
@@ -126,8 +126,8 @@ async def test_handler_raises_cannot_enter_maintenance_from_commissioned() -> No
     )
 
     with pytest.raises(AssetCannotEnterMaintenanceError) as exc_info:
-        await enter_maintenance.bind(deps)(
-            EnterMaintenance(asset_id=asset_id),
+        await enter_asset_maintenance.bind(deps)(
+            EnterAssetMaintenance(asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -143,8 +143,8 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
-        await enter_maintenance.bind(deny_deps)(
-            EnterMaintenance(asset_id=asset_id),
+        await enter_asset_maintenance.bind(deny_deps)(
+            EnterAssetMaintenance(asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -158,8 +158,8 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_and_activate(deps)
 
-    await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -170,8 +170,8 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 
 @pytest.mark.unit
-def test_wire_equipment_includes_enter_maintenance() -> None:
+def test_wire_equipment_includes_enter_asset_maintenance() -> None:
     deps = _build_deps()
     handlers = wire_equipment(deps)
     assert isinstance(handlers, EquipmentHandlers)
-    assert callable(handlers.enter_maintenance)
+    assert callable(handlers.enter_asset_maintenance)

@@ -130,7 +130,7 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/equipment/features/deprecate_family/command.py",
         "src/cora/equipment/features/deprecate_family/handler.py",
         "src/cora/equipment/features/deprecate_family/route.py",
-        "src/cora/equipment/features/enter_maintenance/command.py",
+        "src/cora/equipment/features/enter_asset_maintenance/command.py",
         "src/cora/equipment/features/fault_asset/command.py",
         "src/cora/equipment/features/get_asset/handler.py",
         "src/cora/equipment/features/get_asset/query.py",

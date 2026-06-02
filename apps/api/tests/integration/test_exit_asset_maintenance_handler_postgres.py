@@ -1,7 +1,7 @@
-"""End-to-end integration test: exit_maintenance handler against real Postgres.
+"""End-to-end integration test: exit_asset_maintenance handler against real Postgres.
 
 Drives an asset through the full path register + activate +
-enter_maintenance + exit_maintenance against the real event
+enter_asset_maintenance + exit_asset_maintenance against the real event
 store.
 """
 
@@ -14,13 +14,13 @@ import pytest
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
     activate_asset,
-    enter_maintenance,
-    exit_maintenance,
+    enter_asset_maintenance,
+    exit_asset_maintenance,
     register_asset,
 )
 from cora.equipment.features.activate_asset import ActivateAsset
-from cora.equipment.features.enter_maintenance import EnterMaintenance
-from cora.equipment.features.exit_maintenance import ExitMaintenance
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
+from cora.equipment.features.exit_asset_maintenance import ExitAssetMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from tests.integration._helpers import build_postgres_deps
 
@@ -31,7 +31,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
 @pytest.mark.integration
-async def test_exit_maintenance_persists_event_from_maintenance_state(
+async def test_exit_asset_maintenance_persists_event_from_maintenance_state(
     db_pool: asyncpg.Pool,
 ) -> None:
     asset_id = UUID("01900000-0000-7000-8000-00000055ee01")
@@ -62,13 +62,13 @@ async def test_exit_maintenance_persists_event_from_maintenance_state(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await exit_maintenance.bind(deps)(
-        ExitMaintenance(asset_id=asset_id),
+    await exit_asset_maintenance.bind(deps)(
+        ExitAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -83,4 +83,4 @@ async def test_exit_maintenance_persists_event_from_maintenance_state(
     ]
     exited = events[3]
     assert exited.event_id == exit_event_id
-    assert exited.metadata == {"command": "ExitMaintenance"}
+    assert exited.metadata == {"command": "ExitAssetMaintenance"}

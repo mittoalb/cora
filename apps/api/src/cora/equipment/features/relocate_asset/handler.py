@@ -6,7 +6,7 @@ idempotency-wrapped.
 **Stays longhand after the 5e-cleanup factory extraction.** The
 factory `make_asset_update_handler` (5e) covers the four
 single-field Asset transitions (activate / decommission /
-enter_maintenance / exit_maintenance) whose log shape is
+enter_asset_maintenance / exit_asset_maintenance) whose log shape is
 just `asset_id`. Relocate is the outlier: its command carries
 `to_parent_id` and `reason` in addition to `asset_id`, and the
 handler logs `to_parent_id` at start + success for diagnostic

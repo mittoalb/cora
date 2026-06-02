@@ -44,8 +44,8 @@ from cora.equipment.features import (
     degrade_asset,
     deprecate_family,
     deprecate_model,
-    enter_maintenance,
-    exit_maintenance,
+    enter_asset_maintenance,
+    exit_asset_maintenance,
     fault_asset,
     get_asset,
     get_asset_integration_view,
@@ -120,8 +120,8 @@ class EquipmentHandlers:
     activate_asset: activate_asset.Handler
     decommission_asset: decommission_asset.Handler
     relocate_asset: relocate_asset.Handler
-    enter_maintenance: enter_maintenance.Handler
-    exit_maintenance: exit_maintenance.Handler
+    enter_asset_maintenance: enter_asset_maintenance.Handler
+    exit_asset_maintenance: exit_asset_maintenance.Handler
     add_asset_family: add_asset_family.Handler
     remove_asset_family: remove_asset_family.Handler
     degrade_asset: degrade_asset.Handler
@@ -259,14 +259,14 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="RelocateAsset",
             bc=_BC,
         ),
-        enter_maintenance=with_tracing(
-            enter_maintenance.bind(deps),
-            command_name="EnterMaintenance",
+        enter_asset_maintenance=with_tracing(
+            enter_asset_maintenance.bind(deps),
+            command_name="EnterAssetMaintenance",
             bc=_BC,
         ),
-        exit_maintenance=with_tracing(
-            exit_maintenance.bind(deps),
-            command_name="ExitMaintenance",
+        exit_asset_maintenance=with_tracing(
+            exit_asset_maintenance.bind(deps),
+            command_name="ExitAssetMaintenance",
             bc=_BC,
         ),
         add_asset_family=with_tracing(

@@ -198,7 +198,7 @@ class AssetDegraded:
     """An asset's condition transitioned to `Degraded`.
 
     Condition transition: any condition -> Degraded (target-state
-    semantics, mirrors `enter_maintenance`'s lifecycle target). The
+    semantics, mirrors `enter_asset_maintenance`'s lifecycle target). The
     evolver sets the new condition; no condition field in the
     payload (event TYPE encodes the change).
 

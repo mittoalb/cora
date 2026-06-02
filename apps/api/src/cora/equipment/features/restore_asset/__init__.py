@@ -11,7 +11,7 @@ Module-as-namespace surface:
 One of three condition-transition slices (degrade / fault /
 restore). Mirror of `degrade_asset` with target Nominal.
 
-Naming distinct from `exit_maintenance`: that slice moves a
+Naming distinct from `exit_asset_maintenance`: that slice moves a
 lifecycle state (Maintenance -> Active); this slice restores a
 condition state (any -> Nominal).
 """

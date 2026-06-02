@@ -123,8 +123,8 @@ from cora.equipment.features import (
     degrade_asset,
     deprecate_family,
     deprecate_model,
-    enter_maintenance,
-    exit_maintenance,
+    enter_asset_maintenance,
+    exit_asset_maintenance,
     fault_asset,
     get_asset,
     get_asset_integration_view,
@@ -234,8 +234,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
     app.include_router(relocate_asset.router)
-    app.include_router(enter_maintenance.router)
-    app.include_router(exit_maintenance.router)
+    app.include_router(enter_asset_maintenance.router)
+    app.include_router(exit_asset_maintenance.router)
     app.include_router(add_asset_family.router)
     app.include_router(remove_asset_family.router)
     app.include_router(degrade_asset.router)

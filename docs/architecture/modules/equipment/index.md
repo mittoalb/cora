@@ -83,7 +83,7 @@ The Asset aggregate runs a four-state lifecycle plus an orthogonal three-state c
 stateDiagram-v2
     [*] --> Commissioned: register_asset
     Commissioned --> Active: activate_asset
-    Active --> Maintenance: enter_maintenance
+    Active --> Maintenance: enter_asset_maintenance
     Maintenance --> Active: restore_from_maintenance
     Commissioned --> Decommissioned: decommission_asset
     Active --> Decommissioned: decommission_asset
@@ -95,7 +95,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `[*]` | `Commissioned` | `register_asset` | `AssetRegistered` |
 | `Commissioned` | `Active` | `activate_asset` | `AssetActivated` |
-| `Active` | `Maintenance` | `enter_maintenance` | `AssetMaintenanceEntered` |
+| `Active` | `Maintenance` | `enter_asset_maintenance` | `AssetMaintenanceEntered` |
 | `Maintenance` | `Active` | `restore_from_maintenance` | `AssetRestoredFromMaintenance` |
 | `Commissioned` | `Decommissioned` | `decommission_asset` | `AssetDecommissioned` |
 | `Active` | `Decommissioned` | `decommission_asset` | `AssetDecommissioned` |
@@ -129,7 +129,7 @@ Family emits four event types; Asset emits fifteen.
 | `FamilySettingsSchemaUpdated` | `family_id`, `settings_schema?`, `occurred_at` | `update_family_settings_schema` succeeds; payload carries the full replacement schema |
 | `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `occurred_at` | `register_asset` succeeds (genesis) |
 | `AssetActivated` | `asset_id`, `occurred_at` | `activate_asset` succeeds |
-| `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_maintenance` succeeds |
+| `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_asset_maintenance` succeeds |
 | `AssetRestoredFromMaintenance` | `asset_id`, `occurred_at` | `restore_from_maintenance` succeeds |
 | `AssetDecommissioned` | `asset_id`, `occurred_at` | `decommission_asset` succeeds from any of the three permitted lifecycles |
 | `AssetRelocated` | `asset_id`, `from_parent_id?`, `to_parent_id`, `reason`, `occurred_at` | `relocate_asset` succeeds; payload carries both source and target for audit |
@@ -158,7 +158,7 @@ The Family aggregate has six slices; the Asset aggregate has eighteen.
 | `ListFamilies` | QUERY | `GET /families` | `list_families` | none |
 | `RegisterAsset` | NEW | `POST /assets` | `register_asset` | required |
 | `ActivateAsset` | MODIFIED | `POST /assets/{asset_id}/activate` | `activate_asset` | none |
-| `EnterMaintenance` | MODIFIED | `POST /assets/{asset_id}/enter-maintenance` | `enter_maintenance` | none |
+| `EnterAssetMaintenance` | MODIFIED | `POST /assets/{asset_id}/enter-maintenance` | `enter_asset_maintenance` | none |
 | `RestoreFromMaintenance` | MODIFIED | `POST /assets/{asset_id}/restore-from-maintenance` | `restore_from_maintenance` | none |
 | `DecommissionAsset` | MODIFIED | `POST /assets/{asset_id}/decommission` | `decommission_asset` | none |
 | `RelocateAsset` | MODIFIED | `POST /assets/{asset_id}/relocate` | `relocate_asset` | none |
@@ -188,8 +188,8 @@ The Family aggregate has six slices; the Asset aggregate has eighteen.
 `RegisterAsset`
 : `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `Unauthorized`
 
-`ActivateAsset` / `EnterMaintenance` / `RestoreFromMaintenance` / `DecommissionAsset`
-: `AssetNotFound`, `AssetCannot<Activate|EnterMaintenance|RestoreFromMaintenance|Decommission>`, `Unauthorized`
+`ActivateAsset` / `EnterAssetMaintenance` / `RestoreFromMaintenance` / `DecommissionAsset`
+: `AssetNotFound`, `AssetCannot<Activate|EnterAssetMaintenance|RestoreFromMaintenance|Decommission>`, `Unauthorized`
 
 `RelocateAsset`
 : `AssetNotFound`, `AssetCannotRelocate` (Enterprise-level, Decommissioned, self-loop, or no-op), `Unauthorized`

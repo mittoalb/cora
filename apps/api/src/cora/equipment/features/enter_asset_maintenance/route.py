@@ -1,8 +1,8 @@
-"""HTTP route for the `exit_maintenance` slice.
+"""HTTP route for the `enter_asset_maintenance` slice.
 
-Action endpoint at `POST /assets/{asset_id}/exit-maintenance`.
-Same action-endpoint pattern as the other Asset transition slices.
-204 No Content on success.
+Action endpoint at `POST /assets/{asset_id}/enter-maintenance`. Same
+action-endpoint pattern as the other Asset transition slices. 204 No
+Content on success.
 """
 
 from typing import Annotated
@@ -10,8 +10,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Request, status
 
-from cora.equipment.features.exit_maintenance.command import ExitMaintenance
-from cora.equipment.features.exit_maintenance.handler import Handler
+from cora.equipment.features.enter_asset_maintenance.command import EnterAssetMaintenance
+from cora.equipment.features.enter_asset_maintenance.handler import Handler
 from cora.infrastructure.routing import (
     ErrorResponse,
     get_correlation_id,
@@ -21,7 +21,7 @@ from cora.infrastructure.routing import (
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.equipment.exit_maintenance
+    handler: Handler = request.app.state.equipment.enter_asset_maintenance
     return handler
 
 
@@ -29,7 +29,7 @@ router = APIRouter(tags=["equipment"])
 
 
 @router.post(
-    "/assets/{asset_id}/exit-maintenance",
+    "/assets/{asset_id}/enter-maintenance",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -43,16 +43,15 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Asset is not in `Maintenance` lifecycle "
-                "(exit_maintenance requires Maintenance), OR a "
-                "concurrent write to the same asset stream conflicted "
-                "(optimistic concurrency)."
+                "Asset is not in `Active` lifecycle (enter_asset_maintenance "
+                "requires Active), OR a concurrent write to the same "
+                "asset stream conflicted (optimistic concurrency)."
             ),
         },
     },
-    summary="Return an existing (Maintenance) asset to active service",
+    summary="Take an existing (Active) asset out of service for maintenance",
 )
-async def post_assets_exit_maintenance(
+async def post_assets_enter_asset_maintenance(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -60,7 +59,7 @@ async def post_assets_exit_maintenance(
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
-        ExitMaintenance(asset_id=asset_id),
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

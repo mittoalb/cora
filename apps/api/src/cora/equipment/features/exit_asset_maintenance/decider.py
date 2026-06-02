@@ -1,7 +1,7 @@
-"""Pure decider for the `ExitMaintenance` command.
+"""Pure decider for the `ExitAssetMaintenance` command.
 
 Single-source-state transition: `Maintenance -> Active`. The
-inverse of `enter_maintenance`.
+inverse of `enter_asset_maintenance`.
 
 Invariants:
   - State must not be None (asset must exist) -> AssetNotFoundError
@@ -12,7 +12,7 @@ Invariants:
 Strict semantics, not idempotent: exiting maintenance on an
 already-`Active` asset raises rather than no-op (the maintenance
 window has already ended). Same precedent as `activate_asset` /
-`enter_maintenance`.
+`enter_asset_maintenance`.
 """
 
 from datetime import datetime
@@ -24,12 +24,12 @@ from cora.equipment.aggregates.asset import (
     AssetMaintenanceExited,
     AssetNotFoundError,
 )
-from cora.equipment.features.exit_maintenance.command import ExitMaintenance
+from cora.equipment.features.exit_asset_maintenance.command import ExitAssetMaintenance
 
 
 def decide(
     state: Asset | None,
-    command: ExitMaintenance,
+    command: ExitAssetMaintenance,
     *,
     now: datetime,
 ) -> list[AssetMaintenanceExited]:

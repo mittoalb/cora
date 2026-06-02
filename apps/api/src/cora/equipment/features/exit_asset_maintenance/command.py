@@ -1,9 +1,9 @@
-"""The `ExitMaintenance` command, intent dataclass for this slice.
+"""The `ExitAssetMaintenance` command, intent dataclass for this slice.
 
 `asset_id` is the **target** Asset aggregate (the asset being
 returned to active service after a maintenance window). The
 principal-id of the invoker is supplied separately by the
-application handler at call time. Mirrors `EnterMaintenance` shape
+application handler at call time. Mirrors `EnterAssetMaintenance` shape
 exactly (single-source transition).
 """
 
@@ -12,7 +12,7 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class ExitMaintenance:
+class ExitAssetMaintenance:
     """Return an existing (Maintenance) asset to active service."""
 
     asset_id: UUID

@@ -1,4 +1,4 @@
-"""Unit tests for the `enter_maintenance` slice's pure decider.
+"""Unit tests for the `enter_asset_maintenance` slice's pure decider.
 
 Single-source-state guard: `Active -> Maintenance`. Strict
 not-idempotent semantics. Mirrors `test_activate_asset_decider.py`.
@@ -18,8 +18,8 @@ from cora.equipment.aggregates.asset import (
     AssetName,
     AssetNotFoundError,
 )
-from cora.equipment.features import enter_maintenance
-from cora.equipment.features.enter_maintenance import EnterMaintenance
+from cora.equipment.features import enter_asset_maintenance
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 
@@ -37,9 +37,9 @@ def _asset(*, lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE) -> Asset:
 @pytest.mark.unit
 def test_decide_emits_asset_maintenance_entered_for_active_asset() -> None:
     state = _asset(lifecycle=AssetLifecycle.ACTIVE)
-    events = enter_maintenance.decide(
+    events = enter_asset_maintenance.decide(
         state=state,
-        command=EnterMaintenance(asset_id=state.id),
+        command=EnterAssetMaintenance(asset_id=state.id),
         now=_NOW,
     )
     assert events == [AssetMaintenanceEntered(asset_id=state.id, occurred_at=_NOW)]
@@ -49,9 +49,9 @@ def test_decide_emits_asset_maintenance_entered_for_active_asset() -> None:
 def test_decide_raises_asset_not_found_when_state_is_none() -> None:
     target_id = uuid4()
     with pytest.raises(AssetNotFoundError) as exc_info:
-        enter_maintenance.decide(
+        enter_asset_maintenance.decide(
             state=None,
-            command=EnterMaintenance(asset_id=target_id),
+            command=EnterAssetMaintenance(asset_id=target_id),
             now=_NOW,
         )
     assert exc_info.value.asset_id == target_id
@@ -66,7 +66,7 @@ def test_decide_raises_asset_not_found_when_state_is_none() -> None:
         AssetLifecycle.DECOMMISSIONED,
     ],
 )
-def test_decide_raises_cannot_enter_maintenance_for_every_disallowed_source(
+def test_decide_raises_cannot_enter_asset_maintenance_for_every_disallowed_source(
     current: AssetLifecycle,
 ) -> None:
     """Strict semantics: Active is the only valid source. Pinned
@@ -75,9 +75,9 @@ def test_decide_raises_cannot_enter_maintenance_for_every_disallowed_source(
     are both rejected."""
     state = _asset(lifecycle=current)
     with pytest.raises(AssetCannotEnterMaintenanceError) as exc_info:
-        enter_maintenance.decide(
+        enter_asset_maintenance.decide(
             state=state,
-            command=EnterMaintenance(asset_id=state.id),
+            command=EnterAssetMaintenance(asset_id=state.id),
             now=_NOW,
         )
     assert exc_info.value.asset_id == state.id
@@ -90,9 +90,9 @@ def test_decide_error_message_lists_active_as_required_source() -> None:
     the operator needs to see which source state is required."""
     state = _asset(lifecycle=AssetLifecycle.COMMISSIONED)
     with pytest.raises(AssetCannotEnterMaintenanceError) as exc_info:
-        enter_maintenance.decide(
+        enter_asset_maintenance.decide(
             state=state,
-            command=EnterMaintenance(asset_id=state.id),
+            command=EnterAssetMaintenance(asset_id=state.id),
             now=_NOW,
         )
     msg = str(exc_info.value)
@@ -103,7 +103,7 @@ def test_decide_error_message_lists_active_as_required_source() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _asset(lifecycle=AssetLifecycle.ACTIVE)
-    command = EnterMaintenance(asset_id=state.id)
-    first = enter_maintenance.decide(state=state, command=command, now=_NOW)
-    second = enter_maintenance.decide(state=state, command=command, now=_NOW)
+    command = EnterAssetMaintenance(asset_id=state.id)
+    first = enter_asset_maintenance.decide(state=state, command=command, now=_NOW)
+    second = enter_asset_maintenance.decide(state=state, command=command, now=_NOW)
     assert first == second

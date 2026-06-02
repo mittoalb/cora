@@ -106,8 +106,8 @@ class AssetLifecycle(StrEnum):
     Transitions land per-slice:
       - 5c: Commissioned -> Active        (activate_asset)
       - 5c: (Commissioned | Active) -> Decommissioned   (decommission_asset)
-      - 5e: Active -> Maintenance         (enter_maintenance)
-      - 5e: Maintenance -> Active         (exit_maintenance)
+      - 5e: Active -> Maintenance         (enter_asset_maintenance)
+      - 5e: Maintenance -> Active         (exit_asset_maintenance)
       - 5e (extends 5c): decommission accepts Maintenance as third source
 
     `Commissioned` is the genesis state set by `register_asset`. The
@@ -350,7 +350,7 @@ class AssetCannotEnterMaintenanceError(Exception):
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
             f"Asset {asset_id} cannot enter maintenance: currently in lifecycle "
-            f"{current_lifecycle.value}, enter_maintenance requires "
+            f"{current_lifecycle.value}, enter_asset_maintenance requires "
             f"{AssetLifecycle.ACTIVE.value}"
         )
         self.asset_id = asset_id
@@ -368,7 +368,7 @@ class AssetCannotExitMaintenanceError(Exception):
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
             f"Asset {asset_id} cannot exit maintenance: currently in lifecycle "
-            f"{current_lifecycle.value}, exit_maintenance requires "
+            f"{current_lifecycle.value}, exit_asset_maintenance requires "
             f"{AssetLifecycle.MAINTENANCE.value}"
         )
         self.asset_id = asset_id

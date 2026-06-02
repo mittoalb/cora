@@ -1,4 +1,4 @@
-"""Pure decider for the `EnterMaintenance` command.
+"""Pure decider for the `EnterAssetMaintenance` command.
 
 Single-source-state transition: `Active -> Maintenance`. Industrial
 convention: only in-service assets enter maintenance (Commissioned
@@ -23,12 +23,12 @@ from cora.equipment.aggregates.asset import (
     AssetMaintenanceEntered,
     AssetNotFoundError,
 )
-from cora.equipment.features.enter_maintenance.command import EnterMaintenance
+from cora.equipment.features.enter_asset_maintenance.command import EnterAssetMaintenance
 
 
 def decide(
     state: Asset | None,
-    command: EnterMaintenance,
+    command: EnterAssetMaintenance,
     *,
     now: datetime,
 ) -> list[AssetMaintenanceEntered]:

@@ -18,12 +18,12 @@ from cora.equipment.aggregates.asset import AssetLevel
 from cora.equipment.features import (
     activate_asset,
     decommission_asset,
-    enter_maintenance,
+    enter_asset_maintenance,
     register_asset,
 )
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.decommission_asset import DecommissionAsset
-from cora.equipment.features.enter_maintenance import EnterMaintenance
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from tests.integration._helpers import build_postgres_deps
 
@@ -119,7 +119,7 @@ async def test_decommission_asset_persists_event_from_maintenance_state(
     db_pool: asyncpg.Pool,
 ) -> None:
     """5e widening: decommission accepts Maintenance as third source.
-    Full path: register + activate + enter_maintenance + decommission."""
+    Full path: register + activate + enter_asset_maintenance + decommission."""
     asset_id = UUID("01900000-0000-7000-8000-00000054ef01")
     register_event_id = UUID("01900000-0000-7000-8000-00000054ef0e")
     activate_event_id = UUID("01900000-0000-7000-8000-00000054ef0f")
@@ -148,8 +148,8 @@ async def test_decommission_asset_persists_event_from_maintenance_state(
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

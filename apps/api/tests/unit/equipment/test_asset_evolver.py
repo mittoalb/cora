@@ -598,7 +598,7 @@ def test_evolve_asset_maintenance_exited_on_empty_state_raises() -> None:
 
 
 @pytest.mark.unit
-def test_fold_register_activate_enter_maintenance_yields_maintenance_asset() -> None:
+def test_fold_register_activate_enter_asset_maintenance_yields_maintenance_asset() -> None:
     asset_id = uuid4()
     parent_id = uuid4()
     state = fold(
@@ -795,8 +795,8 @@ def test_evolve_asset_capability_removed_on_empty_state_raises() -> None:
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_capabilities(
@@ -981,8 +981,8 @@ def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> N
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_condition(
@@ -1177,8 +1177,8 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_settings(
@@ -1484,8 +1484,8 @@ def test_evolve_register_without_drawing_yields_none() -> None:
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_drawing(

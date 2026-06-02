@@ -27,9 +27,9 @@ from cora.equipment.features.deprecate_family import (
     tool as deprecate_family_tool,
 )
 from cora.equipment.features.deprecate_model import tool as deprecate_model_tool
-from cora.equipment.features.enter_maintenance import tool as enter_maintenance_tool
-from cora.equipment.features.exit_maintenance import (
-    tool as exit_maintenance_tool,
+from cora.equipment.features.enter_asset_maintenance import tool as enter_asset_maintenance_tool
+from cora.equipment.features.exit_asset_maintenance import (
+    tool as exit_asset_maintenance_tool,
 )
 from cora.equipment.features.fault_asset import tool as fault_asset_tool
 from cora.equipment.features.get_asset import tool as get_asset_tool
@@ -138,13 +138,13 @@ def register_equipment_tools(
         mcp,
         get_handler=lambda: get_handlers().relocate_asset,
     )
-    enter_maintenance_tool.register(
+    enter_asset_maintenance_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().enter_maintenance,
+        get_handler=lambda: get_handlers().enter_asset_maintenance,
     )
-    exit_maintenance_tool.register(
+    exit_asset_maintenance_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().exit_maintenance,
+        get_handler=lambda: get_handlers().exit_asset_maintenance,
     )
     add_asset_family_tool.register(
         mcp,

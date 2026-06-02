@@ -1,7 +1,7 @@
 """Contract tests for `POST /assets/{asset_id}/exit-maintenance`.
 
 Single-source guard (Maintenance -> Active). Inverse of
-enter_maintenance.
+enter_asset_maintenance.
 """
 
 from uuid import uuid4

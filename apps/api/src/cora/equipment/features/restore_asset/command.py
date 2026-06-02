@@ -3,7 +3,7 @@
 `asset_id` is the target Asset aggregate. `reason` is operator-
 supplied free text captured on the emitted event for audit.
 
-Naming distinct from `ExitMaintenance`: that command moves
+Naming distinct from `ExitAssetMaintenance`: that command moves
 lifecycle (Maintenance -> Active); this one moves condition (any
 -> Nominal).
 """

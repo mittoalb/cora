@@ -31,7 +31,7 @@ def _register_and_activate(client: TestClient) -> str:
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_returns_204_from_active_state() -> None:
+def test_post_enter_asset_maintenance_returns_204_from_active_state() -> None:
     with TestClient(create_app()) as client:
         asset_id = _register_and_activate(client)
         response = client.post(f"/assets/{asset_id}/enter-maintenance")
@@ -40,7 +40,7 @@ def test_post_enter_maintenance_returns_204_from_active_state() -> None:
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_returns_404_when_asset_does_not_exist() -> None:
+def test_post_enter_asset_maintenance_returns_404_when_asset_does_not_exist() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post(f"/assets/{missing_id}/enter-maintenance")
@@ -51,7 +51,7 @@ def test_post_enter_maintenance_returns_404_when_asset_does_not_exist() -> None:
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_returns_409_when_commissioned() -> None:
+def test_post_enter_asset_maintenance_returns_409_when_commissioned() -> None:
     """Pre-service Commissioned assets cannot enter maintenance."""
     with TestClient(create_app()) as client:
         asset_id = _register_asset(client)
@@ -63,7 +63,7 @@ def test_post_enter_maintenance_returns_409_when_commissioned() -> None:
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_returns_409_when_already_in_maintenance() -> None:
+def test_post_enter_asset_maintenance_returns_409_when_already_in_maintenance() -> None:
     """Strict semantics: re-entering raises 409."""
     with TestClient(create_app()) as client:
         asset_id = _register_and_activate(client)
@@ -75,14 +75,14 @@ def test_post_enter_maintenance_returns_409_when_already_in_maintenance() -> Non
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_rejects_invalid_path_uuid_with_422() -> None:
+def test_post_enter_asset_maintenance_rejects_invalid_path_uuid_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/assets/not-a-uuid/enter-maintenance")
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_enter_maintenance_with_x_principal_id_header_succeeds() -> None:
+def test_post_enter_asset_maintenance_with_x_principal_id_header_succeeds() -> None:
     pid = str(uuid4())
     with TestClient(create_app()) as client:
         asset_id = _register_and_activate(client)

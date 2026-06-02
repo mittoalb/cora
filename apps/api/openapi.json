@@ -13990,7 +13990,7 @@
     },
     "/assets/{asset_id}/enter-maintenance": {
       "post": {
-        "operationId": "post_assets_enter_maintenance_assets__asset_id__enter_maintenance_post",
+        "operationId": "post_assets_enter_asset_maintenance_assets__asset_id__enter_maintenance_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -14056,7 +14056,7 @@
                 }
               }
             },
-            "description": "Asset is not in `Active` lifecycle (enter_maintenance requires Active), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+            "description": "Asset is not in `Active` lifecycle (enter_asset_maintenance requires Active), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
           },
           "422": {
             "content": {
@@ -14077,7 +14077,7 @@
     },
     "/assets/{asset_id}/exit-maintenance": {
       "post": {
-        "operationId": "post_assets_exit_maintenance_assets__asset_id__exit_maintenance_post",
+        "operationId": "post_assets_exit_asset_maintenance_assets__asset_id__exit_maintenance_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -14143,7 +14143,7 @@
                 }
               }
             },
-            "description": "Asset is not in `Maintenance` lifecycle (exit_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+            "description": "Asset is not in `Maintenance` lifecycle (exit_asset_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
           },
           "422": {
             "content": {

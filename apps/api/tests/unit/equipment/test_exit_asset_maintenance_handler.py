@@ -1,6 +1,6 @@
-"""Unit tests for the `exit_maintenance` application handler.
+"""Unit tests for the `exit_asset_maintenance` application handler.
 
-Mirror of `enter_maintenance` handler tests (same single-source
+Mirror of `enter_asset_maintenance` handler tests (same single-source
 update-style template). Asset path: register + activate + enter +
 exit (4 prior events; exit is the 5th).
 """
@@ -19,13 +19,13 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features import (
     activate_asset,
-    enter_maintenance,
-    exit_maintenance,
+    enter_asset_maintenance,
+    exit_asset_maintenance,
     register_asset,
 )
 from cora.equipment.features.activate_asset import ActivateAsset
-from cora.equipment.features.enter_maintenance import EnterMaintenance
-from cora.equipment.features.exit_maintenance import ExitMaintenance
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
+from cora.equipment.features.exit_asset_maintenance import ExitAssetMaintenance
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
@@ -68,8 +68,8 @@ async def _register_activate_enter(deps: Kernel) -> UUID:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    await enter_maintenance.bind(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await enter_asset_maintenance.bind(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -82,8 +82,8 @@ async def test_handler_returns_none_on_success() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_activate_enter(deps)
 
-    result = await exit_maintenance.bind(deps)(
-        ExitMaintenance(asset_id=asset_id),
+    result = await exit_asset_maintenance.bind(deps)(
+        ExitAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -96,8 +96,8 @@ async def test_handler_appends_asset_maintenance_exited_event() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_activate_enter(deps)
 
-    await exit_maintenance.bind(deps)(
-        ExitMaintenance(asset_id=asset_id),
+    await exit_asset_maintenance.bind(deps)(
+        ExitAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -112,17 +112,17 @@ async def test_handler_appends_asset_maintenance_exited_event() -> None:
     ]
     exited = events[3]
     assert exited.event_id == _EXIT_EVENT_ID
-    assert exited.metadata == {"command": "ExitMaintenance"}
+    assert exited.metadata == {"command": "ExitAssetMaintenance"}
 
 
 @pytest.mark.unit
 async def test_handler_raises_asset_not_found_when_asset_does_not_exist() -> None:
     deps = _build_deps()
-    handler = exit_maintenance.bind(deps)
+    handler = exit_asset_maintenance.bind(deps)
 
     with pytest.raises(AssetNotFoundError):
         await handler(
-            ExitMaintenance(asset_id=uuid4()),
+            ExitAssetMaintenance(asset_id=uuid4()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -146,8 +146,8 @@ async def test_handler_raises_cannot_exit_when_already_active() -> None:
     )
 
     with pytest.raises(AssetCannotExitMaintenanceError) as exc_info:
-        await exit_maintenance.bind(deps)(
-            ExitMaintenance(asset_id=asset_id),
+        await exit_asset_maintenance.bind(deps)(
+            ExitAssetMaintenance(asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -163,8 +163,8 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 
     deny_deps = _build_deps(event_store=store, deny=True)
     with pytest.raises(UnauthorizedError) as exc_info:
-        await exit_maintenance.bind(deny_deps)(
-            ExitMaintenance(asset_id=asset_id),
+        await exit_asset_maintenance.bind(deny_deps)(
+            ExitAssetMaintenance(asset_id=asset_id),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -178,8 +178,8 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
     deps = _build_deps(event_store=store)
     asset_id = await _register_activate_enter(deps)
 
-    await exit_maintenance.bind(deps)(
-        ExitMaintenance(asset_id=asset_id),
+    await exit_asset_maintenance.bind(deps)(
+        ExitAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -190,8 +190,8 @@ async def test_handler_propagates_causation_id_to_appended_event() -> None:
 
 
 @pytest.mark.unit
-def test_wire_equipment_includes_exit_maintenance() -> None:
+def test_wire_equipment_includes_exit_asset_maintenance() -> None:
     deps = _build_deps()
     handlers = wire_equipment(deps)
     assert isinstance(handlers, EquipmentHandlers)
-    assert callable(handlers.exit_maintenance)
+    assert callable(handlers.exit_asset_maintenance)

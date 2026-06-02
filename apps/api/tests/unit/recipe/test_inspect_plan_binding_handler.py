@@ -316,7 +316,7 @@ async def _seed_asset(
             expected_version=version,
             event_type=asset_event_type_name(maint_event),
             payload=asset_to_payload(maint_event),
-            command_name="EnterMaintenance",
+            command_name="EnterAssetMaintenance",
         )
         version += 1
     if decommissioned:

@@ -1,4 +1,4 @@
-"""The `EnterMaintenance` command — intent dataclass for this slice.
+"""The `EnterAssetMaintenance` command — intent dataclass for this slice.
 
 `asset_id` is the **target** Asset aggregate (the asset being taken
 into a maintenance window). The principal-id of the invoker is
@@ -11,7 +11,7 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class EnterMaintenance:
+class EnterAssetMaintenance:
     """Take an existing (Active) asset out of service for maintenance."""
 
     asset_id: UUID

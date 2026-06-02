@@ -23,8 +23,8 @@ is a single-aggregate BC; the same per-aggregate scoping applies.
   - `stream_type = "Asset"`.
   - `target_id_attr = "asset_id"` — every targeted Asset
     transition command exposes `asset_id: UUID` (Activate /
-    Decommission / Relocate / EnterMaintenance /
-    ExitMaintenance / DegradeAsset / FaultAsset /
+    Decommission / Relocate / EnterAssetMaintenance /
+    ExitAssetMaintenance / DegradeAsset / FaultAsset /
     RestoreAsset). RelocateAsset also carries `to_parent_id`,
     which it logs by passing `extra_log_fields` (preserving the
     pre-hoist log shape).
