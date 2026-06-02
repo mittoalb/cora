@@ -129,7 +129,7 @@ class FrameConsumersProjection:
 
 
 async def load_active_frame_consumers(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     frame_id: UUID,
 ) -> tuple[UUID, ...]:
     """Return the currently-active consumer IDs that reference `frame_id`.
@@ -137,12 +137,6 @@ async def load_active_frame_consumers(
     Used by the decommission_frame handler as a projection precondition:
     if the returned tuple is non-empty, the decider raises
     `FrameInUseError`.
-
-    Returns an empty tuple when `pool` is None (test environments
-    that opt out of Postgres; the corresponding decommission_frame
-    tests construct the context directly).
     """
-    if pool is None:
-        return ()
     rows = await pool.fetch(_SELECT_ACTIVE_CONSUMERS_SQL, frame_id)
     return tuple(row["consumer_id"] for row in rows)

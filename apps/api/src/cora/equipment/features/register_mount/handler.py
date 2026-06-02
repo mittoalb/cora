@@ -105,9 +105,13 @@ def bind(deps: Kernel) -> Handler:
         now = deps.clock.now()
 
         # Projection precondition: is the slot_code already in use?
-        existing_mount_id = await load_mount_id_by_slot_code(
-            deps.pool,
-            command.slot_code,
+        # Pool-None short-circuit preserves the pre-tightening permissive
+        # default (slot free) for the pool-less test path; in production
+        # deps.pool is always set.
+        existing_mount_id = (
+            await load_mount_id_by_slot_code(deps.pool, command.slot_code)
+            if deps.pool is not None
+            else None
         )
         context = RegisterMountContext(existing_mount_id=existing_mount_id)
 

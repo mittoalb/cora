@@ -86,7 +86,7 @@ class MountSlotCodeProjection:
 
 
 async def load_mount_id_by_slot_code(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     slot_code: str,
 ) -> UUID | None:
     """Return the mount_id for an Active slot_code, or None when free.
@@ -95,13 +95,7 @@ async def load_mount_id_by_slot_code(
     if the returned UUID is non-None, the handler raises
     MountAlreadyExistsError before reaching the pure decider (slot
     code collision).
-
-    Returns None when `pool` is None (test environments that opt out
-    of Postgres; the corresponding register_mount tests construct
-    the context directly).
     """
-    if pool is None:
-        return None
     row = await pool.fetchrow(_SELECT_BY_SLOT_CODE_SQL, slot_code)
     if row is None:
         return None

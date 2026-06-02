@@ -95,8 +95,15 @@ def bind(deps: Kernel) -> Handler:
         # Asset (None when uninstalled). The decider folds both into
         # AssetNotFoundForMountError / AssetNotInstallableError /
         # AssetAlreadyInstalledElsewhereError as appropriate.
-        asset_lifecycle = await load_asset_lifecycle(deps.pool, command.asset_id)
-        currently_at = await load_asset_location(deps.pool, command.asset_id)
+        # Pool-None short-circuit preserves the pre-tightening permissive
+        # defaults (no lifecycle row / no location row) for the pool-less
+        # test path; in production deps.pool is always set.
+        if deps.pool is not None:
+            asset_lifecycle = await load_asset_lifecycle(deps.pool, command.asset_id)
+            currently_at = await load_asset_location(deps.pool, command.asset_id)
+        else:
+            asset_lifecycle = None
+            currently_at = None
         context = InstallAssetContext(
             asset_lifecycle=asset_lifecycle,
             currently_installed_at_mount_id=currently_at,

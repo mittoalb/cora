@@ -96,18 +96,15 @@ class AssetLocationProjection:
 
 
 async def load_asset_location(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     asset_id: UUID,
 ) -> UUID | None:
     """Return the mount_id currently holding the specimen, or None.
 
     Used by future cross-aggregate queries that need to answer
     'where is Asset X right now?' without folding the full Mount
-    stream. Returns None when the specimen is in no slot, or when
-    `pool` is None (test environments that opt out of Postgres).
+    stream. Returns None when the specimen is in no slot.
     """
-    if pool is None:
-        return None
     row = await pool.fetchrow(_SELECT_BY_ASSET_SQL, asset_id)
     if row is None:
         return None

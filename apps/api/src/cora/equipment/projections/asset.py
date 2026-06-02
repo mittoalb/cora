@@ -165,7 +165,7 @@ WHERE asset_id = $1
 
 
 async def load_asset_lifecycle(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     asset_id: UUID,
 ) -> str | None:
     """Return the Asset's current lifecycle string, or None when no row.
@@ -178,15 +178,9 @@ async def load_asset_lifecycle(
     occupy live equipment slots invisibly; carrying the lifecycle
     discriminator closes that gap.
 
-    Returns None when `pool` is None (test environments that opt out
-    of Postgres; the corresponding install_asset tests construct the
-    context directly).
-
     Reuses the existing proj_equipment_asset_summary table: no
     separate asset_lookup / asset_status projection needed.
     """
-    if pool is None:
-        return None
     row = await pool.fetchrow(_SELECT_ASSET_LIFECYCLE_SQL, asset_id)
     if row is None:
         return None

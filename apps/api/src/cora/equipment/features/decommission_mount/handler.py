@@ -101,9 +101,13 @@ def bind(deps: Kernel) -> Handler:
         # Projection precondition: which child Mounts currently
         # reference this parent? Loaded BEFORE the decider so the
         # pure decider raises MountHasActiveChildrenError without I/O.
-        active_child_mount_ids = await load_active_mount_children(
-            deps.pool,
-            command.mount_id,
+        # Pool-None short-circuit preserves the pre-tightening permissive
+        # default (empty children) for the pool-less test path; in
+        # production deps.pool is always set.
+        active_child_mount_ids = (
+            await load_active_mount_children(deps.pool, command.mount_id)
+            if deps.pool is not None
+            else ()
         )
         context = DecommissionMountContext(active_child_mount_ids=active_child_mount_ids)
 
