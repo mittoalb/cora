@@ -1,4 +1,4 @@
-"""Pure decider for the `CheckInToVisit` command.
+"""Pure decider for the `CheckInVisit` command.
 
 Two-part guard:
   - `Visit.status in {Arrived, InProgress, OnHold}` (presence is
@@ -18,7 +18,7 @@ from cora.trust.aggregates.visit import (
     VisitNotFoundError,
     VisitStatus,
 )
-from cora.trust.features.check_in_to_visit.command import CheckInToVisit
+from cora.trust.features.check_in_visit.command import CheckInVisit
 
 _PERMITTED: tuple[VisitStatus, ...] = (
     VisitStatus.ARRIVED,
@@ -29,7 +29,7 @@ _PERMITTED: tuple[VisitStatus, ...] = (
 
 def decide(
     state: Visit | None,
-    command: CheckInToVisit,
+    command: CheckInVisit,
     *,
     now: datetime,
 ) -> list[VisitCheckedIn]:

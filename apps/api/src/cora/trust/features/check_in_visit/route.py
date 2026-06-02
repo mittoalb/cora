@@ -1,4 +1,8 @@
-"""HTTP route for the `check_out_from_visit` slice."""
+"""HTTP route for the `check_in_visit` slice.
+
+Action endpoint at `POST /visits/{visit_id}/check-in`. Body carries
+`actor_id` + `mode`. 204 on success.
+"""
 
 from typing import Annotated
 from uuid import UUID
@@ -12,18 +16,22 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
-from cora.trust.features.check_out_from_visit.command import CheckOutFromVisit
-from cora.trust.features.check_out_from_visit.handler import Handler
+from cora.trust.aggregates.visit import PresenceMode
+from cora.trust.features.check_in_visit.command import CheckInVisit
+from cora.trust.features.check_in_visit.handler import Handler
 
 
-class CheckOutFromVisitRequest(BaseModel):
-    """Body for `POST /visits/{visit_id}/check-out`."""
+class CheckInVisitRequest(BaseModel):
+    """Body for `POST /visits/{visit_id}/check-in`."""
 
-    actor_id: UUID = Field(..., description="Actor checking out of the Visit.")
+    actor_id: UUID = Field(..., description="Actor checking in to the Visit.")
+    mode: PresenceMode = Field(
+        ..., description="physical (on-site) or remote (e.g., PI driving via API)."
+    )
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.trust.check_out_from_visit
+    handler: Handler = request.app.state.trust.check_in_visit
     return handler
 
 
@@ -31,7 +39,7 @@ router = APIRouter(tags=["trust"])
 
 
 @router.post(
-    "/visits/{visit_id}/check-out",
+    "/visits/{visit_id}/check-in",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -40,26 +48,31 @@ router = APIRouter(tags=["trust"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
+            "description": "No Visit exists with the given id.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
             "description": (
-                "No Visit exists with the given id, OR actor has no open presence entry."
+                "Visit is not in {Arrived, InProgress, OnHold} status OR actor "
+                "already has an open presence entry (check out first)."
             ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Request body failed schema validation.",
         },
     },
-    summary="Check an actor out of a Visit",
+    summary="Check an actor in to a Visit (physical or remote)",
 )
-async def post_visits_check_out(
+async def post_visits_check_in(
     visit_id: Annotated[UUID, Path(description="Target Visit's id.")],
-    body: CheckOutFromVisitRequest,
+    body: CheckInVisitRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> None:
     await handler(
-        CheckOutFromVisit(visit_id=visit_id, actor_id=body.actor_id),
+        CheckInVisit(visit_id=visit_id, actor_id=body.actor_id, mode=body.mode),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

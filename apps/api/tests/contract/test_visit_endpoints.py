@@ -2,8 +2,8 @@
 
 Consolidated coverage file: covers `register_visit`, `arrive_visit`,
 `start_visit`, `hold_visit`, `resume_visit`, `complete_visit`,
-`cancel_visit`, `abort_visit`, `void_visit`, `check_in_to_visit`,
-`check_out_from_visit`, `take_control_of_surface`,
+`cancel_visit`, `abort_visit`, `void_visit`, `check_in_visit`,
+`check_out_visit`, `take_control_of_surface`,
 `release_control_of_surface` per the arch-fitness substring-match
 rule. Pins the REST surface: status codes, body shapes, FSM-walk
 happy path, 404 / 409 / 400 error mappings.

@@ -1,4 +1,4 @@
-"""Decider tests for `check_out_from_visit` (frozen-replace presence close)."""
+"""Decider tests for `check_out_visit` (frozen-replace presence close)."""
 
 from dataclasses import replace
 from datetime import timedelta
@@ -15,8 +15,8 @@ from cora.trust.aggregates.visit import (
     VisitNotFoundError,
     VisitStatus,
 )
-from cora.trust.features.check_out_from_visit import CheckOutFromVisit
-from cora.trust.features.check_out_from_visit.decider import decide
+from cora.trust.features.check_out_visit import CheckOutVisit
+from cora.trust.features.check_out_visit.decider import decide
 from tests.unit.trust.visit._fixtures import NOW, VISIT_ID, make_visit
 
 
@@ -42,7 +42,7 @@ def test_check_out_closes_open_entry_with_visit_checked_out() -> None:
     actor_id = uuid4()
     events = decide(
         state=_state_with_open_entry(actor_id),
-        command=CheckOutFromVisit(visit_id=VISIT_ID, actor_id=actor_id),
+        command=CheckOutVisit(visit_id=VISIT_ID, actor_id=actor_id),
         now=NOW,
     )
     [e] = events
@@ -56,7 +56,7 @@ def test_check_out_raises_not_found_on_empty_state() -> None:
     with pytest.raises(VisitNotFoundError):
         decide(
             state=None,
-            command=CheckOutFromVisit(visit_id=VISIT_ID, actor_id=uuid4()),
+            command=CheckOutVisit(visit_id=VISIT_ID, actor_id=uuid4()),
             now=NOW,
         )
 
@@ -67,7 +67,7 @@ def test_check_out_raises_when_actor_has_no_open_entry() -> None:
     with pytest.raises(VisitActorNotCheckedInError) as exc_info:
         decide(
             state=base,
-            command=CheckOutFromVisit(visit_id=VISIT_ID, actor_id=uuid4()),
+            command=CheckOutVisit(visit_id=VISIT_ID, actor_id=uuid4()),
             now=NOW,
         )
     assert exc_info.value.visit_id == base.id
@@ -93,7 +93,7 @@ def test_check_out_rejects_already_closed_actor() -> None:
     with pytest.raises(VisitActorNotCheckedInError):
         decide(
             state=state_with_closed_entry,
-            command=CheckOutFromVisit(visit_id=VISIT_ID, actor_id=actor_id),
+            command=CheckOutVisit(visit_id=VISIT_ID, actor_id=actor_id),
             now=NOW,
         )
 
@@ -119,7 +119,7 @@ def test_check_out_works_after_visit_completion_lifecycle_independent() -> None:
     )
     events = decide(
         state=state,
-        command=CheckOutFromVisit(visit_id=VISIT_ID, actor_id=actor_id),
+        command=CheckOutVisit(visit_id=VISIT_ID, actor_id=actor_id),
         now=NOW,
     )
     assert len(events) == 1

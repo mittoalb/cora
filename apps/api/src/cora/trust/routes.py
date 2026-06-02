@@ -73,8 +73,8 @@ from cora.trust.features import (
     abort_visit,
     arrive_visit,
     cancel_visit,
-    check_in_to_visit,
-    check_out_from_visit,
+    check_in_visit,
+    check_out_visit,
     complete_visit,
     define_conduit,
     define_policy,
@@ -201,8 +201,8 @@ def register_trust_routes(app: FastAPI) -> None:
     app.include_router(abort_visit.router)
     app.include_router(void_visit.router)
     # Visit presence slices.
-    app.include_router(check_in_to_visit.router)
-    app.include_router(check_out_from_visit.router)
+    app.include_router(check_in_visit.router)
+    app.include_router(check_out_visit.router)
     # Visit Surface-control slices.
     app.include_router(take_control_of_surface.router)
     app.include_router(release_control_of_surface.router)

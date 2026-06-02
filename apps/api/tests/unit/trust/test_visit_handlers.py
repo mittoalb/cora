@@ -2,8 +2,8 @@
 
 Consolidated coverage file: covers `register_visit`, `arrive_visit`,
 `start_visit`, `hold_visit`, `resume_visit`, `complete_visit`,
-`cancel_visit`, `abort_visit`, `void_visit`, `check_in_to_visit`,
-`check_out_from_visit`, `take_control_of_surface`,
+`cancel_visit`, `abort_visit`, `void_visit`, `check_in_visit`,
+`check_out_visit`, `take_control_of_surface`,
 `release_control_of_surface` per the arch-fitness substring-match
 rule. Pure-decider behavior is exercised in the per-slice files under
 `tests/unit/trust/visit/`; here we pin the handler-level concerns:
@@ -37,8 +37,8 @@ from cora.trust.features import (
     abort_visit,
     arrive_visit,
     cancel_visit,
-    check_in_to_visit,
-    check_out_from_visit,
+    check_in_visit,
+    check_out_visit,
     complete_visit,
     hold_visit,
     register_visit,
@@ -323,19 +323,19 @@ async def test_hold_visit_handler_records_reason_via_factory_wiring() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Presence handlers: check_in_to_visit + check_out_from_visit.
+# Presence handlers: check_in_visit + check_out_visit.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-async def test_check_in_to_visit_handler_appends_visit_checked_in() -> None:
+async def test_check_in_visit_handler_appends_visit_checked_in() -> None:
     store = InMemoryEventStore()
     await _seed_to(store, VisitStatus.ARRIVED)
     deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
-    handler = check_in_to_visit.bind(deps)
+    handler = check_in_visit.bind(deps)
     actor_id = uuid4()
     await handler(
-        check_in_to_visit.CheckInToVisit(
+        check_in_visit.CheckInVisit(
             visit_id=_VISIT_ID, actor_id=actor_id, mode=PresenceMode.PHYSICAL
         ),
         principal_id=_PRINCIPAL_ID,
@@ -351,13 +351,13 @@ async def test_check_in_to_visit_handler_appends_visit_checked_in() -> None:
 
 
 @pytest.mark.unit
-async def test_check_in_to_visit_handler_raises_not_found_when_visit_absent() -> None:
+async def test_check_in_visit_handler_raises_not_found_when_visit_absent() -> None:
     store = InMemoryEventStore()
     deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
-    handler = check_in_to_visit.bind(deps)
+    handler = check_in_visit.bind(deps)
     with pytest.raises(VisitNotFoundError):
         await handler(
-            check_in_to_visit.CheckInToVisit(
+            check_in_visit.CheckInVisit(
                 visit_id=_VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL
             ),
             principal_id=_PRINCIPAL_ID,
@@ -366,7 +366,7 @@ async def test_check_in_to_visit_handler_raises_not_found_when_visit_absent() ->
 
 
 @pytest.mark.unit
-async def test_check_out_from_visit_handler_closes_open_entry_via_frozen_replace() -> None:
+async def test_check_out_visit_handler_closes_open_entry_via_frozen_replace() -> None:
     """Seed a check-in then close: frozen-replace populates check_out_at."""
     store = InMemoryEventStore()
     await _seed_to(store, VisitStatus.ARRIVED)
@@ -396,9 +396,9 @@ async def test_check_out_from_visit_handler_closes_open_entry_via_frozen_replace
         ],
     )
     deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
-    handler = check_out_from_visit.bind(deps)
+    handler = check_out_visit.bind(deps)
     await handler(
-        check_out_from_visit.CheckOutFromVisit(visit_id=_VISIT_ID, actor_id=actor_id),
+        check_out_visit.CheckOutVisit(visit_id=_VISIT_ID, actor_id=actor_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -410,14 +410,14 @@ async def test_check_out_from_visit_handler_closes_open_entry_via_frozen_replace
 
 
 @pytest.mark.unit
-async def test_check_out_from_visit_handler_raises_when_actor_not_checked_in() -> None:
+async def test_check_out_visit_handler_raises_when_actor_not_checked_in() -> None:
     store = InMemoryEventStore()
     await _seed_to(store, VisitStatus.IN_PROGRESS)
     deps = build_deps(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
-    handler = check_out_from_visit.bind(deps)
+    handler = check_out_visit.bind(deps)
     with pytest.raises(VisitActorNotCheckedInError):
         await handler(
-            check_out_from_visit.CheckOutFromVisit(visit_id=_VISIT_ID, actor_id=uuid4()),
+            check_out_visit.CheckOutVisit(visit_id=_VISIT_ID, actor_id=uuid4()),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )

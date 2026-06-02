@@ -1,4 +1,4 @@
-"""Pure decider for the `CheckOutFromVisit` command.
+"""Pure decider for the `CheckOutVisit` command.
 
 Requires an open presence entry for `actor_id` on the Visit. Does NOT
 require any particular `Visit.status` -- check-out from a terminal Visit
@@ -15,12 +15,12 @@ from cora.trust.aggregates.visit import (
     VisitCheckedOut,
     VisitNotFoundError,
 )
-from cora.trust.features.check_out_from_visit.command import CheckOutFromVisit
+from cora.trust.features.check_out_visit.command import CheckOutVisit
 
 
 def decide(
     state: Visit | None,
-    command: CheckOutFromVisit,
+    command: CheckOutVisit,
     *,
     now: datetime,
 ) -> list[VisitCheckedOut]:

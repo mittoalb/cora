@@ -2523,7 +2523,7 @@
         "title": "CautionViewDTO",
         "type": "object"
       },
-      "CheckInToVisitRequest": {
+      "CheckInVisitRequest": {
         "description": "Body for `POST /visits/{visit_id}/check-in`.",
         "properties": {
           "actor_id": {
@@ -2541,10 +2541,10 @@
           "actor_id",
           "mode"
         ],
-        "title": "CheckInToVisitRequest",
+        "title": "CheckInVisitRequest",
         "type": "object"
       },
-      "CheckOutFromVisitRequest": {
+      "CheckOutVisitRequest": {
         "description": "Body for `POST /visits/{visit_id}/check-out`.",
         "properties": {
           "actor_id": {
@@ -2557,7 +2557,7 @@
         "required": [
           "actor_id"
         ],
-        "title": "CheckOutFromVisitRequest",
+        "title": "CheckOutVisitRequest",
         "type": "object"
       },
       "ChecksumRequest": {
@@ -30954,7 +30954,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckInToVisitRequest"
+                "$ref": "#/components/schemas/CheckInVisitRequest"
               }
             }
           },
@@ -31044,7 +31044,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckOutFromVisitRequest"
+                "$ref": "#/components/schemas/CheckOutVisitRequest"
               }
             }
           },

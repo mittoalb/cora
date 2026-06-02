@@ -417,7 +417,7 @@ class VisitCannotVoidError(Exception):
 
 
 class VisitCannotCheckInError(Exception):
-    """check_in_to_visit guard failed: status is not in the permitted source set."""
+    """check_in_visit guard failed: status is not in the permitted source set."""
 
     def __init__(
         self,
@@ -572,8 +572,8 @@ class Visit:
     who actually checked in / out, in which mode (physical | remote),
     and when. The Visit lifecycle FSM operates independently of
     presence per V6 explicit-gesture lock: the operator can drive the
-    full FSM without ever calling check_in_to_visit (and conversely,
-    check_in_to_visit requires Visit.status in {Arrived, InProgress,
+    full FSM without ever calling check_in_visit (and conversely,
+    check_in_visit requires Visit.status in {Arrived, InProgress,
     OnHold} -- never auto-transitions Planned -> Arrived).
 
     No actor field on the aggregate beyond inherited

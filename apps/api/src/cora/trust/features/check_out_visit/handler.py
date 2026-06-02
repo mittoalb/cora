@@ -1,4 +1,4 @@
-"""Application handler for the `check_out_from_visit` slice."""
+"""Application handler for the `check_out_visit` slice."""
 
 from typing import Protocol
 from uuid import UUID
@@ -6,16 +6,16 @@ from uuid import UUID
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.trust._visit_update_handler import make_visit_update_handler
-from cora.trust.features.check_out_from_visit.command import CheckOutFromVisit
-from cora.trust.features.check_out_from_visit.decider import decide
+from cora.trust.features.check_out_visit.command import CheckOutVisit
+from cora.trust.features.check_out_visit.decider import decide
 
 
 class Handler(Protocol):
-    """Callable interface every check_out_from_visit handler implements."""
+    """Callable interface every check_out_visit handler implements."""
 
     async def __call__(
         self,
-        command: CheckOutFromVisit,
+        command: CheckOutVisit,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -25,10 +25,10 @@ class Handler(Protocol):
 
 
 def bind(deps: Kernel) -> Handler:
-    """Build a check_out_from_visit handler closed over the shared deps."""
+    """Build a check_out_visit handler closed over the shared deps."""
     return make_visit_update_handler(
         deps,
-        command_name="CheckOutFromVisit",
-        log_prefix="check_out_from_visit",
+        command_name="CheckOutVisit",
+        log_prefix="check_out_visit",
         decide_fn=decide,
     )

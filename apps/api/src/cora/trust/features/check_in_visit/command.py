@@ -1,4 +1,4 @@
-"""The `CheckInToVisit` command -- intent dataclass.
+"""The `CheckInVisit` command -- intent dataclass.
 
 Adds an open presence entry for `actor_id` to a Visit. Requires
 `Visit.status in {Arrived, InProgress, OnHold}` -- presence is
@@ -13,7 +13,7 @@ from cora.trust.aggregates.visit import PresenceMode
 
 
 @dataclass(frozen=True)
-class CheckInToVisit:
+class CheckInVisit:
     """Add an open presence entry for `actor_id` in `mode` to the Visit."""
 
     visit_id: UUID

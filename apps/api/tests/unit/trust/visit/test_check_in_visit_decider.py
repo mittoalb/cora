@@ -1,4 +1,4 @@
-"""Decider tests for `check_in_to_visit` (presence + status guard)."""
+"""Decider tests for `check_in_visit` (presence + status guard)."""
 
 from dataclasses import replace
 from datetime import timedelta
@@ -15,8 +15,8 @@ from cora.trust.aggregates.visit import (
     VisitNotFoundError,
     VisitStatus,
 )
-from cora.trust.features.check_in_to_visit import CheckInToVisit
-from cora.trust.features.check_in_to_visit.decider import decide
+from cora.trust.features.check_in_visit import CheckInVisit
+from cora.trust.features.check_in_visit.decider import decide
 from tests.unit.trust.visit._fixtures import NOW, VISIT_ID, make_visit
 
 
@@ -31,7 +31,7 @@ def test_check_in_from_permitted_statuses_emits_visit_checked_in(
     actor_id = uuid4()
     events = decide(
         state=make_visit(from_status),
-        command=CheckInToVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.PHYSICAL),
+        command=CheckInVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.PHYSICAL),
         now=NOW,
     )
     [e] = events
@@ -44,7 +44,7 @@ def test_check_in_from_permitted_statuses_emits_visit_checked_in(
 def test_check_in_carries_remote_mode_through_to_event() -> None:
     events = decide(
         state=make_visit(VisitStatus.IN_PROGRESS),
-        command=CheckInToVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.REMOTE),
+        command=CheckInVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.REMOTE),
         now=NOW,
     )
     assert events[0].mode == "remote"
@@ -55,7 +55,7 @@ def test_check_in_raises_not_found_on_empty_state() -> None:
     with pytest.raises(VisitNotFoundError):
         decide(
             state=None,
-            command=CheckInToVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL),
+            command=CheckInVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL),
             now=NOW,
         )
 
@@ -67,7 +67,7 @@ def test_check_in_rejects_planned_status_does_not_auto_arrive() -> None:
     with pytest.raises(VisitCannotCheckInError):
         decide(
             state=make_visit(VisitStatus.PLANNED),
-            command=CheckInToVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL),
+            command=CheckInVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL),
             now=NOW,
         )
 
@@ -92,7 +92,7 @@ def test_check_in_rejects_duplicate_open_entry_for_same_actor() -> None:
     with pytest.raises(VisitAlreadyCheckedInError) as exc_info:
         decide(
             state=state_with_open_entry,
-            command=CheckInToVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.REMOTE),
+            command=CheckInVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.REMOTE),
             now=NOW,
         )
     assert exc_info.value.actor_id == actor_id
@@ -119,7 +119,7 @@ def test_check_in_allows_same_actor_after_check_out_multi_shift() -> None:
     )
     events = decide(
         state=state_with_closed_entry,
-        command=CheckInToVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.REMOTE),
+        command=CheckInVisit(visit_id=VISIT_ID, actor_id=actor_id, mode=PresenceMode.REMOTE),
         now=NOW,
     )
     assert len(events) == 1
