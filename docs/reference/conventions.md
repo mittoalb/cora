@@ -172,15 +172,23 @@ Multi-word verb-prep URL segments are banned. `take-control-of-surface` was the 
 
 ## Code identifier carve-outs
 
-The four field-shape patterns below are deliberate departures from rules that hold elsewhere. Each has a domain reason; each is enforced by an architecture fitness test so a future rename does not undo the carve-out by accident.
+The field-shape patterns below are deliberate departures from rules that hold elsewhere. Each has a domain reason; each is enforced by an architecture fitness test so a future rename does not undo the carve-out by accident.
 
 ### Boolean fields use bare adjectives
 
-The shape is `<adjective>: bool`, not `is_<adjective>: bool`. Most codebase examples follow this directly: `propagate_to_children`, `incomplete`, `accepted`, `archived`, `frozen`. The reader's "is" comes from the field-access read-aloud (`caution.propagate_to_children` reads as "the caution propagates to children"), not from a prefix that doubles the verb.
+The shape is `<adjective>: bool`, not `is_<adjective>: bool`. Aggregate-state and event-payload examples follow this directly: `Caution.propagate_to_children`, `Seal.rotate_seal_online_key.signed_by_offline_root`, `Procedure.conduct_procedure.succeeded`. DTO-side examples follow the same shape (`incomplete` on the `list_permissions` and `get_asset_integration_view` response DTOs). The reader's "is" comes from the field-access read-aloud (`caution.propagate_to_children` reads as "the caution propagates to children"), not from a prefix that doubles the verb.
 
 The `is_`/`has_`/`can_` prefix style is reserved for derived predicates (computed properties or helper methods that ask a yes-no question). It does not migrate onto stored field declarations.
 
 Outlier: `Actor.is_active` predates the convention. Bundled with the next Access BC revision per the audit memo Phase 6.
+
+### Cannot-transition errors are per-verb, not collapsed
+
+When an aggregate exposes multiple verbs that all reject from the same source-state set (`activate`, `decommission`, `relocate`, `enter_maintenance`, ...), each verb gets its OWN cannot-transition error class. The shape is `<Aggregate>Cannot<Verb>Error`, not a single `<Aggregate>CannotTransitionError` keyed on a `requested_transition: str` field. Asset and Visit are the canonical references: `AssetCannotActivateError` / `AssetCannotDecommissionError` / `AssetCannotEnterMaintenanceError` / `AssetCannotExitMaintenanceError` (asset state.py) and `VisitCannotTakeControlError` / `VisitCannotReleaseControlError` (visit state.py) follow the pattern with detailed docstrings.
+
+The collapsed shape was tried under the name `VisitCannotTransitionError` and split per-verb in commit `ce66d203c`. The verb name in the class IS the diagnostic: `try: ... except AssetCannotActivateError:` reads better than `if e.requested_transition == "activate": ...`, and handler-side mapping to HTTP 409 keys off `isinstance`, not a string field. The transition-name string is duplicate information the call site already knows.
+
+Carve-out: when the aggregate has only ONE such verb (and no foreseeable second), a bare `<Aggregate>CannotTransitionError` is acceptable. Promote to per-verb the moment a second transition slice lands.
 
 ### Supply uses `Marked<Status>` for operator-driven transitions
 
