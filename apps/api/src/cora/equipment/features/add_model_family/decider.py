@@ -1,6 +1,6 @@
 """Pure decider for the `AddModelFamily` command.
 
-Targeted mutation of `Model.declared_families`, not a lifecycle
+Targeted mutation of `Model.declared_family_ids`, not a lifecycle
 transition. Status is preserved (`Defined` stays `Defined`,
 `Versioned` stays `Versioned`); only `Deprecated` is rejected, on
 the same "deprecated catalog entry is frozen" rationale that drives
@@ -23,7 +23,7 @@ Strict-not-idempotent: re-adding a present family raises
 Invariants:
   - State must not be None -> ModelNotFoundError
   - State.status must not be Deprecated -> ModelCannotAddFamilyError
-  - family_id must not already be in state.declared_families
+  - family_id must not already be in state.declared_family_ids
     (strict-not-idempotent) -> ModelFamilyAlreadyPresentError
 """
 
@@ -51,7 +51,7 @@ def decide(
         raise ModelNotFoundError(command.model_id)
     if state.status is ModelStatus.DEPRECATED:
         raise ModelCannotAddFamilyError(state.id, current_status=state.status)
-    if command.family_id in state.declared_families:
+    if command.family_id in state.declared_family_ids:
         raise ModelFamilyAlreadyPresentError(state.id, command.family_id)
     return [
         ModelFamilyAdded(

@@ -1,6 +1,6 @@
 """Pure decider for the `RemoveModelFamily` command.
 
-Targeted mutation of `Model.declared_families`, not a lifecycle
+Targeted mutation of `Model.declared_family_ids`, not a lifecycle
 transition. Status is preserved (`Defined` stays `Defined`,
 `Versioned` stays `Versioned`); only `Deprecated` is rejected, on
 the same "deprecated catalog entry is frozen" rationale that drives
@@ -14,7 +14,7 @@ instead of the older shared "cannot be versioned" wording.
 
 The decider does NOT verify the referenced Family id resolves to a
 real Family stream; removal only requires that the id already sits
-in `declared_families`. The Family may have been deprecated or
+in `declared_family_ids`. The Family may have been deprecated or
 deleted in the Family registry, and removal still proceeds.
 
 Strict-not-idempotent: removing an absent family raises
@@ -24,7 +24,7 @@ Strict-not-idempotent: removing an absent family raises
 Invariants:
   - State must not be None -> ModelNotFoundError
   - State.status must not be Deprecated -> ModelCannotRemoveFamilyError
-  - family_id must already be in state.declared_families
+  - family_id must already be in state.declared_family_ids
     (strict-not-idempotent) -> ModelFamilyNotPresentError
 """
 
@@ -52,7 +52,7 @@ def decide(
         raise ModelNotFoundError(command.model_id)
     if state.status is ModelStatus.DEPRECATED:
         raise ModelCannotRemoveFamilyError(state.id, current_status=state.status)
-    if command.family_id not in state.declared_families:
+    if command.family_id not in state.declared_family_ids:
         raise ModelFamilyNotPresentError(state.id, command.family_id)
     return [
         ModelFamilyRemoved(

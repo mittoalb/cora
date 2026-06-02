@@ -8,7 +8,7 @@ Same shape as the locked cross-BC create-style command pattern
 
 Cross-BC concern: this handler loads `list_all_family_ids` from the
 Family read repo before invoking the decider, and verifies every
-element of `command.declared_families` resolves to a registered
+element of `command.declared_family_ids` resolves to a registered
 Family (including Deprecated). On miss, raises `FamilyNotFoundError`
 (404) carrying the FIRST missing Family id. Operators iterating
 through a multi-family catalog entry get a single missing id at
@@ -121,7 +121,7 @@ def bind(deps: Kernel) -> Handler:
         # Trigger to switch to per-id load: facility Family count crosses
         # ~500 OR p95 of define_model crosses 200ms.
         known_family_ids = set(await list_all_family_ids(deps.pool))
-        missing = command.declared_families - known_family_ids
+        missing = command.declared_family_ids - known_family_ids
         if missing:
             # Sorted for deterministic error ordering across runs; surface
             # the first missing id (operators get one at a time).

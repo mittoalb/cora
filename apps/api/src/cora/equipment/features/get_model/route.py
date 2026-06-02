@@ -8,7 +8,7 @@ deeper in the stack).
 
 Response carries the vendor-catalog state: the `manufacturer` is a
 nested `ManufacturerResponse` (required name plus optional opaque
-identifier and closed-enum scheme), `declared_families` is the
+identifier and closed-enum scheme), `declared_family_ids` is the
 sorted list of Family ids the catalog entry satisfies, `status` is
 the StrEnum string value (Defined / Versioned / Deprecated), and
 `version_tag` is the operator-supplied label of the most recent
@@ -59,7 +59,7 @@ class ModelResponse(BaseModel):
     `status` is the StrEnum's string value (Defined / Versioned /
     Deprecated). `version_tag` is the operator-supplied label of the
     most recent version_model call (null until first version).
-    `declared_families` serializes as a sorted list of Family UUIDs
+    `declared_family_ids` serializes as a sorted list of Family UUIDs
     (frozenset semantics in domain state, list at the JSON boundary;
     sorted by UUID string form for response determinism).
     """
@@ -68,7 +68,7 @@ class ModelResponse(BaseModel):
     name: str = Field(..., max_length=MODEL_NAME_MAX_LENGTH)
     manufacturer: ManufacturerResponse
     part_number: str = Field(..., max_length=MODEL_PART_NUMBER_MAX_LENGTH)
-    declared_families: list[UUID]
+    declared_family_ids: list[UUID]
     status: str
     version_tag: str | None
 
@@ -134,7 +134,7 @@ async def get_models(
             ),
         ),
         part_number=model.part_number.value,
-        declared_families=sorted(model.declared_families, key=str),
+        declared_family_ids=sorted(model.declared_family_ids, key=str),
         status=model.status.value,
         version_tag=model.version,
     )

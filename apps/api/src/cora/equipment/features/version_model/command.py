@@ -5,12 +5,12 @@ issue a new `version_tag` (free text like "v2", "2026-Q3") to mark a
 revision of the vendor-catalog entry.
 
 A new version IS a new declaration: `name`, `manufacturer`,
-`part_number`, `declared_families`, and `version_tag` are ALL required
+`part_number`, `declared_family_ids`, and `version_tag` are ALL required
 at version time. The supplied values REPLACE the prior catalog entry
 wholesale (no diff/merge semantics). Matches Family/Method/Plan/
 Practice replace-on-version precedent.
 
-`declared_families` must be non-empty: a catalog entry without any
+`declared_family_ids` must be non-empty: a catalog entry without any
 Family declaration has no instantiation contract, and a re-authored
 revision is no exception. Empty `frozenset()` is rejected by the
 decider with `InvalidDeclaredFamiliesError`.
@@ -34,5 +34,5 @@ class VersionModel:
     name: str
     manufacturer: Manufacturer
     part_number: str
-    declared_families: frozenset[UUID]
+    declared_family_ids: frozenset[UUID]
     version_tag: str

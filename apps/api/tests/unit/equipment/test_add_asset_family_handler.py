@@ -7,7 +7,7 @@ and the wire-equipment smoke.
 
 Also covers the cross-BC subset gate (Model binding): when an Asset
 carries a `model_id`, the handler loads the Model stream snapshot,
-asserts `Model.declared_families` is a subset of the post-add Asset
+asserts `Model.declared_family_ids` is a subset of the post-add Asset
 families, and raises `AssetModelMismatchError` otherwise. The Model load
 is monkeypatched per the model-binding design memo precedent (same
 shape as `update_asset_settings` Family-stream loads).
@@ -236,7 +236,7 @@ def test_wire_equipment_includes_add_asset_family() -> None:
 # Cross-BC subset gate (Asset.model_id binding).
 #
 # The handler loads the bound Model (when `state.model_id is not None`)
-# and asserts `Model.declared_families` is a subset of the post-add
+# and asserts `Model.declared_family_ids` is a subset of the post-add
 # `state.family_ids | {command.family_id}`. The four scenarios below
 # cover: (a) bound+satisfied success, (b) bound+violated mismatch,
 # (c) bound+Model-stream-missing raises ModelNotFoundError,
@@ -253,7 +253,7 @@ _PRIOR = datetime(2026, 5, 10, 11, 0, 0, tzinfo=UTC)
 def _make_model(
     *,
     model_id: UUID = _MODEL_ID,
-    declared_families: frozenset[UUID] | None = None,
+    declared_family_ids: frozenset[UUID] | None = None,
 ) -> Model:
     """Build a Model state aggregate for monkeypatched load_model."""
     return Model(
@@ -261,8 +261,8 @@ def _make_model(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=declared_families
-        if declared_families is not None
+        declared_family_ids=declared_family_ids
+        if declared_family_ids is not None
         else frozenset({_CAP_DECLARED}),
     )
 
@@ -311,7 +311,7 @@ async def test_handler_succeeds_when_bound_model_subset_is_satisfied_post_add(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Asset bound to Model; post-add family set is a superset of
-    `Model.declared_families` (the family being added is the only
+    `Model.declared_family_ids` (the family being added is the only
     declared family). Subset gate passes; event is appended as usual."""
     asset_id = UUID("01900000-0000-7000-8000-0000000c0d10")
     store = InMemoryEventStore()
@@ -323,7 +323,7 @@ async def test_handler_succeeds_when_bound_model_subset_is_satisfied_post_add(
     async def fake_load_model(event_store: EventStore, model_id: UUID) -> Model | None:
         _ = event_store
         captured["model_id"] = model_id
-        return _make_model(declared_families=frozenset({_CAP_DECLARED}))
+        return _make_model(declared_family_ids=frozenset({_CAP_DECLARED}))
 
     monkeypatch.setattr(add_asset_family_handler, "load_model", fake_load_model)
 
@@ -344,7 +344,7 @@ async def test_handler_raises_asset_model_mismatch_when_subset_is_violated_post_
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Asset bound to Model; post-add family set still missing one of
-    `Model.declared_families`. Subset gate fails; AssetModelMismatchError
+    `Model.declared_family_ids`. Subset gate fails; AssetModelMismatchError
     raised, no event appended, Asset stream stays at version 1."""
     asset_id = UUID("01900000-0000-7000-8000-0000000c0d11")
     store = InMemoryEventStore()
@@ -356,7 +356,7 @@ async def test_handler_raises_asset_model_mismatch_when_subset_is_violated_post_
     # {_CAP_EXTRA} which is not a superset of {_CAP_DECLARED, _CAP_EXTRA}.
     async def fake_load_model(event_store: EventStore, model_id: UUID) -> Model | None:
         _ = (event_store, model_id)
-        return _make_model(declared_families=frozenset({_CAP_DECLARED, _CAP_EXTRA}))
+        return _make_model(declared_family_ids=frozenset({_CAP_DECLARED, _CAP_EXTRA}))
 
     monkeypatch.setattr(add_asset_family_handler, "load_model", fake_load_model)
 
@@ -369,7 +369,7 @@ async def test_handler_raises_asset_model_mismatch_when_subset_is_violated_post_
 
     assert exc_info.value.asset_id == asset_id
     assert exc_info.value.model_id == _MODEL_ID
-    assert exc_info.value.declared_families == frozenset({_CAP_DECLARED, _CAP_EXTRA})
+    assert exc_info.value.declared_family_ids == frozenset({_CAP_DECLARED, _CAP_EXTRA})
     assert exc_info.value.asset_family_ids == frozenset({_CAP_EXTRA})
 
     _, version = await store.load("Asset", asset_id)

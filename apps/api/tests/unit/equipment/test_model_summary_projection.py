@@ -76,7 +76,7 @@ async def test_model_defined_inserts_row_with_defined_status() -> None:
             "name": "Aerotech ANT130-L",
             "manufacturer": {"name": "Aerotech"},
             "part_number": "ANT130-L",
-            "declared_families": [str(_FAMILY_A_ID)],
+            "declared_family_ids": [str(_FAMILY_A_ID)],
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -97,7 +97,7 @@ async def test_model_defined_inserts_row_with_defined_status() -> None:
     assert args.args[4] is None
     assert args.args[5] is None
     assert args.args[6] == "ANT130-L"
-    # declared_families bound as a Python list; asyncpg's jsonb codec
+    # declared_family_ids bound as a Python list; asyncpg's jsonb codec
     # encodes via json.dumps at the connection layer, so we pass the
     # raw list and let the codec do the encoding once (the previous
     # double-encode landed the value as a JSONB scalar string, which
@@ -126,7 +126,7 @@ async def test_model_defined_with_optional_manufacturer_identifier_pair() -> Non
                 "identifier_type": "ROR",
             },
             "part_number": "ANT130-L",
-            "declared_families": [str(_FAMILY_A_ID)],
+            "declared_family_ids": [str(_FAMILY_A_ID)],
             "occurred_at": _NOW.isoformat(),
             "version_tag": "rev-A",
         },
@@ -146,7 +146,7 @@ async def test_model_defined_with_optional_manufacturer_identifier_pair() -> Non
 @pytest.mark.unit
 async def test_model_versioned_updates_status_and_replaces_identity_block() -> None:
     """ModelVersioned writes status=Versioned AND replaces the full
-    identity block (name, manufacturer, part_number, declared_families,
+    identity block (name, manufacturer, part_number, declared_family_ids,
     version_tag) wholesale."""
     proj = ModelSummaryProjection()
     conn = AsyncMock()
@@ -157,7 +157,7 @@ async def test_model_versioned_updates_status_and_replaces_identity_block() -> N
             "name": "Aerotech ANT130-LZS",
             "manufacturer": {"name": "Aerotech"},
             "part_number": "ANT130-LZS",
-            "declared_families": [str(_FAMILY_A_ID), str(_FAMILY_B_ID)],
+            "declared_family_ids": [str(_FAMILY_A_ID), str(_FAMILY_B_ID)],
             "version_tag": "v2.1.0",
             "occurred_at": _NOW.isoformat(),
         },
@@ -173,7 +173,7 @@ async def test_model_versioned_updates_status_and_replaces_identity_block() -> N
     assert "name = $2" in sql
     assert "manufacturer_name = $3" in sql
     assert "part_number = $6" in sql
-    assert "declared_families = $7" in sql
+    assert "declared_family_ids = $7" in sql
     assert "version_tag = $8" in sql
     assert args.args[1] == _MODEL_ID
     assert args.args[2] == "Aerotech ANT130-LZS"
@@ -209,15 +209,15 @@ async def test_model_deprecated_updates_status_and_sets_reason() -> None:
     # Vendor-key + identity columns NOT touched on Deprecated.
     assert "manufacturer_name" not in sql
     assert "part_number" not in sql
-    assert "declared_families" not in sql
+    assert "declared_family_ids" not in sql
     assert "version_tag" not in sql
     assert args.args[1] == _MODEL_ID
     assert args.args[2] == "Superseded by ANT130-LZS"
 
 
 @pytest.mark.unit
-async def test_model_family_added_appends_to_jsonb_declared_families() -> None:
-    """ModelFamilyAdded re-aggregates the JSONB declared_families
+async def test_model_family_added_appends_to_jsonb_declared_family_ids() -> None:
+    """ModelFamilyAdded re-aggregates the JSONB declared_family_ids
     column via pure SQL (UNION + jsonb_agg ORDER BY) to append a
     single family_id and preserve canonical sort order."""
     proj = ModelSummaryProjection()
@@ -237,7 +237,7 @@ async def test_model_family_added_appends_to_jsonb_declared_families() -> None:
     assert args is not None
     sql = args.args[0]
     assert "UPDATE proj_equipment_model_summary" in sql
-    assert "declared_families" in sql
+    assert "declared_family_ids" in sql
     assert "jsonb_array_elements_text" in sql
     assert "UNION" in sql
     assert "jsonb_agg" in sql
@@ -247,7 +247,7 @@ async def test_model_family_added_appends_to_jsonb_declared_families() -> None:
 
 @pytest.mark.unit
 async def test_model_family_removed_drops_family_from_jsonb() -> None:
-    """ModelFamilyRemoved re-aggregates the JSONB declared_families
+    """ModelFamilyRemoved re-aggregates the JSONB declared_family_ids
     column to drop a single family_id while preserving sort order."""
     proj = ModelSummaryProjection()
     conn = AsyncMock()
@@ -266,7 +266,7 @@ async def test_model_family_removed_drops_family_from_jsonb() -> None:
     assert args is not None
     sql = args.args[0]
     assert "UPDATE proj_equipment_model_summary" in sql
-    assert "declared_families" in sql
+    assert "declared_family_ids" in sql
     assert "jsonb_array_elements_text" in sql
     # Filter clause drops the removed id, no UNION.
     assert "WHERE elem <> $2::text" in sql

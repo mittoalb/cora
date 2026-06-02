@@ -45,7 +45,7 @@ def _define_model_via_tool(client: TestClient, headers: dict[str, str]) -> UUID:
                     "name": "Aerotech ANT130-L",
                     "manufacturer": {"name": "Aerotech"},
                     "part_number": "ANT130-L",
-                    "declared_families": [str(_FIXED_FAMILY_ID)],
+                    "declared_family_ids": [str(_FIXED_FAMILY_ID)],
                 },
             },
         },
@@ -103,7 +103,7 @@ def test_mcp_get_model_tool_returns_structured_model_for_known_id(
         "identifier_type": None,
     }
     assert structured["part_number"] == "ANT130-L"
-    assert structured["declared_families"] == [str(_FIXED_FAMILY_ID)]
+    assert structured["declared_family_ids"] == [str(_FIXED_FAMILY_ID)]
     assert structured["status"] == "Defined"
     # Null until version_model runs (no initial version_tag supplied).
     assert structured["version_tag"] is None

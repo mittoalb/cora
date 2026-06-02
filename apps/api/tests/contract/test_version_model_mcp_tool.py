@@ -91,7 +91,7 @@ def test_mcp_version_model_tool_returns_iserror_for_unknown_model() -> None:
                         "name": "ANT130-L rev-B",
                         "manufacturer": {"name": "Aerotech"},
                         "part_number": "ANT130-L-B",
-                        "declared_families": [family_id],
+                        "declared_family_ids": [family_id],
                         "version_tag": "v2",
                     },
                 },

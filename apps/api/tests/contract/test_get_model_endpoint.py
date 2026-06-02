@@ -3,13 +3,13 @@
 """Contract tests for `GET /models/{model_id}`.
 
 Mirrors `test_get_family_endpoint.py`. Pinned response shape:
-`{model_id, name, manufacturer, part_number, declared_families,
+`{model_id, name, manufacturer, part_number, declared_family_ids,
 status, version_tag}` where `manufacturer` is the nested
 `ManufacturerResponse` and `status` is the StrEnum's string value
 (Defined / Versioned / Deprecated).
 
 The Model upstream `define_model` slice enforces a cross-BC precondition:
-every entry in `declared_families` must resolve via the Family read
+every entry in `declared_family_ids` must resolve via the Family read
 repo's `list_all_family_ids`, which is pool-backed and returns `[]` in the
 in-memory TestClient harness. We monkeypatch the symbol imported into
 the upstream handler module so the seed `POST /models` call succeeds
@@ -48,7 +48,7 @@ def _define_model(client: TestClient) -> UUID:
             "name": "Aerotech ANT130-L",
             "manufacturer": {"name": "Aerotech"},
             "part_number": "ANT130-L",
-            "declared_families": [str(_FIXED_FAMILY_ID)],
+            "declared_family_ids": [str(_FIXED_FAMILY_ID)],
         },
     )
     assert response.status_code == 201, response.text
@@ -75,7 +75,7 @@ def test_get_model_returns_200_with_defined_status_for_new_model(
             "identifier_type": None,
         },
         "part_number": "ANT130-L",
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
         "status": "Defined",
         # Null until version_model runs (no initial version_tag supplied).
         "version_tag": None,

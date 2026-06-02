@@ -2,7 +2,7 @@
 
 Multi-source-state guard: `Defined | Versioned -> Versioned`. Both
 source states are valid; only Deprecated is rejected. Bounded-text VOs
-(name, part_number, version_tag) and `declared_families` cardinality
+(name, part_number, version_tag) and `declared_family_ids` cardinality
 are validated defensively in the decider so direct callers get the same
 protection as API-boundary callers.
 """
@@ -43,7 +43,7 @@ def _model(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         status=status,
         version=version,
     )
@@ -55,15 +55,15 @@ def _command(
     name: str = "Aerotech ANT130-L rev-B",
     part_number: str = "ANT130-L-B",
     version_tag: str = "v2",
-    declared_families: frozenset[object] | None = None,
+    declared_family_ids: frozenset[object] | None = None,
 ) -> VersionModel:
     return VersionModel(
         model_id=model_id,  # type: ignore[arg-type]
         name=name,
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=part_number,
-        declared_families=declared_families  # type: ignore[arg-type]
-        if declared_families is not None
+        declared_family_ids=declared_family_ids  # type: ignore[arg-type]
+        if declared_family_ids is not None
         else frozenset({uuid4()}),
         version_tag=version_tag,
     )
@@ -89,7 +89,7 @@ def test_decide_emits_model_versioned_for_each_allowed_source_status(
             name="Aerotech ANT130-L rev-B",
             part_number="ANT130-L-B",
             version_tag="v2",
-            declared_families=new_families,
+            declared_family_ids=new_families,
         ),
         now=_NOW,
     )
@@ -99,7 +99,7 @@ def test_decide_emits_model_versioned_for_each_allowed_source_status(
             name="Aerotech ANT130-L rev-B",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L-B",
-            declared_families=new_families,
+            declared_family_ids=new_families,
             version_tag="v2",
             occurred_at=_NOW,
         )
@@ -135,12 +135,12 @@ def test_decide_raises_cannot_version_for_deprecated_status() -> None:
 
 
 @pytest.mark.unit
-def test_decide_rejects_empty_declared_families() -> None:
+def test_decide_rejects_empty_declared_family_ids() -> None:
     state = _model()
     with pytest.raises(InvalidDeclaredFamiliesError):
         version_model.decide(
             state=state,
-            command=_command(state.id, declared_families=frozenset()),
+            command=_command(state.id, declared_family_ids=frozenset()),
             now=_NOW,
         )
 

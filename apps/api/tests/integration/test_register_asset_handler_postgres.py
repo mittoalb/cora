@@ -165,7 +165,7 @@ async def test_register_asset_persists_model_binding_to_postgres(
             name="EigerX-9M",
             manufacturer=Manufacturer(name=ManufacturerName("Dectris")),
             part_number="EX9M-001",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

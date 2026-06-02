@@ -2,15 +2,15 @@
 
 Mirrors the Recipe BC `define_capability` decider-PBT pattern on an
 Equipment BC create-style command with bounded-text VOs, an optional
-paired manufacturer identifier, and a non-empty `declared_families`
+paired manufacturer identifier, and a non-empty `declared_family_ids`
 frozenset invariant. Universal claims across generated inputs:
 
   - state=None + valid command emits a single ModelDefined with the
     injected new_id / now and the command's manufacturer / parts /
-    declared_families intact.
+    declared_family_ids intact.
   - state=Model always raises ModelAlreadyExistsError, carrying the
     pre-existing model_id.
-  - Empty `declared_families` always raises InvalidDeclaredFamiliesError.
+  - Empty `declared_family_ids` always raises InvalidDeclaredFamiliesError.
   - Empty, whitespace-only, or over-long `name` always raises
     InvalidModelNameError (via the ModelName VO).
   - Empty, whitespace-only, or over-long `part_number` always raises
@@ -132,14 +132,14 @@ def _command(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None = None,
 ) -> DefineModel:
     return DefineModel(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
 
@@ -150,7 +150,7 @@ def _model(model_id: UUID) -> Model:
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=frozenset({model_id}),
+        declared_family_ids=frozenset({model_id}),
     )
 
 
@@ -159,7 +159,7 @@ def _model(model_id: UUID) -> Model:
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -168,7 +168,7 @@ def test_define_model_emits_exactly_one_event_with_injected_fields(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -178,7 +178,7 @@ def test_define_model_emits_exactly_one_event_with_injected_fields(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     events = define_model.decide(state=None, command=command, now=now, new_id=new_id)
@@ -188,7 +188,7 @@ def test_define_model_emits_exactly_one_event_with_injected_fields(
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             occurred_at=now,
             version_tag=version_tag,
         )
@@ -201,7 +201,7 @@ def test_define_model_emits_exactly_one_event_with_injected_fields(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -211,7 +211,7 @@ def test_define_model_on_existing_state_always_raises_already_exists(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -221,7 +221,7 @@ def test_define_model_on_existing_state_always_raises_already_exists(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(ModelAlreadyExistsError) as exc:
@@ -238,7 +238,7 @@ def test_define_model_on_existing_state_always_raises_already_exists(
     now=aware_datetimes(),
     new_id=st.uuids(),
 )
-def test_define_model_with_empty_declared_families_always_raises(
+def test_define_model_with_empty_declared_family_ids_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
@@ -246,12 +246,12 @@ def test_define_model_with_empty_declared_families_always_raises(
     now: datetime,
     new_id: UUID,
 ) -> None:
-    """Empty declared_families -> InvalidDeclaredFamiliesError, regardless of other fields."""
+    """Empty declared_family_ids -> InvalidDeclaredFamiliesError, regardless of other fields."""
     command = _command(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=frozenset[UUID](),
+        declared_family_ids=frozenset[UUID](),
         version_tag=version_tag,
     )
     with pytest.raises(InvalidDeclaredFamiliesError):
@@ -263,7 +263,7 @@ def test_define_model_with_empty_declared_families_always_raises(
     name=_invalid_bounded_text(MODEL_NAME_MAX_LENGTH),
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -272,7 +272,7 @@ def test_define_model_with_invalid_name_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -282,7 +282,7 @@ def test_define_model_with_invalid_name_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidModelNameError):
@@ -294,7 +294,7 @@ def test_define_model_with_invalid_name_always_raises(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_invalid_bounded_text(MODEL_PART_NUMBER_MAX_LENGTH),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -303,7 +303,7 @@ def test_define_model_with_invalid_part_number_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -313,7 +313,7 @@ def test_define_model_with_invalid_part_number_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidPartNumberError):
@@ -325,7 +325,7 @@ def test_define_model_with_invalid_part_number_always_raises(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_invalid_bounded_text(MODEL_VERSION_TAG_MAX_LENGTH),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -334,7 +334,7 @@ def test_define_model_with_invalid_version_tag_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
     new_id: UUID,
@@ -347,7 +347,7 @@ def test_define_model_with_invalid_version_tag_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidModelVersionTagError):
@@ -359,7 +359,7 @@ def test_define_model_with_invalid_version_tag_always_raises(
     name=_padded_text(_NAME),
     manufacturer=_manufacturers(),
     part_number=_padded_text(_PART_NUMBER),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -368,7 +368,7 @@ def test_define_model_event_carries_trimmed_name_and_part_number(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -384,7 +384,7 @@ def test_define_model_event_carries_trimmed_name_and_part_number(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     events = define_model.decide(state=None, command=command, now=now, new_id=new_id)
@@ -399,7 +399,7 @@ def test_define_model_event_carries_trimmed_name_and_part_number(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=st.one_of(st.none(), _VERSION_TAG),
     now=aware_datetimes(),
     new_id=st.uuids(),
@@ -408,7 +408,7 @@ def test_define_model_is_pure_same_input_same_output(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str | None,
     now: datetime,
     new_id: UUID,
@@ -418,7 +418,7 @@ def test_define_model_is_pure_same_input_same_output(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     first = define_model.decide(state=None, command=command, now=now, new_id=new_id)

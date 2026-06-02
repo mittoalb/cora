@@ -1,14 +1,14 @@
 """Property-based tests for `remove_model_family.decide` (Equipment BC).
 
-Targeted mutation of `Model.declared_families`; status is preserved
+Targeted mutation of `Model.declared_family_ids`; status is preserved
 across the mutation and only `Deprecated` is rejected (via the
 per-verb `ModelCannotRemoveFamilyError` gate). Universal claims
 across generated inputs:
 
-  - state in {Defined, Versioned} + family_id IN declared_families
+  - state in {Defined, Versioned} + family_id IN declared_family_ids
     emits exactly one ModelFamilyRemoved with the injected `now`
     timestamp.
-  - family_id NOT in declared_families always raises
+  - family_id NOT in declared_family_ids always raises
     ModelFamilyNotPresentError carrying the model + family id.
   - state=None always raises ModelNotFoundError carrying the
     command's model_id.
@@ -56,14 +56,14 @@ def _model(
     model_id: UUID,
     *,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
 ) -> Model:
     return Model(
         id=model_id,
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         status=status,
         version="v0" if status is ModelStatus.VERSIONED else None,
     )
@@ -73,24 +73,24 @@ def _model(
 @given(
     model_id=st.uuids(),
     status=_MUTABLE_STATUS,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     now=aware_datetimes(),
     pick_index=st.integers(min_value=0, max_value=4),
 )
 def test_remove_model_family_emits_one_event_for_present_family(
     model_id: UUID,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     now: datetime,
     pick_index: int,
 ) -> None:
-    """Mutable source + family_id IN declared_families -> exactly one
+    """Mutable source + family_id IN declared_family_ids -> exactly one
     ModelFamilyRemoved with the injected `now`."""
     # Pick a deterministic family id from the existing set (declared has
     # at least one member, so the modulo always lands).
-    declared_list = sorted(declared_families, key=str)
+    declared_list = sorted(declared_family_ids, key=str)
     target = declared_list[pick_index % len(declared_list)]
-    state = _model(model_id, status=status, declared_families=declared_families)
+    state = _model(model_id, status=status, declared_family_ids=declared_family_ids)
     command = RemoveModelFamily(model_id=model_id, family_id=target)
     events = remove_model_family.decide(state=state, command=command, now=now)
     assert events == [ModelFamilyRemoved(model_id=model_id, family_id=target, occurred_at=now)]
@@ -100,21 +100,21 @@ def test_remove_model_family_emits_one_event_for_present_family(
 @given(
     model_id=st.uuids(),
     status=_MUTABLE_STATUS,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     absent_family=st.uuids(),
     now=aware_datetimes(),
 )
 def test_remove_model_family_with_absent_family_always_raises(
     model_id: UUID,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     absent_family: UUID,
     now: datetime,
 ) -> None:
-    """family_id NOT in declared_families -> ModelFamilyNotPresentError."""
+    """family_id NOT in declared_family_ids -> ModelFamilyNotPresentError."""
     # Ensure the absent family is genuinely missing from the prior set.
-    declared_without_absent = declared_families - {absent_family}
-    state = _model(model_id, status=status, declared_families=declared_without_absent)
+    declared_without_absent = declared_family_ids - {absent_family}
+    state = _model(model_id, status=status, declared_family_ids=declared_without_absent)
     command = RemoveModelFamily(model_id=model_id, family_id=absent_family)
     with pytest.raises(ModelFamilyNotPresentError) as exc:
         remove_model_family.decide(state=state, command=command, now=now)
@@ -143,13 +143,13 @@ def test_remove_model_family_on_empty_state_always_raises_not_found(
 @pytest.mark.unit
 @given(
     model_id=st.uuids(),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     family_id=st.uuids(),
     now=aware_datetimes(),
 )
 def test_remove_model_family_on_deprecated_state_always_raises_cannot_remove_family(
     model_id: UUID,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     family_id: UUID,
     now: datetime,
 ) -> None:
@@ -158,7 +158,7 @@ def test_remove_model_family_on_deprecated_state_always_raises_cannot_remove_fam
     state = _model(
         model_id,
         status=ModelStatus.DEPRECATED,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
     )
     command = RemoveModelFamily(model_id=model_id, family_id=family_id)
     with pytest.raises(ModelCannotRemoveFamilyError) as exc:

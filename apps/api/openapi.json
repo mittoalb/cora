@@ -292,7 +292,7 @@
         "description": "Body for `POST /models/{model_id}/families`.",
         "properties": {
           "family_id": {
-            "description": "Family id to add to the Model.declared_families set.",
+            "description": "Family id to add to the Model.declared_family_ids set.",
             "format": "uuid",
             "title": "Family Id",
             "type": "string"
@@ -4239,14 +4239,14 @@
       "DefineModelRequest": {
         "description": "Body for `POST /models`.",
         "properties": {
-          "declared_families": {
+          "declared_family_ids": {
             "description": "Family ids the catalog entry satisfies. At least one required; deduplicated server-side.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "minItems": 1,
-            "title": "Declared Families",
+            "title": "Declared Family Ids",
             "type": "array"
           },
           "manufacturer": {
@@ -4286,7 +4286,7 @@
           "name",
           "manufacturer",
           "part_number",
-          "declared_families"
+          "declared_family_ids"
         ],
         "title": "DefineModelRequest",
         "type": "object"
@@ -6054,14 +6054,14 @@
         "type": "object"
       },
       "ModelResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version_tag` is the operator-supplied label of the\nmost recent version_model call (null until first version).\n`declared_families` serializes as a sorted list of Family UUIDs\n(frozenset semantics in domain state, list at the JSON boundary;\nsorted by UUID string form for response determinism).",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version_tag` is the operator-supplied label of the\nmost recent version_model call (null until first version).\n`declared_family_ids` serializes as a sorted list of Family UUIDs\n(frozenset semantics in domain state, list at the JSON boundary;\nsorted by UUID string form for response determinism).",
         "properties": {
-          "declared_families": {
+          "declared_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Declared Families",
+            "title": "Declared Family Ids",
             "type": "array"
           },
           "manufacturer": {
@@ -6103,7 +6103,7 @@
           "name",
           "manufacturer",
           "part_number",
-          "declared_families",
+          "declared_family_ids",
           "status",
           "version_tag"
         ],
@@ -11049,14 +11049,14 @@
       "VersionModelRequest": {
         "description": "Body for `POST /models/{model_id}/versions`.\n\nA new version IS a new declaration: every field REPLACES the prior\nvalue wholesale (no diff/merge semantics). `version_tag` is\nREQUIRED here, unlike `define_model` where it is optional.",
         "properties": {
-          "declared_families": {
+          "declared_family_ids": {
             "description": "Replacement Family ids the catalog entry satisfies at this version. At least one required; deduplicated server-side.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "minItems": 1,
-            "title": "Declared Families",
+            "title": "Declared Family Ids",
             "type": "array"
           },
           "manufacturer": {
@@ -11089,7 +11089,7 @@
           "name",
           "manufacturer",
           "part_number",
-          "declared_families",
+          "declared_family_ids",
           "version_tag"
         ],
         "title": "VersionModelRequest",
@@ -24073,13 +24073,13 @@
                 }
               }
             },
-            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is already in the Model's declared_families set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is already in the Model's declared_family_ids set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
           },
           "422": {
             "description": "Path parameter or request body failed schema validation."
           }
         },
-        "summary": "Add a Family to an existing Model's declared_families set",
+        "summary": "Add a Family to an existing Model's declared_family_ids set",
         "tags": [
           "equipment"
         ]
@@ -24102,12 +24102,12 @@
             }
           },
           {
-            "description": "Family id to remove from the Model.declared_families set.",
+            "description": "Family id to remove from the Model.declared_family_ids set.",
             "in": "path",
             "name": "family_id",
             "required": true,
             "schema": {
-              "description": "Family id to remove from the Model.declared_families set.",
+              "description": "Family id to remove from the Model.declared_family_ids set.",
               "format": "uuid",
               "title": "Family Id",
               "type": "string"
@@ -24165,13 +24165,13 @@
                 }
               }
             },
-            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is not in the Model's declared_families set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is not in the Model's declared_family_ids set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
           },
           "422": {
             "description": "Path parameter failed schema validation."
           }
         },
-        "summary": "Remove a Family from an existing Model's declared_families set",
+        "summary": "Remove a Family from an existing Model's declared_family_ids set",
         "tags": [
           "equipment"
         ]
@@ -24235,7 +24235,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (for example whitespace-only name, whitespace-only part_number, whitespace-only version_tag, or empty declared_families)."
+            "description": "Domain invariant violated (for example whitespace-only name, whitespace-only part_number, whitespace-only version_tag, or empty declared_family_ids)."
           },
           "403": {
             "content": {

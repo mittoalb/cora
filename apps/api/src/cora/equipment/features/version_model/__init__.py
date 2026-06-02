@@ -9,7 +9,7 @@ Module-as-namespace surface:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({rotary_stage_family_id}),
+        declared_family_ids=frozenset({rotary_stage_family_id}),
         version_tag="v2",
     )
     handler = version_model.bind(deps)

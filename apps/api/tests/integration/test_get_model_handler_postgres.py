@@ -102,7 +102,7 @@ async def test_get_model_loads_full_history_from_real_postgres(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -114,7 +114,7 @@ async def test_get_model_loads_full_history_from_real_postgres(
             name="Aerotech ANT130-LZS",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-LZS",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
             version_tag="v2",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -141,7 +141,7 @@ async def test_get_model_loads_full_history_from_real_postgres(
     assert model.status is ModelStatus.VERSIONED
     assert model.version == "v2"
     # Family B was appended via add_model_family after the version.
-    assert model.declared_families == frozenset({family_a_id, family_b_id})
+    assert model.declared_family_ids == frozenset({family_a_id, family_b_id})
 
 
 @pytest.mark.integration

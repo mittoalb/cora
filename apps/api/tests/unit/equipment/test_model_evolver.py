@@ -30,7 +30,7 @@ def _defined(family_id: object | None = None) -> ModelDefined:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family}),
+        declared_family_ids=frozenset({family}),
         occurred_at=_now(),
     )
 
@@ -43,7 +43,7 @@ def test_model_defined_sets_genesis_state() -> None:
     assert state.name.value == "Aerotech ANT130-L"
     assert state.status is ModelStatus.DEFINED
     assert state.version is None
-    assert state.declared_families == event.declared_families
+    assert state.declared_family_ids == event.declared_family_ids
 
 
 @pytest.mark.unit
@@ -53,7 +53,7 @@ def test_model_defined_with_initial_version_tag_carries_through() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         occurred_at=_now(),
         version_tag="rev-A",
     )
@@ -70,7 +70,7 @@ def test_model_versioned_transitions_from_defined() -> None:
         name="Aerotech ANT130-L (rev B)",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech Newport JV")),
         part_number="ANT130-L-B",
-        declared_families=frozenset({new_family}),
+        declared_family_ids=frozenset({new_family}),
         version_tag="rev-B",
         occurred_at=_now(),
     )
@@ -82,7 +82,7 @@ def test_model_versioned_transitions_from_defined() -> None:
     assert state.name.value == "Aerotech ANT130-L (rev B)"
     assert state.manufacturer.name.value == "Aerotech Newport JV"
     assert state.part_number.value == "ANT130-L-B"
-    assert state.declared_families == frozenset({new_family})
+    assert state.declared_family_ids == frozenset({new_family})
 
 
 @pytest.mark.unit
@@ -93,7 +93,7 @@ def test_model_versioned_transitions_from_versioned() -> None:
         name="A",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-B",
         occurred_at=_now(),
     )
@@ -102,7 +102,7 @@ def test_model_versioned_transitions_from_versioned() -> None:
         name="A",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-C",
         occurred_at=_now(),
     )
@@ -123,8 +123,8 @@ def test_model_deprecated_transitions_from_defined() -> None:
     state = fold([defined, deprecated])
     assert state is not None
     assert state.status is ModelStatus.DEPRECATED
-    # declared_families preserved across deprecation (audit trail).
-    assert state.declared_families == defined.declared_families
+    # declared_family_ids preserved across deprecation (audit trail).
+    assert state.declared_family_ids == defined.declared_family_ids
 
 
 @pytest.mark.unit
@@ -135,7 +135,7 @@ def test_model_deprecated_transitions_from_versioned() -> None:
         name="A",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-B",
         occurred_at=_now(),
     )
@@ -147,18 +147,18 @@ def test_model_deprecated_transitions_from_versioned() -> None:
 
 
 @pytest.mark.unit
-def test_model_family_added_extends_declared_families() -> None:
+def test_model_family_added_extends_declared_family_ids() -> None:
     defined = _defined()
     extra = uuid4()
     added = ModelFamilyAdded(model_id=defined.model_id, family_id=extra, occurred_at=_now())
     state = fold([defined, added])
     assert state is not None
     assert state.status is ModelStatus.DEFINED  # status preserved on targeted mutation
-    assert state.declared_families == defined.declared_families | {extra}
+    assert state.declared_family_ids == defined.declared_family_ids | {extra}
 
 
 @pytest.mark.unit
-def test_model_family_removed_shrinks_declared_families() -> None:
+def test_model_family_removed_shrinks_declared_family_ids() -> None:
     family_a = uuid4()
     family_b = uuid4()
     defined = ModelDefined(
@@ -166,7 +166,7 @@ def test_model_family_removed_shrinks_declared_families() -> None:
         name="N",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         occurred_at=_now(),
     )
     removed = ModelFamilyRemoved(
@@ -176,7 +176,7 @@ def test_model_family_removed_shrinks_declared_families() -> None:
     )
     state = fold([defined, removed])
     assert state is not None
-    assert state.declared_families == frozenset({family_b})
+    assert state.declared_family_ids == frozenset({family_b})
 
 
 @pytest.mark.unit
@@ -186,7 +186,7 @@ def test_versioning_empty_stream_raises() -> None:
         name="N",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-B",
         occurred_at=_now(),
     )

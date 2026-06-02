@@ -5,15 +5,15 @@ Exercises every Model-aggregate event handler in
 real projection table:
 
   - ModelDefined        -> INSERT row with status=Defined, manufacturer
-                           flat columns, sorted declared_families JSONB
+                           flat columns, sorted declared_family_ids JSONB
   - ModelVersioned      -> UPDATE wholesale (name / manufacturer /
-                           part_number / declared_families / version_tag)
+                           part_number / declared_family_ids / version_tag)
                            with status=Versioned
   - ModelDeprecated     -> UPDATE status=Deprecated + deprecation_reason,
                            vendor-key columns preserved for audit
-  - ModelFamilyAdded    -> UPDATE declared_families appending the new
+  - ModelFamilyAdded    -> UPDATE declared_family_ids appending the new
                            family_id and re-sorting
-  - ModelFamilyRemoved  -> UPDATE declared_families dropping the family_id
+  - ModelFamilyRemoved  -> UPDATE declared_family_ids dropping the family_id
                            while preserving the sorted-array shape
 
 Plus the load-bearing fitness pin for the
@@ -74,7 +74,7 @@ async def _fetch_summary(
             SELECT model_id, name,
                    manufacturer_name, manufacturer_identifier,
                    manufacturer_identifier_type,
-                   part_number, declared_families,
+                   part_number, declared_family_ids,
                    status, version_tag, deprecation_reason
             FROM proj_equipment_model_summary
             WHERE model_id = $1
@@ -128,7 +128,7 @@ async def test_model_defined_inserts_summary_row(
     db_pool: asyncpg.Pool,
 ) -> None:
     """ModelDefined arm: INSERT row with status=Defined, manufacturer
-    flat columns, sorted declared_families JSONB, version_tag from
+    flat columns, sorted declared_family_ids JSONB, version_tag from
     payload when present."""
     family_id = UUID("01900000-0000-7000-8000-0000000ca701")
     family_event_id = UUID("01900000-0000-7000-8000-0000000ca70e")
@@ -156,7 +156,7 @@ async def test_model_defined_inserts_summary_row(
                 identifier_type=ManufacturerIdentifierType.ROR,
             ),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
             version_tag="rev-A",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -171,7 +171,7 @@ async def test_model_defined_inserts_summary_row(
     assert row["manufacturer_identifier"] == "https://ror.org/02jbv0t02"
     assert row["manufacturer_identifier_type"] == "ROR"
     assert row["part_number"] == "ANT130-L"
-    assert _decode_jsonb_array(row["declared_families"]) == [str(family_id)]
+    assert _decode_jsonb_array(row["declared_family_ids"]) == [str(family_id)]
     assert row["status"] == "Defined"
     assert row["version_tag"] == "rev-A"
     assert row["deprecation_reason"] is None
@@ -182,7 +182,7 @@ async def test_model_versioned_replaces_summary_wholesale(
     db_pool: asyncpg.Pool,
 ) -> None:
     """ModelVersioned arm: UPDATE wholesale replaces name, manufacturer
-    columns, part_number, declared_families JSONB, version_tag; status
+    columns, part_number, declared_family_ids JSONB, version_tag; status
     flips to Versioned."""
     family_a_id = UUID("01900000-0000-7000-8000-0000000ca801")
     family_a_event_id = UUID("01900000-0000-7000-8000-0000000ca80e")
@@ -222,7 +222,7 @@ async def test_model_versioned_replaces_summary_wholesale(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -237,7 +237,7 @@ async def test_model_versioned_replaces_summary_wholesale(
                 identifier_type=ManufacturerIdentifierType.ROR,
             ),
             part_number="ANT130-LZS",
-            declared_families=frozenset({family_a_id, family_b_id}),
+            declared_family_ids=frozenset({family_a_id, family_b_id}),
             version_tag="rev-B",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -253,7 +253,7 @@ async def test_model_versioned_replaces_summary_wholesale(
     assert row["manufacturer_identifier_type"] == "ROR"
     assert row["part_number"] == "ANT130-LZS"
     sorted_families = sorted([str(family_a_id), str(family_b_id)])
-    assert _decode_jsonb_array(row["declared_families"]) == sorted_families
+    assert _decode_jsonb_array(row["declared_family_ids"]) == sorted_families
     assert row["status"] == "Versioned"
     assert row["version_tag"] == "rev-B"
 
@@ -264,7 +264,7 @@ async def test_model_deprecated_sets_reason_and_preserves_vendor_key(
 ) -> None:
     """ModelDeprecated arm: UPDATE status=Deprecated + deprecation_reason;
     vendor-key columns (manufacturer_name, part_number) and
-    declared_families preserved so the audit trail of "what was
+    declared_family_ids preserved so the audit trail of "what was
     deprecated" stays answerable."""
     family_id = UUID("01900000-0000-7000-8000-0000000ca901")
     family_event_id = UUID("01900000-0000-7000-8000-0000000ca90e")
@@ -295,7 +295,7 @@ async def test_model_deprecated_sets_reason_and_preserves_vendor_key(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -313,14 +313,14 @@ async def test_model_deprecated_sets_reason_and_preserves_vendor_key(
     assert row["deprecation_reason"] == "superseded by ANT130-LZS"
     assert row["manufacturer_name"] == "Aerotech"
     assert row["part_number"] == "ANT130-L"
-    assert _decode_jsonb_array(row["declared_families"]) == [str(family_id)]
+    assert _decode_jsonb_array(row["declared_family_ids"]) == [str(family_id)]
 
 
 @pytest.mark.integration
 async def test_model_family_added_appends_and_resorts(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """ModelFamilyAdded arm: declared_families gains family_id and is
+    """ModelFamilyAdded arm: declared_family_ids gains family_id and is
     re-sorted to match the canonical sorted-string-array shape that
     event payloads carry."""
     family_a_id = UUID("01900000-0000-7000-8000-0000000caa01")
@@ -361,7 +361,7 @@ async def test_model_family_added_appends_and_resorts(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -376,14 +376,14 @@ async def test_model_family_added_appends_and_resorts(
     row = await _fetch_summary(db_pool, model_id)
     assert row is not None
     sorted_families = sorted([str(family_a_id), str(family_b_id)])
-    assert _decode_jsonb_array(row["declared_families"]) == sorted_families
+    assert _decode_jsonb_array(row["declared_family_ids"]) == sorted_families
 
 
 @pytest.mark.integration
 async def test_model_family_removed_drops_and_preserves_sort(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """ModelFamilyRemoved arm: declared_families loses family_id while
+    """ModelFamilyRemoved arm: declared_family_ids loses family_id while
     the remaining elements keep canonical sort order."""
     family_a_id = UUID("01900000-0000-7000-8000-0000000cab01")
     family_a_event_id = UUID("01900000-0000-7000-8000-0000000cab0e")
@@ -423,7 +423,7 @@ async def test_model_family_removed_drops_and_preserves_sort(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id, family_b_id}),
+            declared_family_ids=frozenset({family_a_id, family_b_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -437,7 +437,7 @@ async def test_model_family_removed_drops_and_preserves_sort(
 
     row = await _fetch_summary(db_pool, model_id)
     assert row is not None
-    assert _decode_jsonb_array(row["declared_families"]) == [str(family_a_id)]
+    assert _decode_jsonb_array(row["declared_family_ids"]) == [str(family_a_id)]
 
 
 @pytest.mark.integration
@@ -492,7 +492,7 @@ async def test_two_models_with_same_vendor_key_both_persist_and_advance_bookmark
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family_id}),
+        declared_family_ids=frozenset({family_id}),
     )
     await define_model.bind(deps)(
         shared_command,
@@ -574,7 +574,7 @@ def _defined_stored(
     name: str,
     manufacturer_name: str,
     part_number: str,
-    declared_families: list[UUID],
+    declared_family_ids: list[UUID],
     occurred_at: datetime,
 ) -> StoredEvent:
     payload: dict[str, object] = {
@@ -582,7 +582,7 @@ def _defined_stored(
         "name": name,
         "manufacturer": {"name": manufacturer_name},
         "part_number": part_number,
-        "declared_families": sorted(str(family_id) for family_id in declared_families),
+        "declared_family_ids": sorted(str(family_id) for family_id in declared_family_ids),
         "occurred_at": occurred_at.isoformat(),
     }
     return _stored_event("ModelDefined", model_id, payload, occurred_at)
@@ -613,7 +613,7 @@ async def test_family_added_idempotent_with_canonical_ordering(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Define + add family A + add family A again + add family B:
-    declared_families = sorted([A, B]) with no duplicates. The
+    declared_family_ids = sorted([A, B]) with no duplicates. The
     projector's UNION-based re-aggregation is the load-bearing
     replay-safety layer (the aggregate rejects duplicate-add at
     command time; this exercises the projection-tier replay path)."""
@@ -629,7 +629,7 @@ async def test_family_added_idempotent_with_canonical_ordering(
                 name="PCO edge 5.5",
                 manufacturer_name="PCO",
                 part_number="edge-5.5",
-                declared_families=[],
+                declared_family_ids=[],
                 occurred_at=_T0,
             ),
             conn,
@@ -641,7 +641,7 @@ async def test_family_added_idempotent_with_canonical_ordering(
     row = await _fetch_summary(db_pool, model_id)
     assert row is not None
     expected = sorted([str(family_a), str(family_b)])
-    assert _decode_jsonb_array(row["declared_families"]) == expected
+    assert _decode_jsonb_array(row["declared_family_ids"]) == expected
 
 
 @pytest.mark.integration
@@ -649,7 +649,7 @@ async def test_family_removed_is_no_op_if_absent(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Define + remove a family that was never added: the projector's
-    `WHERE elem <> $2::text` filter drops nothing, declared_families
+    `WHERE elem <> $2::text` filter drops nothing, declared_family_ids
     is unchanged. Replay-safety pin (the aggregate's strict guard
     rejects this at command time; this exercises the projection-tier
     replay path)."""
@@ -665,7 +665,7 @@ async def test_family_removed_is_no_op_if_absent(
                 name="Mitutoyo SR1500",
                 manufacturer_name="Mitutoyo",
                 part_number="SR1500",
-                declared_families=[family_a],
+                declared_family_ids=[family_a],
                 occurred_at=_T0,
             ),
             conn,
@@ -676,7 +676,7 @@ async def test_family_removed_is_no_op_if_absent(
 
     row = await _fetch_summary(db_pool, model_id)
     assert row is not None
-    assert _decode_jsonb_array(row["declared_families"]) == [str(family_a)]
+    assert _decode_jsonb_array(row["declared_family_ids"]) == [str(family_a)]
 
 
 @pytest.mark.integration
@@ -684,7 +684,7 @@ async def test_sort_order_survives_add_remove_churn(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Define + add A + add B + remove A + add C lands the final
-    declared_families = sorted([B, C]). Exercises both projector SQL
+    declared_family_ids = sorted([B, C]). Exercises both projector SQL
     paths (UNION-add and filter-remove) under interleaved churn."""
     projection = ModelSummaryProjection()
     model_id = uuid4()
@@ -699,7 +699,7 @@ async def test_sort_order_survives_add_remove_churn(
                 name="Newport SR50CC",
                 manufacturer_name="Newport",
                 part_number="SR50CC",
-                declared_families=[],
+                declared_family_ids=[],
                 occurred_at=_T0,
             ),
             conn,
@@ -712,4 +712,4 @@ async def test_sort_order_survives_add_remove_churn(
     row = await _fetch_summary(db_pool, model_id)
     assert row is not None
     expected = sorted([str(family_b), str(family_c)])
-    assert _decode_jsonb_array(row["declared_families"]) == expected
+    assert _decode_jsonb_array(row["declared_family_ids"]) == expected

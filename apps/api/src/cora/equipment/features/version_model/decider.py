@@ -8,16 +8,16 @@ Source-state guard uses tuple-membership (same precedent as
 version_family and decommission_asset). The decider validates the
 bounded-text VOs defensively (`ModelName`, `PartNumber`,
 `ModelVersionTag`) so direct in-process callers get the same
-protection as API-boundary callers. `declared_families` cardinality
+protection as API-boundary callers. `declared_family_ids` cardinality
 is checked here (must be non-empty); the `Manufacturer` pairing
 invariant is enforced by the `Manufacturer` dataclass itself before
 the command reaches the decider (raises
 `InvalidManufacturerIdentifierPairingError`).
 
-The handler does NOT cross-BC-validate `declared_families` here:
+The handler does NOT cross-BC-validate `declared_family_ids` here:
 per the design memo Lock, full-set re-validation at version time is
 deferred to incremental `add_model_family` edits. `version_model`
-accepts whatever `declared_families` the caller passes; downstream
+accepts whatever `declared_family_ids` the caller passes; downstream
 slices catch stale family references at their own boundaries.
 
 ## Deliberate divergence from strict-not-idempotent
@@ -37,7 +37,7 @@ Invariants:
   - State must not be None -> ModelNotFoundError
   - State.status must be in {Defined, Versioned}, i.e., not Deprecated
     -> ModelCannotVersionError(current_status=...)
-  - declared_families must be non-empty -> InvalidDeclaredFamiliesError
+  - declared_family_ids must be non-empty -> InvalidDeclaredFamiliesError
   - Name must be valid -> InvalidModelNameError (via ModelName VO)
   - Part number must be valid -> InvalidPartNumberError
     (via PartNumber VO)
@@ -77,7 +77,7 @@ def decide(
         raise ModelNotFoundError(command.model_id)
     if state.status not in _VERSIONABLE_STATUSES:
         raise ModelCannotVersionError(state.id, current_status=state.status)
-    if not command.declared_families:
+    if not command.declared_family_ids:
         raise InvalidDeclaredFamiliesError
     name = ModelName(command.name)
     part_number = PartNumber(command.part_number)
@@ -88,7 +88,7 @@ def decide(
             name=name.value,
             manufacturer=command.manufacturer,
             part_number=part_number.value,
-            declared_families=command.declared_families,
+            declared_family_ids=command.declared_family_ids,
             version_tag=version_tag.value,
             occurred_at=now,
         )

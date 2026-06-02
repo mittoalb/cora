@@ -9,7 +9,7 @@ command slices:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({rotary_stage_family_id}),
+        declared_family_ids=frozenset({rotary_stage_family_id}),
     )
     handler = define_model.bind(deps)
     model_id = await handler(cmd, principal_id=..., correlation_id=...)

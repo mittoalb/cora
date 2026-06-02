@@ -41,7 +41,7 @@ def _define_body(*, name: str = "ANT130-L") -> dict[str, object]:
         "name": name,
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
     }
 
 

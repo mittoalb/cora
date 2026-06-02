@@ -1,14 +1,14 @@
 """Contract tests for `POST /models`.
 
 Covers the create-style slice surface: happy-path 201 + UUID, Pydantic
-422 on schema misses (missing required, empty `declared_families`),
+422 on schema misses (missing required, empty `declared_family_ids`),
 domain 400 on whitespace-only name, and the cross-BC
 `with_idempotency` decorator semantics (same key + same body returns
 the cached id; same key + different body returns 422). Test keys are
 short to stay below the gitleaks generic-API-key entropy threshold.
 
 The Model handler enforces a cross-BC precondition: every entry in
-`declared_families` must resolve via the Family read repo's
+`declared_family_ids` must resolve via the Family read repo's
 `list_all_family_ids`, which is pool-backed and returns `[]` in the
 in-memory TestClient harness. We monkeypatch the symbol imported into
 the handler module to a fixed accept-all stub so the contract surface
@@ -57,7 +57,7 @@ def _body(
         "name": name,
         "manufacturer": {"name": manufacturer_name},
         "part_number": part_number,
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
     }
 
 
@@ -84,12 +84,12 @@ def test_post_models_missing_required_field_returns_422(accept_family: UUID) -> 
 
 
 @pytest.mark.contract
-def test_post_models_empty_declared_families_returns_422(accept_family: UUID) -> None:
-    """Pydantic `min_length=1` on `declared_families`."""
+def test_post_models_empty_declared_family_ids_returns_422(accept_family: UUID) -> None:
+    """Pydantic `min_length=1` on `declared_family_ids`."""
     _ = accept_family
     with TestClient(create_app()) as client:
         body = _body()
-        body["declared_families"] = []
+        body["declared_family_ids"] = []
         response = client.post("/models", json=body)
 
     assert response.status_code == 422
@@ -115,7 +115,7 @@ def test_post_models_unknown_declared_family_returns_404(accept_family: UUID) ->
     _ = accept_family
     with TestClient(create_app()) as client:
         body = _body()
-        body["declared_families"] = [str(uuid4())]
+        body["declared_family_ids"] = [str(uuid4())]
         response = client.post("/models", json=body)
 
     assert response.status_code == 404

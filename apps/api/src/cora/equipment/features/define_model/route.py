@@ -93,7 +93,7 @@ class DefineModelRequest(BaseModel):
             "Vendor SKU; case-sensitive (RV120CCHL and rv120cchl are different Newport entries)."
         ),
     )
-    declared_families: list[UUID] = Field(
+    declared_family_ids: list[UUID] = Field(
         ...,
         min_length=1,
         description=(
@@ -172,7 +172,7 @@ async def post_models(
             name=body.name,
             manufacturer=body.manufacturer.to_vo(),
             part_number=body.part_number,
-            declared_families=frozenset(body.declared_families),
+            declared_family_ids=frozenset(body.declared_family_ids),
             version_tag=body.version_tag,
         ),
         principal_id=principal_id,

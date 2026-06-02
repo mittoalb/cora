@@ -4,7 +4,7 @@
 `Asset` is identified as an instance of "Vendor X part number Y".
 A `Model` pins together a `Manufacturer` (name plus optional
 identifier in a closed-StrEnum scheme), a `part_number` (vendor SKU),
-and a `declared_families: frozenset[UUID]` pointing at one or more
+and a `declared_family_ids: frozenset[UUID]` pointing at one or more
 registered `Family` aggregates that the catalog entry satisfies.
 
 ## Aggregate scope
@@ -13,11 +13,11 @@ Model sits between `Family` (the device-class kind) and `Asset` (the
 deployed instance) in the Equipment ladder. Examples: an Aerotech
 ANT130-L rotary stage is one Model; the two PCO Edge 5.5 cameras
 mounted at 2-BM share a single Model. Asset gains an optional
-`model_id` pointer; if set, `Model.declared_families` must be a
+`model_id` pointer; if set, `Model.declared_family_ids` must be a
 subset of `Asset.family_ids` at `register_asset` and `add_asset_family`
 time (cross-BC subset invariant).
 
-`declared_families: frozenset[UUID]` is REQUIRED at `define_model`
+`declared_family_ids: frozenset[UUID]` is REQUIRED at `define_model`
 time with cardinality at least one (empty rejected at the API
 boundary). The set mutates incrementally through `add_model_family`
 and `remove_model_family` (targeted-mutation events), or wholesale
@@ -190,11 +190,11 @@ class InvalidModelDeprecationReasonError(ValueError):
 
 
 class InvalidDeclaredFamiliesError(ValueError):
-    """`declared_families` is empty (cardinality at least one required)."""
+    """`declared_family_ids` is empty (cardinality at least one required)."""
 
     def __init__(self) -> None:
         super().__init__(
-            "Model.declared_families must contain at least one Family id "
+            "Model.declared_family_ids must contain at least one Family id "
             "(empty set rejected at the catalog tier)"
         )
 
@@ -284,7 +284,7 @@ class ModelCannotRemoveFamilyError(Exception):
 
 
 class ModelFamilyAlreadyPresentError(Exception):
-    """Attempted to add a family already present in `declared_families`."""
+    """Attempted to add a family already present in `declared_family_ids`."""
 
     def __init__(self, model_id: UUID, family_id: UUID) -> None:
         super().__init__(
@@ -296,7 +296,7 @@ class ModelFamilyAlreadyPresentError(Exception):
 
 
 class ModelFamilyNotPresentError(Exception):
-    """Attempted to remove a family not present in `declared_families`."""
+    """Attempted to remove a family not present in `declared_family_ids`."""
 
     def __init__(self, model_id: UUID, family_id: UUID) -> None:
         super().__init__(f"Model {model_id} does not declare family {family_id}; nothing to remove")
@@ -438,13 +438,13 @@ class Model:
     holds the latest tag; past tags live in the event stream as
     `ModelVersioned` events.
 
-    `declared_families` is the frozenset of Family ids the catalog
+    `declared_family_ids` is the frozenset of Family ids the catalog
     entry satisfies. Required non-empty at `define_model` time.
     Mutated incrementally through `add_model_family` /
     `remove_model_family` (targeted-mutation), or wholesale through
     `version_model` (replace-on-version).
 
-    Cross-BC subset invariant `Model.declared_families subset-of
+    Cross-BC subset invariant `Model.declared_family_ids subset-of
     Asset.family_ids` evaluated by the Asset BC at `register_asset` and
     `add_asset_family`; NOT enforced inside the Model aggregate.
     """
@@ -453,6 +453,6 @@ class Model:
     name: ModelName
     manufacturer: Manufacturer
     part_number: PartNumber
-    declared_families: frozenset[UUID]
+    declared_family_ids: frozenset[UUID]
     status: ModelStatus = ModelStatus.DEFINED
     version: str | None = None

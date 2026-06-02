@@ -1,14 +1,14 @@
 """Property-based tests for `add_model_family.decide` (Equipment BC).
 
-Targeted mutation of `Model.declared_families`; status is preserved
+Targeted mutation of `Model.declared_family_ids`; status is preserved
 across the mutation and only `Deprecated` is rejected (via the
 per-verb `ModelCannotAddFamilyError` gate). Universal claims across
 generated inputs:
 
   - state in {Defined, Versioned} + family_id NOT in
-    declared_families emits exactly one ModelFamilyAdded with the
+    declared_family_ids emits exactly one ModelFamilyAdded with the
     injected `now` timestamp.
-  - family_id IN declared_families always raises
+  - family_id IN declared_family_ids always raises
     ModelFamilyAlreadyPresentError carrying the model + family id.
   - state=None always raises ModelNotFoundError carrying the
     command's model_id.
@@ -56,14 +56,14 @@ def _model(
     model_id: UUID,
     *,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
 ) -> Model:
     return Model(
         id=model_id,
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         status=status,
         version="v0" if status is ModelStatus.VERSIONED else None,
     )
@@ -73,22 +73,22 @@ def _model(
 @given(
     model_id=st.uuids(),
     status=_MUTABLE_STATUS,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     new_family=st.uuids(),
     now=aware_datetimes(),
 )
 def test_add_model_family_emits_one_event_for_absent_family(
     model_id: UUID,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     new_family: UUID,
     now: datetime,
 ) -> None:
-    """Mutable source + family_id NOT in declared_families -> exactly one
+    """Mutable source + family_id NOT in declared_family_ids -> exactly one
     ModelFamilyAdded with the injected `now`."""
     # Ensure the new family is genuinely absent from the prior set.
-    declared_without_new = declared_families - {new_family}
-    state = _model(model_id, status=status, declared_families=declared_without_new)
+    declared_without_new = declared_family_ids - {new_family}
+    state = _model(model_id, status=status, declared_family_ids=declared_without_new)
     command = AddModelFamily(model_id=model_id, family_id=new_family)
     events = add_model_family.decide(state=state, command=command, now=now)
     assert events == [ModelFamilyAdded(model_id=model_id, family_id=new_family, occurred_at=now)]
@@ -98,23 +98,23 @@ def test_add_model_family_emits_one_event_for_absent_family(
 @given(
     model_id=st.uuids(),
     status=_MUTABLE_STATUS,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     now=aware_datetimes(),
     pick_index=st.integers(min_value=0, max_value=4),
 )
 def test_add_model_family_with_duplicate_family_always_raises(
     model_id: UUID,
     status: ModelStatus,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     now: datetime,
     pick_index: int,
 ) -> None:
-    """family_id already in declared_families -> ModelFamilyAlreadyPresentError."""
+    """family_id already in declared_family_ids -> ModelFamilyAlreadyPresentError."""
     # Pick a deterministic family id from the existing set (declared has
     # at least one member, so the modulo always lands).
-    declared_list = sorted(declared_families, key=str)
+    declared_list = sorted(declared_family_ids, key=str)
     duplicate = declared_list[pick_index % len(declared_list)]
-    state = _model(model_id, status=status, declared_families=declared_families)
+    state = _model(model_id, status=status, declared_family_ids=declared_family_ids)
     command = AddModelFamily(model_id=model_id, family_id=duplicate)
     with pytest.raises(ModelFamilyAlreadyPresentError) as exc:
         add_model_family.decide(state=state, command=command, now=now)
@@ -143,13 +143,13 @@ def test_add_model_family_on_empty_state_always_raises_not_found(
 @pytest.mark.unit
 @given(
     model_id=st.uuids(),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     family_id=st.uuids(),
     now=aware_datetimes(),
 )
 def test_add_model_family_on_deprecated_state_always_raises_cannot_add_family(
     model_id: UUID,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     family_id: UUID,
     now: datetime,
 ) -> None:
@@ -158,7 +158,7 @@ def test_add_model_family_on_deprecated_state_always_raises_cannot_add_family(
     state = _model(
         model_id,
         status=ModelStatus.DEPRECATED,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
     )
     command = AddModelFamily(model_id=model_id, family_id=family_id)
     with pytest.raises(ModelCannotAddFamilyError) as exc:

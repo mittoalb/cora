@@ -88,7 +88,7 @@ async def test_handler_returns_model_for_known_id(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({_FAMILY_A_ID}),
+            declared_family_ids=frozenset({_FAMILY_A_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -106,7 +106,7 @@ async def test_handler_returns_model_for_known_id(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=frozenset({_FAMILY_A_ID}),
+        declared_family_ids=frozenset({_FAMILY_A_ID}),
         status=ModelStatus.DEFINED,
         version=None,
     )
@@ -117,7 +117,7 @@ async def test_handler_reflects_targeted_mutation_history(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """fold-on-read returns the post-mutation state: define + add a
-    second family yields a 2-element `declared_families` frozenset."""
+    second family yields a 2-element `declared_family_ids` frozenset."""
     _patch_known_families(monkeypatch, [_FAMILY_A_ID, _FAMILY_B_ID])
     deps = _build_deps()
     await define_model.bind(deps)(
@@ -125,7 +125,7 @@ async def test_handler_reflects_targeted_mutation_history(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({_FAMILY_A_ID}),
+            declared_family_ids=frozenset({_FAMILY_A_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -144,7 +144,7 @@ async def test_handler_reflects_targeted_mutation_history(
     )
 
     assert model is not None
-    assert model.declared_families == frozenset({_FAMILY_A_ID, _FAMILY_B_ID})
+    assert model.declared_family_ids == frozenset({_FAMILY_A_ID, _FAMILY_B_ID})
     assert model.status is ModelStatus.DEFINED
 
 

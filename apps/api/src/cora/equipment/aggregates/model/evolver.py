@@ -6,12 +6,12 @@ Status mapping per event type:
   - `ModelVersioned`      -> VERSIONED (version=event.version_tag;
                                         multi-source: Defined | Versioned;
                                         replaces name, manufacturer,
-                                        part_number, declared_families)
+                                        part_number, declared_family_ids)
   - `ModelDeprecated`     -> DEPRECATED (everything else preserved;
                                          multi-source: Defined | Versioned)
-  - `ModelFamilyAdded`    -> status preserved; declared_families
+  - `ModelFamilyAdded`    -> status preserved; declared_family_ids
                              gains family_id (targeted mutation)
-  - `ModelFamilyRemoved`  -> status preserved; declared_families
+  - `ModelFamilyRemoved`  -> status preserved; declared_family_ids
                              loses family_id
 
 The mapping is hardcoded per match arm; the event type IS the
@@ -48,7 +48,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             version_tag=version_tag,
         ):
             _ = state  # ModelDefined is the genesis event; prior state ignored
@@ -57,7 +57,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
                 name=ModelName(name),
                 manufacturer=manufacturer,
                 part_number=PartNumber(part_number),
-                declared_families=declared_families,
+                declared_family_ids=declared_family_ids,
                 status=ModelStatus.DEFINED,
                 version=version_tag,
             )
@@ -65,7 +65,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             version_tag=version_tag,
         ):
             prior = require_state(state, "ModelVersioned")
@@ -75,7 +75,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
                 name=ModelName(name),
                 manufacturer=manufacturer,
                 part_number=PartNumber(part_number),
-                declared_families=declared_families,
+                declared_family_ids=declared_family_ids,
                 status=ModelStatus.VERSIONED,
                 version=version_tag,
             )
@@ -86,9 +86,9 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
                 name=prior.name,
                 manufacturer=prior.manufacturer,
                 part_number=prior.part_number,
-                # declared_families PRESERVED across deprecation; the
+                # declared_family_ids PRESERVED across deprecation; the
                 # historical declaration stays visible for audit.
-                declared_families=prior.declared_families,
+                declared_family_ids=prior.declared_family_ids,
                 status=ModelStatus.DEPRECATED,
                 version=prior.version,
             )
@@ -99,7 +99,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
                 name=prior.name,
                 manufacturer=prior.manufacturer,
                 part_number=prior.part_number,
-                declared_families=prior.declared_families | {family_id},
+                declared_family_ids=prior.declared_family_ids | {family_id},
                 # Status preserved across targeted mutation.
                 status=prior.status,
                 version=prior.version,
@@ -111,7 +111,7 @@ def evolve(state: Model | None, event: ModelEvent) -> Model:
                 name=prior.name,
                 manufacturer=prior.manufacturer,
                 part_number=prior.part_number,
-                declared_families=prior.declared_families - {family_id},
+                declared_family_ids=prior.declared_family_ids - {family_id},
                 status=prior.status,
                 version=prior.version,
             )

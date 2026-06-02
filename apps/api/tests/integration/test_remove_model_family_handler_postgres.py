@@ -62,7 +62,7 @@ async def test_remove_model_family_persists_event_with_payload(
     add the other via add_model_family, then remove the second one via
     remove_model_family. Verify ModelFamilyRemoved is persisted with
     the expected payload shape and fold reflects the contracted
-    declared_families set."""
+    declared_family_ids set."""
     family_a_id = UUID("01900000-0000-7000-8000-00000062d001")
     family_a_event_id = UUID("01900000-0000-7000-8000-00000062d00e")
     family_b_id = UUID("01900000-0000-7000-8000-00000062d002")
@@ -103,7 +103,7 @@ async def test_remove_model_family_persists_event_with_payload(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -141,14 +141,14 @@ async def test_remove_model_family_persists_event_with_payload(
     history = [from_stored(s) for s in events]
     state = fold(history)
     assert state is not None
-    assert state.declared_families == frozenset({family_a_id})
+    assert state.declared_family_ids == frozenset({family_a_id})
 
 
 @pytest.mark.integration
 async def test_remove_model_family_rejects_absent_family(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Strict-not-idempotent: removing a family not in declared_families
+    """Strict-not-idempotent: removing a family not in declared_family_ids
     raises `ModelFamilyNotPresentError` and writes no new event. No
     cross-BC Family lookup is performed by the slice; the absent
     family_id is rejected purely by the decider against the folded
@@ -177,7 +177,7 @@ async def test_remove_model_family_rejects_absent_family(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

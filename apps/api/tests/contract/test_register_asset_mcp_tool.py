@@ -219,7 +219,7 @@ def accept_model_mcp(monkeypatch: pytest.MonkeyPatch) -> Iterator[UUID]:
                 name=ModelName("EigerX-9M"),
                 manufacturer=Manufacturer(name=ManufacturerName("Dectris")),
                 part_number=PartNumber("EX9M-002"),
-                declared_families=frozenset({_KNOWN_FAMILY_ID}),
+                declared_family_ids=frozenset({_KNOWN_FAMILY_ID}),
             )
         return None
 

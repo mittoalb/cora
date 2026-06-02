@@ -7,22 +7,22 @@ checks.
 
   - ModelDefined        -> INSERT (status=Defined; version_tag from
         payload when present, NULL otherwise; manufacturer flat
-        columns; declared_families JSONB array sorted as carried
+        columns; declared_family_ids JSONB array sorted as carried
         in the event payload)
   - ModelVersioned      -> UPDATE status=Versioned and REPLACE
         name / manufacturer_name / manufacturer_identifier /
         manufacturer_identifier_type / part_number /
-        declared_families / version_tag wholesale (a new revision
+        declared_family_ids / version_tag wholesale (a new revision
         re-authors the catalog entry's identity block)
   - ModelDeprecated     -> UPDATE status=Deprecated and set
         deprecation_reason; vendor-key columns
-        (manufacturer_name, part_number) and declared_families
+        (manufacturer_name, part_number) and declared_family_ids
         preserved so the audit answer to "what was deprecated"
         stays queryable
-  - ModelFamilyAdded    -> UPDATE declared_families to append the
+  - ModelFamilyAdded    -> UPDATE declared_family_ids to append the
         single family_id and re-sort, matching the canonical
         sorted-string-array ordering used in event payloads
-  - ModelFamilyRemoved  -> UPDATE declared_families to drop the
+  - ModelFamilyRemoved  -> UPDATE declared_family_ids to drop the
         single family_id while preserving sort order
 
 All branches idempotent. `version_tag` lands in the projection on
@@ -48,7 +48,7 @@ from uuid import UUID
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
-# `declared_families` is bound as a Python list and lands as a real JSONB
+# `declared_family_ids` is bound as a Python list and lands as a real JSONB
 # array (the pool-wide asyncpg jsonb codec encodes it via `json.dumps`
 # exactly once before sending). Pre-encoding the list with `json.dumps`
 # in Python first would land a JSONB scalar string instead, which
@@ -84,7 +84,7 @@ _INSERT_MODEL_SQL = """
 INSERT INTO proj_equipment_model_summary
     (model_id, name,
      manufacturer_name, manufacturer_identifier, manufacturer_identifier_type,
-     part_number, declared_families,
+     part_number, declared_family_ids,
      status, version_tag, created_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, 'Defined', $8, $9)
 ON CONFLICT (model_id) DO NOTHING
@@ -98,7 +98,7 @@ SET status = 'Versioned',
     manufacturer_identifier = $4,
     manufacturer_identifier_type = $5,
     part_number = $6,
-    declared_families = $7::jsonb,
+    declared_family_ids = $7::jsonb,
     version_tag = $8,
     updated_at = now()
 WHERE model_id = $1
@@ -118,10 +118,10 @@ WHERE model_id = $1
 # the replay-safety layer).
 _UPDATE_FAMILY_ADDED_SQL = """
 UPDATE proj_equipment_model_summary
-SET declared_families = COALESCE((
+SET declared_family_ids = COALESCE((
         SELECT jsonb_agg(elem ORDER BY elem)
         FROM (
-            SELECT jsonb_array_elements_text(declared_families) AS elem
+            SELECT jsonb_array_elements_text(declared_family_ids) AS elem
             UNION
             SELECT $2::text
         ) sub
@@ -137,10 +137,10 @@ WHERE model_id = $1
 # keeps the projection robust under replay of historical streams).
 _UPDATE_FAMILY_REMOVED_SQL = """
 UPDATE proj_equipment_model_summary
-SET declared_families = COALESCE((
+SET declared_family_ids = COALESCE((
         SELECT jsonb_agg(elem ORDER BY elem)
         FROM (
-            SELECT jsonb_array_elements_text(declared_families) AS elem
+            SELECT jsonb_array_elements_text(declared_family_ids) AS elem
         ) sub
         WHERE elem <> $2::text
     ), '[]'::jsonb),
@@ -171,7 +171,7 @@ class ModelSummaryProjection:
         match event.event_type:
             case "ModelDefined":
                 name, identifier, identifier_type = _manufacturer_columns(event.payload)
-                declared_families = event.payload.get("declared_families", [])
+                declared_family_ids = event.payload.get("declared_family_ids", [])
                 await conn.execute(
                     _INSERT_MODEL_SQL,
                     _id(event.payload),
@@ -180,13 +180,13 @@ class ModelSummaryProjection:
                     identifier,
                     identifier_type,
                     event.payload["part_number"],
-                    declared_families,
+                    declared_family_ids,
                     event.payload.get("version_tag"),
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )
             case "ModelVersioned":
                 name, identifier, identifier_type = _manufacturer_columns(event.payload)
-                declared_families = event.payload.get("declared_families", [])
+                declared_family_ids = event.payload.get("declared_family_ids", [])
                 await conn.execute(
                     _UPDATE_VERSIONED_SQL,
                     _id(event.payload),
@@ -195,7 +195,7 @@ class ModelSummaryProjection:
                     identifier,
                     identifier_type,
                     event.payload["part_number"],
-                    declared_families,
+                    declared_family_ids,
                     event.payload["version_tag"],
                 )
             case "ModelDeprecated":

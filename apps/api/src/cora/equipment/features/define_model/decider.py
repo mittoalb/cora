@@ -7,7 +7,7 @@ No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports. The handler is also responsible for
 the cross-BC `family_lookup` validation (every element of
-`command.declared_families` must resolve to a registered Family);
+`command.declared_family_ids` must resolve to a registered Family);
 that lookup happens before the decider is called, since the decider
 is pure and the Family lookup is impure.
 
@@ -42,7 +42,7 @@ def decide(
 
     Invariants:
       - State must be None (genesis-only) -> ModelAlreadyExistsError
-      - declared_families must be non-empty -> InvalidDeclaredFamiliesError
+      - declared_family_ids must be non-empty -> InvalidDeclaredFamiliesError
       - Name must be valid -> InvalidModelNameError (via ModelName VO)
       - Part number must be valid -> InvalidPartNumberError
         (via PartNumber VO)
@@ -55,7 +55,7 @@ def decide(
     """
     if state is not None:
         raise ModelAlreadyExistsError(state.id)
-    if not command.declared_families:
+    if not command.declared_family_ids:
         raise InvalidDeclaredFamiliesError
     name = ModelName(command.name)
     part_number = PartNumber(command.part_number)
@@ -68,7 +68,7 @@ def decide(
             name=name.value,
             manufacturer=command.manufacturer,
             part_number=part_number.value,
-            declared_families=command.declared_families,
+            declared_family_ids=command.declared_family_ids,
             occurred_at=now,
             version_tag=command.version_tag,
         )

@@ -188,8 +188,8 @@ def test_model_aggregate_constructs_with_required_fields() -> None:
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=frozenset({family_a}),
+        declared_family_ids=frozenset({family_a}),
     )
     assert model.status is ModelStatus.DEFINED
     assert model.version is None
-    assert model.declared_families == frozenset({family_a})
+    assert model.declared_family_ids == frozenset({family_a})

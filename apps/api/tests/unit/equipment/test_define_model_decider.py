@@ -30,7 +30,7 @@ def _minimal_command() -> DefineModel:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
     )
 
 
@@ -45,7 +45,7 @@ def test_decide_emits_model_defined_for_minimal_command() -> None:
     assert event.name == "Aerotech ANT130-L"
     assert event.manufacturer == cmd.manufacturer
     assert event.part_number == "ANT130-L"
-    assert event.declared_families == cmd.declared_families
+    assert event.declared_family_ids == cmd.declared_family_ids
     assert event.occurred_at == _NOW
     assert event.version_tag is None
 
@@ -56,7 +56,7 @@ def test_decide_carries_version_tag_when_supplied() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-A",
     )
     events = decide(None, cmd, now=_NOW, new_id=uuid4())
@@ -73,7 +73,7 @@ def test_decide_carries_full_manufacturer_triple() -> None:
             identifier_type=ManufacturerIdentifierType.ROR,
         ),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
     )
     events = decide(None, cmd, now=_NOW, new_id=uuid4())
     assert events[0].manufacturer.identifier is not None
@@ -88,7 +88,7 @@ def test_decide_rejects_when_stream_already_has_state() -> None:
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         status=ModelStatus.DEFINED,
     )
     with pytest.raises(ModelAlreadyExistsError):
@@ -96,12 +96,12 @@ def test_decide_rejects_when_stream_already_has_state() -> None:
 
 
 @pytest.mark.unit
-def test_decide_rejects_empty_declared_families() -> None:
+def test_decide_rejects_empty_declared_family_ids() -> None:
     cmd = DefineModel(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset(),
+        declared_family_ids=frozenset(),
     )
     with pytest.raises(InvalidDeclaredFamiliesError):
         decide(None, cmd, now=_NOW, new_id=uuid4())
@@ -113,7 +113,7 @@ def test_decide_rejects_invalid_name() -> None:
         name="   ",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
     )
     with pytest.raises(InvalidModelNameError):
         decide(None, cmd, now=_NOW, new_id=uuid4())
@@ -125,7 +125,7 @@ def test_decide_rejects_invalid_part_number() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
     )
     with pytest.raises(InvalidPartNumberError):
         decide(None, cmd, now=_NOW, new_id=uuid4())
@@ -137,7 +137,7 @@ def test_decide_rejects_empty_initial_version_tag() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="   ",
     )
     with pytest.raises(InvalidModelVersionTagError):

@@ -3,7 +3,7 @@
 Update-style handler shape: load + fold + decide + append. Mirrors
 the `add_model_family` precedent for the stream load + fold + decide
 + append spine, minus the cross-BC Family lookup: removal only needs
-`family_id` to be present in the Model's `declared_families`, and it
+`family_id` to be present in the Model's `declared_family_ids`, and it
 proceeds even if the referenced Family has since been
 deprecated or deleted from the Family registry.
 

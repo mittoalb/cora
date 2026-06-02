@@ -1,7 +1,7 @@
 """The `RemoveModelFamily` command, intent dataclass for this slice.
 
 Targeted-mutation: incremental removal of a single Family from the
-Model's `declared_families` set. Sibling of `add_model_family`.
+Model's `declared_family_ids` set. Sibling of `add_model_family`.
 
 The operational pattern is "vendor firmware update drops support for
 a technique" or "catalog entry no longer advertises a Family";
@@ -12,11 +12,11 @@ replace-on-version precedent).
 `model_id` is the target Model aggregate. `family_id` is the Family
 being undeclared. Unlike `add_model_family`, the handler does NOT
 resolve the Family against the Family registry: removal only
-requires that `family_id` already sits in `declared_families` (the
+requires that `family_id` already sits in `declared_family_ids` (the
 Family may have been deprecated or deleted, and removal still
 proceeds).
 
-Strict-not-idempotent: removing a Family not in `declared_families`
+Strict-not-idempotent: removing a Family not in `declared_family_ids`
 raises `ModelFamilyNotPresentError` (same precedent as
 `add_model_family` and `remove_asset_family`).
 """
@@ -27,7 +27,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class RemoveModelFamily:
-    """Remove a Family from an existing model's `declared_families` set."""
+    """Remove a Family from an existing model's `declared_family_ids` set."""
 
     model_id: UUID
     family_id: UUID

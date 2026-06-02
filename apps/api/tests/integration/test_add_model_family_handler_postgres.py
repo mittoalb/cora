@@ -1,7 +1,7 @@
 """End-to-end integration test: add_model_family against real Postgres.
 
 Round-trip: define Families, define Model, add a second Family to the
-Model's declared_families set, and read the events back from the event
+Model's declared_family_ids set, and read the events back from the event
 store. Verifies the ModelFamilyAdded payload shape, the cross-BC
 `list_family_ids` lookup against the real `proj_equipment_family_summary`
 projection (404 path on a missing Family id), and the
@@ -57,7 +57,7 @@ async def test_add_model_family_persists_event_with_payload(
     """Happy path: seed two Families, define a Model declaring one,
     add the other via add_model_family. Verify ModelFamilyAdded is
     persisted with the expected payload shape and fold reflects the
-    expanded declared_families set."""
+    expanded declared_family_ids set."""
     family_a_id = UUID("01900000-0000-7000-8000-00000061d001")
     family_a_event_id = UUID("01900000-0000-7000-8000-00000061d00e")
     family_b_id = UUID("01900000-0000-7000-8000-00000061d002")
@@ -96,7 +96,7 @@ async def test_add_model_family_persists_event_with_payload(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -124,7 +124,7 @@ async def test_add_model_family_persists_event_with_payload(
     history = [from_stored(s) for s in events]
     state = fold(history)
     assert state is not None
-    assert state.declared_families == frozenset({family_a_id, family_b_id})
+    assert state.declared_family_ids == frozenset({family_a_id, family_b_id})
 
 
 @pytest.mark.integration
@@ -160,7 +160,7 @@ async def test_add_model_family_rejects_unregistered_family_id(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -184,7 +184,7 @@ async def test_add_model_family_rejects_duplicate_family(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Strict-not-idempotent: re-adding a family already in
-    declared_families raises `ModelFamilyAlreadyPresentError` and writes
+    declared_family_ids raises `ModelFamilyAlreadyPresentError` and writes
     no new event."""
     family_id = UUID("01900000-0000-7000-8000-00000061f001")
     family_event_id = UUID("01900000-0000-7000-8000-00000061f00e")
@@ -209,7 +209,7 @@ async def test_add_model_family_rejects_duplicate_family(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -283,7 +283,7 @@ async def test_add_model_family_succeeds_when_family_is_deprecated(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_a_id}),
+            declared_family_ids=frozenset({family_a_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -308,4 +308,4 @@ async def test_add_model_family_succeeds_when_family_is_deprecated(
     history = [from_stored(s) for s in events]
     state = fold(history)
     assert state is not None
-    assert state.declared_families == frozenset({family_a_id, family_b_id})
+    assert state.declared_family_ids == frozenset({family_a_id, family_b_id})

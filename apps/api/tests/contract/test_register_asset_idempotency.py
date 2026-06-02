@@ -119,7 +119,7 @@ def accept_model(monkeypatch: pytest.MonkeyPatch) -> Iterator[UUID]:
                 name=ModelName("EigerX-9M"),
                 manufacturer=Manufacturer(name=ManufacturerName("Dectris")),
                 part_number=PartNumber("EX9M-001"),
-                declared_families=frozenset({_KNOWN_FAMILY_ID}),
+                declared_family_ids=frozenset({_KNOWN_FAMILY_ID}),
             )
         return None
 
@@ -226,7 +226,7 @@ def test_post_assets_same_key_different_model_id_returns_422(
                 name=ModelName("EigerX-9M"),
                 manufacturer=Manufacturer(name=ManufacturerName("Dectris")),
                 part_number=PartNumber("EX9M-001"),
-                declared_families=frozenset({family_id}),
+                declared_family_ids=frozenset({family_id}),
             )
         return None
 

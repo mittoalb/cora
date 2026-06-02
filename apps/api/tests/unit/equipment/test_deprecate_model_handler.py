@@ -84,7 +84,7 @@ def _define_command() -> DefineModel:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({_FAMILY_A_ID}),
+        declared_family_ids=frozenset({_FAMILY_A_ID}),
     )
 
 

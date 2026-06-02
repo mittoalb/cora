@@ -49,7 +49,7 @@ def test_mcp_add_model_family_tool_description_matches_spec() -> None:
     description = add_model_family["description"]
     assert "Family" in description
     assert "vendor-catalog Model" in description
-    assert "declared_families" in description
+    assert "declared_family_ids" in description
     assert "Strict-not-idempotent" in description
 
 

@@ -4,7 +4,7 @@ Mirrors the `define_family` handler test's shape (same Handler
 protocol, same authorize + event-store wiring, same Kernel deps).
 The Model-specific addition is the cross-BC `list_all_family_ids`
 precondition: the handler resolves every element of
-`command.declared_families` against the Family read repo before
+`command.declared_family_ids` against the Family read repo before
 invoking the decider, and raises `FamilyNotFoundError` on miss.
 
 `list_all_family_ids` reads from `proj_equipment_family_summary` and
@@ -74,12 +74,12 @@ def _patch_known_families(
     )
 
 
-def _command(declared_families: frozenset[UUID]) -> DefineModel:
+def _command(declared_family_ids: frozenset[UUID]) -> DefineModel:
     return DefineModel(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
     )
 
 
@@ -142,7 +142,7 @@ async def test_handler_does_not_append_when_denied(
 async def test_handler_raises_family_not_found_for_unregistered_family(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Cross-BC precondition: declared_families containing an id that
+    """Cross-BC precondition: declared_family_ids containing an id that
     doesn't resolve via `list_all_family_ids` raises `FamilyNotFoundError`."""
     _patch_known_families(monkeypatch, [_FAMILY_A_ID])
     deps = _build_deps()
@@ -157,7 +157,7 @@ async def test_handler_raises_family_not_found_for_unregistered_family(
 
 
 @pytest.mark.unit
-async def test_handler_proceeds_when_all_declared_families_resolve(
+async def test_handler_proceeds_when_all_declared_family_ids_resolve(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Every declared family resolves against the fake lookup, so the
@@ -206,4 +206,4 @@ async def test_handler_appends_model_defined_event_to_store(
     assert stored.payload["model_id"] == str(_NEW_ID)
     assert stored.payload["name"] == "Aerotech ANT130-L"
     assert stored.payload["part_number"] == "ANT130-L"
-    assert stored.payload["declared_families"] == [str(_FAMILY_A_ID)]
+    assert stored.payload["declared_family_ids"] == [str(_FAMILY_A_ID)]

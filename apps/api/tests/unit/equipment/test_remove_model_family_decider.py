@@ -1,12 +1,12 @@
 """Pure-decider tests for the `remove_model_family` slice.
 
-Targeted mutation of `Model.declared_families`, not a lifecycle
+Targeted mutation of `Model.declared_family_ids`, not a lifecycle
 transition. Status is preserved (`Defined` stays `Defined`,
 `Versioned` stays `Versioned`); only `Deprecated` is rejected via
 the per-verb `ModelCannotRemoveFamilyError` (mirrors
 `AssetCannotRemoveFamilyError`).
 
-Strict-not-idempotent: removing a family not in `declared_families`
+Strict-not-idempotent: removing a family not in `declared_family_ids`
 raises `ModelFamilyNotPresentError`, mirroring the
 `remove_asset_family` precedent.
 """
@@ -37,7 +37,7 @@ _NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 def _model(
     *,
     status: ModelStatus = ModelStatus.DEFINED,
-    declared_families: frozenset[UUID] | None = None,
+    declared_family_ids: frozenset[UUID] | None = None,
     version: str | None = None,
 ) -> Model:
     return Model(
@@ -45,8 +45,8 @@ def _model(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=declared_families
-        if declared_families is not None
+        declared_family_ids=declared_family_ids
+        if declared_family_ids is not None
         else frozenset({uuid4()}),
         status=status,
         version=version,
@@ -56,7 +56,7 @@ def _model(
 @pytest.mark.unit
 def test_decide_emits_model_family_removed_from_defined_state() -> None:
     existing = uuid4()
-    state = _model(status=ModelStatus.DEFINED, declared_families=frozenset({existing}))
+    state = _model(status=ModelStatus.DEFINED, declared_family_ids=frozenset({existing}))
     events = remove_model_family.decide(
         state=state,
         command=RemoveModelFamily(model_id=state.id, family_id=existing),
@@ -72,7 +72,7 @@ def test_decide_emits_model_family_removed_from_versioned_state() -> None:
     state = _model(
         status=ModelStatus.VERSIONED,
         version="v2",
-        declared_families=frozenset({existing}),
+        declared_family_ids=frozenset({existing}),
     )
     events = remove_model_family.decide(
         state=state,
@@ -89,7 +89,7 @@ def test_decide_raises_cannot_remove_family_when_deprecated() -> None:
     state = _model(
         status=ModelStatus.DEPRECATED,
         version="v1",
-        declared_families=frozenset({existing}),
+        declared_family_ids=frozenset({existing}),
     )
     with pytest.raises(ModelCannotRemoveFamilyError) as exc_info:
         remove_model_family.decide(
@@ -120,7 +120,7 @@ def test_decide_raises_not_present_on_absent_family() -> None:
     instead of silently succeeding."""
     declared = uuid4()
     absent = uuid4()
-    state = _model(declared_families=frozenset({declared}))
+    state = _model(declared_family_ids=frozenset({declared}))
     with pytest.raises(ModelFamilyNotPresentError) as exc_info:
         remove_model_family.decide(
             state=state,
@@ -134,7 +134,7 @@ def test_decide_raises_not_present_on_absent_family() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     family = uuid4()
-    state = _model(declared_families=frozenset({family}))
+    state = _model(declared_family_ids=frozenset({family}))
     command = RemoveModelFamily(model_id=state.id, family_id=family)
     first = remove_model_family.decide(state=state, command=command, now=_NOW)
     second = remove_model_family.decide(state=state, command=command, now=_NOW)

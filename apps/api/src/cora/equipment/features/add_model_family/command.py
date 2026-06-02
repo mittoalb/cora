@@ -1,7 +1,7 @@
 """The `AddModelFamily` command, intent dataclass for this slice.
 
 Targeted-mutation: incremental add of a single Family to the
-Model's `declared_families` set. Sibling of `remove_model_family`.
+Model's `declared_family_ids` set. Sibling of `remove_model_family`.
 
 The operational pattern is "vendor firmware update declares an
 additional Family" rather than a wholesale re-author; `version_model`
@@ -15,7 +15,7 @@ being declared; the handler resolves it against the Family registry
 and raises `FamilyNotFoundError` if it does not resolve.
 
 Strict-not-idempotent: re-adding a Family already in
-`declared_families` raises `ModelFamilyAlreadyPresentError` (same
+`declared_family_ids` raises `ModelFamilyAlreadyPresentError` (same
 precedent as `add_asset_family` and `activate_asset`).
 """
 
@@ -25,7 +25,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class AddModelFamily:
-    """Add a Family to an existing model's `declared_families` set."""
+    """Add a Family to an existing model's `declared_family_ids` set."""
 
     model_id: UUID
     family_id: UUID

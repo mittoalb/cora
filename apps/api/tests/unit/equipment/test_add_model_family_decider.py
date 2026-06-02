@@ -1,6 +1,6 @@
 """Pure-decider tests for the `add_model_family` slice.
 
-Targeted mutation of `Model.declared_families`, not a lifecycle
+Targeted mutation of `Model.declared_family_ids`, not a lifecycle
 transition. Status is preserved (`Defined` stays `Defined`,
 `Versioned` stays `Versioned`); only `Deprecated` is rejected via
 the per-verb `ModelCannotAddFamilyError` (mirrors
@@ -37,7 +37,7 @@ _NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 def _model(
     *,
     status: ModelStatus = ModelStatus.DEFINED,
-    declared_families: frozenset[UUID] | None = None,
+    declared_family_ids: frozenset[UUID] | None = None,
     version: str | None = None,
 ) -> Model:
     return Model(
@@ -45,8 +45,8 @@ def _model(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=declared_families
-        if declared_families is not None
+        declared_family_ids=declared_family_ids
+        if declared_family_ids is not None
         else frozenset({uuid4()}),
         status=status,
         version=version,
@@ -110,7 +110,7 @@ def test_decide_raises_already_present_on_duplicate_family() -> None:
     than no-op so operators can detect 'wait, this is already declared'
     instead of silently succeeding."""
     existing = uuid4()
-    state = _model(declared_families=frozenset({existing}))
+    state = _model(declared_family_ids=frozenset({existing}))
     with pytest.raises(ModelFamilyAlreadyPresentError) as exc_info:
         add_model_family.decide(
             state=state,

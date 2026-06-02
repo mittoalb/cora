@@ -2,7 +2,7 @@
 
 Round-trip: define Family, define Model, version Model, and read the
 events back from the event store. Verifies the ModelVersioned payload
-shape (sorted declared_families, manufacturer sub-dict, version_tag),
+shape (sorted declared_family_ids, manufacturer sub-dict, version_tag),
 the multi-source guard (ModelNotFoundError on a missing stream), and
 the Deprecated rejection (ModelCannotVersionError after appending a
 ModelDeprecated event onto the same stream).
@@ -53,7 +53,7 @@ async def test_version_model_persists_event_with_full_payload(
 ) -> None:
     """Happy path: seed Family + define Model + version Model. Verify
     ModelVersioned is persisted with the wholesale-replacement payload
-    (sorted declared_families, manufacturer sub-dict, version_tag)."""
+    (sorted declared_family_ids, manufacturer sub-dict, version_tag)."""
     family_id = UUID("01900000-0000-7000-8000-00000060d001")
     family_event_id = UUID("01900000-0000-7000-8000-00000060d00e")
     other_family_id = UUID("01900000-0000-7000-8000-00000060d002")
@@ -92,7 +92,7 @@ async def test_version_model_persists_event_with_full_payload(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -104,7 +104,7 @@ async def test_version_model_persists_event_with_full_payload(
             name="Aerotech ANT130-L rev-B",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L-B",
-            declared_families=frozenset({family_id, other_family_id}),
+            declared_family_ids=frozenset({family_id, other_family_id}),
             version_tag="2026-Q3",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -122,7 +122,7 @@ async def test_version_model_persists_event_with_full_payload(
         "name": "Aerotech ANT130-L rev-B",
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L-B",
-        "declared_families": sorted([str(family_id), str(other_family_id)]),
+        "declared_family_ids": sorted([str(family_id), str(other_family_id)]),
         "version_tag": "2026-Q3",
         "occurred_at": _NOW.isoformat(),
     }
@@ -133,7 +133,7 @@ async def test_version_model_persists_event_with_full_payload(
     assert state is not None
     assert state.name.value == "Aerotech ANT130-L rev-B"
     assert state.part_number.value == "ANT130-L-B"
-    assert state.declared_families == frozenset({family_id, other_family_id})
+    assert state.declared_family_ids == frozenset({family_id, other_family_id})
     assert state.version == "2026-Q3"
 
 
@@ -155,7 +155,7 @@ async def test_version_model_raises_not_found_for_unknown_id(
                 name="Aerotech ANT130-L",
                 manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
                 part_number="ANT130-L",
-                declared_families=frozenset({family_id}),
+                declared_family_ids=frozenset({family_id}),
                 version_tag="v2",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -205,7 +205,7 @@ async def test_version_model_raises_cannot_version_after_deprecation(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -241,7 +241,7 @@ async def test_version_model_raises_cannot_version_after_deprecation(
                 name="Aerotech ANT130-L rev-B",
                 manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
                 part_number="ANT130-L-B",
-                declared_families=frozenset({family_id}),
+                declared_family_ids=frozenset({family_id}),
                 version_tag="v2",
             ),
             principal_id=_PRINCIPAL_ID,

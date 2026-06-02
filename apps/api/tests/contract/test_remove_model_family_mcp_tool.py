@@ -45,7 +45,7 @@ def _seed_model_via_rest(client: TestClient) -> UUID:
             "name": "ANT130-L",
             "manufacturer": {"name": "Aerotech"},
             "part_number": "ANT130-L",
-            "declared_families": [str(_FIXED_FAMILY_ID)],
+            "declared_family_ids": [str(_FIXED_FAMILY_ID)],
         },
     )
     assert response.status_code == 201
@@ -82,7 +82,7 @@ def test_mcp_remove_model_family_tool_description_matches_spec() -> None:
     description = remove_model_family["description"]
     assert "Family" in description
     assert "vendor-catalog Model" in description
-    assert "declared_families" in description
+    assert "declared_family_ids" in description
     assert "Strict-not-idempotent" in description
 
 
@@ -112,7 +112,7 @@ def test_mcp_remove_model_family_tool_rejects_missing_argument() -> None:
 def test_mcp_remove_model_family_tool_returns_iserror_on_absent_family(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Strict-not-idempotent: removing a family not in declared_families
+    """Strict-not-idempotent: removing a family not in declared_family_ids
     raises ModelFamilyNotPresentError, which FastMCP wraps as
     isError: true with a 'does not declare' diagnostic."""
     _stub_define_model_family_lookup(monkeypatch, [_FIXED_FAMILY_ID])

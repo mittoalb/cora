@@ -92,7 +92,7 @@ def _model(model_id: UUID, *, status: ModelStatus) -> Model:
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=frozenset({model_id}),
+        declared_family_ids=frozenset({model_id}),
         status=status,
         version="v0" if status is ModelStatus.VERSIONED else None,
     )

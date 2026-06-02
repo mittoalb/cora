@@ -25,7 +25,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="remove_model_family",
         description=(
-            "Remove a Family from a vendor-catalog Model declared_families set. "
+            "Remove a Family from a vendor-catalog Model declared_family_ids set. "
             "Strict-not-idempotent: removing an absent family raises an error. "
             "Does not cascade through existing Assets bound to the Model."
         ),
@@ -38,7 +38,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         ],
         family_id: Annotated[
             UUID,
-            Field(description="Family id to remove from the Model.declared_families set."),
+            Field(description="Family id to remove from the Model.declared_family_ids set."),
         ],
     ) -> None:
         handler = get_handler()

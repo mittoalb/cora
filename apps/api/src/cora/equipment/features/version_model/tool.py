@@ -106,7 +106,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 ),
             ),
         ],
-        declared_families: Annotated[
+        declared_family_ids: Annotated[
             list[UUID],
             Field(
                 min_length=1,
@@ -134,7 +134,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 name=name,
                 manufacturer=manufacturer.to_vo(),
                 part_number=part_number,
-                declared_families=frozenset(declared_families),
+                declared_family_ids=frozenset(declared_family_ids),
                 version_tag=version_tag,
             ),
             principal_id=get_mcp_principal_id(ctx),

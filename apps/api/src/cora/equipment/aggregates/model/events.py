@@ -7,7 +7,7 @@ evolver hardcodes the mapping per match arm.
 
 Targeted-mutation pattern: `ModelFamilyAdded` and `ModelFamilyRemoved`
 carry a single `family_id` change rather than the whole
-`declared_families` set. The operational pattern at a beamline is
+`declared_family_ids` set. The operational pattern at a beamline is
 "vendor shipped firmware update, one extra Family declared" rather
 than wholesale re-author; targeted mutation preserves the operator
 intent signal. `ModelVersioned` accepts the wholesale replacement
@@ -43,7 +43,7 @@ class ModelDefined:
     name: str
     manufacturer: Manufacturer
     part_number: str
-    declared_families: frozenset[UUID]
+    declared_family_ids: frozenset[UUID]
     occurred_at: datetime
     version_tag: str | None = None
 
@@ -53,7 +53,7 @@ class ModelVersioned:
     """A model's catalog entry was revised; a new version label was issued.
 
     Multi-source transition: `Defined | Versioned -> Versioned`.
-    REPLACES `name`, `manufacturer`, `part_number`, `declared_families`,
+    REPLACES `name`, `manufacturer`, `part_number`, `declared_family_ids`,
     and `version_tag` wholesale (a new version IS a new declaration).
     Matches Family/Method/Plan/Practice replace-on-version precedent.
     """
@@ -62,7 +62,7 @@ class ModelVersioned:
     name: str
     manufacturer: Manufacturer
     part_number: str
-    declared_families: frozenset[UUID]
+    declared_family_ids: frozenset[UUID]
     version_tag: str
     occurred_at: datetime
 
@@ -84,7 +84,7 @@ class ModelDeprecated:
 
 @dataclass(frozen=True)
 class ModelFamilyAdded:
-    """A family was added to the model's `declared_families` set.
+    """A family was added to the model's `declared_family_ids` set.
 
     Targeted-mutation event. Strict-not-idempotent: re-adding a
     present family raises `ModelFamilyAlreadyPresentError`. Allowed
@@ -98,7 +98,7 @@ class ModelFamilyAdded:
 
 @dataclass(frozen=True)
 class ModelFamilyRemoved:
-    """A family was removed from the model's `declared_families` set.
+    """A family was removed from the model's `declared_family_ids` set.
 
     Targeted-mutation event. Strict-not-idempotent: removing an
     absent family raises `ModelFamilyNotPresentError`. Allowed from
@@ -141,7 +141,7 @@ def to_payload(event: ModelEvent) -> dict[str, Any]:
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             occurred_at=occurred_at,
             version_tag=version_tag,
         ):
@@ -151,7 +151,7 @@ def to_payload(event: ModelEvent) -> dict[str, Any]:
                 "manufacturer": _manufacturer_to_payload(manufacturer),
                 "part_number": part_number,
                 # Sorted for deterministic payload serialization.
-                "declared_families": sorted(str(family_id) for family_id in declared_families),
+                "declared_family_ids": sorted(str(family_id) for family_id in declared_family_ids),
                 "occurred_at": occurred_at.isoformat(),
             }
             if version_tag is not None:
@@ -162,7 +162,7 @@ def to_payload(event: ModelEvent) -> dict[str, Any]:
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             version_tag=version_tag,
             occurred_at=occurred_at,
         ):
@@ -171,7 +171,7 @@ def to_payload(event: ModelEvent) -> dict[str, Any]:
                 "name": name,
                 "manufacturer": _manufacturer_to_payload(manufacturer),
                 "part_number": part_number,
-                "declared_families": sorted(str(family_id) for family_id in declared_families),
+                "declared_family_ids": sorted(str(family_id) for family_id in declared_family_ids),
                 "version_tag": version_tag,
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -216,9 +216,9 @@ def _manufacturer_from_payload(payload: dict[str, Any]) -> Manufacturer:
     return Manufacturer(name=name, identifier=identifier, identifier_type=identifier_type)
 
 
-def _declared_families_from_payload(payload: dict[str, Any]) -> frozenset[UUID]:
-    """Load the declared_families frozenset from a payload list field."""
-    raw = payload.get("declared_families", [])
+def _declared_family_ids_from_payload(payload: dict[str, Any]) -> frozenset[UUID]:
+    """Load the declared_family_ids frozenset from a payload list field."""
+    raw = payload.get("declared_family_ids", [])
     return frozenset(UUID(family_id) for family_id in raw)
 
 
@@ -234,7 +234,7 @@ def from_stored(stored: StoredEvent) -> ModelEvent:
                     name=payload["name"],
                     manufacturer=_manufacturer_from_payload(payload["manufacturer"]),
                     part_number=payload["part_number"],
-                    declared_families=_declared_families_from_payload(payload),
+                    declared_family_ids=_declared_family_ids_from_payload(payload),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     version_tag=payload.get("version_tag"),
                 ),
@@ -247,7 +247,7 @@ def from_stored(stored: StoredEvent) -> ModelEvent:
                     name=payload["name"],
                     manufacturer=_manufacturer_from_payload(payload["manufacturer"]),
                     part_number=payload["part_number"],
-                    declared_families=_declared_families_from_payload(payload),
+                    declared_family_ids=_declared_family_ids_from_payload(payload),
                     version_tag=payload["version_tag"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),

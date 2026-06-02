@@ -600,9 +600,9 @@ class AssetModelMismatchError(Exception):
 
     Cross-BC subset invariant: when an Asset is bound to a Model via
     `model_id`, the Asset's `family_ids` must be a superset of the
-    Model's `declared_families`. The check fires at `add_asset_family`
+    Model's `declared_family_ids`. The check fires at `add_asset_family`
     against a freshly loaded Model snapshot; if the post-add families
-    set is not a superset of `declared_families`, this error is raised
+    set is not a superset of `declared_family_ids`, this error is raised
     and no event is emitted.
 
     The message lists both sets verbatim so operators reading the API
@@ -620,17 +620,17 @@ class AssetModelMismatchError(Exception):
         self,
         asset_id: UUID,
         model_id: UUID,
-        declared_families: frozenset[UUID],
+        declared_family_ids: frozenset[UUID],
         asset_family_ids: frozenset[UUID],
     ) -> None:
         super().__init__(
             f"Asset {asset_id} bound to Model {model_id} which declares families "
-            f"{sorted(declared_families)}, but Asset families would be "
+            f"{sorted(declared_family_ids)}, but Asset families would be "
             f"{sorted(asset_family_ids)} after this transition"
         )
         self.asset_id = asset_id
         self.model_id = model_id
-        self.declared_families = declared_families
+        self.declared_family_ids = declared_family_ids
         self.asset_family_ids = asset_family_ids
 
 
@@ -740,7 +740,7 @@ class Asset:
     ladder). Set ONCE at `register_asset` time per the model-binding
     design memo (Lock A); rebind path is decommission + re-register.
     Carries the cross-BC subset invariant
-    `Model.declared_families ⊆ Asset.family_ids`, enforced at
+    `Model.declared_family_ids ⊆ Asset.family_ids`, enforced at
     `add_asset_family` against a freshly loaded Model snapshot.
     Defaults to None; legacy AssetRegistered streams without the
     model_id field fold cleanly via the additive-state pattern.

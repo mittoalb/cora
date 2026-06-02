@@ -47,7 +47,7 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Model is in `Deprecated` status (mutation requires "
                 "`Defined` or `Versioned`), OR the family_id is not in "
-                "the Model's declared_families set, OR a concurrent "
+                "the Model's declared_family_ids set, OR a concurrent "
                 "write to the same model stream conflicted (optimistic "
                 "concurrency)."
             ),
@@ -56,12 +56,12 @@ router = APIRouter(tags=["equipment"])
             "description": "Path parameter failed schema validation.",
         },
     },
-    summary="Remove a Family from an existing Model's declared_families set",
+    summary="Remove a Family from an existing Model's declared_family_ids set",
 )
 async def delete_models_family(
     model_id: Annotated[UUID, Path(description="Target model's id.")],
     family_id: Annotated[
-        UUID, Path(description="Family id to remove from the Model.declared_families set.")
+        UUID, Path(description="Family id to remove from the Model.declared_family_ids set.")
     ],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],

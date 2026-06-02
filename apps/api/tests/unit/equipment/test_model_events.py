@@ -55,7 +55,7 @@ def test_model_defined_round_trips_with_minimal_manufacturer() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         occurred_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
     )
     payload = to_payload(event)
@@ -82,7 +82,7 @@ def test_model_defined_to_payload_serializes_to_canonical_dict_literal() -> None
             identifier_type=ManufacturerIdentifierType.ROR,
         ),
         part_number="ANT130-L",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         occurred_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
         version_tag="rev-A",
     )
@@ -95,7 +95,7 @@ def test_model_defined_to_payload_serializes_to_canonical_dict_literal() -> None
             "identifier_type": "ROR",
         },
         "part_number": "ANT130-L",
-        "declared_families": sorted([str(family_a), str(family_b)]),
+        "declared_family_ids": sorted([str(family_a), str(family_b)]),
         "occurred_at": "2026-06-01T12:00:00+00:00",
         "version_tag": "rev-A",
     }
@@ -117,7 +117,7 @@ def test_model_defined_from_stored_rebuilds_from_canonical_dict_literal() -> Non
             "identifier_type": "ROR",
         },
         "part_number": "ANT130-L",
-        "declared_families": sorted([str(family_a), str(family_b)]),
+        "declared_family_ids": sorted([str(family_a), str(family_b)]),
         "occurred_at": "2026-06-01T12:00:00+00:00",
         "version_tag": "rev-A",
     }
@@ -131,7 +131,7 @@ def test_model_defined_from_stored_rebuilds_from_canonical_dict_literal() -> Non
             identifier_type=ManufacturerIdentifierType.ROR,
         ),
         part_number="ANT130-L",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         occurred_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
         version_tag="rev-A",
     )
@@ -148,7 +148,7 @@ def test_model_defined_round_trips_with_full_manufacturer_and_version_tag() -> N
             identifier_type=ManufacturerIdentifierType.ROR,
         ),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         occurred_at=datetime(2026, 6, 1, 12, 0, tzinfo=UTC),
         version_tag="rev-A",
     )
@@ -161,7 +161,7 @@ def test_model_defined_round_trips_with_full_manufacturer_and_version_tag() -> N
 
 
 @pytest.mark.unit
-def test_model_defined_payload_sorts_declared_families_deterministically() -> None:
+def test_model_defined_payload_sorts_declared_family_ids_deterministically() -> None:
     family_a = uuid4()
     family_b = uuid4()
     event = ModelDefined(
@@ -169,11 +169,11 @@ def test_model_defined_payload_sorts_declared_families_deterministically() -> No
         name="N",
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number="P",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         occurred_at=datetime(2026, 6, 1, 0, 0, tzinfo=UTC),
     )
     payload = to_payload(event)
-    assert payload["declared_families"] == sorted([str(family_a), str(family_b)])
+    assert payload["declared_family_ids"] == sorted([str(family_a), str(family_b)])
 
 
 @pytest.mark.unit
@@ -183,7 +183,7 @@ def test_model_versioned_round_trips() -> None:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         version_tag="rev-B",
         occurred_at=datetime(2026, 6, 1, 13, 0, tzinfo=UTC),
     )
@@ -203,7 +203,7 @@ def test_model_versioned_to_payload_serializes_to_canonical_dict_literal() -> No
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         version_tag="rev-B",
         occurred_at=datetime(2026, 6, 1, 13, 0, tzinfo=UTC),
     )
@@ -212,7 +212,7 @@ def test_model_versioned_to_payload_serializes_to_canonical_dict_literal() -> No
         "name": "Aerotech ANT130-L",
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": sorted([str(family_a), str(family_b)]),
+        "declared_family_ids": sorted([str(family_a), str(family_b)]),
         "version_tag": "rev-B",
         "occurred_at": "2026-06-01T13:00:00+00:00",
     }
@@ -229,7 +229,7 @@ def test_model_versioned_from_stored_rebuilds_from_canonical_dict_literal() -> N
         "name": "Aerotech ANT130-L",
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": sorted([str(family_a), str(family_b)]),
+        "declared_family_ids": sorted([str(family_a), str(family_b)]),
         "version_tag": "rev-B",
         "occurred_at": "2026-06-01T13:00:00+00:00",
     }
@@ -239,7 +239,7 @@ def test_model_versioned_from_stored_rebuilds_from_canonical_dict_literal() -> N
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family_a, family_b}),
+        declared_family_ids=frozenset({family_a, family_b}),
         version_tag="rev-B",
         occurred_at=datetime(2026, 6, 1, 13, 0, tzinfo=UTC),
     )

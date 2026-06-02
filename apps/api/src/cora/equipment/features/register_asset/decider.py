@@ -32,7 +32,7 @@ with addressable sub-modules).
 event without inspection. The decider does NOT load the Model
 snapshot: at registration the Asset's families set is empty, so
 the cross-BC subset invariant
-`Model.declared_families subset-of Asset.family_ids` is vacuously
+`Model.declared_family_ids subset-of Asset.family_ids` is vacuously
 satisfied and there is nothing to validate against. The handler
 enforces Model existence (raises `ModelNotFoundError` -> 404)
 before invoking decide; the first meaningful subset enforcement

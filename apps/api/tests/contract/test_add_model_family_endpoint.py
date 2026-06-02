@@ -1,7 +1,7 @@
 """Contract tests for `POST /models/{model_id}/families`.
 
 Targeted-mutation endpoint adding a single Family to the Model's
-`declared_families` set. 204 No Content on success.
+`declared_family_ids` set. 204 No Content on success.
 
 In-memory contract harness has no Postgres pool, so the cross-BC
 `list_all_family_ids` lookup performed by both `define_model` (during
@@ -65,7 +65,7 @@ def _define_body() -> dict[str, object]:
         "name": "ANT130-L",
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
     }
 
 
@@ -162,11 +162,11 @@ def test_post_add_model_family_returns_409_on_duplicate_family(
     accept_families: list[UUID],
 ) -> None:
     """Strict-not-idempotent: re-adding a family already in
-    declared_families surfaces as 409."""
+    declared_family_ids surfaces as 409."""
     _ = accept_families
     with TestClient(create_app()) as client:
         model_id = _seed_model(client)
-        # `_FIXED_FAMILY_ID` is already in declared_families per the
+        # `_FIXED_FAMILY_ID` is already in declared_family_ids per the
         # seed body; re-adding it must reject.
         response = client.post(
             f"/models/{model_id}/families",

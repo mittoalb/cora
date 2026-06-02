@@ -2,7 +2,7 @@
 
 Targeted-mutation endpoint at `POST /models/{model_id}/families`. Body
 carries a single `family_id` that is added to the Model's
-`declared_families` set. 204 No Content on success. Status (`Defined`
+`declared_family_ids` set. 204 No Content on success. Status (`Defined`
 or `Versioned`) is preserved; `Deprecated` rejects the mutation. No
 `Idempotency-Key` (update-style, mirrors `version_model`).
 """
@@ -28,7 +28,7 @@ class AddModelFamilyRequest(BaseModel):
 
     family_id: UUID = Field(
         ...,
-        description="Family id to add to the Model.declared_families set.",
+        description="Family id to add to the Model.declared_family_ids set.",
     )
 
 
@@ -64,7 +64,7 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Model is in `Deprecated` status (mutation requires "
                 "`Defined` or `Versioned`), OR the family_id is already "
-                "in the Model's declared_families set, OR a concurrent "
+                "in the Model's declared_family_ids set, OR a concurrent "
                 "write to the same model stream conflicted (optimistic "
                 "concurrency)."
             ),
@@ -73,7 +73,7 @@ router = APIRouter(tags=["equipment"])
             "description": "Path parameter or request body failed schema validation.",
         },
     },
-    summary="Add a Family to an existing Model's declared_families set",
+    summary="Add a Family to an existing Model's declared_family_ids set",
 )
 async def post_models_add_family(
     model_id: Annotated[UUID, Path(description="Target model's id.")],

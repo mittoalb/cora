@@ -85,7 +85,7 @@ def _define_command() -> DefineModel:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({_FAMILY_A_ID}),
+        declared_family_ids=frozenset({_FAMILY_A_ID}),
     )
 
 
@@ -94,15 +94,15 @@ def _version_command(
     name: str = "Aerotech ANT130-L rev-B",
     part_number: str = "ANT130-L-B",
     version_tag: str = "v2",
-    declared_families: frozenset[UUID] | None = None,
+    declared_family_ids: frozenset[UUID] | None = None,
 ) -> VersionModel:
     return VersionModel(
         model_id=_MODEL_ID,
         name=name,
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=part_number,
-        declared_families=declared_families
-        if declared_families is not None
+        declared_family_ids=declared_family_ids
+        if declared_family_ids is not None
         else frozenset({_FAMILY_A_ID, _FAMILY_B_ID}),
         version_tag=version_tag,
     )
@@ -187,7 +187,9 @@ async def test_handler_appends_model_versioned_event_with_replacement_payload(
     assert versioned.payload["name"] == "Aerotech ANT130-L rev-B"
     assert versioned.payload["part_number"] == "ANT130-L-B"
     assert versioned.payload["version_tag"] == "v2"
-    assert versioned.payload["declared_families"] == sorted([str(_FAMILY_A_ID), str(_FAMILY_B_ID)])
+    assert versioned.payload["declared_family_ids"] == sorted(
+        [str(_FAMILY_A_ID), str(_FAMILY_B_ID)]
+    )
     assert versioned.payload["manufacturer"] == {"name": "Aerotech"}
 
 

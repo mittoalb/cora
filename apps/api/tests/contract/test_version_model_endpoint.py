@@ -1,7 +1,7 @@
 """Contract tests for `POST /models/{model_id}/versions`.
 
 Action endpoint carrying a full replacement body (name, manufacturer,
-part_number, declared_families, version_tag). Multi-source guard
+part_number, declared_family_ids, version_tag). Multi-source guard
 (Defined | Versioned -> Versioned).
 
 In-memory contract harness has no Postgres pool, so the cross-BC
@@ -57,7 +57,7 @@ def _define_body(*, name: str = "ANT130-L") -> dict[str, object]:
         "name": name,
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
     }
 
 
@@ -66,14 +66,14 @@ def _version_body(
     name: str = "ANT130-L rev-B",
     part_number: str = "ANT130-L-B",
     version_tag: str = "v2",
-    declared_families: list[str] | None = None,
+    declared_family_ids: list[str] | None = None,
 ) -> dict[str, object]:
     return {
         "name": name,
         "manufacturer": {"name": "Aerotech"},
         "part_number": part_number,
-        "declared_families": declared_families
-        if declared_families is not None
+        "declared_family_ids": declared_family_ids
+        if declared_family_ids is not None
         else [str(_FIXED_FAMILY_ID), str(_OTHER_FAMILY_ID)],
         "version_tag": version_tag,
     }
@@ -171,12 +171,12 @@ def test_post_version_model_missing_required_field_returns_422(accept_family: UU
 
 
 @pytest.mark.contract
-def test_post_version_model_empty_declared_families_returns_422(accept_family: UUID) -> None:
-    """Pydantic `min_length=1` on `declared_families`."""
+def test_post_version_model_empty_declared_family_ids_returns_422(accept_family: UUID) -> None:
+    """Pydantic `min_length=1` on `declared_family_ids`."""
     _ = accept_family
     with TestClient(create_app()) as client:
         model_id = _seed_model(client)
-        body = _version_body(declared_families=[])
+        body = _version_body(declared_family_ids=[])
         response = client.post(f"/models/{model_id}/versions", json=body)
     assert response.status_code == 422
 

@@ -2,7 +2,7 @@
 
 Pinned:
 - Happy path: ModelDefined round-trips through jsonb with the
-  manufacturer sub-dict, sorted declared_families UUID list, and the
+  manufacturer sub-dict, sorted declared_family_ids UUID list, and the
   optional version_tag dropped when None.
 - Cross-BC family_lookup: define_model loads the Family read repo
   (`list_family_ids`) against the real `proj_equipment_family_summary`
@@ -61,7 +61,7 @@ async def test_define_model_persists_event_to_postgres(
     """Happy path: register a Family, define a Model declaring it,
     read the events back from the event store, and verify ModelDefined
     is persisted with the expected payload shape (sorted
-    declared_families, no version_tag key when None)."""
+    declared_family_ids, no version_tag key when None)."""
     family_id = UUID("01900000-0000-7000-8000-000000054c01")
     family_event_id = UUID("01900000-0000-7000-8000-000000054c0e")
     model_id = UUID("01900000-0000-7000-8000-00000054ca01")
@@ -88,7 +88,7 @@ async def test_define_model_persists_event_to_postgres(
                 identifier_type=ManufacturerIdentifierType.ROR,
             ),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -112,7 +112,7 @@ async def test_define_model_persists_event_to_postgres(
         "part_number": "ANT130-L",
         # Sorted by UUID string form (deterministic). Pinned by
         # tests/unit/equipment/test_model_events.py.
-        "declared_families": [str(family_id)],
+        "declared_family_ids": [str(family_id)],
         # version_tag is omitted from payload when None (per to_payload).
         "occurred_at": _NOW.isoformat(),
     }
@@ -142,7 +142,7 @@ async def test_define_model_rejects_unregistered_family_id(
                 name="Aerotech ANT130-L",
                 manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
                 part_number="ANT130-L",
-                declared_families=frozenset({missing_family_id}),
+                declared_family_ids=frozenset({missing_family_id}),
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -183,7 +183,7 @@ async def test_define_model_proceeds_when_family_is_registered(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -193,7 +193,7 @@ async def test_define_model_proceeds_when_family_is_registered(
     events, version = await deps.event_store.load("Model", model_id)
     assert version == 1
     assert events[0].event_type == "ModelDefined"
-    assert events[0].payload["declared_families"] == [str(family_id)]
+    assert events[0].payload["declared_family_ids"] == [str(family_id)]
 
 
 @pytest.mark.integration
@@ -238,7 +238,7 @@ async def test_define_model_idempotency_key_replay_returns_same_model_id(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({family_id}),
+        declared_family_ids=frozenset({family_id}),
     )
 
     first_id = await handler(
@@ -311,7 +311,7 @@ async def test_define_model_succeeds_when_declared_family_is_deprecated(
             name="Aerotech ANT130-L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130-L",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -321,4 +321,4 @@ async def test_define_model_succeeds_when_declared_family_is_deprecated(
     events, version = await deps.event_store.load("Model", model_id)
     assert version == 1
     assert events[0].event_type == "ModelDefined"
-    assert events[0].payload["declared_families"] == [str(family_id)]
+    assert events[0].payload["declared_family_ids"] == [str(family_id)]

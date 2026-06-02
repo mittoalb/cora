@@ -5,7 +5,7 @@ load + fold + decide + append. Not idempotency-wrapped.
 
 Unlike `add_model_family`, this slice performs NO cross-BC Family
 lookup: removal only requires `family_id` to be present in
-`declared_families`. The Family may have been deprecated or deleted
+`declared_family_ids`. The Family may have been deprecated or deleted
 from the Family registry and removal still proceeds.
 
 The seeding `define_model` call DOES still resolve `list_all_family_ids`
@@ -94,7 +94,7 @@ def _define_command() -> DefineModel:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({_FAMILY_A_ID}),
+        declared_family_ids=frozenset({_FAMILY_A_ID}),
     )
 
 
@@ -201,7 +201,7 @@ async def test_handler_raises_model_not_found_when_stream_is_missing() -> None:
 async def test_handler_raises_not_present_on_absent_family(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Removing a family not in declared_families surfaces
+    """Removing a family not in declared_family_ids surfaces
     ModelFamilyNotPresentError (strict-not-idempotent). No cross-BC
     lookup runs."""
     _patch_seed_known_families(monkeypatch, [_FAMILY_A_ID])

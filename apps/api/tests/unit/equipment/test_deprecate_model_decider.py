@@ -43,7 +43,7 @@ def _model(
         name=ModelName("Aerotech ANT130-L"),
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number=PartNumber("ANT130-L"),
-        declared_families=frozenset({uuid4()}),
+        declared_family_ids=frozenset({uuid4()}),
         status=status,
         version=version,
     )

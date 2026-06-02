@@ -46,7 +46,7 @@ class GetModelOutput(BaseModel):
     """Structured output of the `get_model` MCP tool.
 
     Mirrors the REST `ModelResponse` shape: `model_id`, `name`,
-    nested `manufacturer`, `part_number`, sorted `declared_families`
+    nested `manufacturer`, `part_number`, sorted `declared_family_ids`
     list, `status` enum string, and optional `version_tag`.
     """
 
@@ -54,7 +54,7 @@ class GetModelOutput(BaseModel):
     name: str = Field(..., max_length=MODEL_NAME_MAX_LENGTH)
     manufacturer: ManufacturerOutput
     part_number: str = Field(..., max_length=MODEL_PART_NUMBER_MAX_LENGTH)
-    declared_families: list[UUID]
+    declared_family_ids: list[UUID]
     status: str
     version_tag: str | None
 
@@ -99,7 +99,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 ),
             ),
             part_number=model.part_number.value,
-            declared_families=sorted(model.declared_families, key=str),
+            declared_family_ids=sorted(model.declared_family_ids, key=str),
             status=model.status.value,
             version_tag=model.version,
         )

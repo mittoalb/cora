@@ -1,13 +1,13 @@
 """Contract tests for `DELETE /models/{model_id}/families/{family_id}`.
 
 Targeted-mutation endpoint removing a single Family from the Model's
-`declared_families` set. 204 No Content on success. Both ids travel
+`declared_family_ids` set. 204 No Content on success. Both ids travel
 as path parameters; no request body.
 
 Unlike `add_model_family`, the `remove_model_family` slice performs
 NO cross-BC Family lookup; removing a Family that has been deprecated
 or deleted from the Family registry still succeeds if it sits in
-`declared_families`. The seeding `define_model` call DOES still
+`declared_family_ids`. The seeding `define_model` call DOES still
 resolve `list_all_family_ids` cross-BC, so we stub that one symbol on
 the `define_model` handler module.
 
@@ -61,7 +61,7 @@ def _define_body() -> dict[str, object]:
         "name": "ANT130-L",
         "manufacturer": {"name": "Aerotech"},
         "part_number": "ANT130-L",
-        "declared_families": [str(_FIXED_FAMILY_ID)],
+        "declared_family_ids": [str(_FIXED_FAMILY_ID)],
     }
 
 
@@ -125,11 +125,11 @@ def test_delete_remove_model_family_returns_409_when_family_absent(
     accept_families: list[UUID],
 ) -> None:
     """Strict-not-idempotent: removing a family not in
-    declared_families surfaces as 409."""
+    declared_family_ids surfaces as 409."""
     _ = accept_families
     with TestClient(create_app()) as client:
         model_id = _seed_model(client)
-        # `_OTHER_FAMILY_ID` was never added to declared_families; the
+        # `_OTHER_FAMILY_ID` was never added to declared_family_ids; the
         # seed only declares `_FIXED_FAMILY_ID`.
         response = client.delete(f"/models/{model_id}/families/{_OTHER_FAMILY_ID}")
     assert response.status_code == 409

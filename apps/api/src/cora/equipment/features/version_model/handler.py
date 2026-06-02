@@ -11,7 +11,7 @@ re-attestation stance). Domain-idempotent via `ModelCannotVersionError`
 on retry from `Deprecated`.
 
 NO cross-BC family lookup here: per the Model design memo Lock,
-`version_model` accepts whatever `declared_families` the caller
+`version_model` accepts whatever `declared_family_ids` the caller
 supplies without round-tripping the Family read repo. Incremental
 declared-family edits use `add_model_family`, which is where the
 cross-BC `list_family_ids` check lives. The wholesale replacement

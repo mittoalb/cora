@@ -100,7 +100,7 @@ def test_mcp_define_model_tool_rejects_missing_argument() -> None:
 
 @pytest.mark.contract
 def test_mcp_define_model_tool_returns_iserror_on_unregistered_family() -> None:
-    """Cross-BC check: declared_families must resolve to a registered Family.
+    """Cross-BC check: declared_family_ids must resolve to a registered Family.
     An unknown family id surfaces FamilyNotFoundError, which FastMCP wraps as
     isError: true with a 'not found' diagnostic (same shape as the REST 404).
     """
@@ -119,7 +119,7 @@ def test_mcp_define_model_tool_returns_iserror_on_unregistered_family() -> None:
                         "name": "ANT130-L",
                         "manufacturer": {"name": "Aerotech"},
                         "part_number": "ANT130-L",
-                        "declared_families": [unknown_family_id],
+                        "declared_family_ids": [unknown_family_id],
                     },
                 },
             },

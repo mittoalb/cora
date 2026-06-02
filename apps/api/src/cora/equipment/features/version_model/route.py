@@ -2,7 +2,7 @@
 
 Action endpoint at `POST /models/{model_id}/versions`. Body carries
 the full replacement declaration (name, manufacturer, part_number,
-declared_families, version_tag). 204 No Content on success. A new
+declared_family_ids, version_tag). 204 No Content on success. A new
 version IS a new declaration, so the supplied fields REPLACE the
 prior values wholesale.
 """
@@ -101,7 +101,7 @@ class VersionModelRequest(BaseModel):
             "are different Newport entries)."
         ),
     )
-    declared_families: list[UUID] = Field(
+    declared_family_ids: list[UUID] = Field(
         ...,
         min_length=1,
         description=(
@@ -137,7 +137,7 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Domain invariant violated (for example whitespace-only "
                 "name, whitespace-only part_number, whitespace-only "
-                "version_tag, or empty declared_families)."
+                "version_tag, or empty declared_family_ids)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -176,7 +176,7 @@ async def post_models_versions(
             name=body.name,
             manufacturer=body.manufacturer.to_vo(),
             part_number=body.part_number,
-            declared_families=frozenset(body.declared_families),
+            declared_family_ids=frozenset(body.declared_family_ids),
             version_tag=body.version_tag,
         ),
         principal_id=principal_id,

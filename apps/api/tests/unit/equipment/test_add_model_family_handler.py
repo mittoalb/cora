@@ -98,7 +98,7 @@ def _define_command() -> DefineModel:
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=frozenset({_FAMILY_A_ID}),
+        declared_family_ids=frozenset({_FAMILY_A_ID}),
     )
 
 
@@ -230,7 +230,7 @@ async def test_handler_raises_model_not_found_when_stream_is_missing(
 async def test_handler_raises_already_present_on_duplicate_family(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Re-adding a family already in declared_families surfaces
+    """Re-adding a family already in declared_family_ids surfaces
     ModelFamilyAlreadyPresentError (strict-not-idempotent)."""
     _patch_known_families(monkeypatch, [_FAMILY_A_ID])
     store = InMemoryEventStore()

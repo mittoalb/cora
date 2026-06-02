@@ -177,7 +177,7 @@ def test_asset_model_id_accepts_uuid() -> None:
 
 @pytest.mark.unit
 def test_asset_model_mismatch_carries_all_four_fields() -> None:
-    """Lock E: the error carries (asset_id, model_id, declared_families,
+    """Lock E: the error carries (asset_id, model_id, declared_family_ids,
     asset_family_ids) for diagnostics. Pin so any constructor signature
     change is deliberate."""
     asset_id = uuid4()
@@ -189,12 +189,12 @@ def test_asset_model_mismatch_carries_all_four_fields() -> None:
     error = AssetModelMismatchError(
         asset_id=asset_id,
         model_id=model_id,
-        declared_families=declared,
+        declared_family_ids=declared,
         asset_family_ids=on_asset,
     )
     assert error.asset_id == asset_id
     assert error.model_id == model_id
-    assert error.declared_families == declared
+    assert error.declared_family_ids == declared
     assert error.asset_family_ids == on_asset
 
 
@@ -211,13 +211,13 @@ def test_asset_model_mismatch_message_lists_both_sets_verbatim() -> None:
     error = AssetModelMismatchError(
         asset_id=asset_id,
         model_id=model_id,
-        declared_families=declared,
+        declared_family_ids=declared,
         asset_family_ids=on_asset,
     )
     message = str(error)
     assert str(asset_id) in message
     assert str(model_id) in message
-    # Both UUIDs of declared_families must appear; same for asset_family_ids.
+    # Both UUIDs of declared_family_ids must appear; same for asset_family_ids.
     assert str(fam_a) in message
     assert str(fam_b) in message
 
@@ -229,7 +229,7 @@ def test_asset_model_mismatch_is_exception() -> None:
     error = AssetModelMismatchError(
         asset_id=uuid4(),
         model_id=uuid4(),
-        declared_families=frozenset(),
+        declared_family_ids=frozenset(),
         asset_family_ids=frozenset(),
     )
     assert isinstance(error, Exception)

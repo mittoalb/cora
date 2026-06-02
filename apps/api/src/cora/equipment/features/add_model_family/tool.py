@@ -25,7 +25,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="add_model_family",
         description=(
-            "Add a Family to a vendor-catalog Model declared_families set. "
+            "Add a Family to a vendor-catalog Model declared_family_ids set. "
             "Strict-not-idempotent: re-adding a present family raises an error."
         ),
     )

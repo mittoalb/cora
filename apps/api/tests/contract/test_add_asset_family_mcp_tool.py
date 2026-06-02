@@ -35,13 +35,13 @@ _SEED_CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _SEED_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 
 
-async def _seed_model_with_declared_families(
+async def _seed_model_with_declared_family_ids(
     app: FastAPI,
     *,
     model_id: UUID,
     declared_family_ids: frozenset[UUID],
 ) -> None:
-    """Append a `ModelDefined` event with `declared_families` set
+    """Append a `ModelDefined` event with `declared_family_ids` set
     directly via the app's wired kernel; mirrors the REST endpoint
     test's seeder."""
     deps = app.state.deps
@@ -50,7 +50,7 @@ async def _seed_model_with_declared_families(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=declared_family_ids,
+        declared_family_ids=declared_family_ids,
         occurred_at=_SEED_NOW,
     )
     new_event = to_new_event(
@@ -238,7 +238,7 @@ def test_mcp_add_asset_family_tool_returns_iserror_when_already_present() -> Non
 @pytest.mark.contract
 def test_mcp_add_asset_family_tool_returns_iserror_when_asset_model_mismatch() -> None:
     """Cross-BC subset gate: an Asset bound to a Model whose
-    `declared_families` are not satisfied by the post-add Asset
+    `declared_family_ids` are not satisfied by the post-add Asset
     family set raises `AssetModelMismatchError`, surfaced as
     `isError: true` with the bound model_id in the error text."""
     asset_id = UUID("01900000-0000-7000-8000-0000000e0e01")
@@ -250,7 +250,7 @@ def test_mcp_add_asset_family_tool_returns_iserror_when_asset_model_mismatch() -
     app = create_app()
     with TestClient(app) as client:
         asyncio.run(
-            _seed_model_with_declared_families(
+            _seed_model_with_declared_family_ids(
                 app,
                 model_id=model_id,
                 declared_family_ids=frozenset({declared_a, declared_b}),

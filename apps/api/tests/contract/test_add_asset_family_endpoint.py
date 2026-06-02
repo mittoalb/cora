@@ -46,16 +46,16 @@ def _register_asset(client: TestClient, name: str = "APS-2BM") -> str:
     return asset_id
 
 
-async def _seed_model_with_declared_families(
+async def _seed_model_with_declared_family_ids(
     app: FastAPI,
     *,
     model_id: UUID,
     declared_family_ids: frozenset[UUID],
 ) -> None:
-    """Append a `ModelDefined` event with `declared_families` set
+    """Append a `ModelDefined` event with `declared_family_ids` set
     directly via the app's wired kernel.
 
-    The contract test needs a Model carrying specific declared_families
+    The contract test needs a Model carrying specific declared_family_ids
     so the cross-BC subset gate at `add_asset_family` can be exercised.
     Going through `define_model` would require the Families to exist
     in the projection too (cross-BC lookup at the Model handler);
@@ -68,7 +68,7 @@ async def _seed_model_with_declared_families(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=declared_family_ids,
+        declared_family_ids=declared_family_ids,
         occurred_at=_SEED_NOW,
     )
     new_event = to_new_event(
@@ -239,7 +239,7 @@ def test_post_add_family_with_x_principal_id_header_succeeds() -> None:
 @pytest.mark.contract
 def test_post_add_family_returns_409_when_asset_model_mismatch() -> None:
     """Cross-BC subset gate: an Asset bound to a Model whose
-    `declared_families` are not satisfied by the post-add Asset
+    `declared_family_ids` are not satisfied by the post-add Asset
     family set raises `AssetModelMismatchError`, mapped to 409 via the
     `cannot_transition_cls` tuple in `routes.py`."""
     asset_id = UUID("01900000-0000-7000-8000-0000000e0d01")
@@ -254,7 +254,7 @@ def test_post_add_family_returns_409_when_asset_model_mismatch() -> None:
         # fails because the post-add Asset families is {declared_a}
         # which is not a superset of {declared_a, declared_b}.
         asyncio.run(
-            _seed_model_with_declared_families(
+            _seed_model_with_declared_family_ids(
                 app,
                 model_id=model_id,
                 declared_family_ids=frozenset({declared_a, declared_b}),

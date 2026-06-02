@@ -6,7 +6,7 @@ Two scenarios — adding a single capability, then verifying that
 load+fold returns a state with the capability in the set.
 
 Plus the cross-BC subset gate (Asset.model_id binding): when the
-Asset is bound to a Model carrying `declared_families`, the
+Asset is bound to a Model carrying `declared_family_ids`, the
 `add_asset_family` handler loads the Model snapshot at decide time
 and raises `AssetModelMismatchError` if the post-add Asset family set
 is not a superset of the Model's declared families. The PG-backed
@@ -63,7 +63,7 @@ async def _seed_model(
         name="Aerotech ANT130-L",
         manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
         part_number="ANT130-L",
-        declared_families=declared_family_ids,
+        declared_family_ids=declared_family_ids,
         occurred_at=_NOW,
     )
     new_event = to_new_event(
@@ -163,7 +163,7 @@ async def test_add_asset_family_persists_event_and_round_trips_through_fold(
 async def test_add_asset_family_succeeds_when_bound_model_subset_is_satisfied(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Asset bound to a Model whose `declared_families` is satisfied
+    """Asset bound to a Model whose `declared_family_ids` is satisfied
     by the post-add Asset family set: the cross-BC subset gate
     passes, the `AssetFamilyAdded` event lands as usual."""
     asset_id = UUID("01900000-0000-7000-8000-00000057fa01")
@@ -204,7 +204,7 @@ async def test_add_asset_family_succeeds_when_bound_model_subset_is_satisfied(
 async def test_add_asset_family_raises_asset_model_mismatch_when_subset_is_violated(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Asset bound to a Model whose `declared_families` is NOT
+    """Asset bound to a Model whose `declared_family_ids` is NOT
     satisfied by the post-add Asset family set: the cross-BC subset
     gate raises `AssetModelMismatchError`, no event is appended, the
     Asset stream stays at version 1."""
@@ -235,7 +235,7 @@ async def test_add_asset_family_raises_asset_model_mismatch_when_subset_is_viola
 
     assert exc_info.value.asset_id == asset_id
     assert exc_info.value.model_id == model_id
-    assert exc_info.value.declared_families == frozenset({declared_a, declared_b})
+    assert exc_info.value.declared_family_ids == frozenset({declared_a, declared_b})
     assert exc_info.value.asset_family_ids == frozenset({declared_a})
 
     _, version = await deps.event_store.load("Asset", asset_id)

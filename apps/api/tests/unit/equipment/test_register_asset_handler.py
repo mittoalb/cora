@@ -289,7 +289,7 @@ async def test_handler_proceeds_when_model_id_resolves(
             name=ModelName("EigerX-9M"),
             manufacturer=Manufacturer(name=ManufacturerName("Dectris")),
             part_number=PartNumber("EX9M-001"),
-            declared_families=frozenset({UUID("01900000-0000-7000-8000-000000fa1001")}),
+            declared_family_ids=frozenset({UUID("01900000-0000-7000-8000-000000fa1001")}),
         )
 
     monkeypatch.setattr("cora.equipment.features.register_asset.handler.load_model", _load_model)

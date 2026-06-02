@@ -9,7 +9,7 @@ claims across generated inputs:
     injected `now` timestamp.
   - state=None always raises ModelNotFoundError, regardless of command.
   - state.status==Deprecated always raises ModelCannotVersionError.
-  - Empty `declared_families` always raises InvalidDeclaredFamiliesError.
+  - Empty `declared_family_ids` always raises InvalidDeclaredFamiliesError.
   - Empty, whitespace-only, or over-long `name` always raises
     InvalidModelNameError (via the ModelName VO).
   - Empty, whitespace-only, or over-long `part_number` always raises
@@ -125,7 +125,7 @@ def _command(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
 ) -> VersionModel:
     return VersionModel(
@@ -133,7 +133,7 @@ def _command(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
 
@@ -144,7 +144,7 @@ def _model(model_id: UUID, *, status: ModelStatus) -> Model:
         name=ModelName("Existing"),
         manufacturer=Manufacturer(name=ManufacturerName("M")),
         part_number=PartNumber("P"),
-        declared_families=frozenset({model_id}),
+        declared_family_ids=frozenset({model_id}),
         status=status,
         version="v0" if status is ModelStatus.VERSIONED else None,
     )
@@ -157,7 +157,7 @@ def _model(model_id: UUID, *, status: ModelStatus) -> Model:
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -167,7 +167,7 @@ def test_version_model_emits_exactly_one_event_with_injected_fields(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -179,7 +179,7 @@ def test_version_model_emits_exactly_one_event_with_injected_fields(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     events = version_model.decide(state=state, command=command, now=now)
@@ -189,7 +189,7 @@ def test_version_model_emits_exactly_one_event_with_injected_fields(
             name=name,
             manufacturer=manufacturer,
             part_number=part_number,
-            declared_families=declared_families,
+            declared_family_ids=declared_family_ids,
             version_tag=version_tag,
             occurred_at=now,
         )
@@ -202,7 +202,7 @@ def test_version_model_emits_exactly_one_event_with_injected_fields(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -211,7 +211,7 @@ def test_version_model_on_empty_state_always_raises_not_found(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -221,7 +221,7 @@ def test_version_model_on_empty_state_always_raises_not_found(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(ModelNotFoundError) as exc:
@@ -235,7 +235,7 @@ def test_version_model_on_empty_state_always_raises_not_found(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -244,7 +244,7 @@ def test_version_model_on_deprecated_state_always_raises_cannot_version(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -255,7 +255,7 @@ def test_version_model_on_deprecated_state_always_raises_cannot_version(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(ModelCannotVersionError) as exc:
@@ -274,7 +274,7 @@ def test_version_model_on_deprecated_state_always_raises_cannot_version(
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
-def test_version_model_with_empty_declared_families_always_raises(
+def test_version_model_with_empty_declared_family_ids_always_raises(
     model_id: UUID,
     status: ModelStatus,
     name: str,
@@ -283,7 +283,7 @@ def test_version_model_with_empty_declared_families_always_raises(
     version_tag: str,
     now: datetime,
 ) -> None:
-    """Empty declared_families -> InvalidDeclaredFamiliesError, regardless
+    """Empty declared_family_ids -> InvalidDeclaredFamiliesError, regardless
     of other fields."""
     state = _model(model_id, status=status)
     command = _command(
@@ -291,7 +291,7 @@ def test_version_model_with_empty_declared_families_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=frozenset[UUID](),
+        declared_family_ids=frozenset[UUID](),
         version_tag=version_tag,
     )
     with pytest.raises(InvalidDeclaredFamiliesError):
@@ -305,7 +305,7 @@ def test_version_model_with_empty_declared_families_always_raises(
     name=_invalid_bounded_text(MODEL_NAME_MAX_LENGTH),
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -315,7 +315,7 @@ def test_version_model_with_invalid_name_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -326,7 +326,7 @@ def test_version_model_with_invalid_name_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidModelNameError):
@@ -340,7 +340,7 @@ def test_version_model_with_invalid_name_always_raises(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_invalid_bounded_text(MODEL_PART_NUMBER_MAX_LENGTH),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -350,7 +350,7 @@ def test_version_model_with_invalid_part_number_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -361,7 +361,7 @@ def test_version_model_with_invalid_part_number_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidPartNumberError):
@@ -375,7 +375,7 @@ def test_version_model_with_invalid_part_number_always_raises(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_invalid_bounded_text(MODEL_VERSION_TAG_MAX_LENGTH),
     now=aware_datetimes(),
 )
@@ -385,7 +385,7 @@ def test_version_model_with_invalid_version_tag_always_raises(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -397,7 +397,7 @@ def test_version_model_with_invalid_version_tag_always_raises(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     with pytest.raises(InvalidModelVersionTagError):
@@ -411,7 +411,7 @@ def test_version_model_with_invalid_version_tag_always_raises(
     name=_padded_text(_NAME),
     manufacturer=_manufacturers(),
     part_number=_padded_text(_PART_NUMBER),
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_padded_text(_VERSION_TAG),
     now=aware_datetimes(),
 )
@@ -421,7 +421,7 @@ def test_version_model_event_carries_trimmed_name_part_number_and_version_tag(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -439,7 +439,7 @@ def test_version_model_event_carries_trimmed_name_part_number_and_version_tag(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     events = version_model.decide(state=state, command=command, now=now)
@@ -457,7 +457,7 @@ def test_version_model_event_carries_trimmed_name_part_number_and_version_tag(
     name=_NAME,
     manufacturer=_manufacturers(),
     part_number=_PART_NUMBER,
-    declared_families=_DECLARED_FAMILIES,
+    declared_family_ids=_DECLARED_FAMILIES,
     version_tag=_VERSION_TAG,
     now=aware_datetimes(),
 )
@@ -467,7 +467,7 @@ def test_version_model_is_pure_same_input_same_output(
     name: str,
     manufacturer: Manufacturer,
     part_number: str,
-    declared_families: frozenset[UUID],
+    declared_family_ids: frozenset[UUID],
     version_tag: str,
     now: datetime,
 ) -> None:
@@ -478,7 +478,7 @@ def test_version_model_is_pure_same_input_same_output(
         name=name,
         manufacturer=manufacturer,
         part_number=part_number,
-        declared_families=declared_families,
+        declared_family_ids=declared_family_ids,
         version_tag=version_tag,
     )
     first = version_model.decide(state=state, command=command, now=now)

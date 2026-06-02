@@ -117,11 +117,11 @@ def bind(deps: Kernel) -> Handler:
             if model is None:
                 raise ModelNotFoundError(state.model_id)
             post_add_family_ids = state.family_ids | {command.family_id}
-            if not model.declared_families.issubset(post_add_family_ids):
+            if not model.declared_family_ids.issubset(post_add_family_ids):
                 raise AssetModelMismatchError(
                     asset_id=state.id,
                     model_id=state.model_id,
-                    declared_families=model.declared_families,
+                    declared_family_ids=model.declared_family_ids,
                     asset_family_ids=post_add_family_ids,
                 )
 
