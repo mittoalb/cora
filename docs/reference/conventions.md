@@ -190,6 +190,16 @@ Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's op
 
 `RunAddedToCampaign` / `RunRemovedFromCampaign` carry the preposition because the action targets a sibling aggregate (Campaign), not the Run itself. Bare past-participle (`RunAdded` / `RunRemoved`) would read as if the Run was created or deleted; the preposition makes the cross-aggregate scope explicit. Reserved for events where the Run's stream records an attachment-to-sibling action; sibling Campaign events follow the bare past-participle shape from the Campaign side.
 
+### Projection tables use `proj_<bc>_<aggregate>_<rowtype>`, dropping redundant prefix
+
+Projection tables follow the shape `proj_<bc>_<aggregate>_<rowtype>` where `<rowtype>` names the stored relation (`_summary`, `_membership`, `_children`, `_consumers`, `_ratings`, `_presence`). Examples: `proj_equipment_asset_summary`, `proj_recipe_plan_summary`, `proj_federation_credential_summary`, `proj_trust_visit_summary`.
+
+When the BC contains a single aggregate AND the BC name equals the aggregate name, the redundant prefix is dropped: `proj_<aggregate>_<rowtype>`. Examples: `proj_run_summary`, `proj_agent_summary`, `proj_supply_summary`, `proj_caution_summary`. The dropped-prefix form applies to 8 BCs today (agent, calibration, campaign, caution, decision, run, subject, supply).
+
+When the BC contains a single aggregate but the BC name differs from the aggregate name, the BC prefix stays for grep symmetry with multi-aggregate BCs: `proj_access_actor_summary` (BC = access, aggregate = actor), `proj_data_dataset_summary`, `proj_operation_procedure_summary`, `proj_safety_clearance_summary`.
+
+The `<rowtype>` suffix names the persisted relation, not a usage pattern. Sibling pattern across the corpus: `_summary` (one row per aggregate), `_membership` (join row), `_children` / `_consumers` (reference row), `_ratings` (multi-row per aggregate). The `_lookup` suffix was an early outlier; it was renamed to a relation noun in commit `aaade3cb0`.
+
 ### Dataset uses `derived_from` (PROV-O) not `derived_from_ids`
 
 `Dataset.derived_from: frozenset[UUID]` is the sole UUID-collection field that drops the `_ids` suffix the rest of the corpus carries (`Method.needed_family_ids`, `Permit.allowed_credential_ids`, `Asset.family_ids`, etc.). The bare term is the PROV-O standard property (`prov:wasDerivedFrom`); preserving it lets future RO-Crate / PROV-O export round-trip the field without translation.
