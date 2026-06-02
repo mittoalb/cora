@@ -8832,7 +8832,7 @@
       },
       "ReleaseControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/release-control-of-surface.",
+        "description": "Body for POST /visits/{visit_id}/surface-control/release.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit relinquishes control of. Must match the Visit's surface_id.",
@@ -10543,7 +10543,7 @@
       },
       "TakeControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/take-control-of-surface.",
+        "description": "Body for POST /visits/{visit_id}/surface-control/take.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit assumes operational control of. Must match the Visit's surface_id.",
@@ -30996,103 +30996,6 @@
         ]
       }
     },
-    "/visits/{visit_id}/release-control-of-surface": {
-      "post": {
-        "operationId": "post_visits_release_control_visits__visit_id__release_control_of_surface_post",
-        "parameters": [
-          {
-            "description": "Requesting Visit's id.",
-            "in": "path",
-            "name": "visit_id",
-            "required": true,
-            "schema": {
-              "description": "Requesting Visit's id.",
-              "format": "uuid",
-              "title": "Visit Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-            "in": "header",
-            "name": "X-Principal-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-              "title": "X-Principal-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReleaseControlOfSurfaceBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authorize port denied the command."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No Visit exists with the given id."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Visit cannot release: requesting Visit is not the current Surface holder or surface_id does not match."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Requesting Visit releases operational control of a Surface",
-        "tags": [
-          "trust"
-        ]
-      }
-    },
     "/visits/{visit_id}/resume": {
       "post": {
         "operationId": "post_visits_resume_visits__visit_id__resume_post",
@@ -31267,9 +31170,106 @@
         ]
       }
     },
-    "/visits/{visit_id}/take-control-of-surface": {
+    "/visits/{visit_id}/surface-control/release": {
       "post": {
-        "operationId": "post_visits_take_control_visits__visit_id__take_control_of_surface_post",
+        "operationId": "post_visits_release_control_visits__visit_id__surface_control_release_post",
+        "parameters": [
+          {
+            "description": "Requesting Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Requesting Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseControlOfSurfaceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit cannot release: requesting Visit is not the current Surface holder or surface_id does not match."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Requesting Visit releases operational control of a Surface",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/surface-control/take": {
+      "post": {
+        "operationId": "post_visits_take_control_visits__visit_id__surface_control_take_post",
         "parameters": [
           {
             "description": "Requesting Visit's id.",
