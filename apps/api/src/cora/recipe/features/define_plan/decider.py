@@ -24,7 +24,7 @@ fundamental issues surface first:
    impossible thanks to UUIDv7 ids, but keeps the unmapped raise
    from surfacing as 500 instead of 409.
 2. `asset_ids` must be non-empty (structural invariant: a Plan
-   without bindings is meaningless). Raises `InvalidPlanError`.
+   without bindings is meaningless). Raises `PlanAssetsRequiredError`.
 3. Practice must not be Deprecated. Raises `PracticeDeprecatedError`.
 4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
@@ -65,11 +65,11 @@ if TYPE_CHECKING:
     from cora.equipment.aggregates.family import Affordance
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
-    InvalidPlanError,
     MethodDeprecatedError,
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetsRequiredError,
     PlanDefined,
     PlanFamiliesNotSatisfiedError,
     PlanName,
@@ -92,7 +92,7 @@ def decide(
 
     Invariants:
       - State must be None (genesis-only) -> PlanAlreadyExistsError
-      - asset_ids must be non-empty -> InvalidPlanError
+      - asset_ids must be non-empty -> PlanAssetsRequiredError
       - Practice must not be Deprecated -> PracticeDeprecatedError
       - Method must not be Deprecated -> MethodDeprecatedError
       - No bound Asset may be Decommissioned
@@ -109,7 +109,7 @@ def decide(
         raise PlanAlreadyExistsError(state.id)
 
     if not command.asset_ids:
-        raise InvalidPlanError("at least one asset_id required")
+        raise PlanAssetsRequiredError("at least one asset_id required")
 
     if context.practice.status is PracticeStatus.DEPRECATED:
         raise PracticeDeprecatedError(context.practice.id)

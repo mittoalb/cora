@@ -7,7 +7,7 @@ live in test_define_plan_handler.py.
 
 Validation order pinned per gate-review Q5:
   1. State must be None (PlanAlreadyExistsError)
-  2. asset_ids non-empty (InvalidPlanError)
+  2. asset_ids non-empty (PlanAssetsRequiredError)
   3. Practice not Deprecated (PracticeDeprecatedError)
   4. Method not Deprecated (MethodDeprecatedError)
   5. No bound Asset Decommissioned (AssetDecommissionedError)
@@ -37,12 +37,12 @@ from cora.recipe.aggregates.capability import (
 from cora.recipe.aggregates.method import Method, MethodName, MethodStatus
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
-    InvalidPlanError,
     InvalidPlanNameError,
     MethodDeprecatedError,
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetsRequiredError,
     PlanDefined,
     PlanFamiliesNotSatisfiedError,
     PlanName,
@@ -258,7 +258,7 @@ def test_decide_raises_plan_already_exists_when_state_is_not_none() -> None:
 @pytest.mark.unit
 def test_decide_raises_invalid_plan_for_empty_asset_ids() -> None:
     """A Plan with no Asset bindings is structurally meaningless."""
-    with pytest.raises(InvalidPlanError):
+    with pytest.raises(PlanAssetsRequiredError):
         define_plan.decide(
             state=None,
             command=DefinePlan(name="X", practice_id=uuid4(), asset_ids=frozenset()),

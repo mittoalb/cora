@@ -74,10 +74,10 @@ from cora.recipe.aggregates.method.events import (
 )
 from cora.recipe.aggregates.plan import (
     AssetDecommissionedError,
-    InvalidPlanError,
     InvalidPlanNameError,
     MethodDeprecatedError,
     PlanAffordancesNotSatisfiedError,
+    PlanAssetsRequiredError,
     PlanFamiliesNotSatisfiedError,
     PracticeDeprecatedError,
 )
@@ -627,7 +627,7 @@ async def test_handler_propagates_invalid_plan_error_for_empty_asset_ids() -> No
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(InvalidPlanError):
+    with pytest.raises(PlanAssetsRequiredError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset()),
             principal_id=_PRINCIPAL_ID,

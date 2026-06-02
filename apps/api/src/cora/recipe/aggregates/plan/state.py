@@ -125,15 +125,16 @@ class InvalidPlanNameError(ValueError):
         self.value = value
 
 
-class InvalidPlanError(ValueError):
-    """The supplied DefinePlan command violates a structural invariant.
+class PlanAssetsRequiredError(ValueError):
+    """A Plan must bind at least one Asset.
 
-    Currently raised when `asset_ids` is empty (a Plan must bind at
-    least one Asset; gate-review locked this as a domain invariant).
+    Raised by `define_plan` when the `asset_ids` argument is empty;
+    gate-review locked the non-empty asset binding as a domain
+    invariant.
     """
 
     def __init__(self, reason: str) -> None:
-        super().__init__(f"Invalid plan: {reason}")
+        super().__init__(f"Plan asset binding invalid: {reason}")
         self.reason = reason
 
 
