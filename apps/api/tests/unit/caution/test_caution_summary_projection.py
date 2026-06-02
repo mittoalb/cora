@@ -197,7 +197,7 @@ async def test_caution_superseded_updates_status_and_links_child() -> None:
         "CautionSuperseded",
         {
             "caution_id": str(_CAUTION_ID),
-            "by_caution_id": str(_BY_CAUTION_ID),
+            "superseded_by_caution_id": str(_BY_CAUTION_ID),
             "occurred_at": _NOW.isoformat(),
         },
     )

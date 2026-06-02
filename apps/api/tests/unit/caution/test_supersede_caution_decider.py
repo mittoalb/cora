@@ -1,7 +1,7 @@
 """Pure-decider tests for `supersede_caution` slice.
 
 Pins the cross-aggregate two-stream output shape:
-  - parent_events == [CautionSuperseded(parent.id, by_caution_id=new_id)]
+  - parent_events == [CautionSuperseded(parent.id, superseded_by_caution_id=new_id)]
   - child_events == [CautionRegistered(caution_id=new_id,
                                        parent_caution_id=parent.id, ...)]
 """
@@ -94,7 +94,7 @@ def test_decide_emits_parent_superseded_and_child_registered() -> None:
     assert len(result.parent_events) == 1
     assert isinstance(result.parent_events[0], CautionSuperseded)
     assert result.parent_events[0].caution_id == parent.id
-    assert result.parent_events[0].by_caution_id == new_id
+    assert result.parent_events[0].superseded_by_caution_id == new_id
     assert result.parent_events[0].occurred_at == _NOW
 
     assert len(result.child_events) == 1

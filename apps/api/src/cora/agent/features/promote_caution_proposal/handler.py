@@ -239,7 +239,7 @@ def bind(deps: Kernel) -> Handler:
 
             parent_event = CautionSuperseded(
                 caution_id=parent.id,
-                by_caution_id=new_caution_id,
+                superseded_by_caution_id=new_caution_id,
                 occurred_at=now,
             )
             child_event = CautionRegistered(

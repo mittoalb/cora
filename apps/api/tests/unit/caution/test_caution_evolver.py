@@ -104,7 +104,7 @@ def test_fold_genesis_then_superseded_transitions_to_superseded() -> None:
             _genesis(),
             CautionSuperseded(
                 caution_id=_CAUTION_ID,
-                by_caution_id=child_id,
+                superseded_by_caution_id=child_id,
                 occurred_at=_NOW,
             ),
         ]
@@ -149,7 +149,7 @@ def test_evolve_superseded_on_empty_state_raises() -> None:
             None,
             CautionSuperseded(
                 caution_id=_CAUTION_ID,
-                by_caution_id=_CAUTION_ID,
+                superseded_by_caution_id=_CAUTION_ID,
                 occurred_at=_NOW,
             ),
         )

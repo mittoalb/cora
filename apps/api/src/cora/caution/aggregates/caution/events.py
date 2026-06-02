@@ -159,7 +159,7 @@ class CautionSuperseded:
     """
 
     caution_id: UUID
-    by_caution_id: UUID
+    superseded_by_caution_id: UUID
     occurred_at: datetime
 
 
@@ -229,12 +229,12 @@ def to_payload(event: CautionEvent) -> dict[str, Any]:
             }
         case CautionSuperseded(
             caution_id=caution_id,
-            by_caution_id=by_caution_id,
+            superseded_by_caution_id=superseded_by_caution_id,
             occurred_at=occurred_at,
         ):
             return {
                 "caution_id": str(caution_id),
-                "by_caution_id": str(by_caution_id),
+                "superseded_by_caution_id": str(superseded_by_caution_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case CautionRetired(
@@ -304,7 +304,7 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
                 "CautionSuperseded",
                 lambda: CautionSuperseded(
                     caution_id=UUID(payload["caution_id"]),
-                    by_caution_id=UUID(payload["by_caution_id"]),
+                    superseded_by_caution_id=UUID(payload["superseded_by_caution_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )

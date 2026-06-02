@@ -147,7 +147,7 @@ class CautionSummaryProjection:
             await conn.execute(
                 _UPDATE_SUPERSEDED_SQL,
                 UUID(event.payload["caution_id"]),
-                UUID(event.payload["by_caution_id"]),
+                UUID(event.payload["superseded_by_caution_id"]),
                 datetime.fromisoformat(event.payload["occurred_at"]),
             )
             return
