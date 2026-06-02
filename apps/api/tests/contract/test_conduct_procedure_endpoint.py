@@ -106,22 +106,20 @@ def test_post_conduct_with_setpoint_to_unconnected_address_returns_not_connected
 
 
 @pytest.mark.contract
-def test_post_conduct_against_unregistered_procedure_returns_200_with_lifecycle_failure() -> None:
-    """conduct() catches start_procedure rejections -> lifecycle failure on result."""
+def test_post_conduct_against_unregistered_procedure_returns_404() -> None:
+    """conduct() re-raises start_procedure's ProcedureNotFoundError so the
+    BC's central exception handler maps it to 404. Earlier shape (200 with
+    lifecycle failure on the body) was rejected by routes.py wiring: see
+    [[project_conduct_procedure_test_contract_drift]] memory."""
     with TestClient(create_app()) as client:
         unknown_pid = uuid4()
         run = client.post(
             f"/procedures/{unknown_pid}/conduct",
             json={"steps": []},
         )
-    assert run.status_code == 200
+    assert run.status_code == 404
     payload = run.json()
-    assert payload["succeeded"] is False
-    failure = payload["failure"]
-    assert failure["step_index"] is None
-    assert failure["source_kind"] == "lifecycle"
-    assert failure["target"] == "start"
-    assert failure["error_class"] == "ProcedureNotFoundError"
+    assert str(unknown_pid) in payload["detail"]
 
 
 @pytest.mark.contract

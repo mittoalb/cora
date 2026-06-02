@@ -106,8 +106,11 @@ def test_mcp_conduct_procedure_with_unknown_action_returns_failure_in_structured
 
 
 @pytest.mark.contract
-def test_mcp_conduct_procedure_against_unregistered_procedure_returns_lifecycle_failure() -> None:
-    """conduct() catches start_procedure rejection -> lifecycle failure on result."""
+def test_mcp_conduct_procedure_against_unregistered_procedure_returns_iserror() -> None:
+    """conduct() re-raises ProcedureNotFoundError; FastMCP surfaces as isError.
+    Earlier shape (200-with-lifecycle-failure structured content) was rejected
+    by routes.py wiring: see [[project_conduct_procedure_test_contract_drift]]
+    memory."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         unknown_pid = uuid4()
@@ -127,10 +130,6 @@ def test_mcp_conduct_procedure_against_unregistered_procedure_returns_lifecycle_
             },
             headers=headers,
         )
-    structured: dict[str, Any] = parse_sse_data(response.text)["result"]["structuredContent"]
-    assert structured["succeeded"] is False
-    failure = structured["failure"]
-    assert failure["step_index"] is None
-    assert failure["source_kind"] == "lifecycle"
-    assert failure["target"] == "start"
-    assert failure["error_class"] == "ProcedureNotFoundError"
+    body = parse_sse_data(response.text)
+    assert body["result"]["isError"] is True
+    assert str(unknown_pid) in body["result"]["content"][0]["text"]
