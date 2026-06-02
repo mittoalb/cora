@@ -29,7 +29,7 @@ async def test_register_then_get_then_list(
         "id": str(actor_id),
         "name": "Doga",
         "kind": "human",
-        "is_active": True,
+        "active": True,
     }
 
     # LIST is projection-backed; drain so the bookmark catches up before

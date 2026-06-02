@@ -26,7 +26,7 @@ def test_get_actor_returns_200_with_actor_response() -> None:
         "id": str(actor_id),
         "name": "Doga",
         "kind": "human",
-        "is_active": True,
+        "active": True,
     }
 
 
@@ -38,7 +38,7 @@ def test_get_actor_reflects_deactivation() -> None:
         response = client.get(f"/actors/{actor_id}")
 
     assert response.status_code == 200
-    assert response.json()["is_active"] is False
+    assert response.json()["active"] is False
 
 
 @pytest.mark.contract
