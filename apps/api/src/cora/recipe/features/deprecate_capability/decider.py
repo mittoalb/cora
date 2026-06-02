@@ -5,7 +5,7 @@ Re-deprecating a Deprecated Capability raises (strict-not-idempotent).
 
 `replaced_by_capability_id` (when supplied) points at a successor
 Capability. Eventual-consistency: the target id is NOT verified
-cross-stream at decider time (same precedent as Method.families).
+cross-stream at decider time (same precedent as Method.needed_family_ids).
 
 Invariants:
   - State must not be None -> CapabilityNotFoundError

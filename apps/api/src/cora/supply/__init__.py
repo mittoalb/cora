@@ -11,7 +11,7 @@ Owns continuously-available resource state in CORA:
     as `Asset`s; the resource itself is `Supply`.
 
 Track B intro BC. Independent of Track A (Recipe / Subject / Data) and
-of Trust / Decision foundation BCs. Method.needs.supplies wires the
+of Trust / Decision foundation BCs. Method.needed_supplies wires the
 consumer side; physical-equipment binding (Supply -> Asset, mirrors
 Subject -> Asset) is deferred-with-trigger.
 
