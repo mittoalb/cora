@@ -101,6 +101,7 @@ async def test_handler_appends_procedure_registered_event_to_store() -> None:
         "target_asset_ids": [str(_ASSET_ID)],
         "parent_run_id": None,
         "capability_id": None,
+        "recipe_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

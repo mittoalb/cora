@@ -40,8 +40,9 @@ _INSERT_PROCEDURE_SQL = """
 INSERT INTO proj_operation_procedure_summary
     (procedure_id, name, kind, target_asset_ids, parent_run_id, status,
      steps_logbook_id, registered_at,
-     last_status_changed_at, last_status_reason, interrupted_at)
-VALUES ($1, $2, $3, $4::uuid[], $5, 'Defined', NULL, $6, NULL, NULL, NULL)
+     last_status_changed_at, last_status_reason, interrupted_at,
+     recipe_id)
+VALUES ($1, $2, $3, $4::uuid[], $5, 'Defined', NULL, $6, NULL, NULL, NULL, $7)
 ON CONFLICT (procedure_id) DO NOTHING
 """
 
@@ -113,6 +114,8 @@ class ProcedureSummaryProjection:
             target_asset_ids = [UUID(a) for a in payload.get("target_asset_ids", [])]
             raw_parent = payload.get("parent_run_id")
             parent_run_id = UUID(raw_parent) if raw_parent is not None else None
+            raw_recipe = payload.get("recipe_id")
+            recipe_id = UUID(raw_recipe) if raw_recipe is not None else None
             await conn.execute(
                 _INSERT_PROCEDURE_SQL,
                 UUID(payload["procedure_id"]),
@@ -121,6 +124,7 @@ class ProcedureSummaryProjection:
                 target_asset_ids,
                 parent_run_id,
                 datetime.fromisoformat(payload["occurred_at"]),
+                recipe_id,
             )
             return
 

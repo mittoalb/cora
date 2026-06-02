@@ -11,10 +11,12 @@ from cora.recipe.projections.capability import CapabilitySummaryProjection
 from cora.recipe.projections.method import MethodSummaryProjection
 from cora.recipe.projections.plan import PlanSummaryProjection
 from cora.recipe.projections.practice import PracticeSummaryProjection
+from cora.recipe.projections.recipe import RecipeSummaryProjection
 
 __all__ = [
     "CapabilitySummaryProjection",
     "MethodSummaryProjection",
     "PlanSummaryProjection",
     "PracticeSummaryProjection",
+    "RecipeSummaryProjection",
 ]

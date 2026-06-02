@@ -74,9 +74,15 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
         # Sorted by string form for deterministic payload bytes.
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": str(parent_run),
-        # capability_id (default). Pre-10d streams omit the key and
-        # fold via `.get("capability_id")` in from_stored.
+        # capability_id (default). Pre-binding streams omit the key
+        # and fold via `.get("capability_id")` in from_stored.
         "capability_id": None,
+        # recipe_id (default). Pre-Recipe-rewrite streams omit the
+        # key and fold via `.get("recipe_id")` in from_stored.
+        # `register_procedure_from_recipe` sets both `recipe_id` and
+        # the denorm `capability_id`; the legacy `register_procedure`
+        # slice leaves both None.
+        "recipe_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 

@@ -127,6 +127,7 @@ GRANDFATHERED_DECIDERS_WITHOUT_PBT: frozenset[str] = frozenset(
         "cora.federation.features.suspend_permit.decider",
         "cora.operation.features.abort_procedure.decider",
         "cora.operation.features.complete_procedure.decider",
+        "cora.operation.features.register_procedure_from_recipe.decider",
         "cora.operation.features.start_procedure.decider",
         "cora.operation.features.truncate_procedure.decider",
         "cora.recipe.features.add_plan_wire.decider",

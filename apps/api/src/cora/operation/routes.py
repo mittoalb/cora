@@ -40,6 +40,7 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureKindError,
     InvalidProcedureNameError,
     InvalidProcedureTruncateReasonError,
+    InvalidRecipeBindingsError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
     ProcedureAssetDecommissionedError,
@@ -52,6 +53,9 @@ from cora.operation.aggregates.procedure import (
     ProcedureRequiresAvailableSupplyError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
+    RecipeBindingsStaleAgainstCurrentCapabilityError,
+    RecipeExpansionDeterminismError,
+    RecipeExpansionOverflowError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
@@ -61,6 +65,7 @@ from cora.operation.features import (
     get_procedure,
     list_procedures,
     register_procedure,
+    register_procedure_from_recipe,
     run_procedure,
     start_procedure,
     truncate_procedure,
@@ -132,9 +137,45 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_unprocessable(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 422 handler for parse-shape failures past the Pydantic boundary.
+
+    Covers the Recipe-expansion family raised at
+    register_procedure_from_recipe time: stale-Capability schema drift,
+    operator-supplied bindings shape failures, and the expansion
+    overflow cap. The 400 Invalid<X> family is reserved for VO
+    constructor failures (name / kind); 422 is reserved for
+    downstream parse-shape or schema-cross-check failures that pass
+    Pydantic but fail at the cross-aggregate boundary.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_internal_server_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 500 handler for server-side determinism / port-contract bugs.
+
+    Covers RecipeExpansionDeterminismError (expansion port returned
+    different results for the same `(steps, bindings)` input,
+    indicating a non-pure expander or a non-canonical bindings dict).
+    Distinct from operator error: the operator's request is well-formed;
+    the server-side bug means re-trying with the same payload will
+    likely fail the same way. Mapped to HTTP 500.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
 def register_operation_routes(app: FastAPI) -> None:
     """Attach Operation slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_procedure.router)
+    app.include_router(register_procedure_from_recipe.router)
     app.include_router(start_procedure.router)
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
@@ -177,4 +218,17 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureSupplyCoverageMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for unprocessable_cls in (
+        # Recipe-expansion family at register_procedure_from_recipe time.
+        # All fire AFTER Pydantic body validation: stale-Capability schema
+        # drift, operator-bindings shape failure, expansion overflow cap.
+        RecipeBindingsStaleAgainstCurrentCapabilityError,
+        InvalidRecipeBindingsError,
+        RecipeExpansionOverflowError,
+    ):
+        app.add_exception_handler(unprocessable_cls, _handle_unprocessable)
+    # Server-side determinism bug; mapped to HTTP 500. Distinct from
+    # operator-error 422 because re-trying with the same payload will
+    # fail the same way.
+    app.add_exception_handler(RecipeExpansionDeterminismError, _handle_internal_server_error)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

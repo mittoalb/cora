@@ -58,6 +58,9 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.operation.acquisitions import collect, continuous, discrete
 from cora.operation.adapters.control_port_config import build_control_port
+from cora.operation.adapters.in_memory_recipe_expansion_port import (
+    InMemoryRecipeExpansionPort,
+)
 from cora.operation.aggregates.procedure import (
     InMemoryStepStore,
     PostgresStepStore,
@@ -71,6 +74,7 @@ from cora.operation.features import (
     get_procedure,
     list_procedures,
     register_procedure,
+    register_procedure_from_recipe,
     run_procedure,
     start_procedure,
     truncate_procedure,
@@ -91,6 +95,7 @@ class OperationHandlers:
     """
 
     register_procedure: register_procedure.IdempotentHandler
+    register_procedure_from_recipe: register_procedure_from_recipe.IdempotentHandler
     start_procedure: start_procedure.Handler
     complete_procedure: complete_procedure.Handler
     abort_procedure: abort_procedure.Handler
@@ -128,6 +133,12 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
     step_store: StepStore = (
         PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
     )
+    # Recipe expansion port: default pure adapter. Per the design memo
+    # ([[project-recipe-aggregate-design]] Locks), the port is
+    # 2-arg pure substitution; future deployment-specific expanders
+    # implement the same Protocol and bump `version` to invalidate
+    # cached expansions on substantive semantic changes.
+    recipe_expansion_port = InMemoryRecipeExpansionPort()
     start_handler = with_tracing(
         start_procedure.bind(deps),
         command_name="StartProcedure",
@@ -175,6 +186,18 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterProcedure",
+            bc=_BC,
+        ),
+        register_procedure_from_recipe=with_tracing(
+            with_idempotency(
+                register_procedure_from_recipe.bind(deps, expansion_port=recipe_expansion_port),
+                deps.idempotency_store,
+                command_name="RegisterProcedureFromRecipe",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterProcedureFromRecipe",
             bc=_BC,
         ),
         start_procedure=start_handler,
