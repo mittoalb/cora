@@ -147,6 +147,29 @@ Python handler function names, slice directory names, and command class names ar
 
 An architecture fitness test in `apps/api/tests/architecture/test_rest_url_kebab_case.py` enforces this across every slice's `route.py`.
 
+### URL paths and slice/command/MCP names are independent conventions
+
+Slice directory names, command class names, and MCP tool names carry the SUBJECT in the verb-phrase when the slice mutates a specific aggregate kind: `add_asset_family`, `decommission_asset`, `enter_asset_maintenance`, `update_asset_settings`. Reading aloud, "add asset family" and "enter asset maintenance" are parallel English noun-phrases.
+
+URLs use the BARE verb when the path scope already implies the subject. Sibling endpoints under `/assets/{asset_id}/` all follow this shape: `/activate`, `/decommission`, `/relocate`, `/degrade`, `/fault`, `/restore`, `/enter-maintenance`, `/exit-maintenance`, `/add-family`, `/remove-family`. The `/assets/{asset_id}/` segment is the subject; repeating it in the verb (`/enter-asset-maintenance`) would be redundant.
+
+```
+GOOD: slice = enter_asset_maintenance/, command = EnterAssetMaintenance,
+      MCP tool = enter_asset_maintenance,
+      URL = POST /assets/{asset_id}/enter-maintenance
+BAD:  URL = POST /assets/{asset_id}/enter-asset-maintenance  (subject duplicated with path scope)
+```
+
+The two conventions cover different audiences: code-side names live alongside siblings in the slice directory and need the subject for grep + read-aloud clarity; URL paths live alongside their sibling endpoints under the resource path and stay terse so the path reads as a sentence.
+
+### Multi-segment action paths
+
+When an endpoint manipulates a sub-resource on its parent, the URL nests as `/{parent-id}/{sub-resource}/{verb}`. Examples: `POST /visits/{visit_id}/surface-control/take`, `POST /visits/{visit_id}/surface-control/release`, `POST /federation/seals/{facility_id}/pointer/sign`, `POST /federation/seals/{facility_id}/online-key/rotate`. The noun-resource segment groups related actions; the verb terminates the path.
+
+This nesting is reserved for sub-resources that have multiple actions or own a meaningful name independent of the parent. Single-action endpoints stay flat (`POST /visits/{visit_id}/arrive`).
+
+Multi-word verb-prep URL segments are banned. `take-control-of-surface` was the sole example before commit `bda0d49f1` flipped it to `surface-control/take`; the noun-then-verb shape is the standard.
+
 ## Documentation
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.
