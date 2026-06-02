@@ -42,7 +42,13 @@ import pytest
 
 from tests.architecture.conftest import CORA_ROOT, tracked_python_files
 
-_PARTICIPLE_SUFFIXES: frozenset[str] = frozenset({"ed", "en", "ld"})
+_PARTICIPLE_SUFFIXES: frozenset[str] = frozenset({"ed", "en"})
+# `-ld` is NOT a participle suffix at the catch-all layer: too many
+# non-participle English words end in `-ld` (Build, Field, Shield, Yield,
+# Guild, Child, Mold, Fold, Hold, Gold, Bold, Cold). Past participles
+# that genuinely end in `-ld` (Held, Sold, Told) are listed individually
+# in `_IRREGULAR_PARTICIPLES`. Extend the allowlist when a future event
+# legitimately picks up a new irregular form.
 _IRREGULAR_PARTICIPLES: frozenset[str] = frozenset({"Held"})
 
 _TOKEN_RE = re.compile(r"[A-Z][a-z]*")
@@ -77,10 +83,15 @@ def _event_union_members(tree: ast.AST) -> set[str]:
     """Return event-class names appearing in any `<Aggregate>Event` union.
 
     Walks top-level Assign / AnnAssign / TypeAlias for a target named
-    ending in `Event`; flattens a `A | B | C` BinOp chain into the set
-    of member names. Returns empty when no Event union is present (an
-    events.py without a discriminated union is itself a smell but a
-    different fitness function's concern).
+    ending in `Event`. Two union syntaxes are recognized:
+
+      - PEP 604 pipe form: `A | B | C` (ast.BinOp with ast.BitOr op)
+      - typing.Union subscript form: `Union[A, B, C]` (ast.Subscript
+        with Tuple or single Name slice)
+
+    Returns empty when no Event union is present (an events.py without
+    a discriminated union is itself a smell but a different fitness
+    function's concern).
     """
     members: set[str] = set()
 
@@ -90,6 +101,13 @@ def _event_union_members(tree: ast.AST) -> set[str]:
         elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
             yield from _flatten(node.left)
             yield from _flatten(node.right)
+        elif isinstance(node, ast.Subscript):
+            slice_node = node.slice
+            if isinstance(slice_node, ast.Tuple):
+                for elt in slice_node.elts:
+                    yield from _flatten(elt)
+            else:
+                yield from _flatten(slice_node)
 
     for node in ast.iter_child_nodes(tree):
         target_name: str | None = None
