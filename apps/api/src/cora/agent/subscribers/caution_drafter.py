@@ -156,19 +156,25 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
 
 
 class CautionDrafterSubscriber:
-    """Side-effecting subscriber: terminal Run -> one Caution-proposal Decision.
+    """Reaction: terminal Run -> one Caution-proposal Decision.
 
     Constructed by `make_caution_drafter_subscriber` from the Kernel;
-    satisfies the `Projection` Protocol structurally.
+    satisfies the `Reaction` Protocol structurally.
 
     Holds references to the LLM port, event store, and CautionLookup
     port. The Decision's `actor_id` is the seeded CautionDrafter
     Agent's id (== that agent's Actor.id per 8f-a's identity-sharing
     invariant).
+
+    `batch_size = 1` for the same reason as RunDebriefer: the apply
+    path includes a slow LLM round-trip, so holding the bookmark
+    transaction across N events would starve Projection advance loops
+    sharing the same pool.
     """
 
     name = "caution_drafter"
     subscribed_event_types = _TERMINAL_RUN_EVENTS
+    batch_size = 1
 
     def __init__(
         self,
