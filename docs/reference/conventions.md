@@ -170,6 +170,32 @@ This nesting is reserved for sub-resources that have multiple actions or own a m
 
 Multi-word verb-prep URL segments are banned. `take-control-of-surface` was the sole example before commit `bda0d49f1` flipped it to `surface-control/take`; the noun-then-verb shape is the standard.
 
+## Code identifier carve-outs
+
+The four field-shape patterns below are deliberate departures from rules that hold elsewhere. Each has a domain reason; each is enforced by an architecture fitness test so a future rename does not undo the carve-out by accident.
+
+### Boolean fields use bare adjectives
+
+The shape is `<adjective>: bool`, not `is_<adjective>: bool`. Most codebase examples follow this directly: `propagate_to_children`, `incomplete`, `accepted`, `archived`, `frozen`. The reader's "is" comes from the field-access read-aloud (`caution.propagate_to_children` reads as "the caution propagates to children"), not from a prefix that doubles the verb.
+
+The `is_`/`has_`/`can_` prefix style is reserved for derived predicates (computed properties or helper methods that ask a yes-no question). It does not migrate onto stored field declarations.
+
+Outlier: `Actor.is_active` predates the convention. Bundled with the next Access BC revision per the audit memo Phase 6.
+
+### Supply uses `Marked<Status>` for operator-driven transitions
+
+Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's operator-observation events: `SupplyMarkedAvailable`, `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`. The `Marked` prefix encodes the audit distinction "operator observation, not monitor measurement" that motivates Supply's 5-state FSM. A future automated monitor would emit bare past-participle events (`SupplyObservedAvailable`, `SupplyObservedRecovering`); the prefix is the discriminator. See [`project_supply_design`](../projects/supply.md) for the operator-vs-monitor split.
+
+### Run cross-aggregate edits use `*To*` / `*From*`
+
+`RunAddedToCampaign` / `RunRemovedFromCampaign` carry the preposition because the action targets a sibling aggregate (Campaign), not the Run itself. Bare past-participle (`RunAdded` / `RunRemoved`) would read as if the Run was created or deleted; the preposition makes the cross-aggregate scope explicit. Reserved for events where the Run's stream records an attachment-to-sibling action; sibling Campaign events follow the bare past-participle shape from the Campaign side.
+
+### Dataset uses `derived_from` (PROV-O) not `derived_from_ids`
+
+`Dataset.derived_from: frozenset[UUID]` is the sole UUID-collection field that drops the `_ids` suffix the rest of the corpus carries (`Method.needed_family_ids`, `Permit.allowed_credential_ids`, `Asset.family_ids`, etc.). The bare term is the PROV-O standard property (`prov:wasDerivedFrom`); preserving it lets future RO-Crate / PROV-O export round-trip the field without translation.
+
+The `_ids` suffix fitness test (`test_uuid_collection_field_suffix.py`) carves this single field out by name. Adding another PROV-O-aligned field reuses the same carve-out registry entry; do not extend the bare-plural shape outside the PROV-O vocabulary.
+
 ## Documentation
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.
