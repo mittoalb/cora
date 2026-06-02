@@ -81,7 +81,7 @@ async def test_define_agent_writes_both_streams_atomically(
     assert actor is not None
     assert actor.id == agent_id
     assert actor.kind is ActorKind.AGENT
-    assert actor.is_active is True
+    assert actor.active is True
 
     profile = await profile_store.get(agent_id)
     assert profile is not None

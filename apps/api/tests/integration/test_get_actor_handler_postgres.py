@@ -45,5 +45,5 @@ async def test_get_actor_loads_view_from_real_postgres(
 
     assert view is not None
     assert view.actor.id == _ACTOR_ID
-    assert view.actor.is_active is True
+    assert view.actor.active is True
     assert view.display_name == "Doga"

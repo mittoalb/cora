@@ -326,7 +326,7 @@ async def test_handler_raises_agent_not_seeded_when_actor_absent() -> None:
 @pytest.mark.unit
 async def test_handler_raises_agent_deactivated_when_actor_inactive() -> None:
     """Security: a deactivated agent Actor cannot author on-demand
-    Decisions. Mirrors the subscriber's Actor.is_active gate."""
+    Decisions. Mirrors the subscriber's Actor.active gate."""
     store = InMemoryEventStore()
     llm = FakeLLM(responses=[_CANNED_OK])
     run_id = uuid4()

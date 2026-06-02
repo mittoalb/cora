@@ -77,7 +77,7 @@ async def _seed_run_debrief_actor(
     aggregate at apply()-time.
 
     Set `deactivated=True` to also append an `ActorDeactivated` event
-    so the loaded Actor has `is_active=False` (exercise the security
+    so the loaded Actor has `active=False` (exercise the security
     deactivated-actor gate).
     """
     # PII vault: event payload carries no `name`; display name lives

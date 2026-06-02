@@ -72,14 +72,14 @@ who authorised the agent's existence). Per-call authorization is
 an HTTP-handler concern; subscribers are internal workers running
 under the agent's identity.
 
-The subscriber DOES gate on the agent's `Actor.is_active` flag
+The subscriber DOES gate on the agent's `Actor.active` flag
 (per security gate-review convention): an operator deactivating the agent's
 Actor takes effect on the next `apply()` (the worker reloads the
 Actor every pass; an in-flight pass completes). The Agent
 aggregate's lifecycle status (Defined / Versioned / Deprecated)
 is NOT checked here -- watch item -- because requiring an extra
 event-store load per terminal event has measurable cost at
-facility scale and the Actor.is_active hop closes the same
+facility scale and the Actor.active hop closes the same
 revoke-the-agent operator gesture.
 
 ## LogbookMirror
@@ -325,7 +325,7 @@ class RunDebrieferSubscriber:
         # completes. That asymmetry is intentional -- aborting a
         # mid-LLM-call subscriber would orphan the Decision write
         # (LLM cost paid, no audit trail).
-        if not actor.is_active:
+        if not actor.active:
             log.warning(
                 "run_debriefer.skip.agent_actor_deactivated",
                 agent_id=str(RUN_DEBRIEFER_AGENT_ID),

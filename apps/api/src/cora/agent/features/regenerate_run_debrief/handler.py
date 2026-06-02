@@ -168,7 +168,7 @@ def bind(deps: Kernel) -> Handler:
         actor = await load_actor(deps.event_store, RUN_DEBRIEFER_AGENT_ID)
         if actor is None:
             raise AgentNotSeededError(RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME)
-        if not actor.is_active:
+        if not actor.active:
             raise AgentDeactivatedError(RUN_DEBRIEFER_AGENT_ID)
 
         # Pre-load parent Decision when ref set; enforce same-agent +

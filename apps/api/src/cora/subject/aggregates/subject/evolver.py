@@ -16,7 +16,7 @@ Status mapping per event type:
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
-precedent as `ActorDeactivated -> is_active=False`.
+precedent as `ActorDeactivated -> active=False`.
 
 `mounted_on_asset_id`: set on SubjectMounted (from event.asset_id),
 preserved through SubjectMeasured (from prior state), cleared on

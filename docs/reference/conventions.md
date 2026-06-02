@@ -71,7 +71,7 @@ The schema-declared unit is the canonical wire-and-storage unit. Deciders, event
 
 Personal data on Actors lives in a separate mutable `actor_profile` table, not in events. Events carry `actor_id` only. Erasure scrubs the row before deleting it (`UPDATE ... SET name = ''` then `DELETE`) so the dead-tuple bytes carry no PII before VACUUM.
 
-- **Actor aggregate state** holds `id` and `is_active`; no `name`, no `email`. The event payloads carry the same fields.
+- **Actor aggregate state** holds `id` and `active`; no `name`, no `email`. The event payloads carry the same fields.
 - **`actor_profile` table** holds `actor_id PRIMARY KEY`, `name`, optional contact fields, `created_at`, `updated_at`. Written in the same transaction as `ActorRegistered`. The table has `FORCE ROW LEVEL SECURITY` enabled so even superuser sessions go through the policy.
 - **Load path** left-joins `actor_profile` and falls back to `<deleted user>` when the row is absent.
 - **`forget_actor` slice** scrubs-then-deletes the profile row and emits `ActorProfileForgotten(actor_id, occurred_at)` in a single transaction. The audit event carries no personal data.
@@ -178,9 +178,7 @@ The field-shape patterns below are deliberate departures from rules that hold el
 
 The shape is `<adjective>: bool`, not `is_<adjective>: bool`. Aggregate-state and event-payload examples follow this directly: `Caution.propagate_to_children`, `Seal.rotate_seal_online_key.signed_by_offline_root`, `Procedure.conduct_procedure.succeeded`. DTO-side examples follow the same shape (`incomplete` on the `list_permissions` and `get_asset_integration_view` response DTOs). The reader's "is" comes from the field-access read-aloud (`caution.propagate_to_children` reads as "the caution propagates to children"), not from a prefix that doubles the verb.
 
-The `is_`/`has_`/`can_` prefix style is reserved for derived predicates (computed properties or helper methods that ask a yes-no question). It does not migrate onto stored field declarations.
-
-Outlier: `Actor.is_active` predates the convention. Bundled with the next Access BC revision per the audit memo Phase 6.
+The `is_`/`has_`/`can_` prefix style is reserved for derived predicates (computed properties or helper methods that ask a yes-no question). `Permit.is_active` is the canonical example: a function `def is_active(state: Permit) -> bool` computes whether the Permit is currently active by inspecting the FSM state. The prefix style does not migrate onto stored field declarations.
 
 ### Cannot-transition errors are per-verb, not collapsed
 

@@ -16,12 +16,12 @@ carries). `now` is still injected from the Clock port at handler time.
 
 `deactivate_actor` accepts ANY Actor regardless of `kind`. For
 agent-kind Actors (those co-registered by `define_agent` in the
-Agent BC), the Actor's `is_active` flag is ORTHOGONAL to the
+Agent BC), the Actor's `active` flag is ORTHOGONAL to the
 Agent aggregate's lifecycle (`Defined / Versioned / Deprecated`).
 This is intentional per [[project_agent_bc_design]] cross-BC
 review P1-2:
 
-  - `is_active=False` on an agent Actor is a SOFT pause (the
+  - `active=False` on an agent Actor is a SOFT pause (the
     Actor record exists, can still author historical Decisions,
     but new commands using the principal can be authz-denied at
     the policy layer).
@@ -30,10 +30,10 @@ review P1-2:
 
 The Agent-BC invocation infrastructure (RunDebriefer and
 CautionDrafter subscribers and beyond) MUST treat
-`is_active=False` AND `kind=agent` as a soft-deprecation: do not
+`active=False` AND `kind=agent` as a soft-deprecation: do not
 invoke the agent even if its Agent.status is still Versioned.
 Decision-existence checks in Decision BC do NOT gate on
-`is_active` (the historical fact still holds for Decisions
+`active` (the historical fact still holds for Decisions
 already written); the deactivation is forward-only and only
 affects new commands.
 """
@@ -58,6 +58,6 @@ def decide(
     """Decide the events produced by deactivating an existing actor."""
     if state is None:
         raise ActorNotFoundError(command.actor_id)
-    if not state.is_active:
+    if not state.active:
         raise ActorCannotDeactivateError(state.id)
     return [ActorDeactivated(actor_id=state.id, occurred_at=now)]

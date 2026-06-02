@@ -61,7 +61,7 @@ deferred).
 
 Mirrors RunDebriefer verbatim: NO `Authorize` port call (agent's
 authority granted at definition time); DOES gate on
-`Actor.is_active` (operator-revocation gate per the security
+`Actor.active` (operator-revocation gate per the security
 gate-review convention).
 
 ## Cross-BC reads
@@ -233,7 +233,7 @@ class CautionDrafterSubscriber:
                 agent_name=CAUTION_DRAFTER_AGENT_NAME,
             )
             return
-        if not actor.is_active:
+        if not actor.active:
             log.warning(
                 "caution_drafter.skip.agent_actor_deactivated",
                 agent_id=str(CAUTION_DRAFTER_AGENT_ID),

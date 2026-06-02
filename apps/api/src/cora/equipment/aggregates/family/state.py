@@ -32,7 +32,7 @@ appear in Equipment BC.
 as JSON-friendly strings IF carried in an event payload. Today they
 aren't: state holds the enum (typed) and the evolver derives the new
 status from the event TYPE — same precedent as `SubjectStatus` /
-`ActorDeactivated → is_active=False`.
+`ActorDeactivated → active=False`.
 
 ## Why Family lives in Equipment (not its own BC)
 

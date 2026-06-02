@@ -144,14 +144,14 @@
       "ActorResponse": {
         "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format from\nthe domain model so the two can evolve independently (for example\nan ActorName invariant change doesn't break older clients).\n\n`kind` distinguishes human-registered Actors from\nagent-co-registered Actors (via the Agent BC `define_agent`\ncross-BC atomic write). Existing consumers that don't read `kind`\nare unaffected; consumers that need the distinction (Decision\nprojections, audit-policy filters) gain it without polymorphism.",
         "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
-          },
-          "is_active": {
-            "title": "Is Active",
-            "type": "boolean"
           },
           "kind": {
             "enum": [
@@ -172,7 +172,7 @@
           "id",
           "name",
           "kind",
-          "is_active"
+          "active"
         ],
         "title": "ActorResponse",
         "type": "object"
@@ -10444,7 +10444,7 @@
         "type": "string"
       },
       "SupplyStatus": {
-        "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.is_active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
+        "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
         "enum": [
           "Unknown",
           "Available",

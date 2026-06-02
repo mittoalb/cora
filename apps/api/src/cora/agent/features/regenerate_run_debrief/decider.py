@@ -8,7 +8,7 @@ no awaits, no clock / id-generator calls.
 
 Invariants:
   - State is always None (genesis event, fresh Decision stream).
-  - `context.actor.is_active` is True (handler raised
+  - `context.actor.active` is True (handler raised
     AgentDeactivatedError otherwise).
   - `command.parent_decision_id` (when set) points at a real Decision
     in the same Run AND with `context = "RunDebrief"` (handler raised

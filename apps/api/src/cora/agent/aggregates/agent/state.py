@@ -434,7 +434,7 @@ class AgentNotSeededError(Exception):
 
 class AgentDeactivatedError(Exception):
     """Cross-aggregate state-gate failure: the Agent's co-registered
-    Actor is `is_active=False`.
+    Actor is `active=False`.
 
     Today raised by the `debrief_run`-style slices when
     an operator deactivated the agent's Actor via Access BC.
@@ -443,7 +443,7 @@ class AgentDeactivatedError(Exception):
 
     Mirrors the subscriber's runtime gate (`cora.agent.subscribers.
     run_debriefer.RunDebrieferSubscriber.apply` line: `if not
-    actor.is_active: return`).
+    actor.active: return`).
     """
 
     def __init__(self, agent_id: UUID) -> None:

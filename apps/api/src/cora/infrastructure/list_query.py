@@ -286,7 +286,7 @@ def _render_filter_fragment(spec: FilterSpec, param_number: int) -> str:
     return f"{column} = ANY(${param_number})"
 
 
-def _is_active_filter_value(spec: FilterSpec, value: Any) -> bool:
+def _active_filter_value(spec: FilterSpec, value: Any) -> bool:
     """A filter is active iff the slice would emit a WHERE fragment.
 
     None is always inactive (matches the `getattr` default). For
@@ -416,7 +416,7 @@ def make_list_query_handler[Q: _Query, Item, Page](
         next_param = 2
         for spec in filters:
             value = getattr(query, spec.attr)
-            if not _is_active_filter_value(spec, value):
+            if not _active_filter_value(spec, value):
                 continue
             active_fragments.append(_render_filter_fragment(spec, next_param))
             filter_values.append(value)

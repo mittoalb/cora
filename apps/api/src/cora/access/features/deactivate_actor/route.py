@@ -4,7 +4,7 @@ Action endpoint at `POST /actors/{actor_id}/deactivate`. We chose the
 action-endpoint pattern over `DELETE /actors/{actor_id}` because:
 
   - "Deactivate" isn't deletion — the actor stays in the system,
-    just with `is_active=False`.
+    just with `active=False`.
   - A future ReactivateActor would naturally pair as
     `POST /actors/{actor_id}/reactivate`; using DELETE leaves no
     natural counterpart.

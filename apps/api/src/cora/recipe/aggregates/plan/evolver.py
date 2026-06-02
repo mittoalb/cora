@@ -28,7 +28,7 @@ The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
 precedent as `PracticeDefined → DEFINED` / `MethodDefined →
 DEFINED` / `FamilyDefined → DEFINED` / `SubjectMounted →
-MOUNTED` / `ActorDeactivated → is_active=False`. Mirrors Practice's
+MOUNTED` / `ActorDeactivated → active=False`. Mirrors Practice's
 transition evolver shape from Recipe BC.
 
 `asset_ids` is converted from `list[UUID]` (event payload) to

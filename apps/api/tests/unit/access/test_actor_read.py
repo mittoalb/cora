@@ -62,7 +62,7 @@ async def test_load_actor_rebuilds_active_actor_from_single_event() -> None:
 
     actor = await load_actor(store, actor_id)
 
-    assert actor == Actor(id=actor_id, is_active=True)
+    assert actor == Actor(id=actor_id, active=True)
 
 
 @pytest.mark.unit
@@ -81,7 +81,7 @@ async def test_load_actor_rebuilds_deactivated_actor_after_replay() -> None:
 
     actor = await load_actor(store, actor_id)
 
-    assert actor == Actor(id=actor_id, is_active=False)
+    assert actor == Actor(id=actor_id, active=False)
 
 
 @pytest.mark.unit

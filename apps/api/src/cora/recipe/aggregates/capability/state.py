@@ -41,7 +41,7 @@ plan_signature granularity facets are deferred when pilot demands.
 naturally as JSON-friendly strings IF carried in event payloads.
 Today they aren't: state holds the enum (typed) and the evolver
 derives status from the event TYPE — same precedent as `SubjectStatus`
-/ `FamilyStatus` / `ActorDeactivated → is_active=False`.
+/ `FamilyStatus` / `ActorDeactivated → active=False`.
 
 ## Code namespace + name as separate VOs
 
