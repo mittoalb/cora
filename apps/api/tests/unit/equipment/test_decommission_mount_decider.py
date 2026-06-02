@@ -15,7 +15,7 @@ from cora.equipment.aggregates.mount import (
     MountCannotDecommissionError,
     MountDecommissioned,
     MountHasActiveChildrenError,
-    MountHasInstalledAssetError,
+    MountHasAssetInstalledError,
     MountNotFoundError,
     MountStatus,
 )
@@ -108,7 +108,7 @@ def test_decide_raises_cannot_decommission_when_already_decommissioned() -> None
 def test_decide_raises_has_installed_asset_when_slot_is_occupied() -> None:
     occupant = uuid4()
     mount = _mount(installed_asset_id=occupant)
-    with pytest.raises(MountHasInstalledAssetError) as info:
+    with pytest.raises(MountHasAssetInstalledError) as info:
         decommission_mount.decide(
             state=mount,
             command=DecommissionMount(mount_id=mount.id, reason="x"),

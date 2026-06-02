@@ -87,7 +87,7 @@ from cora.equipment.aggregates.mount import (
     MountCannotDecommissionError,
     MountCannotUpdateError,
     MountHasActiveChildrenError,
-    MountHasInstalledAssetError,
+    MountHasAssetInstalledError,
     MountIsEmptyError,
     MountNotFoundError,
 )
@@ -273,7 +273,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameInUseError,
         MountCannotUpdateError,
         MountCannotDecommissionError,
-        MountHasInstalledAssetError,
+        MountHasAssetInstalledError,
         MountHasActiveChildrenError,
         MountAlreadyOccupiedError,
         MountIsEmptyError,

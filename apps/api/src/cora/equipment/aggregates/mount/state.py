@@ -135,7 +135,7 @@ class MountNotFoundError(Exception):
         self.mount_id = mount_id
 
 
-class MountHasInstalledAssetError(Exception):
+class MountHasAssetInstalledError(Exception):
     """Attempted to decommission a mount that still has an installed Asset.
 
     Decommission requires the slot to be vacant. Operators must
