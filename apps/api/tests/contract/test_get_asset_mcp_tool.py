@@ -87,7 +87,7 @@ def test_mcp_get_asset_tool_returns_structured_asset_for_known_id() -> None:
     assert structured["parent_id"] == parent_id
     assert structured["lifecycle"] == "Commissioned"
     # Empty until add_asset_family runs (5f-1).
-    assert structured["families"] == []
+    assert structured["family_ids"] == []
 
 
 @pytest.mark.contract

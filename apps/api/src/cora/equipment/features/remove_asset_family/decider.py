@@ -4,7 +4,7 @@ Mirror of `add_asset_family`'s decider. Two disqualifying
 conditions both surface as `AssetCannotRemoveFamilyError`:
 
   - asset is `Decommissioned` (retired; no further family changes)
-  - family_id NOT in `state.families` (strict-not-idempotent;
+  - family_id NOT in `state.family_ids` (strict-not-idempotent;
     can't remove what isn't there)
 """
 
@@ -32,7 +32,7 @@ def decide(
       - State must not be None -> AssetNotFoundError
       - Asset must not be Decommissioned
         -> AssetCannotRemoveFamilyError
-      - family_id must be in state.families
+      - family_id must be in state.family_ids
         (strict-not-idempotent) -> AssetCannotRemoveFamilyError
     """
     if state is None:
@@ -48,7 +48,7 @@ def decide(
             ),
         )
 
-    if command.family_id not in state.families:
+    if command.family_id not in state.family_ids:
         raise AssetCannotRemoveFamilyError(
             state.id,
             command.family_id,

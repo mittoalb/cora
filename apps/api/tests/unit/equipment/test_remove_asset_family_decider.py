@@ -4,7 +4,7 @@ Mirror of `test_add_asset_family_decider.py`. Two disqualifying
 conditions surface as `AssetCannotRemoveFamilyError`:
 
   - asset is `Decommissioned`
-  - capability NOT in `state.families` (strict-not-idempotent)
+  - capability NOT in `state.family_ids` (strict-not-idempotent)
 """
 
 from datetime import UTC, datetime
@@ -30,7 +30,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _asset(
     *,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
-    families: frozenset[uuid4] = frozenset(),  # type: ignore[assignment]
+    family_ids: frozenset[uuid4] = frozenset(),  # type: ignore[assignment]
 ) -> Asset:
     return Asset(
         id=uuid4(),
@@ -38,14 +38,14 @@ def _asset(
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=families,  # type: ignore[arg-type]
+        family_ids=family_ids,  # type: ignore[arg-type]
     )
 
 
 @pytest.mark.unit
 def test_decide_emits_asset_capability_removed_for_present_capability() -> None:
     cap1 = uuid4()
-    state = _asset(families=frozenset({cap1}))
+    state = _asset(family_ids=frozenset({cap1}))
     events = remove_asset_family.decide(
         state=state,
         command=RemoveAssetFamily(asset_id=state.id, family_id=cap1),
@@ -71,7 +71,7 @@ def test_decide_raises_cannot_remove_when_asset_is_decommissioned() -> None:
     cap1 = uuid4()
     # Even though the capability is present, Decommissioned takes precedence
     # over the not-present check (decommission guard ordered first in the decider).
-    state = _asset(lifecycle=AssetLifecycle.DECOMMISSIONED, families=frozenset({cap1}))
+    state = _asset(lifecycle=AssetLifecycle.DECOMMISSIONED, family_ids=frozenset({cap1}))
     with pytest.raises(AssetCannotRemoveFamilyError) as exc_info:
         remove_asset_family.decide(
             state=state,
@@ -89,7 +89,7 @@ def test_decide_raises_cannot_remove_when_capability_not_present() -> None:
     raises rather than no-op."""
     cap_present = uuid4()
     cap_absent = uuid4()
-    state = _asset(families=frozenset({cap_present}))
+    state = _asset(family_ids=frozenset({cap_present}))
     with pytest.raises(AssetCannotRemoveFamilyError) as exc_info:
         remove_asset_family.decide(
             state=state,
@@ -113,7 +113,7 @@ def test_decide_succeeds_for_every_non_decommissioned_lifecycle(
     lifecycle: AssetLifecycle,
 ) -> None:
     cap1 = uuid4()
-    state = _asset(lifecycle=lifecycle, families=frozenset({cap1}))
+    state = _asset(lifecycle=lifecycle, family_ids=frozenset({cap1}))
     events = remove_asset_family.decide(
         state=state,
         command=RemoveAssetFamily(asset_id=state.id, family_id=cap1),
@@ -126,7 +126,7 @@ def test_decide_succeeds_for_every_non_decommissioned_lifecycle(
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     cap1 = uuid4()
-    state = _asset(families=frozenset({cap1}))
+    state = _asset(family_ids=frozenset({cap1}))
     command = RemoveAssetFamily(asset_id=state.id, family_id=cap1)
     first = remove_asset_family.decide(state=state, command=command, now=_NOW)
     second = remove_asset_family.decide(state=state, command=command, now=_NOW)

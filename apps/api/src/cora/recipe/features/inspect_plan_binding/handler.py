@@ -121,7 +121,7 @@ def bind(deps: Kernel) -> Handler:
         capability = None
         family_affordances: dict[UUID, frozenset[Affordance]] = {}
         union_families: frozenset[UUID] = frozenset(
-            fid for asset in assets.values() for fid in asset.families
+            fid for asset in assets.values() for fid in asset.family_ids
         )
         missing_families = method.needed_family_ids - union_families
 
@@ -140,7 +140,7 @@ def bind(deps: Kernel) -> Handler:
             union_affordances: frozenset[Affordance] = frozenset(
                 affordance
                 for asset in assets.values()
-                for family_id in asset.families
+                for family_id in asset.family_ids
                 for affordance in family_affordances.get(family_id, frozenset())
             )
             missing_affordances = capability.required_affordances - union_affordances
@@ -164,10 +164,10 @@ def bind(deps: Kernel) -> Handler:
                 asset_name=assets[asset_id].name.value,
                 condition=assets[asset_id].condition,
                 lifecycle=assets[asset_id].lifecycle,
-                family_ids=assets[asset_id].families,
+                family_ids=assets[asset_id].family_ids,
                 contributed_affordances=frozenset(
                     affordance
-                    for family_id in assets[asset_id].families
+                    for family_id in assets[asset_id].family_ids
                     for affordance in family_affordances.get(family_id, frozenset())
                 ),
             )
@@ -288,7 +288,7 @@ async def _load_candidates(
                 asset = await _get_asset(asset_id)
                 if asset is None:
                     continue
-                contributing_subset = asset.families & contributing_families
+                contributing_subset = asset.family_ids & contributing_families
                 candidates.append(
                     CandidateAsset(
                         asset_id=asset_id,

@@ -3,7 +3,7 @@
 `Family` is the device-class abstraction: WHAT kind of equipment this is,
 device-agnostic. Examples: "RotaryStage", "LinearStage", "Camera",
 "Scintillator", "Hexapod", "Mirror", "TriggerFPGA". Referenced by
-`Asset.families` to declare what classes a Device belongs to, and by
+`Asset.family_ids` to declare what classes a Device belongs to, and by
 `Method.needs.families` to express a Method's hardware contract;
 resolved at `Plan` binding when the contract is matched against
 specific `Asset` instances.

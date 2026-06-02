@@ -804,7 +804,7 @@ async def test_handler_raises_capability_not_found_when_method_points_at_missing
 
 @pytest.mark.unit
 async def test_handler_raises_family_not_found_when_asset_references_missing_family() -> None:
-    """Sad path: an Asset's `families` references a Family UUID whose stream
+    """Sad path: an Asset's `family_ids` references a Family UUID whose stream
     doesn't exist. With the affordance-cover fan-out enabled (Method has
     capability_id), the handler can't compute the affordance union without
     the Family. Raises `FamilyNotFoundError`; surfaces as 404."""

@@ -45,7 +45,7 @@ generalize.
 ## Eventual-consistency stance for cross-aggregate refs
 
 Same precedent as everywhere else (Trust Conduit zone refs,
-Method needed_family_ids, Asset.families entries):
+Method needed_family_ids, Asset.family_ids entries):
 the decider does NOT verify `method_id` refers to a real
 Method or `site_id` refers to a real Site-level Asset. Typos
 produce "dangling" Practices; downstream Plan binding is where

@@ -29,7 +29,7 @@ fundamental issues surface first:
 4. Method must not be Deprecated. Raises `PlanBoundMethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
    `PlanAssetDecommissionedError` carrying the offending asset_ids.
-6. `union(asset.families) ⊇ method.needed_family_ids`. Raises
+6. `union(asset.family_ids) ⊇ method.needed_family_ids`. Raises
    `PlanFamiliesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
@@ -131,7 +131,7 @@ def decide(
     # Generator expression keeps the element type inferable as UUID
     # (vs `frozenset().union(*generators)` which infers Unknown | UUID).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.families
+        cap for asset in context.assets.values() for cap in asset.family_ids
     )
     missing = context.method.needed_family_ids - union_capabilities
     if missing:
@@ -146,7 +146,7 @@ def decide(
         union_affordances: frozenset[Affordance] = frozenset(
             affordance
             for asset in context.assets.values()
-            for family_id in asset.families
+            for family_id in asset.family_ids
             for affordance in context.family_affordances.get(family_id, frozenset())
         )
         missing_affordances = context.capability.required_affordances - union_affordances
@@ -165,7 +165,7 @@ def decide(
                 sorted(context.method.needed_family_ids, key=str)
             ),
             asset_families_snapshot={
-                asset_id: tuple(sorted(context.assets[asset_id].families, key=str))
+                asset_id: tuple(sorted(context.assets[asset_id].family_ids, key=str))
                 for asset_id in sorted(context.assets.keys(), key=str)
             },
             occurred_at=now,

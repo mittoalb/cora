@@ -93,7 +93,7 @@ def _method(
 def _asset(
     *,
     asset_id: UUID | None = None,
-    families: frozenset[UUID] | None = None,
+    family_ids: frozenset[UUID] | None = None,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
 ) -> Asset:
     return Asset(
@@ -102,7 +102,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=families if families is not None else frozenset(),
+        family_ids=family_ids if family_ids is not None else frozenset(),
     )
 
 
@@ -132,7 +132,7 @@ def test_decide_emits_plan_defined_for_valid_binding() -> None:
     method = _method(needed_family_ids=frozenset({cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     new_id = uuid4()
     events = define_plan.decide(
@@ -195,8 +195,8 @@ def test_decide_captures_asset_families_snapshot_at_bind_time() -> None:
     method = _method(needed_family_ids=frozenset({cap1, cap2}))
     practice = _practice(method_id=method.id)
     assets = {
-        a1: _asset(asset_id=a1, families=frozenset({cap1})),
-        a2: _asset(asset_id=a2, families=frozenset({cap2})),
+        a1: _asset(asset_id=a1, family_ids=frozenset({cap1})),
+        a2: _asset(asset_id=a2, family_ids=frozenset({cap2})),
     }
     context = PlanBindingContext(practice=practice, method=method, assets=assets)
     events = define_plan.decide(
@@ -371,7 +371,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_missing_needed_cap
     method = _method(needed_family_ids=frozenset({needed_cap}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({different_cap}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     with pytest.raises(PlanFamiliesNotSatisfiedError) as exc_info:
         define_plan.decide(
@@ -398,8 +398,8 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction_check()
     # Each asset has only ONE of the two needed capabilities;
     # together they cover both.
     assets = {
-        a1: _asset(asset_id=a1, families=frozenset({cap1})),
-        a2: _asset(asset_id=a2, families=frozenset({cap2})),
+        a1: _asset(asset_id=a1, family_ids=frozenset({cap1})),
+        a2: _asset(asset_id=a2, family_ids=frozenset({cap2})),
     }
     context = PlanBindingContext(practice=practice, method=method, assets=assets)
     events = define_plan.decide(
@@ -421,7 +421,7 @@ def test_decide_accepts_assets_with_extra_capabilities_beyond_method_needs() -> 
     method = _method(needed_family_ids=frozenset({needed}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, families=frozenset({needed, extra}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({needed, extra}))
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     events = define_plan.decide(
         state=None,
@@ -440,7 +440,7 @@ def test_decide_accepts_method_with_empty_needed_family_ids() -> None:
     method = _method(needed_family_ids=frozenset())
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    asset = _asset(asset_id=asset_id, families=frozenset())
+    asset = _asset(asset_id=asset_id, family_ids=frozenset())
     context = PlanBindingContext(practice=practice, method=method, assets={asset_id: asset})
     events = define_plan.decide(
         state=None,
@@ -545,7 +545,7 @@ def test_decide_skips_affordance_guard_when_context_capability_is_none() -> None
     method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({family_id}))}
     context = PlanBindingContext(
         practice=practice,
         method=method,
@@ -572,7 +572,7 @@ def test_decide_accepts_binding_when_family_affordances_cover_capability_require
     method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({family_id}))}
     family_affordances = {
         family_id: frozenset({Affordance.ROTATABLE, Affordance.TRIGGERABLE, Affordance.HOMEABLE})
     }
@@ -605,7 +605,7 @@ def test_decide_raises_affordances_not_satisfied_when_union_misses_required() ->
     method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({family_id}))}
     family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}  # missing TRIGGERABLE
     context = PlanBindingContext(
         practice=practice,
@@ -639,8 +639,8 @@ def test_decide_unions_affordances_across_multiple_bound_assets() -> None:
     a_rot = uuid4()
     a_trig = uuid4()
     assets = {
-        a_rot: _asset(asset_id=a_rot, families=frozenset({fam_rot})),
-        a_trig: _asset(asset_id=a_trig, families=frozenset({fam_trig})),
+        a_rot: _asset(asset_id=a_rot, family_ids=frozenset({fam_rot})),
+        a_trig: _asset(asset_id=a_trig, family_ids=frozenset({fam_trig})),
     }
     family_affordances = {
         fam_rot: frozenset({Affordance.ROTATABLE}),
@@ -677,7 +677,7 @@ def test_decide_affordance_guard_runs_after_family_id_check() -> None:
     method = _method(needed_family_ids=frozenset({needed_family}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({bound_family}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({bound_family}))}
     family_affordances = {bound_family: frozenset({Affordance.ROTATABLE})}
     context = PlanBindingContext(
         practice=practice,
@@ -724,7 +724,7 @@ def test_decide_uses_current_capability_state_when_versioned_between_method_and_
     method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({family_id}))}
     family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}
     context = PlanBindingContext(
         practice=practice,
@@ -763,7 +763,7 @@ def test_decide_accepts_method_bound_to_deprecated_capability() -> None:
     method = _method(needed_family_ids=frozenset({family_id}))
     practice = _practice(method_id=method.id)
     asset_id = uuid4()
-    assets = {asset_id: _asset(asset_id=asset_id, families=frozenset({family_id}))}
+    assets = {asset_id: _asset(asset_id=asset_id, family_ids=frozenset({family_id}))}
     family_affordances = {family_id: frozenset({Affordance.ROTATABLE})}
     context = PlanBindingContext(
         practice=practice,

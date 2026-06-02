@@ -73,4 +73,4 @@ async def test_remove_asset_family_persists_event_and_drops_from_fold(
     # Fold-on-read reconstructs the empty frozenset.
     state = await load_asset(deps.event_store, asset_id)
     assert state is not None
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()

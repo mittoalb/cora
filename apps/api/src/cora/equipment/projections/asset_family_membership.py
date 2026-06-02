@@ -13,9 +13,9 @@ Subscribed events:
                           with ON CONFLICT DO NOTHING for replay safety
   - AssetFamilyRemoved -> DELETE matching (asset_id, family_id)
 
-The aggregate state (`Asset.families`) is the canonical source; this
+The aggregate state (`Asset.family_ids`) is the canonical source; this
 projection mirrors the relation for cross-aggregate query
-convenience. Aggregate `Asset.families` answers "Families of this
+convenience. Aggregate `Asset.family_ids` answers "Families of this
 Asset"; this projection answers both that and the reverse.
 
 Both event types are idempotent at the projection layer:

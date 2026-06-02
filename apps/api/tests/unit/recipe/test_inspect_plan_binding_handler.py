@@ -235,7 +235,7 @@ async def _seed_asset(
     asset_id: UUID,
     *,
     name: str = "TestAsset",
-    families: frozenset[UUID] = frozenset(),
+    family_ids: frozenset[UUID] = frozenset(),
     degraded: bool = False,
     faulted: bool = False,
     decommissioned: bool = False,
@@ -258,7 +258,7 @@ async def _seed_asset(
         command_name="RegisterAsset",
     )
     version = 1
-    for family_id in sorted(families, key=str):
+    for family_id in sorted(family_ids, key=str):
         family_event = AssetFamilyAdded(asset_id=asset_id, family_id=family_id, occurred_at=_NOW)
         await _append(
             store,
@@ -378,7 +378,7 @@ async def test_handler_returns_satisfied_when_families_and_affordances_covered()
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -411,7 +411,7 @@ async def test_handler_returns_missing_families_when_asset_lacks_family() -> Non
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset())  # no families
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset())  # no families
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -443,7 +443,7 @@ async def test_handler_returns_missing_affordances_when_family_lacks_affordance(
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -479,7 +479,7 @@ async def test_handler_populates_both_missing_sets_when_both_dimensions_fail() -
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
     # Asset carries only the rotary Family -> camera Family missing AND
     # Recording affordance missing.
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -659,7 +659,7 @@ async def test_handler_raises_family_not_found_when_asset_references_missing_fam
     await _seed_method(store, _METHOD_ID, capability_id=_CAPABILITY_ID)
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
     # Asset bound to a family_id whose Family stream was never seeded.
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -707,7 +707,7 @@ async def test_handler_skips_candidate_lookup_when_pool_is_none() -> None:
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -741,7 +741,7 @@ async def test_handler_returns_empty_candidates_when_no_affordances_missing() ->
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 

@@ -58,7 +58,7 @@ def _context(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
     )
     subject = Subject(
         id=uuid4(),

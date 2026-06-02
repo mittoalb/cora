@@ -29,7 +29,7 @@ fundamental issues surface first:
    context.subject is None).
 4. No bound Asset may be Decommissioned → `RunPlanAssetDecommissionedError`
    carrying the offending asset_ids.
-5. RE-VALIDATE: `union(asset.families) ⊇ method.needed_family_ids`
+5. RE-VALIDATE: `union(asset.family_ids) ⊇ method.needed_family_ids`
    against CURRENT Asset state (gate-review Q5: drift since Plan-bind
    is real; Run-start is the last gate before execution).
    `RunCapabilitiesNotSatisfiedError` carrying the missing capability
@@ -267,7 +267,7 @@ def decide(
     # cover Method's needs (per gate-review Q5; drift since Plan-bind
     # is real; Run-start is the last gate).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.families
+        cap for asset in context.assets.values() for cap in asset.family_ids
     )
     missing = needed_family_ids_snapshot - union_capabilities
     if missing:

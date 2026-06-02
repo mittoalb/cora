@@ -98,7 +98,7 @@ def _plan(
 def _asset(
     *,
     asset_id: UUID | None = None,
-    families: frozenset[UUID] | None = None,
+    family_ids: frozenset[UUID] | None = None,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
 ) -> Asset:
     return Asset(
@@ -107,7 +107,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=families if families is not None else frozenset(),
+        family_ids=family_ids if family_ids is not None else frozenset(),
     )
 
 
@@ -131,7 +131,7 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -168,7 +168,7 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     context = RunStartContext(
         plan=plan,
         subject=None,
@@ -203,7 +203,7 @@ def test_decide_accepts_subject_in_measured_state() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject(status=SubjectStatus.MEASURED)
     context = RunStartContext(
         plan=plan,
@@ -229,7 +229,7 @@ def test_decide_trims_run_name_via_value_object() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -422,7 +422,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_drifted() -> None:
     different_cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({different_cap}))
     context = RunStartContext(
         plan=plan,
         subject=None,
@@ -452,8 +452,8 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
     a2 = uuid4()
     plan = _plan(asset_ids=frozenset({a1, a2}))
     assets = {
-        a1: _asset(asset_id=a1, families=frozenset({cap1})),
-        a2: _asset(asset_id=a2, families=frozenset({cap2})),
+        a1: _asset(asset_id=a1, family_ids=frozenset({cap1})),
+        a2: _asset(asset_id=a2, family_ids=frozenset({cap2})),
     }
     context = RunStartContext(
         plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
@@ -566,7 +566,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -607,7 +607,7 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -638,7 +638,7 @@ def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> 
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -669,7 +669,7 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -708,7 +708,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_out", direction=PortDirection.OUTPUT, signal_type="TTL")}
         ),
@@ -719,7 +719,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -777,7 +777,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(),  # port was removed!
     )
     tgt_asset = Asset(
@@ -786,7 +786,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -848,7 +848,7 @@ def _wire_capable_assets(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_out", direction=src_direction, signal_type=src_signal_type)}
         ),
@@ -859,7 +859,7 @@ def _wire_capable_assets(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=tgt_direction, signal_type=tgt_signal_type)}
         ),
@@ -1011,7 +1011,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {
                 AssetPort(name="trigger_out_1", direction=PortDirection.OUTPUT, signal_type="TTL"),
@@ -1025,7 +1025,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -1037,7 +1037,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(),  # port removed since wire-add
     )
     wire_valid = Wire(
@@ -1112,7 +1112,7 @@ def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> No
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1144,7 +1144,7 @@ def test_decide_embeds_snapshot_in_run_started_payload() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     caution = _caution_ref(severity="Caution")
     context = RunStartContext(
@@ -1187,7 +1187,7 @@ def test_decide_does_not_gate_on_active_cautions() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     many_cautions = (
         _caution_ref(severity="Notice"),
@@ -1224,7 +1224,7 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     warning = _caution_ref(
         severity="Warning",
@@ -1295,7 +1295,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1337,7 +1337,7 @@ def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1373,7 +1373,7 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1415,7 +1415,7 @@ def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1455,7 +1455,7 @@ def test_decide_defaults_decided_by_decision_id_to_none_when_omitted() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1487,7 +1487,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1523,7 +1523,7 @@ def test_decide_defaults_pinned_calibration_ids_to_empty_when_omitted() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1551,7 +1551,7 @@ def test_decide_threads_pinned_calibration_ids_sorted_through_to_event() -> None
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1594,7 +1594,7 @@ def test_decide_rejects_pinned_calibration_ids_over_cap() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1630,7 +1630,7 @@ def test_decide_accepts_pinned_calibration_ids_exactly_at_cap() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,

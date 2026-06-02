@@ -11,8 +11,8 @@ Lifecycle mapping per event type:
   - `AssetRelocated`               -> (lifecycle UNCHANGED; mutates parent_id only)
   - `AssetMaintenanceEntered`      -> MAINTENANCE
   - `AssetMaintenanceExited`       -> ACTIVE
-  - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into families frozenset)
-  - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from families frozenset)
+  - `AssetFamilyAdded`         -> (lifecycle UNCHANGED; inserts into family_ids frozenset)
+  - `AssetFamilyRemoved`       -> (lifecycle UNCHANGED; removes from family_ids frozenset)
   - `AssetDegraded`                -> (lifecycle UNCHANGED; condition -> DEGRADED)
   - `AssetFaulted`                 -> (lifecycle UNCHANGED; condition -> FAULTED)
   - `AssetRestored`                -> (lifecycle UNCHANGED; condition -> NOMINAL)
@@ -30,19 +30,19 @@ condition; no condition field in payload).
 at registration, never changes; payload-carried by design — see
 events.py docstring). `parent_id` IS reconstructed from
 AssetRegistered's payload AND mutated by AssetRelocated's
-`to_parent_id` field. `families` defaults to empty frozenset on
+`to_parent_id` field. `family_ids` defaults to empty frozenset on
 AssetRegistered (additive-state pattern; existing AssetRegistered
-events without the families field fold cleanly without an upcaster) and is
+events without the family_ids field fold cleanly without an upcaster) and is
 mutated incrementally by `AssetFamilyAdded` /
 `AssetFamilyRemoved`.
 
 **Critical invariant**: every transition arm MUST carry
-`families` AND `condition` AND `settings` AND `ports` AND
+`family_ids` AND `condition` AND `settings` AND `ports` AND
 `drawing` through from prior state. Constructing `Asset(id=...,
 name=..., level=..., parent_id=..., lifecycle=...)` without
 explicitly passing them would silently WIPE the fields to their
 defaults (empty frozenset / NOMINAL / empty dict / empty frozenset
-/ None). `families` was added with a default solely for additive-
+/ None). `family_ids` was added with a default solely for additive-
 state forward compatibility on genesis events; `condition`,
 `settings`, `ports`, and `drawing` followed the same additive
 pattern. Transition arms must explicitly carry all five. Pinned
@@ -108,7 +108,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=parent_id,
                 lifecycle=AssetLifecycle.COMMISSIONED,
                 drawing=drawing,
-                # families defaults to empty frozenset; condition
+                # family_ids defaults to empty frozenset; condition
                 # defaults to NOMINAL. Additive-state pattern: both
                 # default-via-state so legacy streams without these
                 # fields fold cleanly without an upcaster.
@@ -122,7 +122,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -136,14 +136,14 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.DECOMMISSIONED,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
-            # / name / families / condition / settings carry over from
+            # / name / family_ids / condition / settings carry over from
             # prior state. The from_parent_id and reason fields in the
             # event aren't read here (audit metadata; prior state's
             # parent_id is the source of truth for the read path).
@@ -155,7 +155,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=to_parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -169,7 +169,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.MAINTENANCE,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -183,13 +183,13 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=AssetLifecycle.ACTIVE,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
             )
         case AssetFamilyAdded(family_id=family_id):
-            # Family mutation: only `families` changes; everything
+            # Family mutation: only `family_ids` changes; everything
             # else carries over. Frozenset semantics: adding an already-
             # present id is a no-op AT THE EVOLVER LAYER (the decider's
             # strict-not-idempotent guard enforces "must not already be
@@ -202,7 +202,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families | {family_id},
+                family_ids=prior.family_ids | {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -222,7 +222,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families - {family_id},
+                family_ids=prior.family_ids - {family_id},
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -241,7 +241,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.DEGRADED,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -255,7 +255,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.FAULTED,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -269,7 +269,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=AssetCondition.NOMINAL,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -290,7 +290,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=dict(settings),
                 ports=prior.ports,
                 drawing=prior.drawing,
@@ -319,7 +319,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=prior.ports | {new_port},
                 drawing=prior.drawing,
@@ -341,7 +341,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 parent_id=prior.parent_id,
                 lifecycle=prior.lifecycle,
                 condition=prior.condition,
-                families=prior.families,
+                family_ids=prior.family_ids,
                 settings=prior.settings,
                 ports=frozenset(p for p in prior.ports if p.name != port_name),
                 drawing=prior.drawing,

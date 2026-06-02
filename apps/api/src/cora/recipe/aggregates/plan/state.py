@@ -50,7 +50,7 @@ treats them as opaque domain data and validates:
   - Practice not Deprecated → `PlanBoundPracticeDeprecatedError`
   - Method not Deprecated → `PlanBoundMethodDeprecatedError`
   - No bound Asset is Decommissioned → `PlanAssetDecommissionedError`
-  - `union(asset.families) ⊇ method.needed_family_ids` →
+  - `union(asset.family_ids) ⊇ method.needed_family_ids` →
     `PlanFamiliesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /
@@ -286,8 +286,8 @@ class PlanFamiliesNotSatisfiedError(Exception):
     structurally invalid given current Asset state).
 
     Per gate-review Q3: check is on each bound Asset's OWN
-    families (no hierarchy traversal). Operators model
-    Asset.families at whatever granularity makes sense (Assembly
+    family_ids (no hierarchy traversal). Operators model
+    Asset.family_ids at whatever granularity makes sense (Assembly
     level for composed devices, Device level for leaves) and bind
     the Assets that actually carry the needed families.
     """

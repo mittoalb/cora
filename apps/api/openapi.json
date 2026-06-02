@@ -945,7 +945,7 @@
         "type": "object"
       },
       "AssetIntegrationViewResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nDecouples wire format from the domain `AssetIntegrationView`. Lists\nserialize in deterministic order (families/cautions/capabilities by\ntheir canonical sort; ports already sorted by name in the handler).\n\n`incomplete` is TRUE if any Family in `asset.families` failed to load\n(eventual-consistency tolerance per\n[[project-dataset-lineage-design]]); consumers should treat the\nbundle as partial in that case.",
+        "description": "Read-side DTO at the API boundary.\n\nDecouples wire format from the domain `AssetIntegrationView`. Lists\nserialize in deterministic order (families/cautions/capabilities by\ntheir canonical sort; ports already sorted by name in the handler).\n\n`incomplete` is TRUE if any Family in `asset.family_ids` failed to load\n(eventual-consistency tolerance per\n[[project-dataset-lineage-design]]); consumers should treat the\nbundle as partial in that case.",
         "properties": {
           "active_cautions": {
             "items": {
@@ -1107,12 +1107,12 @@
             "title": "Condition",
             "type": "string"
           },
-          "families": {
+          "family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Families",
+            "title": "Family Ids",
             "type": "array"
           },
           "id": {
@@ -1165,7 +1165,7 @@
           "parent_id",
           "lifecycle",
           "condition",
-          "families",
+          "family_ids",
           "settings",
           "ports"
         ],

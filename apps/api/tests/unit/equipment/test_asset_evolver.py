@@ -683,7 +683,7 @@ def test_evolve_asset_registered_starts_with_empty_capabilities() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 @pytest.mark.unit
@@ -697,13 +697,13 @@ def test_evolve_asset_capability_added_inserts_into_capabilities() -> None:
         level=AssetLevel.UNIT,
         parent_id=parent_id,
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset(),
+        family_ids=frozenset(),
     )
     state = evolve(
         prior,
         AssetFamilyAdded(asset_id=asset_id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
     # Other state preserved.
     assert state.lifecycle is AssetLifecycle.ACTIVE
     assert state.parent_id == parent_id
@@ -723,13 +723,13 @@ def test_evolve_asset_capability_added_is_idempotent_at_evolver_layer() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap1}),
+        family_ids=frozenset({cap1}),
     )
     state = evolve(
         prior,
         AssetFamilyAdded(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
 
 
 @pytest.mark.unit
@@ -741,13 +741,13 @@ def test_evolve_asset_capability_removed_drops_from_capabilities() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap1, cap2}),
+        family_ids=frozenset({cap1, cap2}),
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap2})
+    assert state.family_ids == frozenset({cap2})
 
 
 @pytest.mark.unit
@@ -759,13 +759,13 @@ def test_evolve_asset_capability_removed_is_idempotent_at_evolver_layer() -> Non
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset(),
+        family_ids=frozenset(),
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 @pytest.mark.unit
@@ -829,13 +829,13 @@ def test_evolve_lifecycle_transition_preserves_capabilities(
             if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE  # decommission accepts any of 3
         ),
-        families=frozenset({cap1, cap2}),
+        family_ids=frozenset({cap1, cap2}),
     )
     state = evolve(
         prior,
         transition(asset_id=prior.id, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1, cap2})
+    assert state.family_ids == frozenset({cap1, cap2})
 
 
 @pytest.mark.unit
@@ -849,7 +849,7 @@ def test_evolve_relocate_preserves_capabilities() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=old_parent,
-        families=frozenset({cap1}),
+        family_ids=frozenset({cap1}),
     )
     state = evolve(
         prior,
@@ -861,7 +861,7 @@ def test_evolve_relocate_preserves_capabilities() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
     assert state.parent_id == new_parent
 
 
@@ -886,7 +886,7 @@ def test_fold_register_add_remove_yields_empty_capabilities() -> None:
         ]
     )
     assert state is not None
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 # ---------- condition transitions + preservation ----------
@@ -965,11 +965,11 @@ def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> N
         parent_id=parent,
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.NOMINAL,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
     )
     state = evolve(prior, AssetFaulted(asset_id=asset_id, reason="test", occurred_at=_NOW))
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.parent_id == parent
     assert state.level is AssetLevel.DEVICE
     assert state.name == AssetName("X")
@@ -1068,7 +1068,7 @@ def test_evolve_capability_removed_preserves_condition() -> None:
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
     )
     state = evolve(
         prior,
@@ -1158,7 +1158,7 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"a": 1},
     )
     state = evolve(
@@ -1167,7 +1167,7 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
     )
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
     assert state.condition is AssetCondition.DEGRADED
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.settings == {"b": 2}
 
 
@@ -1260,14 +1260,14 @@ def test_evolve_capability_removed_preserves_settings_orphans() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"key_owned_by_removed_cap": "value"},
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap, occurred_at=_NOW),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
     # Orphan key is preserved.
     assert state.settings == {"key_owned_by_removed_cap": "value"}
 
@@ -1395,7 +1395,7 @@ def test_evolve_port_added_preserves_other_facets() -> None:
         parent_id=parent,
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"k": 1},
     )
     state = evolve(
@@ -1410,7 +1410,7 @@ def test_evolve_port_added_preserves_other_facets() -> None:
     )
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
     assert state.condition is AssetCondition.DEGRADED
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.settings == {"k": 1}
     assert state.parent_id == parent
 

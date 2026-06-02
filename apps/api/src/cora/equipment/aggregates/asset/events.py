@@ -14,7 +14,7 @@ is mutable and the audit log should record both sides without
 forcing readers to walk the prior event), and the incremental
 family-set mutations (`AssetFamilyAdded` / `AssetFamilyRemoved`,
 each carrying a single `family_id` that the evolver folds into the
-`families` frozenset as new techniques are commissioned or retired).
+`family_ids` frozenset as new techniques are commissioned or retired).
 
 `AssetDecommissioned`'s source set accepts both ACTIVE and
 MAINTENANCE so a faulted asset can be retired without first being
@@ -152,7 +152,7 @@ class AssetFamilyAdded:
     as operators commission new techniques on the asset; each event
     captures a single addition for clean audit trails ("when did this
     asset gain XRF Mapping?"). The evolver inserts the family_id
-    into `state.families` (frozenset semantics → no-op on
+    into `state.family_ids` (frozenset semantics → no-op on
     duplicate at the evolver layer; the decider's strict-not-idempotent
     guard is what enforces "must not already be present" at command
     time).
@@ -172,7 +172,7 @@ class AssetFamilyRemoved:
     """A Family was removed from an asset's family set.
 
     Mirror of `AssetFamilyAdded`. Single-family event; the
-    evolver removes the family_id from `state.families`. The
+    evolver removes the family_id from `state.family_ids`. The
     decider's strict-not-idempotent guard enforces "must currently be
     present" at command time.
     """

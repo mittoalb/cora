@@ -47,7 +47,7 @@ def _asset(*, settings: dict[str, Any] | None = None) -> Asset:
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
         condition=AssetCondition.NOMINAL,
-        families=frozenset({cap_id}),
+        family_ids=frozenset({cap_id}),
         settings=settings or {},
     )
 

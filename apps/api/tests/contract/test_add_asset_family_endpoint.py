@@ -39,7 +39,7 @@ def test_post_add_family_returns_204_on_happy_path() -> None:
 @pytest.mark.contract
 def test_post_add_family_round_trips_into_get_asset_response() -> None:
     """End-to-end: add_family + get_asset → family appears in
-    the response's families list."""
+    the response's family_ids list."""
     cap1 = str(uuid4())
     cap2 = str(uuid4())
     with TestClient(create_app()) as client:
@@ -51,7 +51,7 @@ def test_post_add_family_round_trips_into_get_asset_response() -> None:
     assert response.status_code == 200
     body = response.json()
     # Sorted by UUID string form (deterministic).
-    assert body["families"] == sorted([cap1, cap2])
+    assert body["family_ids"] == sorted([cap1, cap2])
 
 
 @pytest.mark.contract

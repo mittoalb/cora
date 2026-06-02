@@ -13,7 +13,7 @@ Bundle scope (CLOSED at v1):
   - settings: raw dict[str, Any]
   - active_cautions: list of (caution_id, category, severity, text)
   - applicable_capabilities: list of (capability_id, code, name, status)
-  - incomplete: bool — TRUE if any Family in Asset.families failed to load
+  - incomplete: bool — TRUE if any Family in Asset.family_ids failed to load
     (mirrors promote_dataset peer-load tolerance per
     [[project-dataset-lineage-design]])
 

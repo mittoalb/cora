@@ -60,4 +60,4 @@ async def test_add_asset_family_persists_event_and_round_trips_through_fold(
     # Fold-on-read reconstructs the capabilities frozenset.
     state = await load_asset(deps.event_store, asset_id)
     assert state is not None
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
