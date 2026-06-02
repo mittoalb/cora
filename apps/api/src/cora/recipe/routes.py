@@ -106,14 +106,17 @@ from cora.recipe.features import (
     define_method,
     define_plan,
     define_practice,
+    define_recipe,
     deprecate_capability,
     deprecate_method,
     deprecate_plan,
     deprecate_practice,
+    deprecate_recipe,
     get_capability,
     get_method,
     get_plan,
     get_practice,
+    get_recipe,
     inspect_plan_binding,
     list_methods,
     list_plans,
@@ -125,6 +128,7 @@ from cora.recipe.features import (
     version_method,
     version_plan,
     version_practice,
+    version_recipe,
 )
 
 
@@ -196,7 +200,7 @@ async def _handle_unprocessable(request: Request, exc: Exception) -> JSONRespons
     """
     _ = request
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": str(exc)},
     )
 
@@ -226,6 +230,10 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
     app.include_router(get_capability.router)
+    app.include_router(define_recipe.router)
+    app.include_router(version_recipe.router)
+    app.include_router(deprecate_recipe.router)
+    app.include_router(get_recipe.router)
     app.include_router(inspect_plan_binding.router)
     for validation_cls in (
         InvalidCapabilityCodeError,

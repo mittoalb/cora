@@ -24,17 +24,18 @@ _OPERATION_ROUTES = _REPO_ROOT / "src" / "cora" / "operation" / "routes.py"
 
 
 def _has_422_handler(path: Path) -> bool:
-    """Return True if the module text references HTTP_422_UNPROCESSABLE_ENTITY.
+    """Return True if the module text references the FastAPI 422 status constant.
 
-    Looks for the canonical FastAPI constant string in the file content;
-    this is the load-bearing surface (the `_handle_unprocessable` function
-    body uses it). Either the helper function or an inline reference in
-    a routes-level handler satisfies the gate.
+    Looks for either the modern `HTTP_422_UNPROCESSABLE_CONTENT` constant
+    or the deprecated `HTTP_422_UNPROCESSABLE_ENTITY` alias in the file
+    content; this is the load-bearing surface (the `_handle_unprocessable`
+    function body uses it). Either the helper function or an inline
+    reference in a routes-level handler satisfies the gate.
     """
     if not path.is_file():
         return False
     text = path.read_text()
-    return "HTTP_422_UNPROCESSABLE_ENTITY" in text
+    return "HTTP_422_UNPROCESSABLE_CONTENT" in text or "HTTP_422_UNPROCESSABLE_ENTITY" in text
 
 
 def _module_imports_unprocessable_helper(path: Path) -> bool:
