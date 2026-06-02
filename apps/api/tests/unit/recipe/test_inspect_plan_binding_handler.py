@@ -389,7 +389,7 @@ async def test_handler_returns_satisfied_when_families_and_affordances_covered()
     )
 
     assert view.binding_status is BindingStatus.SATISFIED
-    assert view.missing_families == frozenset()
+    assert view.missing_family_ids == frozenset()
     assert view.missing_affordances == frozenset()
     assert view.capability_id == _CAPABILITY_ID
     assert len(view.wired_assets) == 1
@@ -422,7 +422,7 @@ async def test_handler_returns_missing_families_when_asset_lacks_family() -> Non
     )
 
     assert view.binding_status is BindingStatus.MISSING_FAMILIES
-    assert view.missing_families == frozenset({_FAMILY_ROTARY_ID})
+    assert view.missing_family_ids == frozenset({_FAMILY_ROTARY_ID})
     assert view.missing_affordances == frozenset()  # capability has none required
 
 
@@ -454,7 +454,7 @@ async def test_handler_returns_missing_affordances_when_family_lacks_affordance(
     )
 
     assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
-    assert view.missing_families == frozenset()
+    assert view.missing_family_ids == frozenset()
     assert view.missing_affordances == frozenset({Affordance.MARKING})
 
 
@@ -490,7 +490,7 @@ async def test_handler_populates_both_missing_sets_when_both_dimensions_fail() -
     )
 
     assert view.binding_status is BindingStatus.MISSING_FAMILIES
-    assert view.missing_families == frozenset({_FAMILY_CAMERA_ID})
+    assert view.missing_family_ids == frozenset({_FAMILY_CAMERA_ID})
     assert view.missing_affordances == frozenset({Affordance.RECORDING})
 
 

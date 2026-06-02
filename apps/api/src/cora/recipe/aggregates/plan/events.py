@@ -35,7 +35,7 @@ into Plan state:
   - `method_needed_family_ids_snapshot`: the Method's
     `needed_family_ids` AT BIND TIME. Pinned so the audit trail
     reproduces what was checked even if Method later evolves.
-  - `asset_families_snapshot`: each bound Asset's `families`
+  - `asset_family_ids_snapshot`: each bound Asset's `family_ids`
     AT BIND TIME. Same audit pinning rationale.
 
 Both snapshots serialize as primitive forms (sorted UUID lists /

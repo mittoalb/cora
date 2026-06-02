@@ -69,7 +69,7 @@ class InspectPlanBindingOutput(BaseModel):
     method_needed_family_ids: list[UUID]
     capability_required_affordances: list[str]
     wired_assets: list[WiredAssetItem]
-    missing_families: list[UUID]
+    missing_family_ids: list[UUID]
     missing_affordances: list[str]
     missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
     binding_status: str
@@ -130,7 +130,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 )
                 for item in view.wired_assets
             ],
-            missing_families=sorted(view.missing_families, key=str),
+            missing_family_ids=sorted(view.missing_family_ids, key=str),
             missing_affordances=sorted(a.value for a in view.missing_affordances),
             missing_affordance_candidates=[
                 MissingAffordanceCandidatesItem(

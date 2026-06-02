@@ -112,7 +112,7 @@ async def test_inspect_plan_binding_returns_satisfied_against_real_postgres(
     )
 
     assert view.binding_status is BindingStatus.SATISFIED
-    assert view.missing_families == frozenset()
+    assert view.missing_family_ids == frozenset()
     assert view.missing_affordances == frozenset()
     assert view.capability_id == capability_id
     assert view.method_id == method_id

@@ -123,7 +123,7 @@ def bind(deps: Kernel) -> Handler:
         union_families: frozenset[UUID] = frozenset(
             fid for asset in assets.values() for fid in asset.family_ids
         )
-        missing_families = method.needed_family_ids - union_families
+        missing_family_ids = method.needed_family_ids - union_families
 
         if method.capability_id is not None:
             capability = await load_capability(deps.event_store, method.capability_id)
@@ -151,7 +151,7 @@ def bind(deps: Kernel) -> Handler:
 
         if capability is None:
             binding_status = BindingStatus.MISSING_CAPABILITY
-        elif missing_families:
+        elif missing_family_ids:
             binding_status = BindingStatus.MISSING_FAMILIES
         elif missing_affordances:
             binding_status = BindingStatus.MISSING_AFFORDANCES
@@ -194,7 +194,7 @@ def bind(deps: Kernel) -> Handler:
             method_needed_family_ids=method.needed_family_ids,
             capability_required_affordances=required_affordances,
             wired_assets=wired_assets,
-            missing_families=missing_families,
+            missing_family_ids=missing_family_ids,
             missing_affordances=missing_affordances,
             missing_affordance_candidates=missing_affordance_candidates,
             binding_status=binding_status,
@@ -208,7 +208,7 @@ def bind(deps: Kernel) -> Handler:
             correlation_id=str(correlation_id),
             binding_status=binding_status.value,
             asset_count=len(query.asset_ids),
-            missing_family_count=len(missing_families),
+            missing_family_count=len(missing_family_ids),
             missing_affordance_count=len(missing_affordances),
             missing_affordance_candidate_count=sum(
                 len(entry.candidates) for entry in missing_affordance_candidates

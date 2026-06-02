@@ -44,7 +44,7 @@ class AssetResponse(BaseModel):
     from the domain model so the two can evolve independently.
     `level`, `lifecycle`, and `condition` are the StrEnum string
     values (PascalCase per the BC map). `parent_id` is null only for
-    Enterprise-level roots. `families` serializes as a sorted list
+    Enterprise-level roots. `family_ids` serializes as a sorted list
     of UUIDs (frozenset semantics in domain state, list at the JSON
     boundary; sorted by UUID string form for response determinism).
     `settings` is the operator-supplied dict (operationally typed by

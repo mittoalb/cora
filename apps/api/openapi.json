@@ -1101,7 +1101,7 @@
         "type": "object"
       },
       "AssetResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`level`, `lifecycle`, and `condition` are the StrEnum string\nvalues (PascalCase per the BC map). `parent_id` is null only for\nEnterprise-level roots. `families` serializes as a sorted list\nof UUIDs (frozenset semantics in domain state, list at the JSON\nboundary; sorted by UUID string form for response determinism).\n`settings` is the operator-supplied dict (operationally typed by\nFamily schemas at write time). `ports` (5h) serializes as a\nlist sorted by port name.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`level`, `lifecycle`, and `condition` are the StrEnum string\nvalues (PascalCase per the BC map). `parent_id` is null only for\nEnterprise-level roots. `family_ids` serializes as a sorted list\nof UUIDs (frozenset semantics in domain state, list at the JSON\nboundary; sorted by UUID string form for response determinism).\n`settings` is the operator-supplied dict (operationally typed by\nFamily schemas at write time). `ports` (5h) serializes as a\nlist sorted by port name.",
         "properties": {
           "condition": {
             "title": "Condition",
@@ -5355,7 +5355,7 @@
         "type": "object"
       },
       "InspectPlanBindingResponse": {
-        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\n`missing_affordance_candidates` enumerates, per missing\naffordance, other facility Assets whose Families declare it.\nEmpty when no affordances are missing; in in-memory test mode\n(no pool) the projection-backed lookup is skipped and this\nstays empty regardless.",
+        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_family_ids` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\n`missing_affordance_candidates` enumerates, per missing\naffordance, other facility Assets whose Families declare it.\nEmpty when no affordances are missing; in in-memory test mode\n(no pool) the projection-backed lookup is skipped and this\nstays empty regardless.",
         "properties": {
           "binding_status": {
             "title": "Binding Status",
@@ -5407,12 +5407,12 @@
             "title": "Missing Affordances",
             "type": "array"
           },
-          "missing_families": {
+          "missing_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Missing Families",
+            "title": "Missing Family Ids",
             "type": "array"
           },
           "practice_id": {
@@ -5435,7 +5435,7 @@
           "method_needed_family_ids",
           "capability_required_affordances",
           "wired_assets",
-          "missing_families",
+          "missing_family_ids",
           "missing_affordances",
           "missing_affordance_candidates",
           "binding_status"

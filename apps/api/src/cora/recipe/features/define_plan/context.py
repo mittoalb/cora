@@ -41,7 +41,7 @@ class PlanBindingContext:
 
     All three carry their own status / lifecycle fields so the
     decider can reject Deprecated / Decommissioned upstreams. The
-    family-superset check uses each Asset's `families` and
+    family-superset check uses each Asset's `family_ids` and
     the Method's `needed_family_ids` (gate-review Q3: bound-Asset-
     only, no hierarchy walk).
 

@@ -449,7 +449,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     }
     ```
 
-    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `families`; if that union does not cover the Method's `needed_family_ids` the response is `409 Conflict` with `PlanCapabilitiesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
+    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `family_ids`; if that union does not cover the Method's `needed_family_ids` the response is `409 Conflict` with `PlanCapabilitiesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
 
 === "MCP"
 

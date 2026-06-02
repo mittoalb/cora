@@ -281,7 +281,7 @@ class PlanFamiliesNotSatisfiedError(Exception):
     """The bound Assets' families don't cover the Method's needs.
 
     Carries the missing family ids — those required by the
-    Method but not present in any bound Asset's `families`.
+    Method but not present in any bound Asset's `family_ids`.
     Mapped to HTTP 409 (state-conflict family; the binding is
     structurally invalid given current Asset state).
 
