@@ -219,7 +219,7 @@ depends_on = ["cora.infrastructure", "cora.caution.aggregates"]
 # decided_by_decision_id precedent). The polymorphic
 # `CalibrationSource` discriminated union is self-contained on the
 # aggregate; no cross-BC kernel imports needed here. Cross-BC
-# integration (Run.pinned_calibrations, Dataset.used_calibrations)
+# integration (Run.pinned_calibration_ids, Dataset.used_calibration_ids)
 # lives additively on the consumer BCs, not here.
 [[modules]]
 path = "cora.calibration"

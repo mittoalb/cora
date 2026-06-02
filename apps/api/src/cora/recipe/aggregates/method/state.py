@@ -22,7 +22,7 @@ Minimal Method:
 `Versioned` and `Deprecated` transitions land in the lifecycle
 slices. Description / owner / additional facets defer to enrichment.
 
-## Needed_families — eventual-consistency stance
+## Needed_family_ids: eventual-consistency stance
 
 The decider does NOT verify each Family id refers to a real
 Family stream in the event store. Same precedent as Trust's

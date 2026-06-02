@@ -23,7 +23,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Permit` | `id: UUID` | `id`, `peer_facility_id: str`, `direction`, `allowed_credentials: frozenset[UUID]`, `allowed_payload_types`, `allowed_artifact_kinds`, `abi_tier_floor`, `expires_at`, `defined_by_actor_id`, `status`, `terms: OutboundTerms \| InboundTerms` | yes (4-state) |
+| `Permit` | `id: UUID` | `id`, `peer_facility_id: str`, `direction`, `allowed_credential_ids: frozenset[UUID]`, `allowed_payload_types`, `allowed_artifact_kinds`, `abi_tier_floor`, `expires_at`, `defined_by_actor_id`, `status`, `terms: OutboundTerms \| InboundTerms` | yes (4-state) |
 | `Credential` | `id: UUID` (unique triple `(facility_id, audience, purpose)`) | `id`, `facility_id`, `audience`, `purpose`, `secret_ref`, `public_material_ref?`, `expires_at?`, `registered_by_actor_id`, `rotation_pending_secret_ref?`, `rotation_pending_public_material_ref?`, `status` | yes (3-state + rotation overlay) |
 | `Seal` | `facility_id: str` (singleton per facility) | `facility_id`, `online_credential_id`, `offline_credential_id`, `current_head_hash?`, `current_sequence_number`, `initialized_by_actor_id`, `status` | yes (mini-FSM, `Live <-> Republishing`) |
 
@@ -123,7 +123,7 @@ stateDiagram-v2
 **Guards.** Beyond the source-state check, transitions enforce:
 
 `define_permit`
-: `allowed_credentials`, `allowed_payload_types`, and `allowed_artifact_kinds` are each non-empty (rejected as `InvalidPermitScopeError`; there is no wildcard fallback). `expires_at` lies in the future. `direction == Outbound iff isinstance(terms, OutboundTerms)`. Outbound terms whose `(read_scope, onward_action_scope)` pair collapses the matrix (for example exporting off-platform with metadata-only read) are rejected as `PermitScopeCollapseError`. Every member of `accepted_canonicalization_versions` on inbound terms is a recognized scheme (today only `cora/v1`).
+: `allowed_credential_ids`, `allowed_payload_types`, and `allowed_artifact_kinds` are each non-empty (rejected as `InvalidPermitScopeError`; there is no wildcard fallback). `expires_at` lies in the future. `direction == Outbound iff isinstance(terms, OutboundTerms)`. Outbound terms whose `(read_scope, onward_action_scope)` pair collapses the matrix (for example exporting off-platform with metadata-only read) are rejected as `PermitScopeCollapseError`. Every member of `accepted_canonicalization_versions` on inbound terms is a recognized scheme (today only `cora/v1`).
 
 `register_credential`
 : `secret_ref`, `facility_id`, and `audience` are non-empty after trimming. The identity triple `(facility_id, audience, purpose)` is not already taken (a partial UNIQUE on the projection enforces this at the storage layer; the genesis collision raises `CredentialAlreadyExistsError`).
@@ -149,7 +149,7 @@ stateDiagram-v2
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `PermitDefined` | `permit_id`, `peer_facility_id`, `direction`, `allowed_credentials`, `allowed_payload_types`, `allowed_artifact_kinds`, `abi_tier_floor`, `expires_at`, `defined_by_actor_id`, `terms`, `occurred_at` | `define_permit` succeeds (genesis); `terms` serializes as a tagged dict `{"kind": "Outbound" \| "Inbound", ...}` |
+| `PermitDefined` | `permit_id`, `peer_facility_id`, `direction`, `allowed_credential_ids`, `allowed_payload_types`, `allowed_artifact_kinds`, `abi_tier_floor`, `expires_at`, `defined_by_actor_id`, `terms`, `occurred_at` | `define_permit` succeeds (genesis); `terms` serializes as a tagged dict `{"kind": "Outbound" \| "Inbound", ...}` |
 | `PermitActivated` | `permit_id`, `activated_by_actor_id`, `occurred_at` | `activate_permit` succeeds |
 | `PermitSuspended` | `permit_id`, `suspended_by_actor_id`, `reason?`, `occurred_at` | `suspend_permit` succeeds |
 | `PermitResumed` | `permit_id`, `resumed_by_actor_id`, `occurred_at` | `resume_permit` succeeds |
@@ -245,7 +245,7 @@ CREATE TABLE proj_federation_permit_summary (
     direction                              TEXT        NOT NULL CHECK (
         direction IN ('Outbound', 'Inbound')
     ),
-    allowed_credentials                    JSONB       NOT NULL,
+    allowed_credential_ids                    JSONB       NOT NULL,
     allowed_payload_types                  JSONB       NOT NULL,
     allowed_artifact_kinds                 JSONB       NOT NULL,
     abi_tier_floor                         TEXT        NOT NULL,
@@ -490,7 +490,7 @@ The four examples below cover the canonical Federation flow: register two Creden
     {
       "peer_facility_id": "max-iv",
       "direction": "Outbound",
-      "allowed_credentials": ["<signing-credential-id>"],
+      "allowed_credential_ids": ["<signing-credential-id>"],
       "allowed_payload_types": ["application/cora-manifest+json"],
       "allowed_artifact_kinds": ["dataset-summary", "calibration-revision"],
       "abi_tier_floor": "Stable",
@@ -506,7 +506,7 @@ The four examples below cover the canonical Federation flow: register two Creden
     }
     ```
 
-    Returns `201 Created` with `permit_id` and status `Defined`. The decider rejects empty `allowed_credentials` / `allowed_payload_types` / `allowed_artifact_kinds` (no wildcard fallback), rejects an `expires_at` in the past, and rejects collapsing combinations on the Outbound `(read_scope, onward_action_scope)` matrix (`PermitScopeCollapseError`). The newly-defined Permit needs an `activate_permit` call before traffic flows; the FSM's `Defined -> Active -> Suspended <-> Active -> Revoked` shape lets operators stage a permit, switch it on, pause it without revoking, and only retire it terminally.
+    Returns `201 Created` with `permit_id` and status `Defined`. The decider rejects empty `allowed_credential_ids` / `allowed_payload_types` / `allowed_artifact_kinds` (no wildcard fallback), rejects an `expires_at` in the past, and rejects collapsing combinations on the Outbound `(read_scope, onward_action_scope)` matrix (`PermitScopeCollapseError`). The newly-defined Permit needs an `activate_permit` call before traffic flows; the FSM's `Defined -> Active -> Suspended <-> Active -> Revoked` shape lets operators stage a permit, switch it on, pause it without revoking, and only retire it terminally.
 
 === "MCP"
 
@@ -516,7 +516,7 @@ The four examples below cover the canonical Federation flow: register two Creden
         {
             "peer_facility_id": "max-iv",
             "direction": "Outbound",
-            "allowed_credentials": ["<signing-credential-id>"],
+            "allowed_credential_ids": ["<signing-credential-id>"],
             "allowed_payload_types": ["application/cora-manifest+json"],
             "allowed_artifact_kinds": ["dataset-summary", "calibration-revision"],
             "abi_tier_floor": "Stable",
