@@ -17,7 +17,7 @@ from cora.equipment.projections import (
     FrameSummaryProjection,
     ModelSummaryProjection,
     MountChildrenProjection,
-    MountLookupProjection,
+    MountSlotCodeProjection,
     MountSummaryProjection,
 )
 from cora.infrastructure.kernel import Kernel
@@ -38,7 +38,7 @@ def register_equipment_projections(
     registry.register(FrameChildrenProjection())
     registry.register(FrameConsumersProjection())
     registry.register(MountSummaryProjection())
-    registry.register(MountLookupProjection())
+    registry.register(MountSlotCodeProjection())
     registry.register(MountChildrenProjection())
     registry.register(AssetLocationProjection())
 

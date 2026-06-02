@@ -312,7 +312,7 @@ class SlotCode:
     """External alias for a mount (e.g., APS 2-BM `02-BM-A-K-01`).
 
     Trimmed; 1-200 chars. Uniqueness is enforced per-facility-scope
-    at the handler layer (via the `mount_lookup` projection
+    at the handler layer (via the `mount_slot_code` projection
     precondition), NOT at the VO. Two facilities could legitimately
     share a slot code in different deployments.
     """

@@ -20,7 +20,7 @@ import pytest
 
 from cora.equipment.projections.asset_location import load_asset_location
 from cora.equipment.projections.mount_children import load_active_mount_children
-from cora.equipment.projections.mount_lookup import load_mount_id_by_slot_code
+from cora.equipment.projections.mount_slot_code import load_mount_id_by_slot_code
 
 
 @pytest.mark.unit

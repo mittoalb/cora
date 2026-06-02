@@ -1,4 +1,4 @@
-"""MountLookupProjection: slot_code -> mount_id lookup.
+"""MountSlotCodeProjection: slot_code -> mount_id lookup.
 
 Backs the `register_mount` slice's projection precondition: slot
 codes must be unique across all Active Mounts (a register attempt
@@ -34,28 +34,28 @@ if TYPE_CHECKING:
     from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SQL = """
-INSERT INTO proj_equipment_mount_lookup
+INSERT INTO proj_equipment_mount_slot_code
     (slot_code, mount_id, registered_at)
 VALUES ($1, $2, $3)
 ON CONFLICT (slot_code) DO NOTHING
 """
 
 _DELETE_BY_MOUNT_SQL = """
-DELETE FROM proj_equipment_mount_lookup
+DELETE FROM proj_equipment_mount_slot_code
 WHERE mount_id = $1
 """
 
 _SELECT_BY_SLOT_CODE_SQL = """
 SELECT mount_id
-FROM proj_equipment_mount_lookup
+FROM proj_equipment_mount_slot_code
 WHERE slot_code = $1
 """
 
 
-class MountLookupProjection:
-    """Maintains the `proj_equipment_mount_lookup` read model."""
+class MountSlotCodeProjection:
+    """Maintains the `proj_equipment_mount_slot_code` read model."""
 
-    name = "proj_equipment_mount_lookup"
+    name = "proj_equipment_mount_slot_code"
     subscribed_event_types = frozenset(
         {
             "MountRegistered",

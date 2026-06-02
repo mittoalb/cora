@@ -3,7 +3,7 @@
 Third instance of the load-bearing single-stream-write +
 projection-precondition pattern (alongside asset_location for
 install_asset and mount_children for decommission_mount). The
-register_mount handler reads proj_equipment_mount_lookup at
+register_mount handler reads proj_equipment_mount_slot_code at
 decide-time; if the slot_code already maps to an Active Mount, the
 decider raises MountAlreadyExistsError carrying the pre-existing
 mount_id.
@@ -15,7 +15,7 @@ Pins:
   - register_mount with a slot_code already taken by an Active Mount
     raises MountAlreadyExistsError carrying the pre-existing mount_id
   - After decommission, the same slot_code can be re-registered
-    cleanly (different mount_id, mount_lookup row points at the new
+    cleanly (different mount_id, mount_slot_code row points at the new
     one)
 """
 
@@ -34,7 +34,7 @@ from cora.equipment.features.register_frame import RegisterFrame
 from cora.equipment.features.register_frame import bind as bind_register_frame
 from cora.equipment.features.register_mount import RegisterMount
 from cora.equipment.features.register_mount import bind as bind_register_mount
-from cora.equipment.projections.mount_lookup import load_mount_id_by_slot_code
+from cora.equipment.projections.mount_slot_code import load_mount_id_by_slot_code
 from cora.infrastructure.kernel import Kernel
 from tests.integration._equipment_helpers import drain_equipment_projections, placement
 from tests.integration._helpers import build_postgres_deps
@@ -87,7 +87,7 @@ async def test_register_mount_inserts_slot_code_to_mount_id_row(
 
 @pytest.mark.integration
 async def test_register_mount_rejects_colliding_slot_code(db_pool: asyncpg.Pool) -> None:
-    """Load-bearing fitness: the handler reads mount_lookup at
+    """Load-bearing fitness: the handler reads mount_slot_code at
     decide-time. A second register_mount with a slot_code already
     taken by an Active Mount surfaces MountAlreadyExistsError carrying
     the pre-existing mount_id; the second stream is never written."""
@@ -132,7 +132,7 @@ async def test_decommission_frees_slot_code_for_re_registration(
     db_pool: asyncpg.Pool,
 ) -> None:
     """A decommissioned mount's slot_code becomes available again: the
-    mount_lookup row is deleted, and a fresh register_mount with the
+    mount_slot_code row is deleted, and a fresh register_mount with the
     same slot_code succeeds (different mount_id)."""
     frame_id = uuid4()
     await _seed_frame(db_pool, frame_id)

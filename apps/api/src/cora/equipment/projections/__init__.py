@@ -16,7 +16,7 @@ from cora.equipment.projections.frame_consumers import FrameConsumersProjection
 from cora.equipment.projections.frame_summary import FrameSummaryProjection
 from cora.equipment.projections.model import ModelSummaryProjection
 from cora.equipment.projections.mount_children import MountChildrenProjection
-from cora.equipment.projections.mount_lookup import MountLookupProjection
+from cora.equipment.projections.mount_slot_code import MountSlotCodeProjection
 from cora.equipment.projections.mount_summary import MountSummaryProjection
 
 __all__ = [
@@ -29,6 +29,6 @@ __all__ = [
     "FrameSummaryProjection",
     "ModelSummaryProjection",
     "MountChildrenProjection",
-    "MountLookupProjection",
+    "MountSlotCodeProjection",
     "MountSummaryProjection",
 ]
