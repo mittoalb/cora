@@ -16,14 +16,25 @@ Covers:
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports import Allow, Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
+from cora.operation.adapters.in_memory_recipe_expansion_port import (
+    InMemoryRecipeExpansionPort,
+)
+from cora.operation.aggregates.procedure import (
+    ProcedureRegistered,
+    event_type_name,
+    to_payload,
+)
 from cora.operation.conductor import (
     ActionStep,
     CheckStep,
@@ -43,6 +54,41 @@ from cora.operation.features.run_procedure.route import (
     result_to_wire,
     step_from_wire,
 )
+
+_NOW = datetime(2026, 6, 2, 12, 0, 0, tzinfo=UTC)
+
+
+async def _seed_procedure(store: InMemoryEventStore, procedure_id: UUID) -> None:
+    """Seed a legacy (no-recipe) Procedure so load_procedure_with_events
+    returns non-None and the run_procedure handler takes the legacy
+    (caller-supplied steps) branch per [[project-run-procedure-replay-design]]."""
+    event = ProcedureRegistered(
+        procedure_id=procedure_id,
+        name="P",
+        kind="bakeout",
+        target_asset_ids=(),
+        parent_run_id=None,
+        capability_id=None,
+        recipe_id=None,
+        occurred_at=_NOW,
+    )
+    await store.append(
+        stream_type="Procedure",
+        stream_id=procedure_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=event_type_name(event),
+                payload=to_payload(event),
+                occurred_at=_NOW,
+                event_id=uuid4(),
+                command_name="seed",
+                correlation_id=uuid4(),
+                causation_id=None,
+                principal_id=uuid4(),
+            ),
+        ],
+    )
 
 
 @dataclass
@@ -105,14 +151,19 @@ class _FakeConductor:
         return self.result
 
 
-def _deps(authz: _FakeAuthz) -> Kernel:
-    """Minimal Kernel-shaped stub; only `.authz` is exercised."""
+def _deps(authz: _FakeAuthz, event_store: InMemoryEventStore | None = None) -> Kernel:
+    """Minimal Kernel-shaped stub: authz + event_store (the run_procedure
+    handler reads `deps.event_store` for `load_procedure_with_events`
+    per [[project-run-procedure-replay-design]] Step 8)."""
 
     @dataclass
     class _MinimalKernel:
         authz: _FakeAuthz
+        event_store: InMemoryEventStore
 
-    return _MinimalKernel(authz=authz)  # type: ignore[return-value]
+    return _MinimalKernel(  # type: ignore[return-value]
+        authz=authz, event_store=event_store or InMemoryEventStore()
+    )
 
 
 # --- handler dispatch ---------------------------------------------------
@@ -125,8 +176,14 @@ async def test_run_procedure_handler_dispatches_to_conductor_with_envelope() -> 
     correlation_id = uuid4()
     causation_id = uuid4()
     surface_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_procedure(store, procedure_id)
     conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=2))
-    handler = bind(_deps(_FakeAuthz()), conductor=conductor)  # type: ignore[arg-type]
+    handler = bind(
+        _deps(_FakeAuthz(), store),  # type: ignore[arg-type]
+        conductor=conductor,  # type: ignore[arg-type]
+        expansion_port=InMemoryRecipeExpansionPort(),
+    )
     steps: tuple[Step, ...] = (
         SetpointStep(address="2bma:rot:val", value=45.0),
         SetpointStep(address="2bma:cam:exposure", value=0.025),
@@ -163,10 +220,16 @@ async def test_run_procedure_handler_propagates_failure_from_conductor() -> None
         error_class="ControlNotConnectedError",
         message="Control address '2bma:rot:val' not connected",
     )
+    store = InMemoryEventStore()
+    await _seed_procedure(store, procedure_id)
     conductor = _FakeConductor(
         result=ConductorResult(procedure_id=procedure_id, completed_count=0, failure=failure)
     )
-    handler = bind(_deps(_FakeAuthz()), conductor=conductor)  # type: ignore[arg-type]
+    handler = bind(
+        _deps(_FakeAuthz(), store),  # type: ignore[arg-type]
+        conductor=conductor,  # type: ignore[arg-type]
+        expansion_port=InMemoryRecipeExpansionPort(),
+    )
     result = await handler(
         RunProcedure(procedure_id=procedure_id, steps=()),
         principal_id=uuid4(),
@@ -179,7 +242,11 @@ async def test_run_procedure_handler_propagates_failure_from_conductor() -> None
 @pytest.mark.unit
 async def test_run_procedure_handler_raises_unauthorized_when_authz_denies() -> None:
     conductor = _FakeConductor(result=ConductorResult(procedure_id=uuid4(), completed_count=0))
-    handler = bind(_deps(_FakeAuthz(deny_reason="no permission")), conductor=conductor)  # type: ignore[arg-type]
+    handler = bind(
+        _deps(_FakeAuthz(deny_reason="no permission")),  # type: ignore[arg-type]
+        conductor=conductor,  # type: ignore[arg-type]
+        expansion_port=InMemoryRecipeExpansionPort(),
+    )
     with pytest.raises(UnauthorizedError, match="no permission"):
         await handler(
             RunProcedure(procedure_id=uuid4(), steps=()),
@@ -377,3 +444,302 @@ def test_run_procedure_request_with_empty_step_list_is_valid() -> None:
 def test_run_procedure_request_default_is_empty_step_list() -> None:
     body = RunProcedureRequest.model_validate({})
     assert body.steps == []
+
+
+# ---  recipe-replay branch --------------------------------------
+#
+# These tests pin the recipe-driven branch of `run_procedure` per
+# [[project-run-procedure-replay-design]]. Each test seeds a Procedure
+# stream carrying both `ProcedureRegistered(recipe_id=...)` and
+# `RecipeExpansionRecorded(...)`; the test-only knob is whatever payload
+# field needs to drift to trigger the rejection.
+
+import hashlib  # noqa: E402
+
+from cora.infrastructure.canonical_json import canonical_json_bytes  # noqa: E402
+from cora.operation._recipe_expansion import steps_to_wire  # noqa: E402
+from cora.operation.aggregates.procedure import (  # noqa: E402
+    ProcedureNotFoundError,
+    ProcedureStepsForbiddenForRecipeDrivenError,
+    RecipeExpansionPortVersionMismatchError,
+    RecipeExpansionRecorded,
+    RecipeExpansionRecordNotFoundError,
+    RecipeExpansionReplayMismatchError,
+)
+from cora.recipe.aggregates.recipe import (  # noqa: E402
+    RecipeDefined,
+    RecipeSetpointStep,
+)
+from cora.recipe.aggregates.recipe import event_type_name as recipe_event_type_name  # noqa: E402
+from cora.recipe.aggregates.recipe import to_payload as recipe_to_payload  # noqa: E402
+
+
+async def _seed_recipe_driven_procedure(
+    store: InMemoryEventStore,
+    procedure_id: UUID,
+    recipe_id: UUID,
+    *,
+    bindings: dict[str, object] | None = None,
+    recipe_steps: tuple[RecipeSetpointStep, ...] | None = None,
+    expansion_port_version: str = "v1",
+    bindings_hash_override: str | None = None,
+    steps_hash_override: str | None = None,
+    omit_recipe_expansion_recorded: bool = False,
+) -> None:
+    """Seed both events of the 2-event genesis block emitted by
+    register_procedure_from_recipe, optionally drifting one of the pins."""
+    capability_id = uuid4()
+    binds = bindings if bindings is not None else {"angle": 30.0}
+    rsteps = (
+        recipe_steps
+        if recipe_steps is not None
+        else (RecipeSetpointStep(address="dev:x", value=1.0),)
+    )
+    # Also seed the Recipe stream so load_recipe_at_version succeeds.
+    recipe_event = RecipeDefined(
+        recipe_id=recipe_id,
+        name="R",
+        capability_id=capability_id,
+        steps=rsteps,
+        occurred_at=_NOW,
+    )
+    await store.append(
+        stream_type="Recipe",
+        stream_id=recipe_id,
+        expected_version=0,
+        events=[
+            to_new_event(
+                event_type=recipe_event_type_name(recipe_event),
+                payload=recipe_to_payload(recipe_event),
+                occurred_at=_NOW,
+                event_id=uuid4(),
+                command_name="seed",
+                correlation_id=uuid4(),
+                causation_id=None,
+                principal_id=uuid4(),
+            ),
+        ],
+    )
+    # Compute the expected hashes via the SAME canonicalizer the at-write
+    # decider uses; tests can override either to trigger drift assertions.
+    expected_bindings_hash = hashlib.sha256(canonical_json_bytes(dict(binds))).hexdigest()
+    # Tests in this file use only literal values (no BindingRef), so the
+    # cast to Conductor's narrower Step.value union is safe; the recipe-
+    # expansion bridge does the same translation at run time.
+    expanded_for_hash: tuple[Step, ...] = tuple(
+        SetpointStep(address=s.address, value=s.value)  # type: ignore[arg-type]
+        for s in rsteps
+    )
+    expected_steps_hash = hashlib.sha256(
+        canonical_json_bytes(steps_to_wire(expanded_for_hash))
+    ).hexdigest()
+    registered = ProcedureRegistered(
+        procedure_id=procedure_id,
+        name="P",
+        kind="bakeout",
+        target_asset_ids=(),
+        parent_run_id=None,
+        capability_id=capability_id,
+        recipe_id=recipe_id,
+        occurred_at=_NOW,
+    )
+    procedure_events = [registered]
+    if not omit_recipe_expansion_recorded:
+        recorded = RecipeExpansionRecorded(
+            procedure_id=procedure_id,
+            recipe_id=recipe_id,
+            recipe_version=None,
+            capability_id=capability_id,
+            capability_version=None,
+            bindings=binds,
+            expansion_port_version=expansion_port_version,
+            steps_hash=steps_hash_override or expected_steps_hash,
+            bindings_hash=bindings_hash_override or expected_bindings_hash,
+            step_count=len(rsteps),
+            occurred_at=_NOW,
+        )
+        procedure_events.append(recorded)  # type: ignore[arg-type]
+    new_events = [
+        to_new_event(
+            event_type=event_type_name(event),  # type: ignore[arg-type]
+            payload=to_payload(event),  # type: ignore[arg-type]
+            occurred_at=_NOW,
+            event_id=uuid4(),
+            command_name="seed",
+            correlation_id=uuid4(),
+            causation_id=None,
+            principal_id=uuid4(),
+        )
+        for event in procedure_events
+    ]
+    await store.append(
+        stream_type="Procedure",
+        stream_id=procedure_id,
+        expected_version=0,
+        events=new_events,
+    )
+
+
+def _bind_handler(
+    store: InMemoryEventStore,
+    conductor: "_FakeConductor",
+    *,
+    expansion_port: InMemoryRecipeExpansionPort | None = None,
+) -> Any:
+    return bind(
+        _deps(_FakeAuthz(), store),  # type: ignore[arg-type]
+        conductor=conductor,  # type: ignore[arg-type]
+        expansion_port=expansion_port or InMemoryRecipeExpansionPort(),
+    )
+
+
+@pytest.mark.unit
+async def test_run_procedure_legacy_procedure_uses_caller_supplied_steps_unchanged() -> None:
+    procedure_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_procedure(store, procedure_id)  # recipe_id is None
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=1))
+    handler = _bind_handler(store, conductor)
+    steps = (SetpointStep(address="dev:caller", value=99.0),)
+    await handler(
+        RunProcedure(procedure_id=procedure_id, steps=steps),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+    )
+    assert conductor.calls[0].steps == steps
+
+
+@pytest.mark.unit
+async def test_run_procedure_recipe_driven_procedure_uses_re_expanded_steps() -> None:
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(store, procedure_id, recipe_id)
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=1))
+    handler = _bind_handler(store, conductor)
+    await handler(
+        RunProcedure(procedure_id=procedure_id, steps=()),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+    )
+    assert conductor.calls[0].steps == (SetpointStep(address="dev:x", value=1.0),)
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_non_empty_caller_steps_raises_forbidden() -> None:
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(store, procedure_id, recipe_id)
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(ProcedureStepsForbiddenForRecipeDrivenError) as exc:
+        await handler(
+            RunProcedure(
+                procedure_id=procedure_id,
+                steps=(SetpointStep(address="dev:caller", value=99.0),),
+            ),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+    assert conductor.calls == []
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_missing_expansion_record_raises_not_found() -> None:
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(
+        store, procedure_id, recipe_id, omit_recipe_expansion_recorded=True
+    )
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(RecipeExpansionRecordNotFoundError) as exc:
+        await handler(
+            RunProcedure(procedure_id=procedure_id, steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_port_version_mismatch_raises_port_error() -> None:
+    """Dataclass `version` field supports `InMemoryRecipeExpansionPort(version='v2')`
+    so we can stage a v2 port against a v1-pinned event without inventing a second adapter."""
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(store, procedure_id, recipe_id)  # pinned at v1
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(
+        store, conductor, expansion_port=InMemoryRecipeExpansionPort(version="v2")
+    )
+    with pytest.raises(RecipeExpansionPortVersionMismatchError) as exc:
+        await handler(
+            RunProcedure(procedure_id=procedure_id, steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+    assert exc.value.recorded_version == "v1"
+    assert exc.value.current_version == "v2"
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_bindings_drift_raises_bindings_mismatch() -> None:
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(
+        store, procedure_id, recipe_id, bindings_hash_override="0" * 64
+    )
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(RecipeExpansionReplayMismatchError) as exc:
+        await handler(
+            RunProcedure(procedure_id=procedure_id, steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+    assert exc.value.mismatch_field == "bindings"
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_steps_drift_raises_steps_mismatch() -> None:
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    await _seed_recipe_driven_procedure(
+        store, procedure_id, recipe_id, steps_hash_override="0" * 64
+    )
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(RecipeExpansionReplayMismatchError) as exc:
+        await handler(
+            RunProcedure(procedure_id=procedure_id, steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+    assert exc.value.mismatch_field == "steps"
+
+
+@pytest.mark.unit
+async def test_run_procedure_with_unregistered_procedure_raises_procedure_not_found_error() -> None:
+    """Added `load_procedure_with_events` at handler entry; the
+    handler raises ProcedureNotFoundError before hitting the Conductor.
+    Aligns with the route-tier 404 mapping (was: 200 + lifecycle-failure)."""
+    store = InMemoryEventStore()
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=uuid4(), completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(ProcedureNotFoundError):
+        await handler(
+            RunProcedure(procedure_id=uuid4(), steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert conductor.calls == []

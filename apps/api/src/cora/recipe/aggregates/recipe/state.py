@@ -143,6 +143,24 @@ class RecipeNotFoundError(Exception):
         self.recipe_id = recipe_id
 
 
+class RecipeVersionNotFoundError(Exception):
+    """A `load_recipe_at_version` lookup found the Recipe stream but no
+    `RecipeVersioned` event whose `version_tag` matches the pinned tag.
+
+    Distinct from `RecipeNotFoundError` (stream wholly absent). Raised
+    by `load_recipe_at_version` when the caller pins a tag that is
+    absent from the Recipe history; surfaced as HTTP 404 since the
+    requested resource (the version) does not exist.
+    """
+
+    def __init__(self, recipe_id: UUID, version_tag: str) -> None:
+        super().__init__(
+            f"Recipe {recipe_id} has no RecipeVersioned event with version_tag {version_tag!r}"
+        )
+        self.recipe_id = recipe_id
+        self.version_tag = version_tag
+
+
 class RecipeCannotVersionError(Exception):
     """Attempted to version a Recipe whose status is `Deprecated`.
 
@@ -209,9 +227,14 @@ class Recipe:
     `version` is the operator-supplied label of the most recent
     `version_recipe` call (None until first version). State holds the
     latest tag; past tags live in the event stream as `RecipeVersioned`
-    events. `version_tag` carries no UNIQUE constraint; replay
-    determinism comes from event-store sequence position, NOT from
-    tag-string lookup, per [[project-recipe-aggregate-design]] Locks.
+    events. `version_tag` carries no UNIQUE constraint; re-tagging is
+    allowed (re-attestation is a legitimate audit moment per
+    `version_capability`/`version_method` precedent). Replay determinism
+    comes from first-match-from-head tag-string lookup via
+    `load_recipe_at_version`; the earlier `RecipeVersioned` binds the
+    earlier `RecipeExpansionRecorded` by construction (the later
+    re-tagging cannot retroactively change which version was pinned).
+    See [[project-run-procedure-replay-design]] Locks.
 
     `replaced_by_recipe_id`: pointer to a successor Recipe when this
     one is deprecated with replacement. None on

@@ -341,6 +341,104 @@ class RecipeExpansionDeterminismError(Exception):
         self.recipe_id = recipe_id
 
 
+class ProcedureStepsForbiddenForRecipeDrivenError(Exception):
+    """A non-empty `steps` list was supplied for a recipe-driven Procedure.
+
+    Recipe-driven Procedures (created via `register_procedure_from_recipe`)
+    have their step list pinned by `RecipeExpansionRecorded`; the
+    `run_procedure` handler re-expands deterministically from the
+    pinned Recipe + bindings and ignores any caller-supplied steps.
+    Rather than silently override (which masks client bugs), the
+    handler rejects up front per [[project-run-procedure-replay-design]]
+    Anti-hook 7. Mapped to HTTP 400.
+    """
+
+    def __init__(self, procedure_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} is recipe-driven; steps must be empty. "
+            f"The run_procedure handler re-expands from RecipeExpansionRecorded."
+        )
+        self.procedure_id = procedure_id
+
+
+class RecipeExpansionPortVersionMismatchError(Exception):
+    """The currently-wired `RecipeExpansionPort.version` differs from the pin.
+
+    The `RecipeExpansionRecorded` event pins `expansion_port_version`;
+    the replay path runs a strict-equals guard against the live port's
+    `version` so a future v2 port cannot silently re-expand a v1-pinned
+    Procedure with potentially different outputs. Today only v1 exists;
+    this guard is the placeholder until a v2 expansion port lands with
+    its routing layer. Mapped to HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID, recorded_version: str, current_version: str) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} recipe expansion was recorded with "
+            f"port version {recorded_version!r}; the currently-wired port "
+            f"reports {current_version!r}. Re-expansion would be unsafe."
+        )
+        self.procedure_id = procedure_id
+        self.recorded_version = recorded_version
+        self.current_version = current_version
+
+
+class RecipeExpansionRecordNotFoundError(Exception):
+    """The recipe-driven Procedure cannot locate the pinned expansion record.
+
+    Raised by the `run_procedure` recipe-replay path
+    (per [[project-run-procedure-replay-design]]) in any of three cases:
+
+      - The Procedure stream carries no `RecipeExpansionRecorded`
+        event (stream truncation or a direct event-store write left
+        the genesis pair incomplete).
+      - The `RecipeExpansionRecorded` payload is corrupt: one or more
+        required keys are missing (caught by `pins_from_payload`'s
+        defensive check).
+      - The pinned Recipe stream itself is wholly empty when the
+        handler calls `load_recipe_at_version` (the operator-pinned
+        `recipe_id` references a Recipe with no genesis event).
+
+    `register_procedure_from_recipe` emits both genesis events
+    atomically so the first two cases are unreachable in normal
+    operation; the third is unreachable while the event log stays
+    append-only. The error covers operator escape hatches around
+    stream truncation, manual event-store writes, or partial-write
+    failures. Mapped to HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} has recipe_id set but the pinned "
+            f"RecipeExpansionRecorded event or the pinned Recipe stream "
+            f"could not be located; replay cannot proceed."
+        )
+        self.procedure_id = procedure_id
+
+
+class RecipeExpansionReplayMismatchError(Exception):
+    """Replay-time hash drift on a recipe-driven Procedure.
+
+    Raised when the recorded bindings no longer hash to
+    `bindings_hash` (input drift, `mismatch_field='bindings'`) OR
+    the freshly re-expanded steps no longer hash to `steps_hash`
+    (expansion-logic drift, `mismatch_field='steps'`). Either case
+    indicates the expansion port regressed or the recorded payload
+    was mutated since write time, neither operator-correctable.
+    Closed Literal discriminator instead of two error classes per
+    [[project-run-procedure-replay-design]] Anti-hook 3. Mapped to
+    HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID, mismatch_field: Literal["bindings", "steps"]) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} recipe expansion replay produced a "
+            f"{mismatch_field}_hash mismatch against the recorded pin."
+        )
+        self.procedure_id = procedure_id
+        self.mismatch_field = mismatch_field
+
+
 class RecipeBindingsStaleAgainstCurrentCapabilityError(Exception):
     """The Recipe's BindingRefs no longer resolve against the current Capability schema.
 

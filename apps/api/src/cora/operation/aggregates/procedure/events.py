@@ -54,6 +54,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.canonical_json import canonical_json_bytes
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
@@ -400,19 +401,20 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
             step_count=step_count,
             occurred_at=occurred_at,
         ):
-            # Canonical-JSON sort_keys for bindings so the persisted
-            # payload bytes are deterministic and `sha256(payload['bindings'])`
-            # reproduces `bindings_hash`. Recipe.steps wire-format is
-            # JSON-friendly by construction (no UUID values inside).
+            # Canonical-JSON bytes via the shared `canonical_json_bytes`
+            # helper, then `json.loads` to keep the persisted `bindings`
+            # field a dict (matches `from_stored`'s `dict(payload['bindings'])`
+            # consumer at line 528). The single-source canonicalizer keeps
+            # `sha256(payload['bindings'])` reproducible against the
+            # decider's at-write `bindings_hash`. Recipe.steps wire-format
+            # is JSON-friendly by construction (no UUID values inside).
             return {
                 "procedure_id": str(procedure_id),
                 "recipe_id": str(recipe_id),
                 "recipe_version": recipe_version,
                 "capability_id": str(capability_id),
                 "capability_version": capability_version,
-                "bindings": json.loads(
-                    json.dumps(dict(bindings), sort_keys=True, separators=(",", ":"))
-                ),
+                "bindings": json.loads(canonical_json_bytes(dict(bindings))),
                 "expansion_port_version": expansion_port_version,
                 "steps_hash": steps_hash,
                 "bindings_hash": bindings_hash,

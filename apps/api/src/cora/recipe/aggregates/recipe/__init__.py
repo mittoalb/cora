@@ -41,6 +41,7 @@ from cora.recipe.aggregates.recipe.evolver import evolve, fold
 from cora.recipe.aggregates.recipe.read import (
     RecipeLifecycleTimestamps,
     load_recipe,
+    load_recipe_at_version,
     load_recipe_timestamps,
 )
 from cora.recipe.aggregates.recipe.state import (
@@ -56,6 +57,7 @@ from cora.recipe.aggregates.recipe.state import (
     RecipeName,
     RecipeNotFoundError,
     RecipeStatus,
+    RecipeVersionNotFoundError,
 )
 from cora.recipe.aggregates.recipe.steps_validation import (
     RecipeBindingReferencesUnknownParameterError,
@@ -89,6 +91,7 @@ __all__ = [
     "RecipeSetpointStep",
     "RecipeStatus",
     "RecipeStep",
+    "RecipeVersionNotFoundError",
     "RecipeVersioned",
     "UnboundRecipeBindingError",
     "collect_binding_names",
@@ -97,6 +100,7 @@ __all__ = [
     "fold",
     "from_stored",
     "load_recipe",
+    "load_recipe_at_version",
     "load_recipe_timestamps",
     "resolve_value",
     "steps_from_dict",

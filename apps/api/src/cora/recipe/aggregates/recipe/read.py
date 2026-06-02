@@ -26,9 +26,15 @@ from uuid import UUID
 import asyncpg
 
 from cora.infrastructure.ports import EventStore
-from cora.recipe.aggregates.recipe.events import from_stored
+from cora.recipe.aggregates.recipe.events import (
+    RecipeVersioned,
+    from_stored,
+)
 from cora.recipe.aggregates.recipe.evolver import fold
-from cora.recipe.aggregates.recipe.state import Recipe
+from cora.recipe.aggregates.recipe.state import (
+    Recipe,
+    RecipeVersionNotFoundError,
+)
 
 _STREAM_TYPE = "Recipe"
 
@@ -60,6 +66,51 @@ async def load_recipe(event_store: EventStore, recipe_id: UUID) -> Recipe | None
     stored, _version = await event_store.load(_STREAM_TYPE, recipe_id)
     events = [from_stored(s) for s in stored]
     return fold(events)
+
+
+async def load_recipe_at_version(
+    event_store: EventStore,
+    recipe_id: UUID,
+    version_tag: str | None,
+) -> Recipe | None:
+    """Load Recipe state at the pinned `version_tag` (first-match-from-head).
+
+    Walks the Recipe event stream from genesis, folding events into
+    `Recipe` state incrementally. Stops AT the first `RecipeVersioned`
+    event whose `version_tag` matches the pinned tag and returns the
+    post-fold state. Used by `run_procedure` replay (per
+    [[project-run-procedure-replay-design]]) to resolve a Recipe to
+    the exact snapshot pinned in `RecipeExpansionRecorded.recipe_version`.
+
+    Semantics:
+    - Returns `None` when the Recipe stream is empty (no genesis event);
+      the caller decides whether to raise.
+    - When `version_tag is None`, returns the post-genesis state
+      (post-`RecipeDefined`, no `version_recipe` calls yet). This
+      mirrors `Recipe.version is None` and covers Procedures registered
+      from a Recipe that was never versioned.
+    - When `version_tag` is set and the stream has events but no
+      `RecipeVersioned` matches, raises `RecipeVersionNotFoundError`.
+    - First-match-from-head when multiple `RecipeVersioned` events
+      share a tag (re-tagging is allowed per ): the first
+      match wins because the later re-tagging cannot retroactively
+      change which version was pinned by an earlier
+      `RecipeExpansionRecorded`.
+    - The fold runs over all preceding events; `RecipeDeprecated`
+      events the FSM forbids ahead of a matching `RecipeVersioned`
+      are still folded defensively (the helper does not assume FSM
+      cleanliness, only that it can find the target event).
+    """
+    stored, _version = await event_store.load(_STREAM_TYPE, recipe_id)
+    if not stored:
+        return None
+    events = [from_stored(s) for s in stored]
+    if version_tag is None:
+        return fold(events[:1])
+    for index, event in enumerate(events):
+        if isinstance(event, RecipeVersioned) and event.version_tag == version_tag:
+            return fold(events[: index + 1])
+    raise RecipeVersionNotFoundError(recipe_id, version_tag)
 
 
 async def load_recipe_timestamps(

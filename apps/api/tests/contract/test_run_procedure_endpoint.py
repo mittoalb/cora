@@ -106,22 +106,20 @@ def test_post_run_with_setpoint_to_unconnected_address_returns_not_connected_fai
 
 
 @pytest.mark.contract
-def test_post_run_against_unregistered_procedure_returns_200_with_lifecycle_failure() -> None:
-    """conduct() catches start_procedure rejections -> lifecycle failure on result."""
+def test_post_run_against_unregistered_procedure_returns_404() -> None:
+    """[[project-run-procedure-replay-design]] aligned the
+    handler-tier load with the route-tier ProcedureNotFoundError -> 404
+    mapping; running a Procedure that does not exist no longer dispatches
+    to the Conductor (which previously caught the start_procedure failure
+    and surfaced it as a 200 + lifecycle-failure payload). The 404 is the
+    more accurate signal: the resource the operator addressed is missing."""
     with TestClient(create_app()) as client:
         unknown_pid = uuid4()
         run = client.post(
             f"/procedures/{unknown_pid}/run",
             json={"steps": []},
         )
-    assert run.status_code == 200
-    payload = run.json()
-    assert payload["succeeded"] is False
-    failure = payload["failure"]
-    assert failure["step_index"] is None
-    assert failure["source_kind"] == "lifecycle"
-    assert failure["target"] == "start"
-    assert failure["error_class"] == "ProcedureNotFoundError"
+    assert run.status_code == 404
 
 
 @pytest.mark.contract

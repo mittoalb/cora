@@ -43,7 +43,6 @@ Invariants:
 """
 
 import hashlib
-import json
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
@@ -51,7 +50,7 @@ from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
-from cora.operation._recipe_expansion import steps_to_wire
+from cora.operation._recipe_expansion import canonical_json_bytes, steps_to_wire
 from cora.operation.aggregates.procedure import (
     PROCEDURE_KIND_MAX_LENGTH,
     RECIPE_EXPANSION_STEP_MAX,
@@ -76,11 +75,6 @@ from cora.recipe.aggregates.capability import Capability, ExecutorShape
 from cora.recipe.aggregates.recipe import Recipe
 
 
-def _canonical_json_bytes(value: object) -> bytes:
-    """Deterministic JSON serialization for content hashing."""
-    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-
-
 def _hash_steps(steps: tuple[Step, ...]) -> str:
     """Content-address the expanded Step tuple per memo §RecipeExpansionRecorded.
 
@@ -89,11 +83,11 @@ def _hash_steps(steps: tuple[Step, ...]) -> str:
     re-version that produces equivalent expanded steps still hashes
     identically.
     """
-    return hashlib.sha256(_canonical_json_bytes(steps_to_wire(steps))).hexdigest()
+    return hashlib.sha256(canonical_json_bytes(steps_to_wire(steps))).hexdigest()
 
 
 def _hash_bindings(bindings: Mapping[str, Any]) -> str:
-    return hashlib.sha256(_canonical_json_bytes(dict(bindings))).hexdigest()
+    return hashlib.sha256(canonical_json_bytes(dict(bindings))).hexdigest()
 
 
 def decide(

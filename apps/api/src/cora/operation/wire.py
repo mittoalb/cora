@@ -222,7 +222,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             kind="query",
         ),
         run_procedure=with_tracing(
-            run_procedure.bind(deps, conductor=conductor),
+            run_procedure.bind(deps, conductor=conductor, expansion_port=recipe_expansion_port),
             command_name="RunProcedure",
             bc=_BC,
         ),

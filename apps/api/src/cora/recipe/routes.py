@@ -97,6 +97,7 @@ from cora.recipe.aggregates.recipe import (
     RecipeCannotVersionError,
     RecipeNotFoundError,
     RecipeRequiresCapabilityParametersSchemaError,
+    RecipeVersionNotFoundError,
     UnboundRecipeBindingError,
 )
 from cora.recipe.errors import UnauthorizedError
@@ -270,6 +271,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
         PlanWireNotFoundError,
         RecipeNotFoundError,
+        RecipeVersionNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (

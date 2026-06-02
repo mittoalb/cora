@@ -17,6 +17,7 @@ validation time and compares results to enforce determinism via the
 from collections.abc import Mapping
 from typing import Any
 
+from cora.infrastructure.canonical_json import canonical_json_bytes
 from cora.operation.conductor import (
     ActionStep,
     CheckStep,
@@ -135,4 +136,4 @@ def steps_to_wire(steps: tuple[Step, ...]) -> list[dict[str, Any]]:
     return [_step_to_wire(step) for step in steps]
 
 
-__all__ = ["expand", "steps_to_wire"]
+__all__ = ["canonical_json_bytes", "expand", "steps_to_wire"]

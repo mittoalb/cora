@@ -51,11 +51,15 @@ from cora.operation.aggregates.procedure import (
     ProcedureCapabilityExecutorMismatchError,
     ProcedureNotFoundError,
     ProcedureRequiresAvailableSupplyError,
+    ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
     RecipeBindingsStaleAgainstCurrentCapabilityError,
     RecipeExpansionDeterminismError,
     RecipeExpansionOverflowError,
+    RecipeExpansionPortVersionMismatchError,
+    RecipeExpansionRecordNotFoundError,
+    RecipeExpansionReplayMismatchError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
@@ -191,6 +195,10 @@ def register_operation_routes(app: FastAPI) -> None:
         InvalidProcedureTruncateReasonError,
         InvalidProcedureInterruptedAtError,
         InvalidStepKindError,
+        # Recipe-driven run_procedure path: caller-supplied steps with
+        # recipe_id set are rejected up front per the replay-design lock
+        # ([[project-run-procedure-replay-design]] Anti-hook 7).
+        ProcedureStepsForbiddenForRecipeDrivenError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ProcedureNotFoundError,):
@@ -227,8 +235,27 @@ def register_operation_routes(app: FastAPI) -> None:
         RecipeExpansionOverflowError,
     ):
         app.add_exception_handler(unprocessable_cls, _handle_unprocessable)
-    # Server-side determinism bug; mapped to HTTP 500. Distinct from
-    # operator-error 422 because re-trying with the same payload will
-    # fail the same way.
-    app.add_exception_handler(RecipeExpansionDeterminismError, _handle_internal_server_error)
+    # Server-side determinism bugs / data corruption: HTTP 500. Distinct
+    # from operator-error 422 because re-trying with the same payload
+    # will fail the same way. Replay-time bugs land here too per
+    # [[project-run-procedure-replay-design]] Rejections (alphabetical):
+    #   - RecipeExpansionDeterminismError (at-write determinism bug).
+    #   - RecipeExpansionPortVersionMismatchError (pinned port v differs
+    #     from currently-wired; placeholder until a v2 expansion port
+    #     lands with its routing layer).
+    #   - RecipeExpansionRecordNotFoundError (data corruption guard:
+    #     recipe_id set but the pinned RecipeExpansionRecorded event or
+    #     the pinned Recipe stream cannot be located).
+    #   - RecipeExpansionReplayMismatchError (replay-time hash drift).
+    for internal_cls in (
+        RecipeExpansionDeterminismError,
+        RecipeExpansionPortVersionMismatchError,
+        RecipeExpansionRecordNotFoundError,
+        RecipeExpansionReplayMismatchError,
+    ):
+        app.add_exception_handler(internal_cls, _handle_internal_server_error)
+    # NOT registered here: RecipeVersionNotFoundError (Recipe BC owns;
+    # raised from run_procedure handler via load_recipe_at_version but
+    # HTTP mapping lives in recipe/routes.py per the same cross-BC
+    # single-registration rule as CapabilityNotFoundError above).
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

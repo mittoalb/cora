@@ -106,8 +106,12 @@ def test_mcp_run_procedure_with_unknown_action_returns_failure_in_structured_con
 
 
 @pytest.mark.contract
-def test_mcp_run_procedure_against_unregistered_procedure_returns_lifecycle_failure() -> None:
-    """conduct() catches start_procedure rejection -> lifecycle failure on result."""
+def test_mcp_run_procedure_against_unregistered_procedure_returns_is_error() -> None:
+    """[[project-run-procedure-replay-design]] aligned the
+    handler-tier load with the route-tier ProcedureNotFoundError mapping;
+    running an unregistered Procedure now surfaces as tools/call isError
+    instead of a 200 + lifecycle-failure payload. FastMCP wraps domain
+    exceptions generically (no allowlist)."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         unknown_pid = uuid4()
@@ -127,10 +131,5 @@ def test_mcp_run_procedure_against_unregistered_procedure_returns_lifecycle_fail
             },
             headers=headers,
         )
-    structured: dict[str, Any] = parse_sse_data(response.text)["result"]["structuredContent"]
-    assert structured["succeeded"] is False
-    failure = structured["failure"]
-    assert failure["step_index"] is None
-    assert failure["source_kind"] == "lifecycle"
-    assert failure["target"] == "start"
-    assert failure["error_class"] == "ProcedureNotFoundError"
+    result = parse_sse_data(response.text)["result"]
+    assert result.get("isError") is True

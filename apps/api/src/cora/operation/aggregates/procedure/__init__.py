@@ -30,7 +30,10 @@ from cora.operation.aggregates.procedure.events import (
     to_payload,
 )
 from cora.operation.aggregates.procedure.evolver import evolve, fold
-from cora.operation.aggregates.procedure.read import load_procedure
+from cora.operation.aggregates.procedure.read import (
+    load_procedure,
+    load_procedure_with_events,
+)
 from cora.operation.aggregates.procedure.state import (
     LOGBOOK_KIND_STEPS,
     PROCEDURE_ABORT_REASON_MAX_LENGTH,
@@ -60,12 +63,16 @@ from cora.operation.aggregates.procedure.state import (
     ProcedureNotFoundError,
     ProcedureRequiresAvailableSupplyError,
     ProcedureStatus,
+    ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
     ProcedureTruncateReason,
     RecipeBindingsStaleAgainstCurrentCapabilityError,
     RecipeExpansionDeterminismError,
     RecipeExpansionOverflowError,
+    RecipeExpansionPortVersionMismatchError,
+    RecipeExpansionRecordNotFoundError,
+    RecipeExpansionReplayMismatchError,
     StepKind,
 )
 
@@ -106,6 +113,7 @@ __all__ = [
     "ProcedureStarted",
     "ProcedureStatus",
     "ProcedureStep",
+    "ProcedureStepsForbiddenForRecipeDrivenError",
     "ProcedureStepsLogbookClosedError",
     "ProcedureStepsLogbookOpened",
     "ProcedureSupplyCoverageMismatchError",
@@ -114,7 +122,10 @@ __all__ = [
     "RecipeBindingsStaleAgainstCurrentCapabilityError",
     "RecipeExpansionDeterminismError",
     "RecipeExpansionOverflowError",
+    "RecipeExpansionPortVersionMismatchError",
+    "RecipeExpansionRecordNotFoundError",
     "RecipeExpansionRecorded",
+    "RecipeExpansionReplayMismatchError",
     "StepKind",
     "StepStore",
     "event_type_name",
@@ -122,5 +133,6 @@ __all__ = [
     "fold",
     "from_stored",
     "load_procedure",
+    "load_procedure_with_events",
     "to_payload",
 ]
