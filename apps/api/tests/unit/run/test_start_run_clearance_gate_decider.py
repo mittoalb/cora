@@ -168,7 +168,7 @@ def test_decide_clearance_gate_fires_before_plan_status_check() -> None:
     in its module docstring; this test pins it."""
     context, needs = _context(referencing_clearances=())
     # Force Plan to Deprecated -- without the clearance gate first
-    # this would raise PlanDeprecatedError instead.
+    # this would raise RunBoundPlanDeprecatedError instead.
     deprecated_plan = Plan(
         id=context.plan.id,
         name=context.plan.name,

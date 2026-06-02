@@ -25,10 +25,10 @@ fundamental issues surface first:
    from surfacing as 500 instead of 409.
 2. `asset_ids` must be non-empty (structural invariant: a Plan
    without bindings is meaningless). Raises `PlanAssetsRequiredError`.
-3. Practice must not be Deprecated. Raises `PracticeDeprecatedError`.
-4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
+3. Practice must not be Deprecated. Raises `PlanBoundPracticeDeprecatedError`.
+4. Method must not be Deprecated. Raises `PlanBoundMethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
-   `AssetDecommissionedError` carrying the offending asset_ids.
+   `PlanAssetDecommissionedError` carrying the offending asset_ids.
 6. `union(asset.families) ⊇ method.needed_family_ids`. Raises
    `PlanFamiliesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
@@ -64,16 +64,16 @@ from cora.recipe.aggregates.method import MethodStatus
 if TYPE_CHECKING:
     from cora.equipment.aggregates.family import Affordance
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
-    MethodDeprecatedError,
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetDecommissionedError,
     PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanDefined,
     PlanFamiliesNotSatisfiedError,
     PlanName,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import PracticeStatus
 from cora.recipe.features.define_plan.command import DefinePlan
@@ -93,10 +93,10 @@ def decide(
     Invariants:
       - State must be None (genesis-only) -> PlanAlreadyExistsError
       - asset_ids must be non-empty -> PlanAssetsRequiredError
-      - Practice must not be Deprecated -> PracticeDeprecatedError
-      - Method must not be Deprecated -> MethodDeprecatedError
+      - Practice must not be Deprecated -> PlanBoundPracticeDeprecatedError
+      - Method must not be Deprecated -> PlanBoundMethodDeprecatedError
       - No bound Asset may be Decommissioned
-        -> AssetDecommissionedError
+        -> PlanAssetDecommissionedError
       - Union of bound Assets' families must cover Method's
         needed_family_ids -> PlanFamiliesNotSatisfiedError
       - When Method has a Capability, union of bound Families'
@@ -112,10 +112,10 @@ def decide(
         raise PlanAssetsRequiredError("at least one asset_id required")
 
     if context.practice.status is PracticeStatus.DEPRECATED:
-        raise PracticeDeprecatedError(context.practice.id)
+        raise PlanBoundPracticeDeprecatedError(context.practice.id)
 
     if context.method.status is MethodStatus.DEPRECATED:
-        raise MethodDeprecatedError(context.method.id)
+        raise PlanBoundMethodDeprecatedError(context.method.id)
 
     decommissioned = sorted(
         (
@@ -126,7 +126,7 @@ def decide(
         key=str,
     )
     if decommissioned:
-        raise AssetDecommissionedError(decommissioned)
+        raise PlanAssetDecommissionedError(decommissioned)
 
     # Generator expression keeps the element type inferable as UUID
     # (vs `frozenset().union(*generators)` which infers Unknown | UUID).

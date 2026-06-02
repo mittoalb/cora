@@ -17,7 +17,7 @@ The decider treats the loaded entities as opaque domain data.
 2. State.status must be DEFINED -> `ProcedureCannotStartError`
    (single-source guard; mirrors complete_run's RUNNING-only guard).
 3. No target Asset may be Decommissioned ->
-   `ProcedureAssetDecommissionedError` carrying the offending
+   `ProcedurePlanAssetDecommissionedError` carrying the offending
    asset_ids (sorted for deterministic test assertions and operator
    readability).
 4. For every kind in `needed_supplies_snapshot`, at least one Supply
@@ -42,9 +42,9 @@ from datetime import datetime
 from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.operation.aggregates.procedure import (
     Procedure,
-    ProcedureAssetDecommissionedError,
     ProcedureCannotStartError,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
     ProcedureStarted,
     ProcedureStatus,
@@ -70,7 +70,7 @@ def decide(
       - State must not be None -> ProcedureNotFoundError
       - Current status must be Defined -> ProcedureCannotStartError
       - No target Asset may be Decommissioned
-        -> ProcedureAssetDecommissionedError
+        -> ProcedurePlanAssetDecommissionedError
       - Every kind in needed_supplies_snapshot must have at least
         one registered Supply -> ProcedureRequiresAvailableSupplyError
       - Every kind in needed_supplies_snapshot must have at least
@@ -90,7 +90,7 @@ def decide(
         key=str,
     )
     if decommissioned:
-        raise ProcedureAssetDecommissionedError(decommissioned)
+        raise ProcedurePlanAssetDecommissionedError(decommissioned)
 
     # cross-BC Supply gate per [[project_supply_preflight_gate_design]]:
     # mirrors start_run's two-error pattern. Default-strict

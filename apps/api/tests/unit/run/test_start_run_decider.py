@@ -7,9 +7,9 @@ live in test_start_run_handler.py.
 
 Validation order pinned per gate-review Q5:
   1. State must be None (RunAlreadyExistsError)
-  2. Plan not Deprecated (PlanDeprecatedError)
-  3. Subject (if non-None) in {Mounted, Measured} (SubjectNotMountableError)
-  4. No bound Asset Decommissioned (RunAssetDecommissionedError)
+  2. Plan not Deprecated (RunBoundPlanDeprecatedError)
+  3. Subject (if non-None) in {Mounted, Measured} (RunSubjectNotMountableError)
+  4. No bound Asset Decommissioned (RunPlanAssetDecommissionedError)
   5. Family superset (RunCapabilitiesNotSatisfiedError)
   6. Name validation (InvalidRunNameError)
 """
@@ -43,15 +43,15 @@ from cora.recipe.aggregates.plan import (
 from cora.run.aggregates.run import (
     InvalidRunNameError,
     InvalidRunParametersError,
-    PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCapabilitiesNotSatisfiedError,
     RunName,
+    RunPlanAssetDecommissionedError,
     RunStarted,
     RunStatus,
-    SubjectNotMountableError,
+    RunSubjectNotMountableError,
 )
 from cora.run.features import start_run
 from cora.run.features.start_run import RunStartContext, StartRun
@@ -300,7 +300,7 @@ def test_decide_raises_plan_deprecated_when_plan_is_deprecated() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    with pytest.raises(PlanDeprecatedError) as exc_info:
+    with pytest.raises(RunBoundPlanDeprecatedError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
@@ -341,7 +341,7 @@ def test_decide_raises_subject_not_mountable_for_disallowed_subject_states(
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    with pytest.raises(SubjectNotMountableError) as exc_info:
+    with pytest.raises(RunSubjectNotMountableError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=subject.id),
@@ -397,7 +397,7 @@ def test_decide_raises_asset_decommissioned_when_any_bound_asset_decommissioned(
     context = RunStartContext(
         plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
     )
-    with pytest.raises(RunAssetDecommissionedError) as exc_info:
+    with pytest.raises(RunPlanAssetDecommissionedError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),

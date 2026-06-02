@@ -191,7 +191,7 @@ The `PlanDefined` audit snapshots pin what was checked at bind time (`method_nee
 : `PracticeNotFoundError` (Get only); boundary 422 only otherwise
 
 `DefinePlan`
-: `InvalidPlanNameError`, `PlanAssetsRequiredError` (empty `asset_ids`), `PlanAlreadyExistsError`, `PracticeNotFoundError`, `MethodNotFoundError`, `AssetNotFoundError`, `PracticeDeprecatedError`, `MethodDeprecatedError`, `AssetDecommissionedError`, `PlanCapabilitiesNotSatisfiedError`, `PlanAffordancesNotSatisfiedError`, `Unauthorized`
+: `InvalidPlanNameError`, `PlanAssetsRequiredError` (empty `asset_ids`), `PlanAlreadyExistsError`, `PracticeNotFoundError`, `MethodNotFoundError`, `AssetNotFoundError`, `PlanBoundPracticeDeprecatedError`, `PlanBoundMethodDeprecatedError`, `PlanAssetDecommissionedError`, `PlanCapabilitiesNotSatisfiedError`, `PlanAffordancesNotSatisfiedError`, `Unauthorized`
 
 `VersionPlan`
 : `PlanNotFoundError`, `PlanCannotVersionError`, `InvalidPlanVersionTagError`, `Unauthorized`

@@ -47,9 +47,9 @@ The `define_plan` handler pre-loads Practice, Method (via
 entities to the pure decider as a `PlanBindingContext`. The decider
 treats them as opaque domain data and validates:
 
-  - Practice not Deprecated → `PracticeDeprecatedError`
-  - Method not Deprecated → `MethodDeprecatedError`
-  - No bound Asset is Decommissioned → `AssetDecommissionedError`
+  - Practice not Deprecated → `PlanBoundPracticeDeprecatedError`
+  - Method not Deprecated → `PlanBoundMethodDeprecatedError`
+  - No bound Asset is Decommissioned → `PlanAssetDecommissionedError`
   - `union(asset.families) ⊇ method.needed_family_ids` →
     `PlanFamiliesNotSatisfiedError`
 
@@ -154,7 +154,7 @@ class PlanNotFoundError(Exception):
         self.plan_id = plan_id
 
 
-class PracticeDeprecatedError(Exception):
+class PlanBoundPracticeDeprecatedError(Exception):
     """Attempted to bind a Plan to a Deprecated Practice.
 
     Per gate-review Q5: Practice/Method deprecation is advisory at
@@ -169,10 +169,10 @@ class PracticeDeprecatedError(Exception):
         self.practice_id = practice_id
 
 
-class MethodDeprecatedError(Exception):
+class PlanBoundMethodDeprecatedError(Exception):
     """Attempted to bind a Plan whose Practice references a Deprecated Method.
 
-    Mirrors `PracticeDeprecatedError` shape. Mapped to HTTP 409.
+    Mirrors `PlanBoundPracticeDeprecatedError` shape. Mapped to HTTP 409.
     """
 
     def __init__(self, method_id: UUID) -> None:
@@ -180,7 +180,7 @@ class MethodDeprecatedError(Exception):
         self.method_id = method_id
 
 
-class AssetDecommissionedError(Exception):
+class PlanAssetDecommissionedError(Exception):
     """Attempted to bind a Plan to one or more Decommissioned Assets.
 
     Plans are forward-looking bindings; binding to a decommissioned

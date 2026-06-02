@@ -42,13 +42,13 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureTruncateReasonError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
-    ProcedureAssetDecommissionedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
     ProcedureCapabilityExecutorMismatchError,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
@@ -167,7 +167,7 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotCompleteError,
         ProcedureCannotAbortError,
         ProcedureCannotTruncateError,
-        ProcedureAssetDecommissionedError,
+        ProcedurePlanAssetDecommissionedError,
         ProcedureStepsLogbookClosedError,
         # cross-BC guard: Procedure binds to a Capability whose
         # executor_shapes does not include Procedure.

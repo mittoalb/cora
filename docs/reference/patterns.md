@@ -134,7 +134,7 @@ def decide(
     new_id: UUID,
 ) -> list[PlanDefined]:
     if context.practice.status is PracticeStatus.DEPRECATED:
-        raise PracticeDeprecatedError(context.practice.id)
+        raise PlanBoundPracticeDeprecatedError(context.practice.id)
 ```
 
 - **Decider stays pure.** No `await`, no port injection. Tests build contexts directly.

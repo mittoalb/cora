@@ -55,10 +55,10 @@ from cora.recipe.aggregates.practice.events import (
 )
 from cora.run import RunHandlers, UnauthorizedError, wire_run
 from cora.run.aggregates.run import (
-    PlanDeprecatedError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCapabilitiesNotSatisfiedError,
-    SubjectNotMountableError,
+    RunPlanAssetDecommissionedError,
+    RunSubjectNotMountableError,
 )
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
@@ -557,7 +557,7 @@ async def test_handler_propagates_plan_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(PlanDeprecatedError):
+    with pytest.raises(RunBoundPlanDeprecatedError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=None),
             principal_id=_PRINCIPAL_ID,
@@ -598,7 +598,7 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(SubjectNotMountableError):
+    with pytest.raises(RunSubjectNotMountableError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=subject_id),
             principal_id=_PRINCIPAL_ID,
@@ -613,7 +613,7 @@ async def test_handler_propagates_run_asset_decommissioned_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(RunAssetDecommissionedError):
+    with pytest.raises(RunPlanAssetDecommissionedError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=None),
             principal_id=_PRINCIPAL_ID,

@@ -266,13 +266,13 @@ class ProcedureNotFoundError(Exception):
         self.procedure_id = procedure_id
 
 
-class ProcedureAssetDecommissionedError(Exception):
+class ProcedurePlanAssetDecommissionedError(Exception):
     """Procedure's target Assets include one or more Decommissioned at start.
 
     Re-validation of Asset state at start_procedure (NOT just register-
     time snapshot). If a target Asset got decommissioned between
     register_procedure and start_procedure, the Procedure can't proceed
-    against the now-tombstoned Asset. Mirrors `RunAssetDecommissionedError`.
+    against the now-tombstoned Asset. Mirrors `RunPlanAssetDecommissionedError`.
     Mapped to HTTP 409.
     """
 

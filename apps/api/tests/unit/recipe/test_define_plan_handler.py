@@ -73,13 +73,13 @@ from cora.recipe.aggregates.method.events import (
     to_payload as method_to_payload,
 )
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
     InvalidPlanNameError,
-    MethodDeprecatedError,
     PlanAffordancesNotSatisfiedError,
+    PlanAssetDecommissionedError,
     PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanFamiliesNotSatisfiedError,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import PracticeNotFoundError
 from cora.recipe.aggregates.practice.events import (
@@ -524,7 +524,7 @@ async def test_handler_propagates_practice_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(PracticeDeprecatedError):
+    with pytest.raises(PlanBoundPracticeDeprecatedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,
@@ -544,7 +544,7 @@ async def test_handler_propagates_method_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(MethodDeprecatedError):
+    with pytest.raises(PlanBoundMethodDeprecatedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,
@@ -564,7 +564,7 @@ async def test_handler_propagates_asset_decommissioned_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(AssetDecommissionedError):
+    with pytest.raises(PlanAssetDecommissionedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,

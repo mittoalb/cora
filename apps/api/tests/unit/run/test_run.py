@@ -10,10 +10,9 @@ from cora.run.aggregates.run import (
     InvalidRunAbortReasonError,
     InvalidRunNameError,
     InvalidRunStopReasonError,
-    PlanDeprecatedError,
     RunAbortReason,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCannotAbortError,
     RunCannotCompleteError,
     RunCannotHoldError,
@@ -22,9 +21,10 @@ from cora.run.aggregates.run import (
     RunCapabilitiesNotSatisfiedError,
     RunName,
     RunNotFoundError,
+    RunPlanAssetDecommissionedError,
     RunStatus,
     RunStopReason,
-    SubjectNotMountableError,
+    RunSubjectNotMountableError,
     validate_pinned_calibration_ids,
 )
 
@@ -128,7 +128,7 @@ def test_run_not_found_error_carries_run_id() -> None:
 @pytest.mark.unit
 def test_plan_deprecated_error_carries_plan_id() -> None:
     plan_id = uuid4()
-    err = PlanDeprecatedError(plan_id)
+    err = RunBoundPlanDeprecatedError(plan_id)
     assert err.plan_id == plan_id
     assert "Deprecated" in str(err)
 
@@ -136,7 +136,7 @@ def test_plan_deprecated_error_carries_plan_id() -> None:
 @pytest.mark.unit
 def test_subject_not_mountable_error_carries_subject_id_and_status() -> None:
     subject_id = uuid4()
-    err = SubjectNotMountableError(subject_id, current_status="Removed")
+    err = RunSubjectNotMountableError(subject_id, current_status="Removed")
     assert err.subject_id == subject_id
     assert err.current_status == "Removed"
     msg = str(err)
@@ -147,7 +147,7 @@ def test_subject_not_mountable_error_carries_subject_id_and_status() -> None:
 @pytest.mark.unit
 def test_run_asset_decommissioned_error_carries_asset_ids_list() -> None:
     asset_ids = [uuid4(), uuid4()]
-    err = RunAssetDecommissionedError(asset_ids)
+    err = RunPlanAssetDecommissionedError(asset_ids)
     assert err.asset_ids == asset_ids
     assert "Decommissioned" in str(err)
 

@@ -23,9 +23,9 @@ from cora.equipment.aggregates.asset.events import to_payload as asset_to_payloa
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.operation.aggregates.procedure import (
-    ProcedureAssetDecommissionedError,
     ProcedureCannotStartError,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureRegistered,
 )
 from cora.operation.aggregates.procedure import event_type_name as procedure_event_type_name
@@ -209,7 +209,7 @@ async def test_handler_raises_when_target_asset_decommissioned() -> None:
     await _seed_procedure(store, target_asset_ids=(asset_id,))
     deps = _build_deps_shared(ids=[_TRANSITION_EVENT_ID], now=_NOW, event_store=store)
     handler = start_procedure.bind(deps)
-    with pytest.raises(ProcedureAssetDecommissionedError) as exc:
+    with pytest.raises(ProcedurePlanAssetDecommissionedError) as exc:
         await handler(
             StartProcedure(procedure_id=_PROCEDURE_ID),
             principal_id=_PRINCIPAL_ID,

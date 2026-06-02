@@ -299,7 +299,7 @@ class RunNotFoundError(Exception):
         self.run_id = run_id
 
 
-class PlanDeprecatedError(Exception):
+class RunBoundPlanDeprecatedError(Exception):
     """Attempted to start a Run against a Deprecated Plan.
 
     Plan deprecation is advisory at the Plan-aggregate layer (Plan
@@ -307,8 +307,8 @@ class PlanDeprecatedError(Exception):
     Run-start rejects — you can't execute a tombstoned Plan.
     Mapped to HTTP 409.
 
-    Symmetric to Plan-bind's PracticeDeprecatedError /
-    MethodDeprecatedError pattern.
+    Symmetric to Plan-bind's PlanBoundPracticeDeprecatedError /
+    PlanBoundMethodDeprecatedError pattern.
     """
 
     def __init__(self, plan_id: UUID) -> None:
@@ -316,7 +316,7 @@ class PlanDeprecatedError(Exception):
         self.plan_id = plan_id
 
 
-class SubjectNotMountableError(Exception):
+class RunSubjectNotMountableError(Exception):
     """Attempted to start a Run against a Subject not in Mounted | Measured.
 
     Subject-state precondition for Run-start (gate-review Q6):
@@ -337,7 +337,7 @@ class SubjectNotMountableError(Exception):
         self.current_status = current_status
 
 
-class RunAssetDecommissionedError(Exception):
+class RunPlanAssetDecommissionedError(Exception):
     """Plan's bound Assets include one or more Decommissioned at Run-start.
 
     Re-validation of Asset state at Run-start (NOT just Plan-bind
@@ -345,7 +345,7 @@ class RunAssetDecommissionedError(Exception):
     Run-start, the Run can't proceed against the now-tombstoned
     Asset. Mapped to HTTP 409.
 
-    Mirrors Plan-bind's AssetDecommissionedError shape.
+    Mirrors Plan-bind's PlanAssetDecommissionedError shape.
     """
 
     def __init__(self, asset_ids: list[UUID]) -> None:

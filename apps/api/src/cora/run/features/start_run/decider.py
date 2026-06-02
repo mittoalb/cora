@@ -22,12 +22,12 @@ fundamental issues surface first:
 
 1. State must be None (defensive: stream collision).
    `RunAlreadyExistsError`.
-2. Plan must not be Deprecated → `PlanDeprecatedError`.
+2. Plan must not be Deprecated → `RunBoundPlanDeprecatedError`.
 3. Subject (if non-None) must be in {Mounted, Measured} →
-   `SubjectNotMountableError`. Skipped entirely for calibration /
+   `RunSubjectNotMountableError`. Skipped entirely for calibration /
    dark-field runs (where command.subject_id is None and
    context.subject is None).
-4. No bound Asset may be Decommissioned → `RunAssetDecommissionedError`
+4. No bound Asset may be Decommissioned → `RunPlanAssetDecommissionedError`
    carrying the offending asset_ids.
 5. RE-VALIDATE: `union(asset.families) ⊇ method.needed_family_ids`
    against CURRENT Asset state (gate-review Q5: drift since Plan-bind
@@ -88,19 +88,19 @@ from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
     CautionAcknowledgement,
-    PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCannotJoinCampaignError,
     RunCapabilitiesNotSatisfiedError,
     RunClearanceCoverageMismatchError,
     RunName,
+    RunPlanAssetDecommissionedError,
     RunRequiresActiveClearanceError,
     RunRequiresAvailableSupplyError,
     RunStarted,
+    RunSubjectNotMountableError,
     RunSupplyCoverageMismatchError,
-    SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
     validate_pinned_calibration_ids,
 )
@@ -163,11 +163,11 @@ def decide(
         one registered Supply -> RunRequiresAvailableSupplyError
       - Every kind in Method.needed_supplies must have at least
         one AVAILABLE Supply -> RunSupplyCoverageMismatchError
-      - Plan must not be Deprecated -> PlanDeprecatedError
+      - Plan must not be Deprecated -> RunBoundPlanDeprecatedError
       - Subject (when set) must be Mounted or Measured
-        -> SubjectNotMountableError
+        -> RunSubjectNotMountableError
       - No bound Asset may be Decommissioned
-        -> RunAssetDecommissionedError
+        -> RunPlanAssetDecommissionedError
       - Union of current bound Asset families must cover Method's
         needed_family_ids -> RunCapabilitiesNotSatisfiedError
       - Effective parameters must validate against Method's
@@ -245,10 +245,10 @@ def decide(
             )
 
     if context.plan.status is PlanStatus.DEPRECATED:
-        raise PlanDeprecatedError(context.plan.id)
+        raise RunBoundPlanDeprecatedError(context.plan.id)
 
     if context.subject is not None and context.subject.status not in _SUBJECT_RUNNABLE_STATUSES:
-        raise SubjectNotMountableError(
+        raise RunSubjectNotMountableError(
             context.subject.id, current_status=context.subject.status.value
         )
 
@@ -261,7 +261,7 @@ def decide(
         key=str,
     )
     if decommissioned:
-        raise RunAssetDecommissionedError(decommissioned)
+        raise RunPlanAssetDecommissionedError(decommissioned)
 
     # Re-validation: union of CURRENT bound Asset capabilities must
     # cover Method's needs (per gate-review Q5; drift since Plan-bind

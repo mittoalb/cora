@@ -8,9 +8,9 @@ live in test_define_plan_handler.py.
 Validation order pinned per gate-review Q5:
   1. State must be None (PlanAlreadyExistsError)
   2. asset_ids non-empty (PlanAssetsRequiredError)
-  3. Practice not Deprecated (PracticeDeprecatedError)
-  4. Method not Deprecated (MethodDeprecatedError)
-  5. No bound Asset Decommissioned (AssetDecommissionedError)
+  3. Practice not Deprecated (PlanBoundPracticeDeprecatedError)
+  4. Method not Deprecated (PlanBoundMethodDeprecatedError)
+  5. No bound Asset Decommissioned (PlanAssetDecommissionedError)
   6. Family superset (PlanFamiliesNotSatisfiedError)
   7. Name validation (InvalidPlanNameError)
 """
@@ -36,18 +36,18 @@ from cora.recipe.aggregates.capability import (
 )
 from cora.recipe.aggregates.method import Method, MethodName, MethodStatus
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
     InvalidPlanNameError,
-    MethodDeprecatedError,
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetDecommissionedError,
     PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanDefined,
     PlanFamiliesNotSatisfiedError,
     PlanName,
     PlanStatus,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import (
     Practice,
@@ -275,7 +275,7 @@ def test_decide_raises_invalid_plan_for_empty_asset_ids() -> None:
 def test_decide_raises_practice_deprecated_when_practice_is_deprecated() -> None:
     practice = _practice(status=PracticeStatus.DEPRECATED)
     context = _context(practice=practice)
-    with pytest.raises(PracticeDeprecatedError) as exc_info:
+    with pytest.raises(PlanBoundPracticeDeprecatedError) as exc_info:
         define_plan.decide(
             state=None,
             command=DefinePlan(
@@ -295,7 +295,7 @@ def test_decide_raises_method_deprecated_when_method_is_deprecated() -> None:
     method = _method(status=MethodStatus.DEPRECATED)
     practice = _practice(method_id=method.id)
     context = _context(practice=practice, method=method)
-    with pytest.raises(MethodDeprecatedError) as exc_info:
+    with pytest.raises(PlanBoundMethodDeprecatedError) as exc_info:
         define_plan.decide(
             state=None,
             command=DefinePlan(
@@ -326,7 +326,7 @@ def test_decide_raises_asset_decommissioned_when_any_bound_asset_is_decommission
         a3: _asset(asset_id=a3, lifecycle=AssetLifecycle.DECOMMISSIONED),
     }
     context = PlanBindingContext(practice=practice, method=method, assets=assets)
-    with pytest.raises(AssetDecommissionedError) as exc_info:
+    with pytest.raises(PlanAssetDecommissionedError) as exc_info:
         define_plan.decide(
             state=None,
             command=DefinePlan(
