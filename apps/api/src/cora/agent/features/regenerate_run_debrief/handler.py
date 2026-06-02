@@ -31,12 +31,12 @@ via aggregate-state errors hoisted from this slice
     `AgentNotSeededError` / `AgentDeactivatedError` (both in
     `cora.agent.aggregates.agent.state`) -> HTTP 400.
   - When `parent_decision_id` is supplied: parent Decision must
-    exist (`ParentDecisionNotFoundError` from
+    exist (`DecisionParentNotFoundError` from
     `cora.decision.aggregates.decision`; HTTP 409 per Decision
     BC's existing mapping), have `context == "RunDebrief"`
-    (`ParentDecisionAgentMismatchError`; HTTP 400), AND reference
+    (`DecisionParentAgentMismatchError`; HTTP 400), AND reference
     the same `run_id` in its `inputs`
-    (`ParentDecisionRunMismatchError`; HTTP 400).
+    (`DecisionParentRunMismatchError`; HTTP 400).
 
 The parent-context check (PR-author note: architecture gate-review)
 catches accidental cross-agent chains where the
@@ -70,9 +70,9 @@ from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
 from cora.agent.subscribers.run_debriefer import redact_secrets
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
-    ParentDecisionAgentMismatchError,
-    ParentDecisionNotFoundError,
-    ParentDecisionRunMismatchError,
+    DecisionParentAgentMismatchError,
+    DecisionParentNotFoundError,
+    DecisionParentRunMismatchError,
     event_type_name,
     load_decision,
     to_payload,
@@ -176,16 +176,16 @@ def bind(deps: Kernel) -> Handler:
         if command.parent_decision_id is not None:
             parent = await load_decision(deps.event_store, command.parent_decision_id)
             if parent is None:
-                raise ParentDecisionNotFoundError(command.parent_decision_id)
+                raise DecisionParentNotFoundError(command.parent_decision_id)
             parent_context = parent.context.value
             if parent_context != DECISION_CONTEXT_RUN_DEBRIEF:
-                raise ParentDecisionAgentMismatchError(
+                raise DecisionParentAgentMismatchError(
                     command.parent_decision_id,
                     parent_context,
                 )
             parent_run_id = _extract_parent_run_id(parent.inputs)
             if parent_run_id != command.run_id:
-                raise ParentDecisionRunMismatchError(
+                raise DecisionParentRunMismatchError(
                     command.parent_decision_id,
                     parent_run_id,
                 )
@@ -290,7 +290,7 @@ def _extract_parent_run_id(inputs: dict[str, object] | None) -> UUID | None:
     unusual for a RunDebrief Decision but defensive) or malformed.
     The handler treats a None return as a same-Run mismatch
     (parent-run-id != command-run-id), raising
-    `ParentDecisionRunMismatchError`.
+    `DecisionParentRunMismatchError`.
     """
     if inputs is None:
         return None

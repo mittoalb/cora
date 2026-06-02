@@ -145,12 +145,12 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(promote_caution_proposal.router)
     # 400 validation handlers: Invalid<X> family + cross-aggregate guards.
     #
-    # NOT registered here: ParentDecisionAgentMismatchError +
-    # ParentDecisionRunMismatchError (Decision BC owns; raised from
+    # NOT registered here: DecisionParentAgentMismatchError +
+    # DecisionParentRunMismatchError (Decision BC owns; raised from
     # regenerate_run_debrief's handler but the HTTP mapping is
     # decision/routes.py's responsibility: FastAPI's app-scoped handler
     # catches regardless of which BC's route raises). Also NOT registered:
-    # RunNotFoundError (Run BC owns -> 404), ParentDecisionNotFoundError
+    # RunNotFoundError (Run BC owns -> 404), DecisionParentNotFoundError
     # (Decision BC -> 404).
     for validation_cls in (
         InvalidAgentKindError,

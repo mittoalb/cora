@@ -18,7 +18,7 @@ checks only the parent-Decision branch because parent_id is
 conditional:
 
   - If `command.parent_id` is set, `context.parent` must be
-    non-None (handler raises `ParentDecisionNotFoundError`
+    non-None (handler raises `DecisionParentNotFoundError`
     upstream; this branch is the decider-level statement of the
     contract for the conditional case).
 
@@ -60,9 +60,9 @@ from cora.decision.aggregates.decision import (
     DecisionAlreadyExistsError,
     DecisionChoice,
     DecisionContext,
+    DecisionParentNotFoundError,
     DecisionRegistered,
     DecisionRule,
-    ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
     validate_inputs,
@@ -94,7 +94,7 @@ def decide(
         through the signed subscriber path)
         -> InvalidActorKindForDecisionError
       - When parent_id is set, parent Decision must exist
-        -> ParentDecisionNotFoundError
+        -> DecisionParentNotFoundError
       - override_kind requires a parent_id
         -> OverrideKindRequiresParentError
       - Choice must be valid -> InvalidDecisionChoiceError
@@ -121,11 +121,11 @@ def decide(
     if context.actor.kind == ActorKind.AGENT:
         raise InvalidActorKindForDecisionError("agent")
 
-    # Cross-agg parent guard (handler raises ParentDecisionNotFoundError
+    # Cross-agg parent guard (handler raises DecisionParentNotFoundError
     # upstream; this branch is the decider-level statement of contract
     # for the conditional case).
     if command.parent_id is not None and context.parent is None:
-        raise ParentDecisionNotFoundError(command.parent_id)
+        raise DecisionParentNotFoundError(command.parent_id)
 
     # override_kind / parent_id consistency.
     if command.override_kind is not None and command.parent_id is None:

@@ -116,7 +116,7 @@ def test_post_decisions_returns_404_when_actor_does_not_exist() -> None:
 
 @pytest.mark.contract
 def test_post_decisions_returns_404_when_parent_id_does_not_exist() -> None:
-    """Same locked taxonomy: `ParentDecisionNotFoundError` -> 404."""
+    """Same locked taxonomy: `DecisionParentNotFoundError` -> 404."""
     with TestClient(create_app()) as client:
         actor_id = _register_actor(client)
         response = client.post(

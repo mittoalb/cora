@@ -167,15 +167,15 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
         pytest.param(
             lambda: _parent_decision_agent_mismatch_error(),
             400,
-            id="ParentDecisionAgentMismatchError",
+            id="DecisionParentAgentMismatchError",
         ),
         pytest.param(
             lambda: _parent_decision_run_mismatch_error(),
             400,
-            id="ParentDecisionRunMismatchError",
+            id="DecisionParentRunMismatchError",
         ),
         # Cross-BC owned mappings: RunNotFoundError -> 404 (Run BC),
-        # ParentDecisionNotFoundError -> 409 (Decision BC). Confirm
+        # DecisionParentNotFoundError -> 409 (Decision BC). Confirm
         # they flow through the agent's route too.
         pytest.param(
             lambda: _run_not_found_error(),
@@ -185,7 +185,7 @@ def test_post_invoke_returns_403_when_authz_denies() -> None:
         pytest.param(
             lambda: _parent_decision_not_found_error(),
             404,
-            id="ParentDecisionNotFoundError",
+            id="DecisionParentNotFoundError",
         ),
     ],
 )
@@ -227,17 +227,17 @@ def _agent_deactivated_error() -> Exception:
 
 
 def _parent_decision_agent_mismatch_error() -> Exception:
-    from cora.decision.aggregates.decision import ParentDecisionAgentMismatchError
+    from cora.decision.aggregates.decision import DecisionParentAgentMismatchError
 
-    return ParentDecisionAgentMismatchError(
+    return DecisionParentAgentMismatchError(
         UUID("01900000-0000-7000-8000-00000000fc01"), "OtherAgent"
     )
 
 
 def _parent_decision_run_mismatch_error() -> Exception:
-    from cora.decision.aggregates.decision import ParentDecisionRunMismatchError
+    from cora.decision.aggregates.decision import DecisionParentRunMismatchError
 
-    return ParentDecisionRunMismatchError(
+    return DecisionParentRunMismatchError(
         UUID("01900000-0000-7000-8000-00000000fc01"),
         UUID("01900000-0000-7000-8000-00000000aaaa"),
     )
@@ -250,9 +250,9 @@ def _run_not_found_error() -> Exception:
 
 
 def _parent_decision_not_found_error() -> Exception:
-    from cora.decision.aggregates.decision import ParentDecisionNotFoundError
+    from cora.decision.aggregates.decision import DecisionParentNotFoundError
 
-    return ParentDecisionNotFoundError(UUID("01900000-0000-7000-8000-00000000fc01"))
+    return DecisionParentNotFoundError(UUID("01900000-0000-7000-8000-00000000fc01"))
 
 
 # Pin the FakeLLM reference + canned response so the import isn't

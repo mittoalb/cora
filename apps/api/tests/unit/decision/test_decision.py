@@ -22,6 +22,7 @@ from cora.decision.aggregates.decision import (
     DecisionConfidenceSource,
     DecisionContext,
     DecisionNotFoundError,
+    DecisionParentNotFoundError,
     DecisionRule,
     InvalidDecisionAlternativesError,
     InvalidDecisionChoiceError,
@@ -31,7 +32,6 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    ParentDecisionNotFoundError,
     validate_alternatives,
     validate_confidence,
     validate_inputs,
@@ -356,7 +356,7 @@ def test_decider_actor_missing_error_carries_actor_id() -> None:
 @pytest.mark.unit
 def test_parent_decision_missing_error_carries_parent_id() -> None:
     parent_id = uuid4()
-    err = ParentDecisionNotFoundError(parent_id)
+    err = DecisionParentNotFoundError(parent_id)
     assert err.parent_id == parent_id
     assert str(parent_id) in str(err)
 

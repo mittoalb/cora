@@ -22,7 +22,7 @@ from uuid import UUID
 from cora.access.aggregates.actor import load_actor
 from cora.decision.aggregates.decision import (
     DeciderActorNotFoundError,
-    ParentDecisionNotFoundError,
+    DecisionParentNotFoundError,
     event_type_name,
     load_decision,
     to_payload,
@@ -123,7 +123,7 @@ def bind(deps: Kernel) -> Handler:
         if command.parent_id is not None:
             parent = await load_decision(deps.event_store, command.parent_id)
             if parent is None:
-                raise ParentDecisionNotFoundError(command.parent_id)
+                raise DecisionParentNotFoundError(command.parent_id)
 
         context = DecisionRegistrationContext(actor=actor, parent=parent)
 

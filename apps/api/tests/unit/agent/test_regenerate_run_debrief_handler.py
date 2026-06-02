@@ -29,9 +29,9 @@ from cora.agent.features.regenerate_run_debrief.handler import bind
 from cora.agent.seed import RUN_DEBRIEFER_AGENT_ID, RUN_DEBRIEFER_AGENT_NAME
 from cora.decision.aggregates.decision import (
     DECISION_CONTEXT_RUN_DEBRIEF,
-    ParentDecisionAgentMismatchError,
-    ParentDecisionNotFoundError,
-    ParentDecisionRunMismatchError,
+    DecisionParentAgentMismatchError,
+    DecisionParentNotFoundError,
+    DecisionParentRunMismatchError,
     load_decision,
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
@@ -365,7 +365,7 @@ async def test_handler_raises_parent_missing_when_parent_absent() -> None:
     handler = bind(deps)
 
     bogus_parent = uuid4()
-    with pytest.raises(ParentDecisionNotFoundError):
+    with pytest.raises(DecisionParentNotFoundError):
         await handler(
             RegenerateRunDebrief(run_id=run_id, parent_decision_id=bogus_parent),
             principal_id=_PRINCIPAL_ID,
@@ -410,7 +410,7 @@ async def test_handler_raises_parent_run_mismatch_for_cross_run_chain() -> None:
         llm=llm,
     )
     handler2 = bind(deps2)
-    with pytest.raises(ParentDecisionRunMismatchError):
+    with pytest.raises(DecisionParentRunMismatchError):
         await handler2(
             RegenerateRunDebrief(run_id=run_b, parent_decision_id=run_a_decision_id),
             principal_id=_PRINCIPAL_ID,
@@ -443,7 +443,7 @@ async def test_handler_raises_parent_agent_mismatch_for_non_run_debrief_parent()
         llm=llm,
     )
     handler = bind(deps)
-    with pytest.raises(ParentDecisionAgentMismatchError):
+    with pytest.raises(DecisionParentAgentMismatchError):
         await handler(
             RegenerateRunDebrief(run_id=run_id, parent_decision_id=foreign_decision_id),
             principal_id=_PRINCIPAL_ID,

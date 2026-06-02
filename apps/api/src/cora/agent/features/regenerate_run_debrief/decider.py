@@ -12,8 +12,8 @@ Invariants:
     AgentDeactivatedError otherwise).
   - `command.parent_decision_id` (when set) points at a real Decision
     in the same Run AND with `context = "RunDebrief"` (handler raised
-    ParentDecisionNotFoundError / ParentDecisionRunMismatchError /
-    ParentDecisionAgentMismatchError otherwise).
+    DecisionParentNotFoundError / DecisionParentRunMismatchError /
+    DecisionParentAgentMismatchError otherwise).
   - `context.choice` is a valid `DecisionChoice` string (open-string VO
     raises `InvalidDecisionChoiceError` otherwise).
   - `context.reasoning` is non-empty + within length bound

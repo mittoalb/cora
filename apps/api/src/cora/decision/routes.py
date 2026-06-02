@@ -6,7 +6,7 @@ errors to HTTP status codes.
 
   - 400 (validation): Invalid<X>...Error family + OverrideKindRequiresParentError
                       + InvalidActorKindForDecisionError
-  - 404: DecisionNotFoundError, DeciderActorNotFoundError, ParentDecisionNotFoundError
+  - 404: DecisionNotFoundError, DeciderActorNotFoundError, DecisionParentNotFoundError
   - 409 (defensive AlreadyExists): DecisionAlreadyExistsError
   - 409 (logbook FSM): DecisionLogbookAlreadyOpenError, DecisionLogbookNotOpenError
 
@@ -29,6 +29,9 @@ from cora.decision.aggregates.decision import (
     DecisionLogbookAlreadyOpenError,
     DecisionLogbookNotOpenError,
     DecisionNotFoundError,
+    DecisionParentAgentMismatchError,
+    DecisionParentNotFoundError,
+    DecisionParentRunMismatchError,
     InvalidDecisionAlternativesError,
     InvalidDecisionChoiceError,
     InvalidDecisionConfidenceError,
@@ -38,9 +41,6 @@ from cora.decision.aggregates.decision import (
     InvalidDecisionReasoningError,
     InvalidDecisionRuleError,
     InvalidReasoningSignatureError,
-    ParentDecisionAgentMismatchError,
-    ParentDecisionNotFoundError,
-    ParentDecisionRunMismatchError,
 )
 from cora.decision.errors import (
     InvalidActorKindForDecisionError,
@@ -96,7 +96,7 @@ async def _handle_logbook_state(request: Request, exc: Exception) -> JSONRespons
     cross-aggregate Missing*Error family too. Per the locked error
     taxonomy `<X>NotFoundError` is the canonical name (and HTTP 404
     the canonical mapping) for "the referenced thing doesn't exist";
-    the renamed `DeciderActorNotFoundError` / `ParentDecisionNotFoundError`
+    the renamed `DeciderActorNotFoundError` / `DecisionParentNotFoundError`
     now route through `_handle_not_found`. The only remaining 409-mapped
     family is the logbook state-transition guards, hence the rename.
     Same JSON shape as before.
@@ -132,8 +132,8 @@ def register_decision_routes(app: FastAPI) -> None:
         # aggregates/decision/state.py) so the HTTP mapping lives here;
         # FastAPI's app-scoped handler catches regardless of which BC's
         # route raises them. Agent BC's routes.py does NOT re-register.
-        ParentDecisionAgentMismatchError,
-        ParentDecisionRunMismatchError,
+        DecisionParentAgentMismatchError,
+        DecisionParentRunMismatchError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -141,7 +141,7 @@ def register_decision_routes(app: FastAPI) -> None:
         # Cross-aggregate references; canonical 404 mapping per the
         # locked `<X>NotFoundError` → 404 taxonomy.
         DeciderActorNotFoundError,
-        ParentDecisionNotFoundError,
+        DecisionParentNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (DecisionAlreadyExistsError,):

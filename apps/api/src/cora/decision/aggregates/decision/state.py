@@ -492,7 +492,7 @@ class DeciderActorNotFoundError(Exception):
         self.actor_id = actor_id
 
 
-class ParentDecisionNotFoundError(Exception):
+class DecisionParentNotFoundError(Exception):
     """The parent Decision referenced by `parent_id` does not exist.
 
     Cross-aggregate validation at registration: when `parent_id` is
@@ -505,7 +505,7 @@ class ParentDecisionNotFoundError(Exception):
         self.parent_id = parent_id
 
 
-class ParentDecisionRunMismatchError(Exception):
+class DecisionParentRunMismatchError(Exception):
     """The supplied parent Decision references a different `run_id`
     than the new Decision's command. Prevents accidental cross-Run
     chains in operator-triggered re-invocations of
@@ -525,7 +525,7 @@ class ParentDecisionRunMismatchError(Exception):
         self.parent_run_id = parent_run_id
 
 
-class ParentDecisionAgentMismatchError(Exception):
+class DecisionParentAgentMismatchError(Exception):
     """The supplied parent Decision was authored by a different agent
     (or by a non-`RunDebrief`-context decider). Prevents accidental
     cross-agent chains in operator-triggered re-invocations.
