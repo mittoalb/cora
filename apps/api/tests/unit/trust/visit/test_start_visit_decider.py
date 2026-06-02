@@ -3,7 +3,7 @@
 import pytest
 
 from cora.trust.aggregates.visit import (
-    VisitCannotTransitionError,
+    VisitCannotStartError,
     VisitNotFoundError,
     VisitStarted,
     VisitStatus,
@@ -42,11 +42,10 @@ def test_start_raises_not_found_on_empty_state() -> None:
 )
 @pytest.mark.unit
 def test_start_rejects_non_arrived_statuses(current_status: VisitStatus) -> None:
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotStartError) as exc_info:
         decide(
             state=make_visit(current_status),
             command=StartVisit(visit_id=VISIT_ID),
             now=NOW,
         )
     assert exc_info.value.current_status == current_status
-    assert exc_info.value.requested_transition == "start"

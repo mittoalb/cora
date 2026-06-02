@@ -8,7 +8,7 @@ from datetime import datetime
 
 from cora.trust.aggregates.visit import (
     Visit,
-    VisitCannotTransitionError,
+    VisitCannotCompleteError,
     VisitCompleted,
     VisitNotFoundError,
     VisitStatus,
@@ -16,7 +16,6 @@ from cora.trust.aggregates.visit import (
 from cora.trust.features.complete_visit.command import CompleteVisit
 
 _PERMITTED: tuple[VisitStatus, ...] = (VisitStatus.IN_PROGRESS, VisitStatus.ON_HOLD)
-_TRANSITION = "complete"
 
 
 def decide(
@@ -29,15 +28,14 @@ def decide(
 
     Invariants:
       - State must not be None -> VisitNotFoundError
-      - Status must be InProgress or OnHold -> VisitCannotTransitionError
+      - Status must be InProgress or OnHold -> VisitCannotCompleteError
     """
     if state is None:
         raise VisitNotFoundError(command.visit_id)
     if state.status not in _PERMITTED:
-        raise VisitCannotTransitionError(
+        raise VisitCannotCompleteError(
             visit_id=state.id,
             current_status=state.status,
-            requested_transition=_TRANSITION,
             permitted_sources=_PERMITTED,
         )
     return [VisitCompleted(visit_id=state.id, occurred_at=now)]

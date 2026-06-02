@@ -9,7 +9,7 @@ import pytest
 from cora.trust.aggregates.visit import (
     InvalidVisitReasonError,
     VisitAborted,
-    VisitCannotTransitionError,
+    VisitCannotAbortError,
     VisitNotFoundError,
     VisitStatus,
 )
@@ -68,10 +68,9 @@ def test_abort_raises_not_found_on_empty_state() -> None:
 def test_abort_rejects_pre_work_statuses_must_use_cancel(current_status: VisitStatus) -> None:
     """HL7 v2 A11 vs A13 distinction: abort is mid-work only. Pre-work
     Visits must use cancel_visit instead."""
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotAbortError):
         decide(
             state=make_visit(current_status),
             command=AbortVisit(visit_id=VISIT_ID, reason="r"),
             now=NOW,
         )
-    assert exc_info.value.requested_transition == "abort"

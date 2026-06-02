@@ -10,7 +10,7 @@ from cora.trust.aggregates.visit import (
     VISIT_REASON_MAX_LENGTH,
     InvalidVisitReasonError,
     Visit,
-    VisitCannotTransitionError,
+    VisitCannotHoldError,
     VisitHeld,
     VisitNotFoundError,
     VisitStatus,
@@ -18,7 +18,6 @@ from cora.trust.aggregates.visit import (
 from cora.trust.features.hold_visit.command import HoldVisit
 
 _PERMITTED: tuple[VisitStatus, ...] = (VisitStatus.IN_PROGRESS,)
-_TRANSITION = "hold"
 
 
 def decide(
@@ -31,16 +30,15 @@ def decide(
 
     Invariants:
       - State must not be None -> VisitNotFoundError
-      - Status must be InProgress -> VisitCannotTransitionError
+      - Status must be InProgress -> VisitCannotHoldError
       - Reason 1-500 chars after trim -> InvalidVisitReasonError
     """
     if state is None:
         raise VisitNotFoundError(command.visit_id)
     if state.status not in _PERMITTED:
-        raise VisitCannotTransitionError(
+        raise VisitCannotHoldError(
             visit_id=state.id,
             current_status=state.status,
-            requested_transition=_TRANSITION,
             permitted_sources=_PERMITTED,
         )
     trimmed = command.reason.strip()

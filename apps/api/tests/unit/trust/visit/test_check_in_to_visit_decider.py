@@ -10,7 +10,7 @@ from cora.trust.aggregates.visit import (
     PresenceEntry,
     PresenceMode,
     VisitAlreadyCheckedInError,
-    VisitCannotTransitionError,
+    VisitCannotCheckInError,
     VisitCheckedIn,
     VisitNotFoundError,
     VisitStatus,
@@ -64,13 +64,12 @@ def test_check_in_raises_not_found_on_empty_state() -> None:
 def test_check_in_rejects_planned_status_does_not_auto_arrive() -> None:
     """V6 explicit-gesture lock: presence does NOT auto-transition Planned
     -> Arrived. Operator must arrive_visit first."""
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotCheckInError):
         decide(
             state=make_visit(VisitStatus.PLANNED),
             command=CheckInToVisit(visit_id=VISIT_ID, actor_id=uuid4(), mode=PresenceMode.PHYSICAL),
             now=NOW,
         )
-    assert exc_info.value.requested_transition == "check_in"
 
 
 @pytest.mark.unit

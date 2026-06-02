@@ -9,14 +9,13 @@ from datetime import datetime
 from cora.trust.aggregates.visit import (
     Visit,
     VisitArrived,
-    VisitCannotTransitionError,
+    VisitCannotArriveError,
     VisitNotFoundError,
     VisitStatus,
 )
 from cora.trust.features.arrive_visit.command import ArriveVisit
 
 _PERMITTED: tuple[VisitStatus, ...] = (VisitStatus.PLANNED,)
-_TRANSITION = "arrive"
 
 
 def decide(
@@ -29,15 +28,14 @@ def decide(
 
     Invariants:
       - State must not be None -> VisitNotFoundError
-      - Status must be Planned -> VisitCannotTransitionError
+      - Status must be Planned -> VisitCannotArriveError
     """
     if state is None:
         raise VisitNotFoundError(command.visit_id)
     if state.status not in _PERMITTED:
-        raise VisitCannotTransitionError(
+        raise VisitCannotArriveError(
             visit_id=state.id,
             current_status=state.status,
-            requested_transition=_TRANSITION,
             permitted_sources=_PERMITTED,
         )
     return [VisitArrived(visit_id=state.id, occurred_at=now)]

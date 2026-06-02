@@ -11,14 +11,13 @@ from cora.trust.aggregates.visit import (
     InvalidVisitReasonError,
     Visit,
     VisitAborted,
-    VisitCannotTransitionError,
+    VisitCannotAbortError,
     VisitNotFoundError,
     VisitStatus,
 )
 from cora.trust.features.abort_visit.command import AbortVisit
 
 _PERMITTED: tuple[VisitStatus, ...] = (VisitStatus.IN_PROGRESS, VisitStatus.ON_HOLD)
-_TRANSITION = "abort"
 
 
 def decide(
@@ -31,17 +30,16 @@ def decide(
 
     Invariants:
       - State must not be None -> VisitNotFoundError
-      - Status must be InProgress or OnHold -> VisitCannotTransitionError
+      - Status must be InProgress or OnHold -> VisitCannotAbortError
         (pre-work Visits must use cancel_visit; terminals refuse)
       - Reason 1-500 chars after trim -> InvalidVisitReasonError
     """
     if state is None:
         raise VisitNotFoundError(command.visit_id)
     if state.status not in _PERMITTED:
-        raise VisitCannotTransitionError(
+        raise VisitCannotAbortError(
             visit_id=state.id,
             current_status=state.status,
-            requested_transition=_TRANSITION,
             permitted_sources=_PERMITTED,
         )
     trimmed = command.reason.strip()

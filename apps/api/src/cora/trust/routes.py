@@ -52,9 +52,17 @@ from cora.trust.aggregates.visit import (
     VisitActorNotCheckedInError,
     VisitAlreadyCheckedInError,
     VisitAlreadyExistsError,
+    VisitCannotAbortError,
+    VisitCannotArriveError,
+    VisitCannotCancelError,
+    VisitCannotCheckInError,
+    VisitCannotCompleteError,
+    VisitCannotHoldError,
     VisitCannotReleaseControlError,
+    VisitCannotResumeError,
+    VisitCannotStartError,
     VisitCannotTakeControlError,
-    VisitCannotTransitionError,
+    VisitCannotVoidError,
     VisitNotFoundError,
     VisitPartOfMismatchedSurfaceError,
     VisitPartOfNotFoundError,
@@ -235,10 +243,18 @@ def register_trust_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(invalid_400_cls, _handle_invalid_400)
     for cannot_409_cls in (
-        VisitCannotTransitionError,
-        VisitPartOfMismatchedSurfaceError,
-        VisitCannotTakeControlError,
+        VisitCannotAbortError,
+        VisitCannotArriveError,
+        VisitCannotCancelError,
+        VisitCannotCheckInError,
+        VisitCannotCompleteError,
+        VisitCannotHoldError,
         VisitCannotReleaseControlError,
+        VisitCannotResumeError,
+        VisitCannotStartError,
+        VisitCannotTakeControlError,
+        VisitCannotVoidError,
+        VisitPartOfMismatchedSurfaceError,
     ):
         app.add_exception_handler(cannot_409_cls, _handle_visit_conflict_409)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

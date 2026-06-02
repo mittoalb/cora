@@ -13,7 +13,7 @@ from datetime import datetime
 from cora.trust.aggregates.visit import (
     Visit,
     VisitAlreadyCheckedInError,
-    VisitCannotTransitionError,
+    VisitCannotCheckInError,
     VisitCheckedIn,
     VisitNotFoundError,
     VisitStatus,
@@ -25,7 +25,6 @@ _PERMITTED: tuple[VisitStatus, ...] = (
     VisitStatus.IN_PROGRESS,
     VisitStatus.ON_HOLD,
 )
-_TRANSITION = "check_in"
 
 
 def decide(
@@ -39,17 +38,16 @@ def decide(
     Invariants:
       - State must not be None -> VisitNotFoundError
       - Status must be Arrived / InProgress / OnHold
-        -> VisitCannotTransitionError
+        -> VisitCannotCheckInError
         (operator must arrive_visit first; presence does not auto-arrive)
       - No open presence entry for this actor -> VisitAlreadyCheckedInError
     """
     if state is None:
         raise VisitNotFoundError(command.visit_id)
     if state.status not in _PERMITTED:
-        raise VisitCannotTransitionError(
+        raise VisitCannotCheckInError(
             visit_id=state.id,
             current_status=state.status,
-            requested_transition=_TRANSITION,
             permitted_sources=_PERMITTED,
         )
     open_entry_exists = any(
