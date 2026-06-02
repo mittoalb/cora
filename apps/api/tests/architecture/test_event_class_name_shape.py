@@ -22,9 +22,12 @@ extensions:
 
 The check is therefore "the name CONTAINS at least one past-participle
 token", not "the name ENDS in a past-participle token". Past-participle
-suffix allowlist: `-ed`, `-en`, `-ld`. Irregulars are listed in
-`_IRREGULAR_PARTICIPLES` (currently only `Held`); extend that set if a
-future event picks up a new irregular form.
+suffix allowlist: `-ed`, `-en`. The `-ld` suffix is NOT a catch-all
+(too many non-participle English words end in `-ld`: Build, Field,
+Shield, Yield, Guild, Child, Mold, Fold, Hold, Gold, Bold, Cold).
+Irregular `-ld` participles (Held, Sold, Told) are listed individually
+in `_IRREGULAR_PARTICIPLES` (currently only `Held`); extend that set
+if a future event picks up a new irregular form.
 
 Discriminator: event-class names come from each aggregate's
 `<Aggregate>Event` discriminated union, not from every dataclass in
@@ -142,7 +145,7 @@ def test_event_class_names_contain_past_participle(path: Path) -> None:
         + "\n  ".join(offenders)
         + "\n\nEvery domain event must encode WHAT HAPPENED in past tense. The check is "
         "structural: split the class name into CamelCase tokens and assert at least one "
-        "ends in -ed / -en / -ld, or is an irregular past participle. If the event truly "
+        "ends in -ed / -en, or is an irregular past participle. If the event truly "
         "needs a non-participle form (a new operator-observation pattern beyond Supply's "
         "Marked<Status>, for example), extend `_IRREGULAR_PARTICIPLES` or document the new "
         "carve-out alongside it."
