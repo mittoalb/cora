@@ -4805,6 +4805,46 @@
         "title": "DiscardSubjectRequest",
         "type": "object"
       },
+      "DismissEventInReactionRequest": {
+        "description": "Body for `POST /agent/reactions/{subscriber_name}/dismiss-event`.",
+        "properties": {
+          "event_id": {
+            "description": "The event_id the operator wants the subscriber's bookmark advanced past. Read from the operator dashboard's wedged-bookmark surface (last_error_message + last_event_recorded_at on projection_bookmarks); pasting an arbitrary event_id risks rewinding the bookmark, which the decider catches via the lexicographic (transaction_id, position) check.",
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Free-form reason the operator gives for the dismissal (1-500 chars after trimming). Captured verbatim into DecisionRegistered.reasoning for audit. Operationally: 'cannot deserialize this event_type since the rename, advancing past' / 'LLM returned hallucinated context, manual retry tomorrow' etc.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "reason"
+        ],
+        "title": "DismissEventInReactionRequest",
+        "type": "object"
+      },
+      "DismissEventInReactionResponse": {
+        "description": "Body returned on successful dismissal.",
+        "properties": {
+          "decision_id": {
+            "description": "The Decision audit record's id.",
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id"
+        ],
+        "title": "DismissEventInReactionResponse",
+        "type": "object"
+      },
       "DismountSubjectRequest": {
         "description": "Body for `POST /subjects/{subject_id}/dismount`.",
         "properties": {
@@ -12219,6 +12259,124 @@
         "summary": "Erase an actor's PII vault row (right to be forgotten)",
         "tags": [
           "access"
+        ]
+      }
+    },
+    "/agent/reactions/{subscriber_name}/dismiss-event": {
+      "post": {
+        "operationId": "post_agent_reactions_dismiss_event_agent_reactions__subscriber_name__dismiss_event_post",
+        "parameters": [
+          {
+            "description": "Name of the subscriber (matches `Reaction.name`).",
+            "in": "path",
+            "name": "subscriber_name",
+            "required": true,
+            "schema": {
+              "description": "Name of the subscriber (matches `Reaction.name`).",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Subscriber Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissEventInReactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissEventInReactionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: empty / oversize reason (InvalidDismissalReasonError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No projection_bookmarks row for the named subscriber (SubscriberBookmarkNotFoundError) OR no event row for the supplied event_id (DismissalEventNotFoundError)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bookmark is already at or past the target event (EventAlreadyDismissedError); refresh the dashboard and re-evaluate before retrying."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The deployment has no Postgres pool (DismissalRequiresPostgresError); the slice is a no-op without projection_bookmarks. Production deployments never see this."
+          }
+        },
+        "summary": "Dismiss a poison event on a Reaction's bookmark",
+        "tags": [
+          "agent"
         ]
       }
     },

@@ -28,6 +28,13 @@ Subject / Equipment / Supply / Safety / Caution:
   - `revise_agent_budget`     (transition; idempotent; no wrap)
   - `get_agent`               (query)
   - `regenerate_run_debrief`  (operator-triggered; idempotency-wrapped)
+  - `dismiss_event_in_reaction` (operator-triggered atomic bookmark
+                                 advance + Decision audit; no
+                                 idempotency wrap because the slice
+                                 is operator-rare and the
+                                 EventAlreadyDismissedError guard
+                                 catches duplicate dismissals
+                                 strict-not-idempotently)
 """
 
 from dataclasses import dataclass
@@ -36,6 +43,7 @@ from uuid import UUID
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
+    dismiss_event_in_reaction,
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
@@ -68,6 +76,7 @@ class AgentHandlers:
     get_agent: get_agent.Handler
     regenerate_run_debrief: regenerate_run_debrief.IdempotentHandler | None
     promote_caution_proposal: promote_caution_proposal.IdempotentHandler
+    dismiss_event_in_reaction: dismiss_event_in_reaction.Handler
 
 
 def wire_agent(deps: Kernel) -> AgentHandlers:
@@ -168,6 +177,11 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="PromoteCautionProposal",
+            bc=_BC,
+        ),
+        dismiss_event_in_reaction=with_tracing(
+            dismiss_event_in_reaction.bind(deps),
+            command_name="DismissEventInReaction",
             bc=_BC,
         ),
     )

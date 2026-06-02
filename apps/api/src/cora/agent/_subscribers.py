@@ -29,10 +29,24 @@ Agent rollout.
     via the `promote_caution_proposal` slice.
 
 Both subscribers run concurrently and INDEPENDENTLY in the
-projection worker. Per [[project-caution-drafter-design]] Q4 lock:
-DO NOT widen the subscriber framework. Named widening
-triggers (3rd subscriber / >50ms blocking / first cross-subscriber
-ordering dependency) documented in the design memo.
+projection worker. Both classify as `Reaction` (the public sibling
+to `Projection`) and pin `batch_size = 1` on the class so the
+worker bounds the bookmark transaction to a single LLM round-trip.
+
+## Subscriber framework widening status
+
+Per [[project-caution-drafter-design]] Q4 lock the original
+widening triggers were "3rd subscriber / >50ms blocking / first
+cross-subscriber ordering dependency". The >50ms-blocking trigger
+FIRED at first-ship (each LLM call is 5-15 s), and the framework
+widened minimally: the `Reaction` Protocol was added as the sibling
+to `Projection` and per-subscriber `batch_size` enforcement landed
+so the docstring's `batch_size=1` claim became real.
+
+Further widening (separate `ReactionWorker` with its own pool
+budget, operator escape-hatch for wedged bookmarks via
+`dismiss_event_in_reaction`) stays deferred behind the next named
+triggers: 3rd Reaction OR first wedged-bookmark incident.
 """
 
 from __future__ import annotations

@@ -13,6 +13,9 @@ from mcp.server.fastmcp import FastMCP
 
 from cora.agent.features.define_agent import tool as define_agent_tool
 from cora.agent.features.deprecate_agent import tool as deprecate_agent_tool
+from cora.agent.features.dismiss_event_in_reaction import (
+    tool as dismiss_event_in_reaction_tool,
+)
 from cora.agent.features.get_agent import tool as get_agent_tool
 from cora.agent.features.grant_tool_to_agent import tool as grant_tool_to_agent_tool
 from cora.agent.features.promote_caution_proposal import tool as promote_caution_proposal_tool
@@ -83,6 +86,10 @@ def register_agent_tools(
     regenerate_run_debrief_tool.register(
         mcp,
         get_handler=lambda: _resolve_regenerate_run_debrief(get_handlers()),
+    )
+    dismiss_event_in_reaction_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().dismiss_event_in_reaction,
     )
 
 

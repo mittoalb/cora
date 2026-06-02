@@ -20,10 +20,13 @@ event store has two challenges:
      two transactions.
 
   2. The bookmark transaction holds for the duration of `apply()`
-     including the LLM call. RunDebriefer is `batch_size=1` so the
-     transaction holds one connection for ~5-15 s per terminal
-     event. Acceptable for pilot scale (~few Runs/day); a watch
-     item for facility scale.
+     including the LLM call. RunDebriefer declares `batch_size = 1`
+     on the class (enforced by the worker via
+     `getattr(subscriber, "batch_size", DEFAULT_BATCH_SIZE)`), so the
+     transaction holds one connection for at most one terminal event's
+     LLM round-trip (~5-15 s). Acceptable for pilot scale (~few
+     Runs/day); watch item for facility scale → split off a
+     `ReactionWorker` with its own pool budget.
 
 Mitigation (1): the Decision's `stream_id` is derived
 deterministically from `terminal_event.event_id` via UUIDv5 (see
@@ -233,24 +236,32 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
 
 
 class RunDebrieferSubscriber:
-    """Side-effecting subscriber: terminal Run -> one advisory Decision.
+    """Reaction: terminal Run -> one advisory Decision.
 
     Constructed by `make_run_debriefer_subscriber` from the Kernel;
-    satisfies the `Projection` Protocol (and the `Subscriber`
-    primitive it extends) structurally.
+    satisfies the `Reaction` Protocol (and the `Subscriber` primitive
+    it extends) structurally.
 
     Holds references to the LLM port and event store. The Decision's
     `actor_id` is the seeded RunDebriefer Agent's id (== that agent's
     Actor.id per 8f-a's identity-sharing invariant).
 
-    `name` and `subscribed_event_types` are plain class-level
-    constants (matches `DecisionRatingsProjection` precedent; the
-    `Projection` Protocol declares them as instance attrs which a
+    `name`, `subscribed_event_types`, and `batch_size` are plain
+    class-level constants (matches the wider Subscriber convention;
+    the Reaction Protocol declares them as instance attrs which a
     `ClassVar`-annotated class would not satisfy structurally).
+
+    `batch_size = 1` enforces what the original module docstring
+    claimed before the framework supported per-subscriber tuning:
+    the apply path includes a 5-15 s LLM call, so holding the pool
+    connection across N events would starve Projection advance loops
+    sharing the same pool. Worst-case TX duration is bounded to one
+    LLM call.
     """
 
     name = "run_debriefer"
     subscribed_event_types = _TERMINAL_RUN_EVENTS
+    batch_size = 1
 
     def __init__(
         self,

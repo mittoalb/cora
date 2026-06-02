@@ -35,7 +35,7 @@ from cora.infrastructure.projection.bookmark import (
     write_bookmark,
     write_bookmark_failure,
 )
-from cora.infrastructure.projection.handler import Subscriber
+from cora.infrastructure.projection.handler import DEFAULT_BATCH_SIZE, Subscriber
 from cora.infrastructure.projection.registry import ProjectionRegistry
 from cora.infrastructure.projection.wakeup import WakeupSource
 
@@ -98,7 +98,7 @@ async def advance_subscriber_once(
     pool: asyncpg.Pool,
     subscriber: Subscriber,
     *,
-    batch_size: int = 100,
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> int:
     """Advance one Subscriber by at most `batch_size` events. Returns
     the number of events processed (0 if the bookmark is already at
@@ -108,6 +108,10 @@ async def advance_subscriber_once(
     runs in a single transaction so at-least-once delivery has clean
     semantics: either everything in the batch advances together, or
     nothing does.
+
+    Callers from the worker pass the per-subscriber batch_size
+    (`getattr(subscriber, "batch_size", DEFAULT_BATCH_SIZE)`); callers
+    from the drain helper pass an explicit value to bound test cost.
     """
     subscribed = sorted(subscriber.subscribed_event_types)
     async with pool.acquire() as conn, conn.transaction():
@@ -145,12 +149,16 @@ class ProjectionWorker:
         wakeup: WakeupSource,
         *,
         poll_interval_seconds: float = 5.0,
-        batch_size: int = 100,
+        batch_size: int = DEFAULT_BATCH_SIZE,
     ) -> None:
         self._pool = pool
         self._registry = registry
         self._wakeup = wakeup
         self._poll_interval_seconds = poll_interval_seconds
+        # Per-subscriber default. Each Subscriber may declare its own
+        # `batch_size` attribute (Reactions set this to 1); the loop
+        # below reads `subscriber.batch_size` via getattr so the
+        # worker-level value is the fallback only.
         self._batch_size = batch_size
 
     async def run(self) -> None:
@@ -173,12 +181,18 @@ class ProjectionWorker:
         """Single projection's advance loop. Runs forever until
         cancelled."""
         backoff = _BACKOFF_BASE_SECONDS
+        # Per-subscriber batch_size: Projections inherit the worker
+        # default (100), Reactions override to 1 to avoid holding a
+        # pool connection across a slow LLM call. Read once at loop
+        # start since the class-level attribute is immutable per
+        # subscriber instance.
+        effective_batch_size = getattr(projection, "batch_size", self._batch_size)
         while True:
             try:
                 processed = await advance_subscriber_once(
                     self._pool,
                     projection,
-                    batch_size=self._batch_size,
+                    batch_size=effective_batch_size,
                 )
                 backoff = _BACKOFF_BASE_SECONDS  # reset on success
                 if processed > 0:
