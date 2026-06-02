@@ -33,11 +33,19 @@ Caution-proposal promotion:
                                 idempotency-wrapped; Pattern C)
 
 Also: deprecate's source set widens to include Suspended.
+
+Reaction recovery:
+  - `dismiss_event_in_reaction` (operator-triggered atomic bookmark
+                                 advance + DecisionRegistered audit
+                                 via append_streams(conn=); recovers
+                                 a wedged Reaction bookmark without
+                                 SSH access to projection_bookmarks)
 """
 
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
+    dismiss_event_in_reaction,
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
@@ -52,6 +60,7 @@ from cora.agent.features import (
 __all__ = [
     "define_agent",
     "deprecate_agent",
+    "dismiss_event_in_reaction",
     "get_agent",
     "grant_tool_to_agent",
     "promote_caution_proposal",
