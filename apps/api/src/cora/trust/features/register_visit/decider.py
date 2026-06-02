@@ -14,9 +14,8 @@ stream; non-None means the visit already exists).
 PartOf cohesion: when the command sets `part_of_visit_id`, the
 handler preloads the parent Visit via `context.parent_visit`. The
 decider then enforces:
-  - `VisitPartOfNotFoundError` if `part_of_visit_id` is set but the
-    parent stream is empty (`context.parent_visit is None` AND
-    `context.parent_requested`).
+  - `VisitPartOfNotFoundError` if `command.part_of_visit_id` is set
+    but the parent stream is empty (`context.parent_visit is None`).
   - `VisitPartOfMismatchedSurfaceError` if `parent.surface_id` differs
     from the child's `surface_id`.
 
@@ -67,10 +66,7 @@ def decide(
             planned_start_at=command.planned_start_at,
             planned_end_at=command.planned_end_at,
         )
-    if context.parent_requested:
-        assert command.part_of_visit_id is not None, (
-            "parent_requested implies command.part_of_visit_id is set"
-        )
+    if command.part_of_visit_id is not None:
         if context.parent_visit is None:
             raise VisitPartOfNotFoundError(
                 visit_id=command.visit_id,

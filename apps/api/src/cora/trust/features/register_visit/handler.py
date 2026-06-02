@@ -103,16 +103,12 @@ def bind(deps: Kernel) -> Handler:
 
         now = deps.clock.now()
 
-        parent_requested = command.part_of_visit_id is not None
         parent_visit = (
             await load_visit(deps.event_store, command.part_of_visit_id)
-            if parent_requested and command.part_of_visit_id is not None
+            if command.part_of_visit_id is not None
             else None
         )
-        context = RegisterVisitContext(
-            parent_visit=parent_visit,
-            parent_requested=parent_requested,
-        )
+        context = RegisterVisitContext(parent_visit=parent_visit)
 
         domain_events = decide(
             state=None,
