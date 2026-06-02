@@ -247,7 +247,7 @@ async def test_register_asset_persists_alternate_identifiers_to_postgres(
             name="ANT130L",
             manufacturer=Manufacturer(name=ManufacturerName("Aerotech")),
             part_number="ANT130L-G10",
-            declared_families=frozenset({family_id}),
+            declared_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
