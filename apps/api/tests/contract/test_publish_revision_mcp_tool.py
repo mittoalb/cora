@@ -52,7 +52,10 @@ def _seed_calibration_and_revision(
             "jsonrpc": "2.0",
             "id": 2,
             "method": "tools/call",
-            "params": {"name": "append_revision", "arguments": _revision_args(calibration_id=cid)},
+            "params": {
+                "name": "append_calibration_revision",
+                "arguments": _revision_args(calibration_id=cid),
+            },
         },
         headers=session_headers,
     )

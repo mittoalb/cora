@@ -209,10 +209,19 @@ def _signed_event(
     *,
     signature: bytes | None = None,
     signature_kid: str | None = None,
+    signature_version: str | None = None,
     payload: dict[str, object] | None = None,
 ) -> NewEvent:
     """Builder for signed-shape events; mirrors `_make_event` so a future
-    NewEvent field addition flows through both helpers without drift."""
+    NewEvent field addition flows through both helpers without drift.
+
+    `signature_version` defaults to "cora/v1" when `signature` is set
+    but no version was passed, satisfying the matched-pair CHECK
+    constraint on the events table without forcing every existing
+    caller to spell out the version literal.
+    """
+    if signature is not None and signature_version is None:
+        signature_version = "cora/v1"
     return NewEvent(
         event_id=uuid4(),
         event_type="Recorded",
@@ -225,6 +234,7 @@ def _signed_event(
         principal_id=uuid4(),
         signature=signature,
         signature_kid=signature_kid,
+        signature_version=signature_version,
     )
 
 
