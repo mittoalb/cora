@@ -86,6 +86,20 @@ from cora.recipe.aggregates.practice import (
     PracticeCannotVersionError,
     PracticeNotFoundError,
 )
+from cora.recipe.aggregates.recipe import (
+    EmptyRecipeStepsError,
+    InvalidRecipeNameError,
+    InvalidRecipeStepShapeError,
+    InvalidRecipeVersionTagError,
+    RecipeAlreadyExistsError,
+    RecipeBindingReferencesUnknownParameterError,
+    RecipeCannotDeprecateError,
+    RecipeCannotVersionError,
+    RecipeNotFoundError,
+    RecipeRequiresCapabilityParametersSchemaError,
+    RecipeVersionNotFoundError,
+    UnboundRecipeBindingError,
+)
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     add_plan_wire,
@@ -93,14 +107,17 @@ from cora.recipe.features import (
     define_method,
     define_plan,
     define_practice,
+    define_recipe,
     deprecate_capability,
     deprecate_method,
     deprecate_plan,
     deprecate_practice,
+    deprecate_recipe,
     get_capability,
     get_method,
     get_plan,
     get_practice,
+    get_recipe,
     inspect_plan_binding,
     list_methods,
     list_plans,
@@ -112,6 +129,7 @@ from cora.recipe.features import (
     version_method,
     version_plan,
     version_practice,
+    version_recipe,
 )
 
 
@@ -171,6 +189,23 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_unprocessable(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 422 handler for parse-shape failures past the Pydantic boundary.
+
+    Covers Recipe BindingRef-against-schema mismatches, malformed step
+    shapes, and unbound BindingRefs at expansion time. The 400
+    Invalid<X> family is reserved for VO constructor failures
+    (name / version_tag); 422 is reserved for downstream parse-shape
+    or schema-cross-check failures that pass Pydantic but fail at the
+    cross-aggregate boundary.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
 def register_recipe_routes(app: FastAPI) -> None:
     """Attach Recipe slice routers and exception handlers to the FastAPI app."""
     app.include_router(define_method.router)
@@ -196,6 +231,10 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
     app.include_router(get_capability.router)
+    app.include_router(define_recipe.router)
+    app.include_router(version_recipe.router)
+    app.include_router(deprecate_recipe.router)
+    app.include_router(get_recipe.router)
     app.include_router(inspect_plan_binding.router)
     for validation_cls in (
         InvalidCapabilityCodeError,
@@ -215,6 +254,12 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPlanDefaultParametersError,
         InvalidPlanVersionTagError,
         InvalidWireError,
+        # Recipe Invalid<X> name + version-tag VO constructor failures.
+        InvalidRecipeNameError,
+        InvalidRecipeVersionTagError,
+        # Recipe __post_init__ invariant; domain error, not a Pydantic
+        # boundary parse failure.
+        EmptyRecipeStepsError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -225,6 +270,8 @@ def register_recipe_routes(app: FastAPI) -> None:
         # 6h: removing a Wire that's not currently in the Plan's wire
         # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
         PlanWireNotFoundError,
+        RecipeNotFoundError,
+        RecipeVersionNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -235,6 +282,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         # 6h: re-adding an already-present Wire (strict-not-idempotent;
         # mirrors 5h add_asset_port).
         PlanWireAlreadyExistsError,
+        RecipeAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -271,6 +319,22 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanWireDirectionMismatchError,
         PlanWireSignalTypeMismatchError,
         PlanWireSelfLoopError,
+        # Recipe transition guards.
+        RecipeCannotVersionError,
+        RecipeCannotDeprecateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for unprocessable_cls in (
+        # Recipe parse-shape / schema-cross-check failures past the
+        # Pydantic boundary. Distinct from the Invalid<X> 400 family
+        # because these fire AFTER the request body validates: the
+        # wire-format step shape, the BindingRef-vs-Capability-schema
+        # cross-aggregate check, the missing-schema-with-bindings case,
+        # and the unbound-binding-at-expansion case.
+        InvalidRecipeStepShapeError,
+        RecipeBindingReferencesUnknownParameterError,
+        RecipeRequiresCapabilityParametersSchemaError,
+        UnboundRecipeBindingError,
+    ):
+        app.add_exception_handler(unprocessable_cls, _handle_unprocessable)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

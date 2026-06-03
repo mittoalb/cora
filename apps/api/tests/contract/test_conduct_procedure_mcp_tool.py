@@ -107,10 +107,13 @@ def test_mcp_conduct_procedure_with_unknown_action_returns_failure_in_structured
 
 @pytest.mark.contract
 def test_mcp_conduct_procedure_against_unregistered_procedure_returns_iserror() -> None:
-    """conduct() re-raises ProcedureNotFoundError; FastMCP surfaces as isError.
-    Earlier shape (200-with-lifecycle-failure structured content) was rejected
-    by routes.py wiring: see [[project_conduct_procedure_test_contract_drift]]
-    memory."""
+    """The conduct_procedure handler loads the Procedure stream up front
+    ([[project-run-procedure-replay-design]] added
+    `load_procedure_with_events`) and raises `ProcedureNotFoundError`;
+    FastMCP wraps it generically (no allowlist) so the tools/call response
+    surfaces as `isError=true`. Earlier shape (200-with-lifecycle-failure
+    structured content) was rejected by routes.py wiring: see
+    [[project_conduct_procedure_test_contract_drift]] memory."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         unknown_pid = uuid4()

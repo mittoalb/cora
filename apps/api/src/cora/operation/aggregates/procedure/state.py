@@ -302,6 +302,196 @@ class ProcedureCapabilityExecutorMismatchError(Exception):
         self.capability_id = capability_id
 
 
+# Cap on the expanded step list at register_procedure_from_recipe time.
+# Beyond this, the design memo's v2 lazy-walk reconsideration triggers
+# (4D-tomography helical 150k-step case). v1 keeps a hard cap to bound
+# the materialized expansion + the paginated append load.
+RECIPE_EXPANSION_STEP_MAX = 10_000
+
+
+class RecipeExpansionOverflowError(Exception):
+    """The expanded flat step list exceeded `RECIPE_EXPANSION_STEP_MAX`.
+
+    Carries the offending step count for operator diagnostics. v2 trigger:
+    when a real consumer's single Recipe template legitimately exceeds
+    the cap, the design memo's lazy-walk reconsideration fires. Mapped
+    to HTTP 422 (parse-shape failure past the Pydantic boundary).
+    """
+
+    def __init__(self, step_count: int, cap: int) -> None:
+        super().__init__(f"recipe expansion produced {step_count} steps; cap is {cap}")
+        self.step_count = step_count
+        self.cap = cap
+
+
+class RecipeExpansionDeterminismError(Exception):
+    """Expansion port returned different results for the same `(steps, bindings)`.
+
+    The `(steps, bindings) -> tuple[Step, ...]` contract is pure
+    (no clock, no port I/O, no randomness). The slice re-runs `expand`
+    once at validation time and compares; a mismatch is a server-side
+    bug in the expansion port or the recipe body, not operator error.
+    Single-arg constructor (recipe_id) per the design memo lock;
+    the diagnostic hashes go into the error message body.
+    Mapped to HTTP 500.
+    """
+
+    def __init__(self, recipe_id: UUID) -> None:
+        super().__init__(f"recipe expansion for Recipe {recipe_id} is non-deterministic")
+        self.recipe_id = recipe_id
+
+
+class ProcedureStepsForbiddenForRecipeDrivenError(Exception):
+    """A non-empty `steps` list was supplied for a recipe-driven Procedure.
+
+    Recipe-driven Procedures (created via `register_procedure_from_recipe`)
+    have their step list pinned by `RecipeExpansionRecorded`; the
+    `conduct_procedure` handler re-expands deterministically from the
+    pinned Recipe + bindings and ignores any caller-supplied steps.
+    Rather than silently override (which masks client bugs), the
+    handler rejects up front per [[project-run-procedure-replay-design]]
+    Anti-hook 7. Mapped to HTTP 400.
+    """
+
+    def __init__(self, procedure_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} is recipe-driven; steps must be empty. "
+            f"The conduct_procedure handler re-expands from RecipeExpansionRecorded."
+        )
+        self.procedure_id = procedure_id
+
+
+class RecipeExpansionPortVersionMismatchError(Exception):
+    """The currently-wired `RecipeExpansionPort.version` differs from the pin.
+
+    The `RecipeExpansionRecorded` event pins `expansion_port_version`;
+    the replay path runs a strict-equals guard against the live port's
+    `version` so a future v2 port cannot silently re-expand a v1-pinned
+    Procedure with potentially different outputs. Today only v1 exists;
+    this guard is the placeholder until a v2 expansion port lands with
+    its routing layer. Mapped to HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID, recorded_version: str, current_version: str) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} recipe expansion was recorded with "
+            f"port version {recorded_version!r}; the currently-wired port "
+            f"reports {current_version!r}. Re-expansion would be unsafe."
+        )
+        self.procedure_id = procedure_id
+        self.recorded_version = recorded_version
+        self.current_version = current_version
+
+
+class RecipeExpansionRecordNotFoundError(Exception):
+    """The recipe-driven Procedure cannot locate the pinned expansion record.
+
+    Raised by the `conduct_procedure` recipe-replay path
+    (per [[project-run-procedure-replay-design]]) in any of three cases:
+
+      - The Procedure stream carries no `RecipeExpansionRecorded`
+        event (stream truncation or a direct event-store write left
+        the genesis pair incomplete).
+      - The `RecipeExpansionRecorded` payload is corrupt: one or more
+        required keys are missing (caught by `pins_from_payload`'s
+        defensive check).
+      - The pinned Recipe stream itself is wholly empty when the
+        handler calls `load_recipe_at_version` (the operator-pinned
+        `recipe_id` references a Recipe with no genesis event).
+
+    `register_procedure_from_recipe` emits both genesis events
+    atomically so the first two cases are unreachable in normal
+    operation; the third is unreachable while the event log stays
+    append-only. The error covers operator escape hatches around
+    stream truncation, manual event-store writes, or partial-write
+    failures. Mapped to HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} has recipe_id set but the pinned "
+            f"RecipeExpansionRecorded event or the pinned Recipe stream "
+            f"could not be located; replay cannot proceed."
+        )
+        self.procedure_id = procedure_id
+
+
+class RecipeExpansionReplayMismatchError(Exception):
+    """Replay-time hash drift on a recipe-driven Procedure.
+
+    Raised when the recorded bindings no longer hash to
+    `bindings_hash` (input drift, `mismatch_field='bindings'`) OR
+    the freshly re-expanded steps no longer hash to `steps_hash`
+    (expansion-logic drift, `mismatch_field='steps'`). Either case
+    indicates the expansion port regressed or the recorded payload
+    was mutated since write time, neither operator-correctable.
+    Closed Literal discriminator instead of two error classes per
+    [[project-run-procedure-replay-design]] Anti-hook 3. Mapped to
+    HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID, mismatch_field: Literal["bindings", "steps"]) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} recipe expansion replay produced a "
+            f"{mismatch_field}_hash mismatch against the recorded pin."
+        )
+        self.procedure_id = procedure_id
+        self.mismatch_field = mismatch_field
+
+
+class RecipeBindingsStaleAgainstCurrentCapabilityError(Exception):
+    """The Recipe's BindingRefs no longer resolve against the current Capability schema.
+
+    Cross-BC race: Capability was versioned independently after the
+    Recipe's last write, and a binding name dropped (or the schema
+    transitioned to None while the Recipe still carries BindingRefs).
+    Operators resolve by versioning the Recipe (re-validating against
+    the current Capability) or by versioning the Capability back if
+    the schema change was unintended.
+
+    Distinct from `RecipeBindingReferencesUnknownParameterError` (which
+    fires at Recipe-write time against the schema-at-write-time): this
+    error fires at register_procedure_from_recipe time against the
+    CURRENT Capability state.
+
+    Mapped to HTTP 422 (parse-shape failure past the Pydantic boundary).
+    """
+
+    def __init__(
+        self,
+        recipe_id: UUID,
+        capability_id: UUID,
+        missing_binding_names: frozenset[str],
+    ) -> None:
+        names = sorted(missing_binding_names)
+        super().__init__(
+            f"Recipe {recipe_id} BindingRefs are stale against the current "
+            f"Capability {capability_id} schema; missing parameter(s): {names!r}. "
+            f"Re-version the Recipe to align with the current Capability schema."
+        )
+        self.recipe_id = recipe_id
+        self.capability_id = capability_id
+        self.missing_binding_names = missing_binding_names
+
+
+class InvalidRecipeBindingsError(ValueError):
+    """`bindings` did not validate against `Capability.parameters_schema`.
+
+    Raised by the JSON-Schema validator inside the
+    `register_procedure_from_recipe` decider when operator-supplied
+    `bindings` do not satisfy the bound Capability's declared schema.
+    Distinct from `UnboundRecipeBindingError` (a BindingRef.name in the
+    Recipe's steps has no entry in `bindings`); this error fires when
+    `bindings` values fail the shape check.
+
+    Mapped to HTTP 422 (parse-shape failure past the Pydantic boundary).
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"invalid recipe bindings: {reason}")
+        self.reason = reason
+
+
 class ProcedureRequiresAvailableSupplyError(Exception):
     """No Supply registered for one of the parent Run's Method.needed_supplies kinds.
 
@@ -667,3 +857,16 @@ class Procedure:
     Pattern P (or accept that ceremony Procedures stay un-bound when
     no Capability template applies). Same additive-state shape as
     Method.capability_id."""
+    recipe_id: UUID | None = field(default=None)
+    """Optional pointer to the Recipe (Recipe BC) whose steps were
+    expanded into this Procedure via the
+    `register_procedure_from_recipe` slice. None for legacy Procedures
+    (registered via `register_procedure` with an inline step list) and
+    for ceremony Procedures with no Recipe binding.
+
+    The Recipe is the source of truth for the expansion (Recipe.capability_id
+    points at the Capability that supplied the parameters_schema this
+    expansion was bound against). `capability_id` above is preserved as
+    a denorm for audit-by-Capability read paths without requiring a
+    Recipe join. Both fields are set by `register_procedure_from_recipe`
+    to the same logical binding."""

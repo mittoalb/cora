@@ -16,14 +16,17 @@ from cora.recipe.features.define_capability import tool as define_capability_too
 from cora.recipe.features.define_method import tool as define_method_tool
 from cora.recipe.features.define_plan import tool as define_plan_tool
 from cora.recipe.features.define_practice import tool as define_practice_tool
+from cora.recipe.features.define_recipe import tool as define_recipe_tool
 from cora.recipe.features.deprecate_capability import tool as deprecate_capability_tool
 from cora.recipe.features.deprecate_method import tool as deprecate_method_tool
 from cora.recipe.features.deprecate_plan import tool as deprecate_plan_tool
 from cora.recipe.features.deprecate_practice import tool as deprecate_practice_tool
+from cora.recipe.features.deprecate_recipe import tool as deprecate_recipe_tool
 from cora.recipe.features.get_capability import tool as get_capability_tool
 from cora.recipe.features.get_method import tool as get_method_tool
 from cora.recipe.features.get_plan import tool as get_plan_tool
 from cora.recipe.features.get_practice import tool as get_practice_tool
+from cora.recipe.features.get_recipe import tool as get_recipe_tool
 from cora.recipe.features.inspect_plan_binding import tool as inspect_plan_binding_tool
 from cora.recipe.features.list_methods import tool as list_methods_tool
 from cora.recipe.features.list_plans import tool as list_plans_tool
@@ -39,6 +42,7 @@ from cora.recipe.features.version_capability import tool as version_capability_t
 from cora.recipe.features.version_method import tool as version_method_tool
 from cora.recipe.features.version_plan import tool as version_plan_tool
 from cora.recipe.features.version_practice import tool as version_practice_tool
+from cora.recipe.features.version_recipe import tool as version_recipe_tool
 from cora.recipe.wire import RecipeHandlers
 
 
@@ -139,6 +143,22 @@ def register_recipe_tools(
     get_capability_tool.register(
         mcp,
         get_handler=lambda: get_handlers().get_capability,
+    )
+    define_recipe_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_recipe,
+    )
+    version_recipe_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().version_recipe,
+    )
+    deprecate_recipe_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_recipe,
+    )
+    get_recipe_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_recipe,
     )
     inspect_plan_binding_tool.register(
         mcp,

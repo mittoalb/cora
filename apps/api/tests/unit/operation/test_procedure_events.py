@@ -15,6 +15,7 @@ from cora.operation.aggregates.procedure import (
     ProcedureStarted,
     ProcedureStepsLogbookOpened,
     ProcedureTruncated,
+    RecipeExpansionRecorded,
     event_type_name,
     from_stored,
     to_payload,
@@ -74,9 +75,15 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
         # Sorted by string form for deterministic payload bytes.
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": str(parent_run),
-        # capability_id (default). Pre-10d streams omit the key and
-        # fold via `.get("capability_id")` in from_stored.
+        # capability_id (default). Pre-binding streams omit the key
+        # and fold via `.get("capability_id")` in from_stored.
         "capability_id": None,
+        # recipe_id (default). Pre-Recipe-rewrite streams omit the
+        # key and fold via `.get("recipe_id")` in from_stored.
+        # `register_procedure_from_recipe` sets both `recipe_id` and
+        # the denorm `capability_id`; the legacy `register_procedure`
+        # slice leaves both None.
+        "recipe_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -507,6 +514,36 @@ def test_procedure_truncated_round_trips() -> None:
     stored = _stored("ProcedureTruncated", to_payload(original))
     rebuilt = from_stored(stored)
     assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_to_payload_bindings_field_is_dict_after_canonical_json_hoist() -> None:
+    """The events.py `to_payload(RecipeExpansionRecorded)` arm uses
+    `json.loads(canonical_json_bytes(dict(bindings)))` so the persisted
+    payload `bindings` field stays a dict (the shape `from_stored`'s
+    `dict(payload['bindings'])` consumer expects). A future refactor
+    that drops the `json.loads(...)` wrapper (e.g., `.decode('utf-8')`)
+    would persist a JSON string and break round-trip; this test pins
+    the dict shape.
+    """
+    event = RecipeExpansionRecorded(
+        procedure_id=uuid4(),
+        recipe_id=uuid4(),
+        recipe_version="v1",
+        capability_id=uuid4(),
+        capability_version=None,
+        bindings={"beta": 2.0, "alpha": 1.0},
+        expansion_port_version="v1",
+        steps_hash="aaaa",
+        bindings_hash="bbbb",
+        step_count=1,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert isinstance(payload["bindings"], dict)
+    assert payload["bindings"] == {"alpha": 1.0, "beta": 2.0}
+    rebuilt = from_stored(_stored("RecipeExpansionRecorded", payload))
+    assert rebuilt.bindings == event.bindings  # type: ignore[union-attr]
 
 
 @pytest.mark.unit

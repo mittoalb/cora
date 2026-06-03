@@ -107,9 +107,12 @@ def test_post_conduct_with_setpoint_to_unconnected_address_returns_not_connected
 
 @pytest.mark.contract
 def test_post_conduct_against_unregistered_procedure_returns_404() -> None:
-    """conduct() re-raises start_procedure's ProcedureNotFoundError so the
-    BC's central exception handler maps it to 404. Earlier shape (200 with
-    lifecycle failure on the body) was rejected by routes.py wiring: see
+    """The conduct_procedure handler loads the Procedure stream up front
+    ([[project-run-procedure-replay-design]] added
+    `load_procedure_with_events` at handler entry) and raises
+    `ProcedureNotFoundError`, which the BC's central exception handler
+    maps to 404. Earlier shape (200 with lifecycle failure on the body)
+    was rejected by routes.py wiring: see
     [[project_conduct_procedure_test_contract_drift]] memory."""
     with TestClient(create_app()) as client:
         unknown_pid = uuid4()

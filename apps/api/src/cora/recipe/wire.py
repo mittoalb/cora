@@ -16,10 +16,12 @@ Subject / Equipment (composition order matters — innermost first):
 3. `with_tracing` — OTel span around every handler call. Records
    `cora.bc`, `cora.command` / `cora.query` attributes.
 
-The BC currently owns four aggregates: `Method` (the technique
-contract), `Practice` (a Method adaptation), `Plan` (an executable
-Recipe binding Practices to Assets), and `Capability` (the universal
-template that Methods and Procedures realize as executors).
+The BC owns five aggregates: `Method` (the technique contract),
+`Practice` (a Method adaptation), `Plan` (an executable binding of
+Practices to Assets), `Capability` (the universal declarative
+template Methods and Procedures realize as executors), and `Recipe`
+(the deployment-bound templated step sequence that expands to a
+flat Step list at register_procedure_from_recipe time).
 """
 
 from dataclasses import dataclass
@@ -34,14 +36,17 @@ from cora.recipe.features import (
     define_method,
     define_plan,
     define_practice,
+    define_recipe,
     deprecate_capability,
     deprecate_method,
     deprecate_plan,
     deprecate_practice,
+    deprecate_recipe,
     get_capability,
     get_method,
     get_plan,
     get_practice,
+    get_recipe,
     inspect_plan_binding,
     list_methods,
     list_plans,
@@ -53,6 +58,7 @@ from cora.recipe.features import (
     version_method,
     version_plan,
     version_practice,
+    version_recipe,
 )
 
 _BC = "recipe"
@@ -85,6 +91,10 @@ class RecipeHandlers:
     version_capability: version_capability.Handler
     deprecate_capability: deprecate_capability.Handler
     get_capability: get_capability.Handler
+    define_recipe: define_recipe.IdempotentHandler
+    version_recipe: version_recipe.Handler
+    deprecate_recipe: deprecate_recipe.Handler
+    get_recipe: get_recipe.Handler
     inspect_plan_binding: inspect_plan_binding.Handler
 
 
@@ -240,6 +250,34 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         get_capability=with_tracing(
             get_capability.bind(deps),
             command_name="GetCapability",
+            bc=_BC,
+            kind="query",
+        ),
+        define_recipe=with_tracing(
+            with_idempotency(
+                define_recipe.bind(deps),
+                deps.idempotency_store,
+                command_name="DefineRecipe",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="DefineRecipe",
+            bc=_BC,
+        ),
+        version_recipe=with_tracing(
+            version_recipe.bind(deps),
+            command_name="VersionRecipe",
+            bc=_BC,
+        ),
+        deprecate_recipe=with_tracing(
+            deprecate_recipe.bind(deps),
+            command_name="DeprecateRecipe",
+            bc=_BC,
+        ),
+        get_recipe=with_tracing(
+            get_recipe.bind(deps),
+            command_name="GetRecipe",
             bc=_BC,
             kind="query",
         ),

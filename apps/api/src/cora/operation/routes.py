@@ -27,7 +27,7 @@ via the Trust / Equipment / Supply-style loop pattern:
   - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
   - 409 (transition guards): ProcedureCannotStart,
     ProcedureCannotComplete, ProcedureCannotAbort,
-    ProcedureCannotTruncate, ProcedureAssetDecommissioned,
+    ProcedureCannotTruncate, ProcedurePlanAssetDecommissioned,
     ProcedureStepsLogbookClosed
 """
 
@@ -40,6 +40,7 @@ from cora.operation.aggregates.procedure import (
     InvalidProcedureKindError,
     InvalidProcedureNameError,
     InvalidProcedureTruncateReasonError,
+    InvalidRecipeBindingsError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
     ProcedureCannotAbortError,
@@ -50,8 +51,15 @@ from cora.operation.aggregates.procedure import (
     ProcedureNotFoundError,
     ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
+    ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
+    RecipeBindingsStaleAgainstCurrentCapabilityError,
+    RecipeExpansionDeterminismError,
+    RecipeExpansionOverflowError,
+    RecipeExpansionPortVersionMismatchError,
+    RecipeExpansionRecordNotFoundError,
+    RecipeExpansionReplayMismatchError,
 )
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features import (
@@ -62,6 +70,7 @@ from cora.operation.features import (
     get_procedure,
     list_procedures,
     register_procedure,
+    register_procedure_from_recipe,
     start_procedure,
     truncate_procedure,
 )
@@ -120,7 +129,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
     Covers ProcedureCannotStart / ProcedureCannotComplete /
     ProcedureCannotAbort / ProcedureCannotTruncate (FSM source-state
-    guards), ProcedureAssetDecommissioned (cross-aggregate precondition
+    guards), ProcedurePlanAssetDecommissioned (cross-aggregate precondition
     guard at start_procedure), AND ProcedureStepsLogbookClosed (logbook
     write guard for non-Running Procedures). All map to HTTP 409 +
     `{"detail": str(exc)}`.
@@ -132,9 +141,45 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_unprocessable(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 422 handler for parse-shape failures past the Pydantic boundary.
+
+    Covers the Recipe-expansion family raised at
+    register_procedure_from_recipe time: stale-Capability schema drift,
+    operator-supplied bindings shape failures, and the expansion
+    overflow cap. The 400 Invalid<X> family is reserved for VO
+    constructor failures (name / kind); 422 is reserved for
+    downstream parse-shape or schema-cross-check failures that pass
+    Pydantic but fail at the cross-aggregate boundary.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_internal_server_error(request: Request, exc: Exception) -> JSONResponse:
+    """Shared 500 handler for server-side determinism / port-contract bugs.
+
+    Covers RecipeExpansionDeterminismError (expansion port returned
+    different results for the same `(steps, bindings)` input,
+    indicating a non-pure expander or a non-canonical bindings dict).
+    Distinct from operator error: the operator's request is well-formed;
+    the server-side bug means re-trying with the same payload will
+    likely fail the same way. Mapped to HTTP 500.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
 def register_operation_routes(app: FastAPI) -> None:
     """Attach Operation slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_procedure.router)
+    app.include_router(register_procedure_from_recipe.router)
     app.include_router(start_procedure.router)
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
@@ -150,6 +195,10 @@ def register_operation_routes(app: FastAPI) -> None:
         InvalidProcedureTruncateReasonError,
         InvalidProcedureInterruptedAtError,
         InvalidStepKindError,
+        # Recipe-driven conduct_procedure path: caller-supplied steps with
+        # recipe_id set are rejected up front per the replay-design lock
+        # ([[project-run-procedure-replay-design]] Anti-hook 7).
+        ProcedureStepsForbiddenForRecipeDrivenError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (ProcedureNotFoundError,):
@@ -177,4 +226,36 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureSupplyCoverageMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for unprocessable_cls in (
+        # Recipe-expansion family at register_procedure_from_recipe time.
+        # All fire AFTER Pydantic body validation: stale-Capability schema
+        # drift, operator-bindings shape failure, expansion overflow cap.
+        RecipeBindingsStaleAgainstCurrentCapabilityError,
+        InvalidRecipeBindingsError,
+        RecipeExpansionOverflowError,
+    ):
+        app.add_exception_handler(unprocessable_cls, _handle_unprocessable)
+    # Server-side determinism bugs / data corruption: HTTP 500. Distinct
+    # from operator-error 422 because re-trying with the same payload
+    # will fail the same way. Replay-time bugs land here too per
+    # [[project-run-procedure-replay-design]] Rejections (alphabetical):
+    #   - RecipeExpansionDeterminismError (at-write determinism bug).
+    #   - RecipeExpansionPortVersionMismatchError (pinned port v differs
+    #     from currently-wired; placeholder until a v2 expansion port
+    #     lands with its routing layer).
+    #   - RecipeExpansionRecordNotFoundError (data corruption guard:
+    #     recipe_id set but the pinned RecipeExpansionRecorded event or
+    #     the pinned Recipe stream cannot be located).
+    #   - RecipeExpansionReplayMismatchError (replay-time hash drift).
+    for internal_cls in (
+        RecipeExpansionDeterminismError,
+        RecipeExpansionPortVersionMismatchError,
+        RecipeExpansionRecordNotFoundError,
+        RecipeExpansionReplayMismatchError,
+    ):
+        app.add_exception_handler(internal_cls, _handle_internal_server_error)
+    # NOT registered here: RecipeVersionNotFoundError (Recipe BC owns;
+    # raised from conduct_procedure handler via load_recipe_at_version
+    # but HTTP mapping lives in recipe/routes.py per the same cross-BC
+    # single-registration rule as CapabilityNotFoundError above).
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

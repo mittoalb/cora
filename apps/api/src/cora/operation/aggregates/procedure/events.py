@@ -47,11 +47,14 @@ encodes the state change. Same precedent as `RunStarted` /
 `SupplyRegistered` / `SubjectMounted`.
 """
 
+import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
+from cora.infrastructure.canonical_json import canonical_json_bytes
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
@@ -71,11 +74,21 @@ class ProcedureRegistered:
     `parent_run_id` carries the optional Run binding (None for
     standalone procedures, set for Phase-of-Run procedures).
 
-    `capability_id` is the optional cross-BC
-    binding to the universal Capability template (Recipe BC)
-    this Procedure realizes as a Procedure-shaped executor. None for
-    legacy Procedures and for ceremony Procedures with no template
-    binding. Same additive shape as Method.capability_id.
+    `capability_id` is the optional cross-BC binding to the universal
+    Capability template (Recipe BC) this Procedure realizes as a
+    Procedure-shaped executor. None for legacy Procedures and for
+    ceremony Procedures with no template binding. Same additive shape
+    as Method.capability_id.
+
+    `recipe_id` is the optional cross-BC binding to the Recipe whose
+    steps were expanded into this Procedure via the
+    `register_procedure_from_recipe` slice. None for legacy Procedures
+    (registered via `register_procedure` with inline steps) and for
+    ceremony Procedures with no Recipe binding. When set,
+    `capability_id` carries the Recipe's `capability_id` as a denorm
+    for audit-by-Capability read paths without requiring a Recipe
+    join. Additive payload field; pre-rewrite streams fold via
+    `payload.get("recipe_id")` -> None.
     """
 
     procedure_id: UUID
@@ -85,6 +98,62 @@ class ProcedureRegistered:
     parent_run_id: UUID | None
     occurred_at: datetime
     capability_id: UUID | None = None
+    recipe_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class RecipeExpansionRecorded:
+    """Provenance event: a Recipe's steps were expanded into this Procedure.
+
+    Emitted alongside `ProcedureRegistered` by the
+    `register_procedure_from_recipe` slice, NOT by `register_procedure`.
+    Captures the template-invocation grain provenance per the design
+    lock ([[project-recipe-aggregate-design]]): one event per Recipe
+    invocation, NOT one per expanded step. Per-step records live in
+    `entries_operation_procedure_steps` via the existing
+    `append_procedure_steps` handler; this event lifts the binding
+    context above the per-step granularity so PROV-O / 21 CFR Part 11
+    audit trails point at the activity that produced the entity, not
+    at every intermediate state.
+
+    `recipe_id` is the Recipe whose steps were expanded. `recipe_version`
+    pins which Recipe-version's steps were active at expansion time
+    (without this, replay after a `version_recipe` call would resolve
+    to different steps and lose determinism).
+
+    `capability_id` + `capability_version` are denormalized for
+    audit-by-Capability read paths (find all Procedures expanded from
+    this Capability) without requiring a Recipe join. Recipe.capability_id
+    is the source of truth; the denorm here mirrors the Procedure
+    aggregate state pin per anti-hook 15 of [[project-recipe-aggregate-design]].
+
+    `bindings` carries the operator-supplied parameter values verbatim
+    for replay (serialized via `json.dumps(..., sort_keys=True)` for
+    canonical-JSON content hashing). `expansion_port_version` records
+    which expander emitted the steps (the design memo's "non-determinism
+    captured via port injection" principle). `steps_hash` (renamed from
+    the worktree's `template_hash`) + `bindings_hash` are content-hashes
+    enabling cheap equality checks at projection time; `step_count` is
+    the number of expanded Steps the slice paginated through.
+
+    Provenance-only: the evolver leaves `Procedure` state unchanged
+    when this event arrives. Replay of `(recipe_id, recipe_version,
+    bindings, expansion_port_version)` reconstructs the step sequence
+    deterministically by re-loading Recipe at the recorded version and
+    re-running expand.
+    """
+
+    procedure_id: UUID
+    recipe_id: UUID
+    recipe_version: str | None
+    capability_id: UUID
+    capability_version: str | None
+    bindings: Mapping[str, Any]
+    expansion_port_version: str
+    steps_hash: str
+    bindings_hash: str
+    step_count: int
+    occurred_at: datetime
 
 
 @dataclass(frozen=True)
@@ -230,6 +299,7 @@ ProcedureEvent = (
     | ProcedureAborted
     | ProcedureTruncated
     | ProcedureStepsLogbookOpened
+    | RecipeExpansionRecorded
 )
 
 
@@ -255,6 +325,7 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
             parent_run_id=parent_run_id,
             occurred_at=occurred_at,
             capability_id=capability_id,
+            recipe_id=recipe_id,
         ):
             return {
                 "procedure_id": str(procedure_id),
@@ -262,10 +333,16 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "kind": kind,
                 "target_asset_ids": sorted(str(a) for a in target_asset_ids),
                 "parent_run_id": str(parent_run_id) if parent_run_id is not None else None,
-                # None when register_procedure omits
-                # capability_id. Pre-10d streams fold via `.get("capability_id")`
-                # in from_stored. Mirrors Method.capability_id (6l-additive).
+                # None when register_procedure omits capability_id.
+                # Pre-10d streams fold via `.get("capability_id")` in
+                # from_stored. Mirrors Method.capability_id (6l-additive).
                 "capability_id": str(capability_id) if capability_id is not None else None,
+                # None when register_procedure (legacy slice) omits
+                # recipe_id. register_procedure_from_recipe sets both
+                # `recipe_id` and the denorm `capability_id` to the
+                # Recipe's capability_id. Pre-rewrite streams fold via
+                # `.get("recipe_id")` in from_stored.
+                "recipe_id": str(recipe_id) if recipe_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
             }
         case ProcedureStarted(procedure_id=procedure_id, occurred_at=occurred_at):
@@ -311,6 +388,39 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "schema": schema.to_dict(),
                 "occurred_at": occurred_at.isoformat(),
             }
+        case RecipeExpansionRecorded(
+            procedure_id=procedure_id,
+            recipe_id=recipe_id,
+            recipe_version=recipe_version,
+            capability_id=capability_id,
+            capability_version=capability_version,
+            bindings=bindings,
+            expansion_port_version=expansion_port_version,
+            steps_hash=steps_hash,
+            bindings_hash=bindings_hash,
+            step_count=step_count,
+            occurred_at=occurred_at,
+        ):
+            # Canonical-JSON bytes via the shared `canonical_json_bytes`
+            # helper, then `json.loads` to keep the persisted `bindings`
+            # field a dict (matches `from_stored`'s `dict(payload['bindings'])`
+            # consumer at line 528). The single-source canonicalizer keeps
+            # `sha256(payload['bindings'])` reproducible against the
+            # decider's at-write `bindings_hash`. Recipe.steps wire-format
+            # is JSON-friendly by construction (no UUID values inside).
+            return {
+                "procedure_id": str(procedure_id),
+                "recipe_id": str(recipe_id),
+                "recipe_version": recipe_version,
+                "capability_id": str(capability_id),
+                "capability_version": capability_version,
+                "bindings": json.loads(canonical_json_bytes(dict(bindings))),
+                "expansion_port_version": expansion_port_version,
+                "steps_hash": steps_hash,
+                "bindings_hash": bindings_hash,
+                "step_count": step_count,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -338,10 +448,12 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
 
             def _build_registered() -> ProcedureRegistered:
                 raw_parent = payload["parent_run_id"]
-                # capability_id is OPTIONAL on the payload.
-                # Pre-10d streams omit the key entirely; fold via `.get` →
-                # None default. Mirrors Method.capability_id (6l-additive).
+                # capability_id and recipe_id are OPTIONAL on the payload.
+                # Pre-binding streams omit capability_id; pre-Recipe-rewrite
+                # streams omit recipe_id. Fold via `.get` -> None default.
+                # Mirrors Method.capability_id additive-evolution pattern.
                 raw_capability = payload.get("capability_id")
+                raw_recipe = payload.get("recipe_id")
                 return ProcedureRegistered(
                     procedure_id=UUID(payload["procedure_id"]),
                     name=payload["name"],
@@ -349,6 +461,7 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                     target_asset_ids=tuple(UUID(a) for a in payload["target_asset_ids"]),
                     parent_run_id=UUID(raw_parent) if raw_parent is not None else None,
                     capability_id=UUID(raw_capability) if raw_capability is not None else None,
+                    recipe_id=UUID(raw_recipe) if raw_recipe is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
 
@@ -405,6 +518,24 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "RecipeExpansionRecorded":
+            return deserialize_or_raise(
+                "RecipeExpansionRecorded",
+                lambda: RecipeExpansionRecorded(
+                    procedure_id=UUID(payload["procedure_id"]),
+                    recipe_id=UUID(payload["recipe_id"]),
+                    recipe_version=payload.get("recipe_version"),
+                    capability_id=UUID(payload["capability_id"]),
+                    capability_version=payload.get("capability_version"),
+                    bindings=dict(payload["bindings"]),
+                    expansion_port_version=payload["expansion_port_version"],
+                    steps_hash=payload["steps_hash"],
+                    bindings_hash=payload["bindings_hash"],
+                    step_count=int(payload["step_count"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+                extra=(ValueError,),
+            )
         case _:
             msg = f"Unknown ProcedureEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -418,6 +549,7 @@ __all__ = [
     "ProcedureStarted",
     "ProcedureStepsLogbookOpened",
     "ProcedureTruncated",
+    "RecipeExpansionRecorded",
     "event_type_name",
     "from_stored",
     "to_payload",

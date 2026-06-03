@@ -4,7 +4,7 @@ The composition root (`cora.api.main`) calls
 `register_recipe_projections(registry, deps)` during the FastAPI
 lifespan to populate the worker's registry. Recipe is the second
 multi-aggregate BC after Equipment: each of Method / Practice /
-Plan has its own projection module under
+Plan / Capability / Recipe has its own projection module under
 `cora.recipe.projections`, all registered here.
 """
 
@@ -15,6 +15,7 @@ from cora.recipe.projections import (
     MethodSummaryProjection,
     PlanSummaryProjection,
     PracticeSummaryProjection,
+    RecipeSummaryProjection,
 )
 
 
@@ -28,6 +29,7 @@ def register_recipe_projections(
     registry.register(PracticeSummaryProjection())
     registry.register(PlanSummaryProjection())
     registry.register(CapabilitySummaryProjection())
+    registry.register(RecipeSummaryProjection())
 
 
 __all__ = ["register_recipe_projections"]

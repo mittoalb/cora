@@ -1,0 +1,56 @@
+"""MCP tool for the `deprecate_recipe` slice."""
+
+from collections.abc import Callable
+from typing import Annotated, Any
+from uuid import UUID
+
+from mcp.server.fastmcp import Context, FastMCP
+from pydantic import Field
+
+from cora.infrastructure.mcp_principal import get_mcp_principal_id
+from cora.infrastructure.observability import current_correlation_id
+from cora.infrastructure.routing import get_mcp_surface_id
+from cora.recipe.features.deprecate_recipe.command import DeprecateRecipe
+from cora.recipe.features.deprecate_recipe.handler import Handler
+
+
+def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
+    """Register the `deprecate_recipe` tool on the given MCP server."""
+
+    @mcp.tool(
+        name="deprecate_recipe",
+        description=(
+            "Mark an existing Recipe as Deprecated. Multi-source: Defined "
+            "or Versioned to Deprecated. Existing Procedures already "
+            "expanded from the deprecated Recipe are NOT auto-invalidated "
+            "(advisory at BC layer). Optional replaced_by_recipe_id points "
+            "at a successor (LOINC MAP_TO precedent)."
+        ),
+    )
+    async def deprecate_recipe_tool(  # pyright: ignore[reportUnusedFunction]
+        ctx: Context[Any, Any, Any],
+        recipe_id: Annotated[
+            UUID,
+            Field(description="Target Recipe's id."),
+        ],
+        replaced_by_recipe_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional pointer to a successor Recipe. None means "
+                    "deprecated-without-replacement."
+                ),
+            ),
+        ] = None,
+    ) -> None:
+        handler = get_handler()
+        await handler(
+            DeprecateRecipe(
+                recipe_id=recipe_id,
+                replaced_by_recipe_id=replaced_by_recipe_id,
+            ),
+            principal_id=get_mcp_principal_id(ctx),
+            correlation_id=current_correlation_id(),
+            surface_id=get_mcp_surface_id(),
+        )

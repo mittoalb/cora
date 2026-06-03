@@ -55,6 +55,7 @@ from cora.operation.aggregates.procedure.events import (
     ProcedureStarted,
     ProcedureStepsLogbookOpened,
     ProcedureTruncated,
+    RecipeExpansionRecorded,
 )
 from cora.operation.aggregates.procedure.state import (
     Procedure,
@@ -73,6 +74,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
             target_asset_ids=target_asset_ids,
             parent_run_id=parent_run_id,
             capability_id=capability_id,
+            recipe_id=recipe_id,
         ):
             _ = state  # ProcedureRegistered is the genesis event; prior state ignored
             return Procedure(
@@ -84,6 +86,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=parent_run_id,
                 steps_logbook_id=None,
                 capability_id=capability_id,
+                recipe_id=recipe_id,
             )
         case ProcedureStarted():
             prior = require_state(state, "ProcedureStarted")
@@ -96,6 +99,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
                 capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
             )
         case ProcedureCompleted():
             prior = require_state(state, "ProcedureCompleted")
@@ -108,6 +112,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
                 capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
             )
         case ProcedureAborted():
             prior = require_state(state, "ProcedureAborted")
@@ -120,6 +125,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
                 capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
             )
         case ProcedureTruncated():
             prior = require_state(state, "ProcedureTruncated")
@@ -132,6 +138,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=prior.steps_logbook_id,
                 capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
             )
         case ProcedureStepsLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write: preserve all
@@ -148,7 +155,17 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 parent_run_id=prior.parent_run_id,
                 steps_logbook_id=logbook_id,
                 capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
             )
+        case RecipeExpansionRecorded():
+            # Provenance-only event: leaves Procedure state unchanged.
+            # The full denormalized payload (recipe_id, recipe_version,
+            # capability_id, capability_version, bindings,
+            # expansion_port_version, steps_hash, bindings_hash,
+            # step_count) lives in the event stream for audit-replay;
+            # there is no projection-folded denorm onto Procedure state
+            # beyond what `ProcedureRegistered.recipe_id` already pins.
+            return require_state(state, "RecipeExpansionRecorded")
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

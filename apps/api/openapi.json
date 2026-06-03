@@ -4658,6 +4658,52 @@
         "title": "DefinePracticeResponse",
         "type": "object"
       },
+      "DefineRecipeRequest": {
+        "description": "Body for `POST /recipes`.",
+        "properties": {
+          "capability_id": {
+            "description": "Capability this Recipe realizes. REQUIRED and IMMUTABLE across versions; re-binding requires authoring a new Recipe.",
+            "format": "uuid",
+            "title": "Capability Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name for the new Recipe.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "steps": {
+            "additionalProperties": true,
+            "description": "Wire-format step sequence: `{steps: [{kind: setpoint|action|check, ...}]}`. Each `value` or `params[k]` position may carry `{__binding__: name}` to reference a Capability parameter.",
+            "title": "Steps",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "capability_id",
+          "steps"
+        ],
+        "title": "DefineRecipeRequest",
+        "type": "object"
+      },
+      "DefineRecipeResponse": {
+        "description": "Response body for `POST /recipes`.",
+        "properties": {
+          "recipe_id": {
+            "format": "uuid",
+            "title": "Recipe Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe_id"
+        ],
+        "title": "DefineRecipeResponse",
+        "type": "object"
+      },
       "DefineSurfaceRequest": {
         "description": "Body for `POST /surfaces`.",
         "properties": {
@@ -4834,6 +4880,26 @@
           "reason"
         ],
         "title": "DeprecateModelRequest",
+        "type": "object"
+      },
+      "DeprecateRecipeRequest": {
+        "description": "Body for `POST /recipes/{recipe_id}/deprecate`.\n\nOptional `replaced_by_recipe_id` pointer for the successor\nRecipe. Omit entirely for deprecated-without-replacement.",
+        "properties": {
+          "replaced_by_recipe_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional pointer to a successor Recipe (LOINC `MAP_TO` precedent). None means deprecated-without-replacement.",
+            "title": "Replaced By Recipe Id"
+          }
+        },
+        "title": "DeprecateRecipeRequest",
         "type": "object"
       },
       "DeregisterSupplyRequest": {
@@ -7815,6 +7881,105 @@
         "title": "ReceiptKind",
         "type": "string"
       },
+      "RecipeResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. `status` is the StrEnum's\nstring value (Defined / Versioned / Deprecated). `version` is\nthe operator-supplied label of the most recent `version_recipe`\ncall (null until first version). `steps` is the wire-format\ndict (BindingRef sentinels serialize as `{__binding__: name}`).\n`replaced_by_recipe_id` is null on Defined / Versioned /\nDeprecated-without-replacement; populated when a deprecation\nsupplied a successor pointer. `created_at` / `versioned_at` /\n`deprecated_at` are projection-sourced lifecycle timestamps\n(Path C); see module docstring for null semantics.",
+        "properties": {
+          "capability_id": {
+            "format": "uuid",
+            "title": "Capability Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "deprecated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deprecated At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "replaced_by_recipe_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaced By Recipe Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "additionalProperties": true,
+            "title": "Steps",
+            "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "versioned_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versioned At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "capability_id",
+          "status",
+          "version",
+          "steps",
+          "replaced_by_recipe_id"
+        ],
+        "title": "RecipeResponse",
+        "type": "object"
+      },
       "ReferenceSurface": {
         "description": "The physical feature of a part that a Placement is measured FROM.\n\nClosed enum; CORA precedent is the Affordance StrEnum. Widening\nrules and GD&T-term-collision rationale live in the module docstring.",
         "enum": [
@@ -8796,6 +8961,81 @@
           "mount_id"
         ],
         "title": "RegisterMountResponse",
+        "type": "object"
+      },
+      "RegisterProcedureFromRecipeRequest": {
+        "description": "Body for `POST /procedures/from-recipe`.",
+        "properties": {
+          "bindings": {
+            "additionalProperties": true,
+            "description": "Operator-supplied parameter values keyed by the parameter names declared in the bound Recipe's Capability's parameters_schema. Substituted into BindingRef sentinels at expansion time. Empty dict valid when the Recipe carries no BindingRefs.",
+            "title": "Bindings",
+            "type": "object"
+          },
+          "kind": {
+            "description": "Free-form ISA-106 procedure-kind discriminator (bakeout, calibration, alignment, recovery, etc.). Mirrors register_procedure's kind field exactly.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "description": "Operator-readable display name for the procedure. Mirrors register_procedure's name field exactly.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional parent Run binding. None = standalone procedure. Set = Phase-of-Run procedure.",
+            "title": "Parent Run Id"
+          },
+          "recipe_id": {
+            "description": "Recipe whose templated steps will be expanded into this Procedure. Loaded cross-BC at handler time; missing -> 404.",
+            "format": "uuid",
+            "title": "Recipe Id",
+            "type": "string"
+          },
+          "target_asset_ids": {
+            "description": "Asset ids this procedure acts on. May be empty (valid for facility-envelope procedures). Eventual-consistency: ids are NOT verified at register time.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Target Asset Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "recipe_id"
+        ],
+        "title": "RegisterProcedureFromRecipeRequest",
+        "type": "object"
+      },
+      "RegisterProcedureFromRecipeResponse": {
+        "description": "Response body for `POST /procedures/from-recipe`.",
+        "properties": {
+          "procedure_id": {
+            "format": "uuid",
+            "title": "Procedure Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "procedure_id"
+        ],
+        "title": "RegisterProcedureFromRecipeResponse",
         "type": "object"
       },
       "RegisterProcedureRequest": {
@@ -11470,6 +11710,30 @@
           "version_tag"
         ],
         "title": "VersionPracticeRequest",
+        "type": "object"
+      },
+      "VersionRecipeRequest": {
+        "description": "Body for `POST /recipes/{recipe_id}/version`.",
+        "properties": {
+          "steps": {
+            "additionalProperties": true,
+            "description": "Replacement step sequence for the new version (wholesale replace; the prior steps are dropped). BindingRef sentinels are re-validated against the CURRENT Capability.parameters_schema.",
+            "title": "Steps",
+            "type": "object"
+          },
+          "version_tag": {
+            "description": "Operator-supplied label for this revision (for example 'v2', '2026-Q3'). Free text; institution-specific. NOT constrained UNIQUE across versions; same tag + same steps re-emits the event as a re-attestation audit signal.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Version Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_tag",
+          "steps"
+        ],
+        "title": "VersionRecipeRequest",
         "type": "object"
       },
       "VisitType": {
@@ -27591,6 +27855,129 @@
         ]
       }
     },
+    "/procedures/from-recipe": {
+      "post": {
+        "operationId": "post_procedures_from_recipe_procedures_from_recipe_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the procedure.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the procedure.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterProcedureFromRecipeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterProcedureFromRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only name or kind)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Referenced Recipe does not exist OR Recipe's bound Capability does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Capability.executor_shapes does not include Procedure (cross-BC executor-shape guard)."
+          },
+          "422": {
+            "description": "Request body failed schema validation, OR Recipe's BindingRefs are stale against the current Capability parameters_schema, OR operator-supplied bindings did not validate against the Capability's parameters_schema, OR the expansion produced more than the configured cap."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Expansion port returned different results for the same (steps, bindings) input (server-side determinism bug)."
+          }
+        },
+        "summary": "Register a new Procedure by expanding a Recipe with operator bindings",
+        "tags": [
+          "operation"
+        ]
+      }
+    },
     "/procedures/{procedure_id}": {
       "get": {
         "operationId": "get_procedures_procedures__procedure_id__get",
@@ -28214,6 +28601,366 @@
         "summary": "Cleanup terminal of an interrupted Procedure (Running -> Truncated)",
         "tags": [
           "operation"
+        ]
+      }
+    },
+    "/recipes": {
+      "post": {
+        "operationId": "post_recipes_recipes_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Recipe.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Recipe.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineRecipeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineRecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only name, empty steps)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Referenced Capability does not exist."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR BindingRef in steps references a parameter not declared in the Capability's parameters_schema OR steps contain BindingRefs but the Capability has no parameters_schema."
+          }
+        },
+        "summary": "Define a new Recipe against an existing Capability",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}": {
+      "get": {
+        "operationId": "get_recipes_recipes__recipe_id__get",
+        "parameters": [
+          {
+            "description": "Target Recipe's id.",
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "description": "Target Recipe's id.",
+              "format": "uuid",
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Recipe exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a Recipe by id",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}/deprecate": {
+      "post": {
+        "operationId": "post_recipes_deprecate_recipes__recipe_id__deprecate_post",
+        "parameters": [
+          {
+            "description": "Target Recipe's id.",
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "description": "Target Recipe's id.",
+              "format": "uuid",
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeprecateRecipeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Recipe exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Recipe is already Deprecated."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Deprecate an existing Recipe",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/recipes/{recipe_id}/version": {
+      "post": {
+        "operationId": "post_recipes_version_recipes__recipe_id__version_post",
+        "parameters": [
+          {
+            "description": "Target Recipe's id.",
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "description": "Target Recipe's id.",
+              "format": "uuid",
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionRecipeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (whitespace-only version_tag, empty steps)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Recipe exists with the given id OR referenced Capability does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Recipe is currently Deprecated."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation OR BindingRef in steps references a parameter not declared in the current Capability.parameters_schema."
+          }
+        },
+        "summary": "Issue a new version label + replacement steps for a Recipe",
+        "tags": [
+          "recipe"
         ]
       }
     },
