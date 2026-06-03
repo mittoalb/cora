@@ -37,6 +37,24 @@ from fastapi.responses import JSONResponse
 
 from cora.equipment.aggregates._drawing import InvalidDrawingError
 from cora.equipment.aggregates._placement import InvalidPlacementError
+from cora.equipment.aggregates.assembly import (
+    AssemblyAlreadyExistsError,
+    AssemblyCannotDeprecateError,
+    AssemblyCannotInstantiateError,
+    AssemblyCannotVersionError,
+    AssemblyInstantiationAssetFamilyMismatchError,
+    AssemblyInstantiationMappingIncompleteError,
+    AssemblyInstantiationParameterOverridesInvalidError,
+    AssemblyNotFoundError,
+    FamilyNotFoundForAssemblyError,
+    InvalidAssemblyNameError,
+    InvalidParameterOverridesSchemaError,
+    InvalidSlotCardinalityError,
+    InvalidSlotNameError,
+    InvalidTemplateSlotError,
+    InvalidWireSpecError,
+    WireReferencesUnknownSlotError,
+)
 from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetAlternateIdentifierAlreadyPresentError,
@@ -123,6 +141,7 @@ from cora.equipment.features import (
     decommission_asset,
     decommission_frame,
     decommission_mount,
+    define_assembly,
     define_family,
     define_model,
     degrade_asset,
@@ -152,6 +171,7 @@ from cora.equipment.features import (
     update_family_settings_schema,
     update_frame_placement,
     update_mount_placement,
+    version_assembly,
     version_family,
     version_model,
 )
@@ -265,6 +285,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(decommission_mount.router)
     app.include_router(install_asset.router)
     app.include_router(uninstall_asset.router)
+    app.include_router(define_assembly.router)
+    app.include_router(version_assembly.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -290,6 +312,16 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidModelVersionTagError,
         InvalidModelDeprecationReasonError,
         InvalidDeclaredFamiliesError,
+        InvalidAssemblyNameError,
+        InvalidSlotNameError,
+        InvalidSlotCardinalityError,
+        InvalidTemplateSlotError,
+        InvalidWireSpecError,
+        WireReferencesUnknownSlotError,
+        InvalidParameterOverridesSchemaError,
+        AssemblyInstantiationMappingIncompleteError,
+        AssemblyInstantiationAssetFamilyMismatchError,
+        AssemblyInstantiationParameterOverridesInvalidError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -299,6 +331,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         MountNotFoundError,
         AssetNotFoundForMountError,
         ModelNotFoundError,
+        AssemblyNotFoundError,
+        FamilyNotFoundForAssemblyError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -307,6 +341,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameAlreadyExistsError,
         MountAlreadyExistsError,
         ModelAlreadyExistsError,
+        AssemblyAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -343,6 +378,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         ModelCannotRemoveFamilyError,
         ModelFamilyAlreadyPresentError,
         ModelFamilyNotPresentError,
+        AssemblyCannotVersionError,
+        AssemblyCannotDeprecateError,
+        AssemblyCannotInstantiateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
