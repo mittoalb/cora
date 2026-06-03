@@ -58,6 +58,7 @@ from cora.equipment.features import (
     list_assets,
     list_families,
     register_asset,
+    register_fixture,
     register_frame,
     register_mount,
     relocate_asset,
@@ -155,6 +156,7 @@ class EquipmentHandlers:
     define_assembly: define_assembly.IdempotentHandler
     version_assembly: version_assembly.Handler
     deprecate_assembly: deprecate_assembly.Handler
+    register_fixture: register_fixture.IdempotentHandler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -423,6 +425,18 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         deprecate_assembly=with_tracing(
             deprecate_assembly.bind(deps),
             command_name="DeprecateAssembly",
+            bc=_BC,
+        ),
+        register_fixture=with_tracing(
+            with_idempotency(
+                register_fixture.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterFixture",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterFixture",
             bc=_BC,
         ),
     )

@@ -87,6 +87,7 @@ _ALLOW_RELATIVE_PATHS: frozenset[str] = frozenset(
         "apps/api/tests/contract/test_version_assembly_mcp_tool.py",
         "apps/api/tests/integration/test_define_assembly_handler_postgres.py",
         "apps/api/tests/integration/test_deprecate_assembly_handler_postgres.py",
+        "apps/api/tests/integration/test_register_fixture_handler_postgres.py",
         "apps/api/tests/integration/test_version_assembly_handler_postgres.py",
         "apps/api/tests/unit/equipment/test_define_assembly_decider_properties.py",
         "apps/api/tests/unit/equipment/test_deprecate_assembly_decider.py",

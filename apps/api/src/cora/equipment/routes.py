@@ -42,11 +42,12 @@ from cora.equipment.aggregates.assembly import (
     AssemblyCannotDeprecateError,
     AssemblyCannotInstantiateError,
     AssemblyCannotVersionError,
-    AssemblyInstantiationAssetFamilyMismatchError,
-    AssemblyInstantiationMappingIncompleteError,
-    AssemblyInstantiationParameterOverridesInvalidError,
     AssemblyNotFoundError,
     FamilyNotFoundForAssemblyError,
+    FixtureAssetFamilyMismatchError,
+    FixtureAssetNotFoundError,
+    FixtureMappingIncompleteError,
+    FixtureParameterOverridesInvalidError,
     InvalidAssemblyNameError,
     InvalidParameterOverridesSchemaError,
     InvalidSlotCardinalityError,
@@ -88,6 +89,7 @@ from cora.equipment.aggregates.family import (
     InvalidFamilySettingsSchemaError,
     InvalidFamilyVersionTagError,
 )
+from cora.equipment.aggregates.fixture import FixtureAlreadyExistsError
 from cora.equipment.aggregates.frame import (
     FrameAlreadyExistsError,
     FrameCannotDecommissionError,
@@ -159,6 +161,7 @@ from cora.equipment.features import (
     list_assets,
     list_families,
     register_asset,
+    register_fixture,
     register_frame,
     register_mount,
     relocate_asset,
@@ -289,6 +292,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(define_assembly.router)
     app.include_router(version_assembly.router)
     app.include_router(deprecate_assembly.router)
+    app.include_router(register_fixture.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -321,9 +325,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidWireSpecError,
         WireReferencesUnknownSlotError,
         InvalidParameterOverridesSchemaError,
-        AssemblyInstantiationMappingIncompleteError,
-        AssemblyInstantiationAssetFamilyMismatchError,
-        AssemblyInstantiationParameterOverridesInvalidError,
+        FixtureMappingIncompleteError,
+        FixtureAssetFamilyMismatchError,
+        FixtureParameterOverridesInvalidError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -335,6 +339,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         ModelNotFoundError,
         AssemblyNotFoundError,
         FamilyNotFoundForAssemblyError,
+        FixtureAssetNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -344,6 +349,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         MountAlreadyExistsError,
         ModelAlreadyExistsError,
         AssemblyAlreadyExistsError,
+        FixtureAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (

@@ -13,6 +13,7 @@ from cora.equipment.projections import (
     AssetLocationProjection,
     AssetSummaryProjection,
     FamilySummaryProjection,
+    FixtureSummaryProjection,
     FrameChildrenProjection,
     FrameConsumersProjection,
     FrameSummaryProjection,
@@ -43,6 +44,7 @@ def register_equipment_projections(
     registry.register(MountChildrenProjection())
     registry.register(AssetLocationProjection())
     registry.register(AssemblySummaryProjection())
+    registry.register(FixtureSummaryProjection())
 
 
 __all__ = ["register_equipment_projections"]

@@ -3,7 +3,7 @@
 `load_assembly(event_store, assembly_id) -> Assembly | None` mirrors
 `load_mount` / `load_frame` / `load_asset`. Used by update-style
 commands (`version_assembly`, `deprecate_assembly`,
-`instantiate_assembly`) that need to load + fold before deciding.
+`register_fixture`) that need to load + fold before deciding.
 """
 
 from uuid import UUID

@@ -47,6 +47,7 @@ from cora.equipment.features.install_asset import tool as install_asset_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
 from cora.equipment.features.list_families import tool as list_families_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
+from cora.equipment.features.register_fixture import tool as register_fixture_tool
 from cora.equipment.features.register_frame import tool as register_frame_tool
 from cora.equipment.features.register_mount import tool as register_mount_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
@@ -252,4 +253,8 @@ def register_equipment_tools(
     deprecate_assembly_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deprecate_assembly,
+    )
+    register_fixture_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_fixture,
     )

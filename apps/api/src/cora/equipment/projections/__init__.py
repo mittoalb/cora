@@ -12,6 +12,7 @@ from cora.equipment.projections.asset_family_membership import (
 )
 from cora.equipment.projections.asset_location import AssetLocationProjection
 from cora.equipment.projections.family import FamilySummaryProjection
+from cora.equipment.projections.fixture_summary import FixtureSummaryProjection
 from cora.equipment.projections.frame_children import FrameChildrenProjection
 from cora.equipment.projections.frame_consumers import FrameConsumersProjection
 from cora.equipment.projections.frame_summary import FrameSummaryProjection
@@ -26,6 +27,7 @@ __all__ = [
     "AssetLocationProjection",
     "AssetSummaryProjection",
     "FamilySummaryProjection",
+    "FixtureSummaryProjection",
     "FrameChildrenProjection",
     "FrameConsumersProjection",
     "FrameSummaryProjection",

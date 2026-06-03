@@ -13,9 +13,9 @@ Event catalog (3, scaffold-only):
                            append-only mirroring CalibrationRevision)
   - `AssemblyDeprecated`  (terminal lifecycle)
 
-`AssemblyInstantiated` is a fourth event in the design memo but
-lives on a separate `assembly_instantiation` stream and ships with
-the `instantiate_assembly` slice. Keeping it out of this scaffold
+`FixtureRegistered` is a fourth event in the design memo but lives
+on a separate `Fixture` stream (its own aggregate) and ships with
+the `register_fixture` slice. Keeping it out of this scaffold
 module keeps the discriminated union focused on the main-stream
 events that the Assembly evolver folds.
 
@@ -172,7 +172,7 @@ class AssemblyVersioned:
 class AssemblyDeprecated:
     """The Assembly was retired from active use.
 
-    Terminal lifecycle transition. Subsequent `instantiate_assembly`
+    Terminal lifecycle transition. Subsequent `register_fixture`
     calls reject. New revisions must fork via `define_assembly` with
     a fresh id.
 

@@ -12,13 +12,13 @@ from cora.equipment.aggregates.assembly import (
     AssemblyCannotDeprecateError,
     AssemblyCannotInstantiateError,
     AssemblyCannotVersionError,
-    AssemblyInstantiationAssetFamilyMismatchError,
-    AssemblyInstantiationMappingIncompleteError,
-    AssemblyInstantiationParameterOverridesInvalidError,
     AssemblyName,
     AssemblyNotFoundError,
     AssemblyStatus,
     FamilyNotFoundForAssemblyError,
+    FixtureAssetFamilyMismatchError,
+    FixtureMappingIncompleteError,
+    FixtureParameterOverridesInvalidError,
     InvalidAssemblyNameError,
     InvalidParameterOverridesSchemaError,
     InvalidSlotCardinalityError,
@@ -234,19 +234,17 @@ def test_invalid_parameter_overrides_schema_carries_reason() -> None:
 
 
 @pytest.mark.unit
-def test_assembly_instantiation_mapping_incomplete_carries_slot_and_reason() -> None:
-    err = AssemblyInstantiationMappingIncompleteError(
-        "camera", "Exactly1 slot received zero Assets"
-    )
+def test_fixture_mapping_incomplete_carries_slot_and_reason() -> None:
+    err = FixtureMappingIncompleteError("camera", "Exactly1 slot received zero Assets")
     assert err.slot_name == "camera"
     assert err.reason == "Exactly1 slot received zero Assets"
     assert "camera" in str(err)
 
 
 @pytest.mark.unit
-def test_assembly_instantiation_asset_family_mismatch_carries_slot_and_asset() -> None:
+def test_fixture_asset_family_mismatch_carries_slot_and_asset() -> None:
     asset_id = uuid4()
-    err = AssemblyInstantiationAssetFamilyMismatchError("rotary", asset_id)
+    err = FixtureAssetFamilyMismatchError("rotary", asset_id)
     assert err.slot_name == "rotary"
     assert err.asset_id == asset_id
     assert "rotary" in str(err)
@@ -254,7 +252,7 @@ def test_assembly_instantiation_asset_family_mismatch_carries_slot_and_asset() -
 
 
 @pytest.mark.unit
-def test_assembly_instantiation_parameter_overrides_invalid_carries_reason() -> None:
-    err = AssemblyInstantiationParameterOverridesInvalidError("exposure_ms must be <= 60000")
+def test_fixture_parameter_overrides_invalid_carries_reason() -> None:
+    err = FixtureParameterOverridesInvalidError("exposure_ms must be <= 60000")
     assert err.reason == "exposure_ms must be <= 60000"
     assert "exposure_ms" in str(err)

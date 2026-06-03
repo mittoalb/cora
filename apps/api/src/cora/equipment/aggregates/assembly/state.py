@@ -28,7 +28,7 @@ the same Assembly converge on the same hash.
 frozenset[TemplateWire]` BOTH key by `slot_name` (string), NOT by
 Asset UUID. Reason: an Assembly is a template; the Assets it
 references do not exist at template-definition time. Slot-to-asset
-translation happens at `instantiate_assembly` time.
+translation happens at `register_fixture` time.
 This inverts the timing of Plan.wires validation, which has access
 to concrete Asset.ports and so enforces direction + signal-type +
 fan-in at write time.
@@ -153,7 +153,7 @@ class InvalidWireSpecError(ValueError):
         with DIFFERENT ports is allowed (PandABox LUT pattern).
 
     Direction, signal_type, and fan-in are NOT checked here; those
-    fire at `instantiate_assembly` time against materialized
+    fire at `register_fixture` time against materialized
     Asset.ports.
     """
 
@@ -275,8 +275,23 @@ class FamilyNotFoundForAssemblyError(Exception):
         self.family_id = family_id
 
 
-class AssemblyInstantiationMappingIncompleteError(Exception):
-    """`instantiate_assembly`'s slot_to_asset_mapping does not satisfy
+class FixtureAssetNotFoundError(Exception):
+    """An asset_id referenced by `register_fixture`'s
+    `slot_asset_bindings` does not resolve to a registered Asset.
+
+    Handler-side projection check; mirrors
+    FamilyNotFoundForAssemblyError. Distinct from the Asset BC's
+    AssetNotFoundError so the route mapping stays scoped to the
+    register_fixture call site; both map to 404 today.
+    """
+
+    def __init__(self, asset_id: UUID) -> None:
+        super().__init__(f"Asset {asset_id} not found")
+        self.asset_id = asset_id
+
+
+class FixtureMappingIncompleteError(Exception):
+    """`register_fixture`'s slot_asset_bindings does not satisfy
     the required cardinality of one or more slots.
 
     Example failure modes:
@@ -285,13 +300,13 @@ class AssemblyInstantiationMappingIncompleteError(Exception):
     """
 
     def __init__(self, slot_name: str, reason: str) -> None:
-        super().__init__(f"Slot {slot_name!r} cardinality not satisfied at instantiation: {reason}")
+        super().__init__(f"Slot {slot_name!r} cardinality not satisfied for Fixture: {reason}")
         self.slot_name = slot_name
         self.reason = reason
 
 
-class AssemblyInstantiationAssetFamilyMismatchError(Exception):
-    """A mapped Asset's `families` do not intersect the TemplateSlot's
+class FixtureAssetFamilyMismatchError(Exception):
+    """A mapped Asset's `family_ids` do not intersect the TemplateSlot's
     `required_family_ids`."""
 
     def __init__(self, slot_name: str, asset_id: UUID) -> None:
@@ -303,9 +318,14 @@ class AssemblyInstantiationAssetFamilyMismatchError(Exception):
         self.asset_id = asset_id
 
 
-class AssemblyInstantiationParameterOverridesInvalidError(Exception):
-    """`instantiate_assembly`'s parameter_overrides dict fails the
-    Assembly's parameter_overrides_schema validation."""
+class FixtureParameterOverridesInvalidError(ValueError):
+    """`register_fixture`'s parameter_overrides dict fails the
+    Assembly's parameter_overrides_schema validation.
+
+    Subclasses ValueError so it satisfies the
+    `validate_values_against_schema(error_class=...)` parameter type
+    (the shared validator only accepts ValueError subclasses).
+    """
 
     def __init__(self, reason: str) -> None:
         super().__init__(f"Assembly parameter_overrides invalid: {reason}")
