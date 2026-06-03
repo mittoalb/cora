@@ -145,6 +145,7 @@ from cora.equipment.features import (
     define_family,
     define_model,
     degrade_asset,
+    deprecate_assembly,
     deprecate_family,
     deprecate_model,
     enter_asset_maintenance,
@@ -287,6 +288,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(uninstall_asset.router)
     app.include_router(define_assembly.router)
     app.include_router(version_assembly.router)
+    app.include_router(deprecate_assembly.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,

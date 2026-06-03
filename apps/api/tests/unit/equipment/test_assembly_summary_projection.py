@@ -48,16 +48,9 @@ def test_projection_metadata() -> None:
         {
             "AssemblyDefined",
             "AssemblyVersioned",
+            "AssemblyDeprecated",
         }
     )
-
-
-@pytest.mark.unit
-def test_projection_does_not_subscribe_to_deprecated_yet() -> None:
-    """The Deprecated arm lands with the deprecate_assembly slice
-    per the slice-per-commit discipline."""
-    proj = AssemblySummaryProjection()
-    assert "AssemblyDeprecated" not in proj.subscribed_event_types
 
 
 @pytest.mark.unit
@@ -148,6 +141,26 @@ async def test_assembly_versioned_updates_status_name_family_version_hash() -> N
     assert args.args[3] == new_family_id
     assert args.args[4] == "v0.2.0"
     assert args.args[5] == "c" * 64
+
+
+@pytest.mark.unit
+async def test_assembly_deprecated_updates_status_to_deprecated() -> None:
+    proj = AssemblySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "AssemblyDeprecated",
+        {
+            "assembly_id": str(_ASSEMBLY_ID),
+            "reason": "superseded",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    args = conn.execute.await_args
+    assert args is not None
+    # Single positional after the SQL: the assembly_id.
+    assert args.args[1] == _ASSEMBLY_ID
+    assert "Deprecated" in args.args[0]
 
 
 @pytest.mark.unit

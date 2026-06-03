@@ -44,6 +44,7 @@ from cora.equipment.features import (
     define_family,
     define_model,
     degrade_asset,
+    deprecate_assembly,
     deprecate_family,
     deprecate_model,
     enter_asset_maintenance,
@@ -153,6 +154,7 @@ class EquipmentHandlers:
     uninstall_asset: uninstall_asset.Handler
     define_assembly: define_assembly.IdempotentHandler
     version_assembly: version_assembly.Handler
+    deprecate_assembly: deprecate_assembly.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -416,6 +418,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         version_assembly=with_tracing(
             version_assembly.bind(deps),
             command_name="VersionAssembly",
+            bc=_BC,
+        ),
+        deprecate_assembly=with_tracing(
+            deprecate_assembly.bind(deps),
+            command_name="DeprecateAssembly",
             bc=_BC,
         ),
     )

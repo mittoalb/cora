@@ -50,6 +50,13 @@ SET status = 'Versioned',
 WHERE assembly_id = $1
 """
 
+_UPDATE_DEPRECATED_SQL = """
+UPDATE proj_equipment_assembly_summary
+SET status = 'Deprecated',
+    updated_at = now()
+WHERE assembly_id = $1
+"""
+
 
 class AssemblySummaryProjection:
     """Maintains the `proj_equipment_assembly_summary` read model."""
@@ -59,6 +66,7 @@ class AssemblySummaryProjection:
         {
             "AssemblyDefined",
             "AssemblyVersioned",
+            "AssemblyDeprecated",
         }
     )
 
@@ -88,6 +96,11 @@ class AssemblySummaryProjection:
                     UUID(str(payload["presents_as_family_id"])),
                     payload.get("version"),
                     payload["content_hash"],
+                )
+            case "AssemblyDeprecated":
+                await conn.execute(
+                    _UPDATE_DEPRECATED_SQL,
+                    _id(event.payload),
                 )
             case _:
                 pass

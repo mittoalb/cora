@@ -27,6 +27,7 @@ from cora.equipment.features.define_assembly import tool as define_assembly_tool
 from cora.equipment.features.define_family import tool as define_family_tool
 from cora.equipment.features.define_model import tool as define_model_tool
 from cora.equipment.features.degrade_asset import tool as degrade_asset_tool
+from cora.equipment.features.deprecate_assembly import tool as deprecate_assembly_tool
 from cora.equipment.features.deprecate_family import (
     tool as deprecate_family_tool,
 )
@@ -247,4 +248,8 @@ def register_equipment_tools(
     version_assembly_tool.register(
         mcp,
         get_handler=lambda: get_handlers().version_assembly,
+    )
+    deprecate_assembly_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_assembly,
     )
