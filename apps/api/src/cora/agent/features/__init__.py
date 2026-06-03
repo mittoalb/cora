@@ -9,10 +9,10 @@ Foundation:
   - `get_agent`       (read; fold-on-read)
 
 On-demand re-invocation:
-  - `re_debrief_run`  (operator-triggered on-demand RunDebriefer
-                       re-invocation; cross-BC writes a Decision;
-                       idempotency-wrapped; Pattern C from the
-                       design memo)
+  - `regenerate_run_debrief`  (operator-triggered on-demand RunDebriefer
+                               re-invocation; cross-BC writes a Decision;
+                               idempotency-wrapped; Pattern C from the
+                               design memo)
 
 Lifecycle + grants + budget:
   - `suspend_agent`         (Versioned -> Suspended; non-terminal)
@@ -33,15 +33,23 @@ Caution-proposal promotion:
                                 idempotency-wrapped; Pattern C)
 
 Also: deprecate's source set widens to include Suspended.
+
+Reaction recovery:
+  - `dismiss_event_in_reaction` (operator-triggered atomic bookmark
+                                 advance + DecisionRegistered audit
+                                 via append_streams(conn=); recovers
+                                 a wedged Reaction bookmark without
+                                 SSH access to projection_bookmarks)
 """
 
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
+    dismiss_event_in_reaction,
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
-    re_debrief_run,
+    regenerate_run_debrief,
     resume_agent,
     revise_agent_budget,
     revoke_tool_from_agent,
@@ -52,10 +60,11 @@ from cora.agent.features import (
 __all__ = [
     "define_agent",
     "deprecate_agent",
+    "dismiss_event_in_reaction",
     "get_agent",
     "grant_tool_to_agent",
     "promote_caution_proposal",
-    "re_debrief_run",
+    "regenerate_run_debrief",
     "resume_agent",
     "revise_agent_budget",
     "revoke_tool_from_agent",

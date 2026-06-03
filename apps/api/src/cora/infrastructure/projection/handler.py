@@ -1,16 +1,30 @@
-"""Projection Protocol + the internal Subscriber primitive it satisfies.
+"""Projection + Reaction Protocols, both satisfying the internal Subscriber primitive.
 
-`Projection` is the public concept users write per BC. `Subscriber` is
-the framework-internal primitive the worker advances along the event
-stream; today every Subscriber is a Projection. Future sagas / external
-adapters land as additional Protocols satisfying Subscriber, sharing
-the same advance machinery without duplicating it.
+Two public kinds of Subscriber:
 
-The Protocols are structurally identical right now (same field set,
-same callable shape). The split is intentional: it documents the
-extensibility seam without surfacing two concepts to BC authors. When
-a saga framework lands, the worker iterates `Subscriber`-shaped
-objects regardless of whether they happen to be Projections or Sagas.
+  - `Projection`: read-side fold of an event stream into a queryable
+    `proj_*` table. Fast (sub-millisecond apply), batches large
+    (`batch_size=100` default), idempotent at the SQL layer
+    (`ON CONFLICT`). Failure mode: stale read model until next poll.
+
+  - `Reaction`: side-effecting consumer that produces NEW events
+    (often cross-BC) or calls the outside world (LLMs, storage,
+    signers). Slow (LLM-bounded, 5-15 s apply), batches small
+    (`batch_size=1` recommended), idempotent via deterministic
+    UUIDv5 stream ids + `expected_version=0` + `ConcurrencyError`-
+    as-no-op. Failure mode: wedged bookmark on poison event;
+    recoverable via the `dismiss_event_in_reaction` operator slice.
+
+`Subscriber` is the framework-internal primitive the worker advances
+along the event stream; both Projection and Reaction satisfy it via
+structural typing. The worker iterates Subscribers without caring
+which kind they are; per-subscriber `batch_size` lets each kind tune
+its own throughput vs latency tradeoff.
+
+The Protocols are structurally identical today (same field set, same
+callable shape). The split is operational, not type-theoretic: it
+documents the two distinct failure-and-tuning regimes a BC author is
+opting into.
 """
 
 from typing import Any, Protocol, runtime_checkable
@@ -25,21 +39,36 @@ from cora.infrastructure.ports.event_store import StoredEvent
 # adopt the same pattern.
 ConnectionLike = Any
 
+# Worker-level default batch size when a Subscriber declines to
+# declare its own. Projections inherit this implicitly; Reactions
+# should override to 1 (slow LLM call should not hold a pool
+# connection across N events).
+DEFAULT_BATCH_SIZE = 100
+
 
 @runtime_checkable
 class Subscriber(Protocol):
     """Internal framework primitive: anything the projection worker
     advances along the event stream via a bookmark.
 
-    Not exported publicly. Today every Subscriber is a Projection;
-    future sagas / external adapters will satisfy this Protocol too.
+    Not exported publicly as a vocabulary BC authors write against;
+    they write Projections or Reactions. Both satisfy this Protocol
+    via structural typing.
 
-    `name` and `subscribed_event_types` are declared as plain attrs
-    (not ClassVar) so test fixtures can construct varying instances
-    inline. Production projections typically declare them as
-    `ClassVar` constants at the class level since they're immutable
-    per projection — that satisfies this Protocol via structural
+    `name`, `subscribed_event_types`, and `batch_size` are declared
+    as plain attrs (not ClassVar) so test fixtures can construct
+    varying instances inline. Production subscribers typically
+    declare them as class-level constants since they're immutable
+    per subscriber — that satisfies this Protocol via structural
     typing.
+
+    `batch_size` is intentionally NOT on the Subscriber Protocol so
+    the 14 existing Projections that pre-date the per-subscriber knob
+    continue to satisfy the contract without a sweeping update. The
+    worker reads `getattr(subscriber, "batch_size", DEFAULT_BATCH_SIZE)`
+    so a Subscriber that omits the attribute inherits the default
+    transparently. The Reaction Protocol DOES require `batch_size`
+    because Reactions must opt into the slow-batch-1 regime explicitly.
     """
 
     name: str
@@ -114,6 +143,14 @@ class Projection(Protocol):
       - Per-projection bookmarks mean projections advance independently
         and at their own pace. One projection lagging does not block
         others.
+
+      - `batch_size` is intentionally NOT in the Projection Protocol.
+        The worker reads `getattr(projection, "batch_size", DEFAULT_BATCH_SIZE)`
+        so a Projection that overrides it (e.g., a high-throughput
+        projection that wants 250) wins, and one that omits it
+        inherits the default 100 transparently. Reactions, by
+        contrast, MUST declare `batch_size` because the Reaction
+        Protocol enforces the opt-in to the slow-apply regime.
     """
 
     name: str
@@ -132,4 +169,91 @@ class Projection(Protocol):
         ...
 
 
-__all__ = ["ConnectionLike", "Projection", "Subscriber"]
+@runtime_checkable
+class Reaction(Protocol):
+    """Side-effecting Subscriber: consumes events and produces NEW
+    events (often into other BCs) or calls the outside world
+    (LLMs, storage, signing services).
+
+    Parallel to `Projection`; both satisfy `Subscriber`. The split
+    is operational, not type-theoretic:
+
+      - Projections are fast (sub-millisecond apply), batch large
+        (`batch_size=100` default), and idempotent at the SQL layer
+        (`ON CONFLICT`). Their failure mode is "stale read model
+        until next poll" and the operator playbook is "wait."
+
+      - Reactions are slow (LLM-bounded, 5-15 s apply), batch small
+        (`batch_size=1` recommended), and idempotent via
+        deterministic UUIDv5 stream ids + `expected_version=0` +
+        `ConcurrencyError`-as-no-op. Their failure mode is "wedged
+        bookmark on poison event" and the operator playbook is the
+        `dismiss_event_in_reaction` slice.
+
+    Contract:
+
+      - `batch_size` SHOULD be 1 unless the apply path is provably
+        fast (no LLM call, no external HTTP, no signer round-trip).
+        Holding a pool connection across N * 15 s LLM calls
+        starves Projection advance loops sharing the same pool.
+
+      - `apply` MUST achieve at-most-once delivery via deterministic
+        stream-id derivation. Pattern: derive the side-effect's
+        stream_id as `uuid5(NAMESPACE_OID, f"{name}:{event.event_id}")`
+        and call `event_store.append(...,  expected_version=0)`; catch
+        `ConcurrencyError` and treat as success (the side effect was
+        already applied on a previous attempt).
+
+      - `apply` runs INSIDE the worker's advance transaction. The
+        bookmark advance + any conn-bound writes commit together; if
+        `apply` raises, the entire batch rolls back and the bookmark
+        stays at its previous position so the same events are retried
+        on the next iteration.
+
+      - Cross-BC `EventStore.append` calls inside `apply` use a
+        SEPARATE pool connection from the advance loop's connection.
+        Cross-TX writes are unavoidable for cross-BC side effects;
+        the UUIDv5 + ConcurrencyError pattern absorbs the resulting
+        at-least-once retries.
+
+      - The cross-BC append cannot be rolled back if the bookmark
+        update later fails. Reactions writing to multiple BC streams
+        in one `apply` accept this asymmetry by design: the side
+        effect is recorded; the worker re-fires; the second attempt
+        is absorbed by ConcurrencyError.
+
+    Operational notes:
+
+      - Wedge recovery: if `apply` raises a non-recoverable error
+        (poison event, schema drift, deserialization failure), the
+        bookmark stays put and `consecutive_failures` increments on
+        each retry. Operator response: invoke the
+        `dismiss_event_in_reaction` slice to advance the bookmark
+        past the poison event with an auditable Decision.
+
+      - Today every Reaction runs in the same pool as Projections.
+        Watch-item: when a third Reaction lands OR the first wedge
+        incident occurs, split off a `ReactionWorker` with its own
+        pool budget.
+    """
+
+    name: str
+    subscribed_event_types: frozenset[str]
+    batch_size: int
+
+    async def apply(
+        self,
+        event: StoredEvent,
+        conn: ConnectionLike,
+    ) -> None:
+        """Apply a single event by emitting NEW events or calling
+        the outside world.
+
+        At-most-once delivery is the Reaction author's responsibility
+        (deterministic UUIDv5 stream id + ConcurrencyError catch);
+        the framework delivers at-least-once.
+        """
+        ...
+
+
+__all__ = ["DEFAULT_BATCH_SIZE", "ConnectionLike", "Projection", "Reaction", "Subscriber"]

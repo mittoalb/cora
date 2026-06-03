@@ -27,7 +27,7 @@ as JSON-friendly strings IF carried in an event payload. Today they
 aren't: state holds the enum (typed) and the evolver derives the new
 status from the event TYPE (for example, folding `SubjectMounted` always
 produces `status=MOUNTED`), exactly mirroring the
-`ActorDeactivated -> is_active=False` precedent. The status field
+`ActorDeactivated -> active=False` precedent. The status field
 never appears in an event payload — the event type IS the
 state-change indicator.
 
@@ -38,7 +38,7 @@ evolver folds via `SubjectStatus(payload["status"])` and the bridge
 becomes load-bearing. Until then the bridge is theoretical.
 
 `SubjectRegistered` implies `Received` (genesis state set by the
-evolver). Same additive-state pattern as `Actor.is_active`: the
+evolver). Same additive-state pattern as `Actor.active`: the
 field exists in state with a default, and future events that change
 it land additively.
 

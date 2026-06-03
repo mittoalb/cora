@@ -452,7 +452,7 @@ async def install_aps_unit(
         DefinePolicy(
             name=f"{unit_name} Operations Policy",
             conduit_id=BM2_LOCAL_CONDUIT_ID,
-            permitted_principals=frozenset(OPERATOR_POOL_IDS),
+            permitted_principal_ids=frozenset(OPERATOR_POOL_IDS),
             permitted_commands=_OPERATIONS_COMMANDS,
         ),
         principal_id=principal_id,
@@ -462,7 +462,7 @@ async def install_aps_unit(
         DefinePolicy(
             name=f"{unit_name} Agent Policy",
             conduit_id=BM2_LOCAL_CONDUIT_ID,
-            permitted_principals=frozenset({RUN_DEBRIEF_ACTOR_ID}),
+            permitted_principal_ids=frozenset({RUN_DEBRIEF_ACTOR_ID}),
             permitted_commands=_AGENT_COMMANDS,
         ),
         principal_id=principal_id,

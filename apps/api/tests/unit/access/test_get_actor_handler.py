@@ -1,7 +1,7 @@
 """Unit tests for the `get_actor` query handler.
 
 PII vault: the handler returns `ActorView`, a composition of the
-Actor aggregate state (id / kind / is_active) plus the display name
+Actor aggregate state (id / kind / active) plus the display name
 resolved from the `actor_profile` PII vault via
 `load_actor_display_name`. Tests pass the InMemoryProfileStore
 through the handler so the round-trip register → get exercises
@@ -54,7 +54,7 @@ async def test_handler_returns_actor_view_for_known_id() -> None:
     )
 
     assert view is not None
-    assert view.actor == Actor(id=_NEW_ID, is_active=True)
+    assert view.actor == Actor(id=_NEW_ID, active=True)
     assert view.display_name == "Doga"
 
 
@@ -94,7 +94,7 @@ async def test_handler_returns_view_with_is_active_false_after_deactivation() ->
     )
 
     assert view is not None
-    assert view.actor.is_active is False
+    assert view.actor.active is False
     assert view.display_name == "Doga"
 
 

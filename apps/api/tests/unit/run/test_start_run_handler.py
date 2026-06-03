@@ -55,10 +55,10 @@ from cora.recipe.aggregates.practice.events import (
 )
 from cora.run import RunHandlers, UnauthorizedError, wire_run
 from cora.run.aggregates.run import (
-    PlanDeprecatedError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCapabilitiesNotSatisfiedError,
-    SubjectNotMountableError,
+    RunPlanAssetDecommissionedError,
+    RunSubjectNotMountableError,
 )
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
@@ -116,12 +116,12 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_families: frozenset[UUID] = frozenset(),
+    needed_family_ids: frozenset[UUID] = frozenset(),
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=tuple(sorted(needed_families, key=str)),
+        needed_family_ids=tuple(sorted(needed_family_ids, key=str)),
         occurred_at=_NOW,
     )
     await _append(
@@ -225,7 +225,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=tuple(sorted(asset_ids, key=str)),
         method_id=method_id,
-        method_needed_families_snapshot=(),
+        method_needed_family_ids_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -303,7 +303,7 @@ async def _seed_full_chain(
 
     asset_caps: frozenset[UUID] = frozenset() if drift_capability_off_asset else frozenset({cap_id})
     await _seed_asset(store, asset_id, capabilities=asset_caps, decommissioned=asset_decommissioned)
-    await _seed_method(store, method_id, needed_families=frozenset({cap_id}))
+    await _seed_method(store, method_id, needed_family_ids=frozenset({cap_id}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_plan(
         store,
@@ -557,7 +557,7 @@ async def test_handler_propagates_plan_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(PlanDeprecatedError):
+    with pytest.raises(RunBoundPlanDeprecatedError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=None),
             principal_id=_PRINCIPAL_ID,
@@ -598,7 +598,7 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(SubjectNotMountableError):
+    with pytest.raises(RunSubjectNotMountableError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=subject_id),
             principal_id=_PRINCIPAL_ID,
@@ -613,7 +613,7 @@ async def test_handler_propagates_run_asset_decommissioned_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = start_run.bind(deps)
 
-    with pytest.raises(RunAssetDecommissionedError):
+    with pytest.raises(RunPlanAssetDecommissionedError):
         await handler(
             StartRun(name="X", plan_id=plan_id, subject_id=None),
             principal_id=_PRINCIPAL_ID,

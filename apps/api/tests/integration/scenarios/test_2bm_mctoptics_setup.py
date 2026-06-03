@@ -103,8 +103,10 @@ from cora.calibration.aggregates.calibration import (
     AssertedSource,
     CalibrationStatus,
 )
-from cora.calibration.features.append_revision import AppendRevision
-from cora.calibration.features.append_revision import bind as bind_append_revision
+from cora.calibration.features.append_calibration_revision import AppendCalibrationRevision
+from cora.calibration.features.append_calibration_revision import (
+    bind as bind_append_calibration_revision,
+)
 from cora.calibration.features.define_calibration import DefineCalibration
 from cora.calibration.features.define_calibration import bind as bind_define_calibration
 from cora.calibration.quantities import CalibrationQuantity
@@ -508,7 +510,7 @@ def _id_queue() -> list[UUID]:
         e(),
         e(),
         e(),
-        # define_calibration + append_revision x 4: per Calibration the
+        # define_calibration + append_calibration_revision x 4: per Calibration the
         # ceremony is (cal_id, def_event_id, rev_id, rev_event_id).
         _CAL_MAG_OBJ_0_ID,
         e(),
@@ -570,7 +572,7 @@ _NEW_FAMILY_SCHEMAS: tuple[tuple[UUID, dict[str, Any]], ...] = (
 
 # (asset_id, parent_id, asset_name, level)
 _NEW_ASSET_REGISTRATIONS: tuple[tuple[UUID, UUID, str, AssetLevel], ...] = (
-    (_ASSET_MCTOPTICS_ID, _2BM_UNIT_ID, "MCTOptics", AssetLevel.ASSEMBLY),
+    (_ASSET_MCTOPTICS_ID, _2BM_UNIT_ID, "MCTOptics", AssetLevel.COMPONENT),
     (
         _ASSET_MCTOPTICS_OBJECTIVE_0_ID,
         _ASSET_MCTOPTICS_ID,
@@ -905,8 +907,8 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-        await bind_append_revision(deps)(
-            AppendRevision(
+        await bind_append_calibration_revision(deps)(
+            AppendCalibrationRevision(
                 calibration_id=cal_id,
                 value=value,
                 status=CalibrationStatus.PROVISIONAL,
@@ -929,7 +931,7 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
         DefineMethod(
             capability_id=_CAPABILITY_RECIPE_ID,
             name="mctoptics_image_acquisition",
-            needed_families=frozenset({_CAP_MICROSCOPE_ID, _CAP_CAMERA_ID}),
+            needed_family_ids=frozenset({_CAP_MICROSCOPE_ID, _CAP_CAMERA_ID}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

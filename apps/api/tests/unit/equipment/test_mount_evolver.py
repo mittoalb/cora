@@ -27,7 +27,7 @@ from cora.equipment.aggregates.mount.state import SlotCode
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 
 
-def _placement(parent_frame: object, *, z: float = 259313.0) -> Placement:
+def _placement(parent_frame_id: object, *, z: float = 259313.0) -> Placement:
     return Placement(
         x=0.0,
         y=0.0,
@@ -35,7 +35,7 @@ def _placement(parent_frame: object, *, z: float = 259313.0) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame_id=parent_frame,  # type: ignore[arg-type]
+        parent_frame_id=parent_frame_id,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.25,
         tol_y=0.25,

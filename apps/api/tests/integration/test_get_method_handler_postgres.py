@@ -44,7 +44,7 @@ async def test_get_method_loads_state_from_real_postgres(
         DefineMethod(
             name="XRF Fly Mapping",
             capability_id=_CAPABILITY_ID,
-            needed_families=frozenset({cap1, cap2}),
+            needed_family_ids=frozenset({cap1, cap2}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -59,7 +59,7 @@ async def test_get_method_loads_state_from_real_postgres(
     assert view is not None
     assert view.method.id == method_id
     assert view.method.name == MethodName("XRF Fly Mapping")
-    assert view.method.needed_families == frozenset({cap1, cap2})
+    assert view.method.needed_family_ids == frozenset({cap1, cap2})
     assert view.method.status is MethodStatus.DEFINED
     # Pre-drain: projection hasn't folded MethodDefined yet -> no row.
     assert view.timestamps is None

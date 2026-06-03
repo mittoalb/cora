@@ -87,7 +87,7 @@ def test_decider_and_evolver_round_trip() -> None:
 def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
     """SubjectMounted folded onto a Received subject sets status=MOUNTED.
     Status field is NOT in the event payload; the evolver derives it from
-    the event TYPE (same precedent as ActorDeactivated -> is_active=False)."""
+    the event TYPE (same precedent as ActorDeactivated -> active=False)."""
     subject_id = uuid4()
     received = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED)
     mounted = evolve(

@@ -1,6 +1,6 @@
 # Affordances
 
-*Closed-enum primitives a [Family](../catalog/families.md) declares it supports. Set-membership over Affordances drives the cross-BC Plan-bind matching engine: `union(wired_asset.families.affordances) ⊇ method.capability.required_affordances`.*
+*Closed-enum primitives a [Family](../catalog/families.md) declares it supports. Set-membership over Affordances drives the cross-BC Plan-bind matching engine: `union(family.affordances for family in wired_asset.family_ids) ⊇ method.capability.required_affordances`.*
 
 An **Affordance** is a claim about what a device can do. Affordances are declared on Families (Equipment BC). The contract a Method must satisfy is declared one layer up on its bound **Capability** template (Recipe BC `Capability.required_affordances`). At `define_plan` time, the union of every wired Asset's Families' affordances must cover the bound Method's Capability's required set — otherwise the handler raises `PlanAffordancesNotSatisfiedError` (409).
 

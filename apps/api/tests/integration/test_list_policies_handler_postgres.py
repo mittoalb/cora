@@ -53,7 +53,7 @@ async def test_policy_defined_inserts_with_conduit_ref(
         DefinePolicy(
             name="OperatorAccess",
             conduit_id=conduit_id,
-            permitted_principals=frozenset({_PRINCIPAL_ID}),
+            permitted_principal_ids=frozenset({_PRINCIPAL_ID}),
             permitted_commands=frozenset({"StartRun"}),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -84,7 +84,7 @@ async def test_conduit_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None:
         DefinePolicy(
             name="for-conduit-a",
             conduit_id=conduit_a,
-            permitted_principals=frozenset(),
+            permitted_principal_ids=frozenset(),
             permitted_commands=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,
@@ -97,7 +97,7 @@ async def test_conduit_id_filter_narrows_results(db_pool: asyncpg.Pool) -> None:
         DefinePolicy(
             name="for-conduit-b",
             conduit_id=conduit_b,
-            permitted_principals=frozenset(),
+            permitted_principal_ids=frozenset(),
             permitted_commands=frozenset(),
         ),
         principal_id=_PRINCIPAL_ID,

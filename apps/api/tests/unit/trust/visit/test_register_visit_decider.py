@@ -39,7 +39,7 @@ _BASE_CMD = RegisterVisit(
     planned_end_at=PLANNED_END,
 )
 
-_NO_PARENT_CTX = RegisterVisitContext(parent_visit=None, parent_requested=False)
+_NO_PARENT_CTX = RegisterVisitContext(parent_visit=None)
 
 
 def _parent_on(surface_id: UUID, parent_id: UUID | None = None) -> Visit:
@@ -83,7 +83,7 @@ def test_genesis_carries_external_refs_through_to_event() -> None:
 def test_genesis_carries_part_of_visit_id() -> None:
     parent_id = uuid4()
     parent = _parent_on(SURFACE_ID, parent_id=parent_id)
-    ctx = RegisterVisitContext(parent_visit=parent, parent_requested=True)
+    ctx = RegisterVisitContext(parent_visit=parent)
     events = decide(
         state=None,
         command=replace(_BASE_CMD, part_of_visit_id=parent_id),
@@ -134,7 +134,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 @pytest.mark.unit
 def test_partof_requested_but_parent_missing_raises() -> None:
     parent_id = uuid4()
-    ctx_missing = RegisterVisitContext(parent_visit=None, parent_requested=True)
+    ctx_missing = RegisterVisitContext(parent_visit=None)
     with pytest.raises(VisitPartOfNotFoundError) as exc_info:
         decide(
             state=None,
@@ -150,7 +150,7 @@ def test_partof_parent_on_different_surface_raises() -> None:
     parent_id = uuid4()
     other_surface = uuid4()
     parent = _parent_on(other_surface, parent_id=parent_id)
-    ctx = RegisterVisitContext(parent_visit=parent, parent_requested=True)
+    ctx = RegisterVisitContext(parent_visit=parent)
     with pytest.raises(VisitPartOfMismatchedSurfaceError) as exc_info:
         decide(
             state=None,
@@ -166,7 +166,7 @@ def test_partof_parent_on_different_surface_raises() -> None:
 def test_partof_parent_on_same_surface_passes() -> None:
     parent_id = uuid4()
     parent = _parent_on(SURFACE_ID, parent_id=parent_id)
-    ctx = RegisterVisitContext(parent_visit=parent, parent_requested=True)
+    ctx = RegisterVisitContext(parent_visit=parent)
     events = decide(
         state=None,
         command=replace(_BASE_CMD, part_of_visit_id=parent_id),

@@ -2,7 +2,7 @@
 
 Carries the caller-controlled inputs:
   - `name` — display name for the new Method (the technique class)
-  - `needed_families` — frozenset of Family ids the Method
+  - `needed_family_ids` — frozenset of Family ids the Method
     requires (eventual-consistency stance: existence not verified
     at decide time, mismatch surfaces at Plan binding)
 
@@ -15,7 +15,7 @@ Status is implicit at definition (`Defined`) and not part of the
 command — see Method aggregate's `state.py` docstring for the
 enum-in-state, derived-from-event-type-in-evolver convention.
 
-`needed_families` is `frozenset[UUID]` (not `list`) so the
+`needed_family_ids` is `frozenset[UUID]` (not `list`) so the
 command itself is hashable for `with_idempotency`'s SHA256 hash;
 the cross-BC `_normalize_for_hash` helper sorts frozensets for
 deterministic hashing across worker processes.
@@ -34,7 +34,7 @@ class DefineMethod:
     facility-portable; the kind label resolves to a per-facility
     Supply instance at Plan-bind time. Default empty frozenset
     (sample-cleaning Methods need no supplies). Same hashability +
-    `_normalize_for_hash` story as needed_families.
+    `_normalize_for_hash` story as needed_family_ids.
 
     `capability_id` points to the universal
     Capability template (Recipe BC) this Method realizes as a
@@ -55,5 +55,5 @@ class DefineMethod:
 
     name: str
     capability_id: UUID
-    needed_families: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    needed_family_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     needed_supplies: frozenset[str] = field(default_factory=frozenset[str])

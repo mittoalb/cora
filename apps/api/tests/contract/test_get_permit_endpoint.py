@@ -33,7 +33,7 @@ def _outbound_view() -> PermitView:
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction="Outbound",
-        allowed_credentials=[_CREDENTIAL_ID],
+        allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
@@ -43,7 +43,7 @@ def _outbound_view() -> PermitView:
         terms_kind="Outbound",
         read_scope="ReadAllArtifacts",
         onward_action_scope="ReadOnly",
-        scope_set=[{"kind": "dataset", "name": "alpha", "qualifier": None}],
+        scopes=[{"kind": "dataset", "name": "alpha", "qualifier": None}],
         accepted_canonicalization_versions=None,
         required_receipt_kinds=None,
         publisher_grant_correlation_handle=None,
@@ -61,7 +61,7 @@ def _inbound_view() -> PermitView:
         permit_id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction="Inbound",
-        allowed_credentials=[_CREDENTIAL_ID],
+        allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
@@ -71,7 +71,7 @@ def _inbound_view() -> PermitView:
         terms_kind="Inbound",
         read_scope=None,
         onward_action_scope=None,
-        scope_set=None,
+        scopes=None,
         accepted_canonicalization_versions=["v1"],
         required_receipt_kinds=["signed"],
         publisher_grant_correlation_handle="grant-abc",
@@ -102,12 +102,12 @@ def test_get_federation_permit_returns_200_with_outbound_terms() -> None:
     assert body["peer_facility_id"] == "aps-2bm"
     assert body["direction"] == "Outbound"
     assert body["status"] == "Active"
-    assert body["allowed_credentials"] == [str(_CREDENTIAL_ID)]
+    assert body["allowed_credential_ids"] == [str(_CREDENTIAL_ID)]
     assert body["defined_by_actor_id"] == str(_ACTOR_ID)
     assert body["terms"]["kind"] == "Outbound"
     assert body["terms"]["read_scope"] == "ReadAllArtifacts"
     assert body["terms"]["onward_action_scope"] == "ReadOnly"
-    assert body["terms"]["scope_set"] == [{"kind": "dataset", "name": "alpha", "qualifier": None}]
+    assert body["terms"]["scopes"] == [{"kind": "dataset", "name": "alpha", "qualifier": None}]
     assert body["defined_at"].startswith("2026-05-30T10:00:00")
     assert body["activated_at"].startswith("2026-05-30T11:00:00")
     assert body["suspended_at"] is None

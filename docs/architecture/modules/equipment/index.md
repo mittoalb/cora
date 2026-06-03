@@ -24,7 +24,7 @@ Out of scope
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
 | `Family` | `id: UUID` | `id`, `name: FamilyName`, `status: FamilyStatus`, `version: str?`, `affordances: frozenset[Affordance]`, `settings_schema: dict?` | yes (3-state) |
-| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `families: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]` | yes (4-state lifecycle, 3-state condition) |
+| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]` | yes (4-state lifecycle, 3-state condition) |
 
 A `Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", "Mirror", "TriggerFPGA". It carries the affordance set (what device-level primitives this class supports) and the JSON Schema that constrains the operational settings any Asset of that class may carry. An `Asset` is one physical instance: a Site, a beamline, a detector, a sample changer. Assets form a single-parent tree through `parent_id`; an Asset may belong to multiple Families simultaneously (a camera-on-a-mount belongs to both `Camera` and `MountedDevice`), and each membership widens what the Asset's settings dict may contain.
 
@@ -36,12 +36,12 @@ A `Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", 
 | `FamilyStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Family.status` |
 | `Affordance` | closed StrEnum, 28 values in 3 patterns (motion, signal, lifecycle) | members of `Family.affordances` |
 | `AssetName` | trimmed string, 1-200 chars | `Asset.name` |
-| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Assembly` \| `Device` | `Asset.level` |
+| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Component` \| `Device` | `Asset.level` |
 | `AssetLifecycle` | closed StrEnum: `Commissioned` \| `Active` \| `Maintenance` \| `Decommissioned` | `Asset.lifecycle` |
 | `AssetCondition` | closed StrEnum: `Nominal` \| `Degraded` \| `Faulted` | `Asset.condition` |
 | `AssetPort` | `(name, direction, signal_type)` triple; direction is `Input` \| `Output`; signal_type is free text, 1-50 chars | members of `Asset.ports` |
 
-The six `AssetLevel` values are ISA-95-derived with single-word names. Levels are conventional: the decider checks that an Enterprise-level Asset has no parent and that every other level has one, but it does not enforce that a `Device` parents to an `Assembly`. Smart instruments with addressable sub-modules legitimately put a `Device` under another `Device`.
+The six `AssetLevel` values are ISA-95-derived with single-word names. Levels are conventional: the decider checks that an Enterprise-level Asset has no parent and that every other level has one, but it does not enforce that a `Device` parents to a `Component`. Smart instruments with addressable sub-modules legitimately put a `Device` under another `Device`.
 
 Whether a composite vendor unit is one Asset with a wide settings dict or a parent Asset with several child Assets follows three tests. Any one is sufficient to spawn a child Asset:
 
@@ -83,7 +83,7 @@ The Asset aggregate runs a four-state lifecycle plus an orthogonal three-state c
 stateDiagram-v2
     [*] --> Commissioned: register_asset
     Commissioned --> Active: activate_asset
-    Active --> Maintenance: enter_maintenance
+    Active --> Maintenance: enter_asset_maintenance
     Maintenance --> Active: restore_from_maintenance
     Commissioned --> Decommissioned: decommission_asset
     Active --> Decommissioned: decommission_asset
@@ -95,7 +95,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `[*]` | `Commissioned` | `register_asset` | `AssetRegistered` |
 | `Commissioned` | `Active` | `activate_asset` | `AssetActivated` |
-| `Active` | `Maintenance` | `enter_maintenance` | `AssetMaintenanceEntered` |
+| `Active` | `Maintenance` | `enter_asset_maintenance` | `AssetMaintenanceEntered` |
 | `Maintenance` | `Active` | `restore_from_maintenance` | `AssetRestoredFromMaintenance` |
 | `Commissioned` | `Decommissioned` | `decommission_asset` | `AssetDecommissioned` |
 | `Active` | `Decommissioned` | `decommission_asset` | `AssetDecommissioned` |
@@ -129,7 +129,7 @@ Family emits four event types; Asset emits fifteen.
 | `FamilySettingsSchemaUpdated` | `family_id`, `settings_schema?`, `occurred_at` | `update_family_settings_schema` succeeds; payload carries the full replacement schema |
 | `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `occurred_at` | `register_asset` succeeds (genesis) |
 | `AssetActivated` | `asset_id`, `occurred_at` | `activate_asset` succeeds |
-| `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_maintenance` succeeds |
+| `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_asset_maintenance` succeeds |
 | `AssetRestoredFromMaintenance` | `asset_id`, `occurred_at` | `restore_from_maintenance` succeeds |
 | `AssetDecommissioned` | `asset_id`, `occurred_at` | `decommission_asset` succeeds from any of the three permitted lifecycles |
 | `AssetRelocated` | `asset_id`, `from_parent_id?`, `to_parent_id`, `reason`, `occurred_at` | `relocate_asset` succeeds; payload carries both source and target for audit |
@@ -158,7 +158,7 @@ The Family aggregate has six slices; the Asset aggregate has eighteen.
 | `ListFamilies` | QUERY | `GET /families` | `list_families` | none |
 | `RegisterAsset` | NEW | `POST /assets` | `register_asset` | required |
 | `ActivateAsset` | MODIFIED | `POST /assets/{asset_id}/activate` | `activate_asset` | none |
-| `EnterMaintenance` | MODIFIED | `POST /assets/{asset_id}/enter-maintenance` | `enter_maintenance` | none |
+| `EnterAssetMaintenance` | MODIFIED | `POST /assets/{asset_id}/enter-maintenance` | `enter_asset_maintenance` | none |
 | `RestoreFromMaintenance` | MODIFIED | `POST /assets/{asset_id}/restore-from-maintenance` | `restore_from_maintenance` | none |
 | `DecommissionAsset` | MODIFIED | `POST /assets/{asset_id}/decommission` | `decommission_asset` | none |
 | `RelocateAsset` | MODIFIED | `POST /assets/{asset_id}/relocate` | `relocate_asset` | none |
@@ -188,8 +188,8 @@ The Family aggregate has six slices; the Asset aggregate has eighteen.
 `RegisterAsset`
 : `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `Unauthorized`
 
-`ActivateAsset` / `EnterMaintenance` / `RestoreFromMaintenance` / `DecommissionAsset`
-: `AssetNotFound`, `AssetCannot<Activate|EnterMaintenance|RestoreFromMaintenance|Decommission>`, `Unauthorized`
+`ActivateAsset` / `EnterAssetMaintenance` / `RestoreFromMaintenance` / `DecommissionAsset`
+: `AssetNotFound`, `AssetCannot<Activate|EnterAssetMaintenance|RestoreFromMaintenance|Decommission>`, `Unauthorized`
 
 `RelocateAsset`
 : `AssetNotFound`, `AssetCannotRelocate` (Enterprise-level, Decommissioned, self-loop, or no-op), `Unauthorized`
@@ -223,7 +223,7 @@ CREATE TABLE proj_equipment_asset_summary (
     asset_id    UUID        PRIMARY KEY,
     name        TEXT        NOT NULL,
     level       TEXT        NOT NULL CHECK (
-        level IN ('Enterprise', 'Site', 'Area', 'Unit', 'Assembly', 'Device')
+        level IN ('Enterprise', 'Site', 'Area', 'Unit', 'Component', 'Device')
     ),
     lifecycle   TEXT        NOT NULL CHECK (
         lifecycle IN ('Commissioned', 'Active', 'Maintenance', 'Decommissioned')
@@ -264,7 +264,7 @@ The Asset summary is the canonical list source for `GET /assets`. The partial in
 
 The Family summary table was renamed in lockstep with the aggregate (Capability -> Family in phase 5i) via `ALTER TABLE proj_equipment_capability_summary RENAME TO proj_equipment_family_summary` plus matching column / index renames; forward-only migrations support `RENAME` operations natively, so the table name tracks the aggregate name. `settings_schema_present` is a boolean indicator of whether the Family has any settings schema declared (the schema content itself is folded from the event stream on demand); `versioned_at` and `deprecated_at` are Path C lifecycle timestamps (the aggregate state stays minimal). The CHECK constraint still matches the `FamilyStatus` enum.
 
-`Asset.condition`, `Asset.families`, `Asset.settings`, and `Asset.ports` are not surfaced on the summary table today. Single-Asset reads fold the event stream and return them; list-by-condition or list-by-port queries are deferred until the use case lands.
+`Asset.condition`, `Asset.family_ids`, `Asset.settings`, and `Asset.ports` are not surfaced on the summary table today. Single-Asset reads fold the event stream and return them; list-by-condition or list-by-port queries are deferred until the use case lands.
 
 ```sql title="proj_equipment_asset_family_membership"
 CREATE TABLE proj_equipment_asset_family_membership (
@@ -278,7 +278,7 @@ CREATE INDEX proj_equipment_asset_family_membership_by_family_idx
     ON proj_equipment_asset_family_membership (family_id, asset_id);
 ```
 
-The membership join projection mirrors the `Asset.families` relation as one row per `(asset_id, family_id)` pair, folded from `AssetFamilyAdded` (INSERT) and `AssetFamilyRemoved` (DELETE) events. The aggregate state is the canonical source; the projection exists to answer the reverse-direction query "which Assets belong to Family X" efficiently. The primary key supports the per-Asset read; the `_by_family_idx` secondary index supports the per-Family read used by Recipe's `inspect_plan_binding` candidate enumeration.
+The membership join projection mirrors the `Asset.family_ids` relation as one row per `(asset_id, family_id)` pair, folded from `AssetFamilyAdded` (INSERT) and `AssetFamilyRemoved` (DELETE) events. The aggregate state is the canonical source; the projection exists to answer the reverse-direction query "which Assets belong to Family X" efficiently. The primary key supports the per-Asset read; the `_by_family_idx` secondary index supports the per-Family read used by Recipe's `inspect_plan_binding` candidate enumeration.
 
 Two aggregate-namespace read helpers are re-exported through `cora.equipment.aggregates.family.read` so cross-BC consumers reach them through the same surface they already use for `load_family`: `list_family_ids(pool)` returns every non-Deprecated Family id from the summary projection, and `list_asset_ids_in_families(pool, family_ids)` returns the Assets belonging to any of the given Families. Both are projection-backed inline-SQL helpers; tach forbids `aggregates -> projections` within a BC, so the SQL lives in the aggregate `read.py` directly (Path C pattern, mirrors `load_family_timestamps`).
 
@@ -286,7 +286,7 @@ Two aggregate-namespace read helpers are re-exported through `cora.equipment.agg
 
 | Module | Relationship | What's exchanged |
 |---|---|---|
-| [Recipe](../recipe/index.md) | reads-from | `Method.needs.families` references Family ids; `Plan` binding matches a Method's required Families against `Asset.families` |
+| [Recipe](../recipe/index.md) | reads-from | `Method.needed_family_ids` references Family ids; `Plan` binding matches a Method's required Families against `Asset.family_ids` |
 | [Recipe](../recipe/index.md) | reads-from | `Plan.wiring` references Asset ports by `(asset_id, port_name)` |
 | [Run](../run/index.md) | reads-from | Each Run's effective parameters are validated against the Method's parameters schema; Run pinned calibrations reference Asset ids transitively |
 | [Operation](../operation/index.md) | reads-from | `Procedure.target_asset_ids` references the Assets the procedure acts on |

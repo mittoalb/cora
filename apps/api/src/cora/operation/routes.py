@@ -27,7 +27,7 @@ via the Trust / Equipment / Supply-style loop pattern:
   - 409 (defensive guard for AlreadyExists): ProcedureAlreadyExists
   - 409 (transition guards): ProcedureCannotStart,
     ProcedureCannotComplete, ProcedureCannotAbort,
-    ProcedureCannotTruncate, ProcedureAssetDecommissioned,
+    ProcedureCannotTruncate, ProcedurePlanAssetDecommissioned,
     ProcedureStepsLogbookClosed
 """
 
@@ -43,13 +43,13 @@ from cora.operation.aggregates.procedure import (
     InvalidRecipeBindingsError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
-    ProcedureAssetDecommissionedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
     ProcedureCapabilityExecutorMismatchError,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
     ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
@@ -66,11 +66,11 @@ from cora.operation.features import (
     abort_procedure,
     append_procedure_steps,
     complete_procedure,
+    conduct_procedure,
     get_procedure,
     list_procedures,
     register_procedure,
     register_procedure_from_recipe,
-    run_procedure,
     start_procedure,
     truncate_procedure,
 )
@@ -129,7 +129,7 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
     Covers ProcedureCannotStart / ProcedureCannotComplete /
     ProcedureCannotAbort / ProcedureCannotTruncate (FSM source-state
-    guards), ProcedureAssetDecommissioned (cross-aggregate precondition
+    guards), ProcedurePlanAssetDecommissioned (cross-aggregate precondition
     guard at start_procedure), AND ProcedureStepsLogbookClosed (logbook
     write guard for non-Running Procedures). All map to HTTP 409 +
     `{"detail": str(exc)}`.
@@ -187,7 +187,7 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(append_procedure_steps.router)
     app.include_router(get_procedure.router)
     app.include_router(list_procedures.router)
-    app.include_router(run_procedure.router)
+    app.include_router(conduct_procedure.router)
     for validation_cls in (
         InvalidProcedureNameError,
         InvalidProcedureKindError,
@@ -195,7 +195,7 @@ def register_operation_routes(app: FastAPI) -> None:
         InvalidProcedureTruncateReasonError,
         InvalidProcedureInterruptedAtError,
         InvalidStepKindError,
-        # Recipe-driven run_procedure path: caller-supplied steps with
+        # Recipe-driven conduct_procedure path: caller-supplied steps with
         # recipe_id set are rejected up front per the replay-design lock
         # ([[project-run-procedure-replay-design]] Anti-hook 7).
         ProcedureStepsForbiddenForRecipeDrivenError,
@@ -208,7 +208,7 @@ def register_operation_routes(app: FastAPI) -> None:
     # recipe/routes.py — FastAPI's app-scoped handler catches regardless
     # of which BC's route raises). Same single-registration rule as
     # decision/routes.py owning ParentDecision*MismatchError for agent
-    # BC's re_debrief_run slice.
+    # BC's regenerate_run_debrief slice.
     for already_exists_cls in (ProcedureAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -216,7 +216,7 @@ def register_operation_routes(app: FastAPI) -> None:
         ProcedureCannotCompleteError,
         ProcedureCannotAbortError,
         ProcedureCannotTruncateError,
-        ProcedureAssetDecommissionedError,
+        ProcedurePlanAssetDecommissionedError,
         ProcedureStepsLogbookClosedError,
         # cross-BC guard: Procedure binds to a Capability whose
         # executor_shapes does not include Procedure.
@@ -255,7 +255,7 @@ def register_operation_routes(app: FastAPI) -> None:
     ):
         app.add_exception_handler(internal_cls, _handle_internal_server_error)
     # NOT registered here: RecipeVersionNotFoundError (Recipe BC owns;
-    # raised from run_procedure handler via load_recipe_at_version but
-    # HTTP mapping lives in recipe/routes.py per the same cross-BC
+    # raised from conduct_procedure handler via load_recipe_at_version
+    # but HTTP mapping lives in recipe/routes.py per the same cross-BC
     # single-registration rule as CapabilityNotFoundError above).
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

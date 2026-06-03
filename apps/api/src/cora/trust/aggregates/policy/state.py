@@ -11,7 +11,7 @@ Policy is intentionally minimal:
   - `conduit_id` — the single Conduit this policy governs (one
     policy per conduit; cross-policy resolution is the
     `TrustAuthorize` adapter's problem)
-  - `permitted_principals: frozenset[UUID]` — explicit allow-list
+  - `permitted_principal_ids: frozenset[UUID]` — explicit allow-list
   - `permitted_commands: frozenset[str]` — command-name allow-list
     (matches the discriminator string used by the Authorize port and
     the `event_type_name` everywhere else)
@@ -25,13 +25,13 @@ BC-map) and modify/revoke slices defer to later sub-phases per the
 same additive-state pattern as Zone and Conduit.
 
 **No referential integrity at command time.** `conduit_id` and
-each entry in `permitted_principals` are stored as bare UUIDs
+each entry in `permitted_principal_ids` are stored as bare UUIDs
 without verifying the referenced Conduits / Actors exist. Same
 event-sourcing posture as Conduit→Zone: typos produce
 "dangling" policies; downstream evaluation just denies because
 the conduit_id mismatch surfaces at evaluate-time.
 
-Empty `permitted_principals` or empty `permitted_commands` is
+Empty `permitted_principal_ids` or empty `permitted_commands` is
 allowed and produces a deny-all policy by construction (every
 evaluation hits the "not in {empty}" branch). Useful for
 temporarily revoking access without deleting the policy.
@@ -104,7 +104,7 @@ class Policy:
     id: UUID
     name: PolicyName
     conduit_id: UUID
-    permitted_principals: frozenset[UUID]
+    permitted_principal_ids: frozenset[UUID]
     permitted_commands: frozenset[str]
     surface_id: UUID = NIL_SENTINEL_ID
 
@@ -161,7 +161,7 @@ def evaluate(
         return Deny(
             reason=(f"Policy {policy.id} governs surface {policy.surface_id}, not {surface_id}")
         )
-    if principal_id not in policy.permitted_principals:
+    if principal_id not in policy.permitted_principal_ids:
         return Deny(reason=f"Principal {principal_id} not in policy {policy.id}'s permitted set")
     if command_name not in policy.permitted_commands:
         return Deny(reason=(f"Command {command_name!r} not in policy {policy.id}'s permitted set"))

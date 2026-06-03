@@ -112,7 +112,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         DefineMethod(
             name="XRF Fly Scan Mapping",
             capability_id=method_capability_id,
-            needed_families=frozenset({cap_id}),
+            needed_family_ids=frozenset({cap_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -153,7 +153,7 @@ async def test_define_plan_persists_event_with_audit_snapshots_to_postgres(
         "practice_id": str(practice_id),
         "asset_ids": [str(asset_id)],
         "method_id": str(method_id),
-        "method_needed_families_snapshot": [str(cap_id)],
+        "method_needed_family_ids_snapshot": [str(cap_id)],
         "asset_families_snapshot": {str(asset_id): [str(cap_id)]},
         "occurred_at": _NOW.isoformat(),
     }
@@ -247,7 +247,7 @@ async def test_define_plan_affordance_cover_guard_against_postgres(
     await define_method.bind(deps)(
         DefineMethod(
             name="FlyScan Method",
-            needed_families=frozenset({family_id}),
+            needed_family_ids=frozenset({family_id}),
             capability_id=cap_template_id,
         ),
         principal_id=_PRINCIPAL_ID,

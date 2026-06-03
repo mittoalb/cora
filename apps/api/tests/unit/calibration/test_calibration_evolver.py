@@ -1,4 +1,4 @@
-"""Calibration evolver: genesis + append-revision folding.
+"""Calibration evolver: genesis + append-calibration-revision folding.
 
 Pins the append-only invariant (revisions accumulate; never overwrite)
 and the deserialise-source round-trip via the evolver.

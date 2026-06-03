@@ -8,7 +8,7 @@ handlers (10c-b transition slices).
 `load_procedure_with_events(event_store, procedure_id)` returns
 `tuple[Procedure | None, list[StoredEvent]]`; extends the load shape
 for handlers that need both the folded state
-AND access to the raw `StoredEvent` payloads (the `run_procedure`
+AND access to the raw `StoredEvent` payloads (the `conduct_procedure`
 handler reads the `RecipeExpansionRecorded` provenance event payload
 directly per [[project-run-procedure-replay-design]]). Single
 underlying `event_store.load` call; `load_procedure` becomes a thin

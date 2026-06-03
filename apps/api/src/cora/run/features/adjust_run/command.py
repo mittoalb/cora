@@ -2,7 +2,7 @@
 
 Carries the caller-controlled inputs for mid-flight parameter steering:
   - `run_id` — the target Run (existence verified at handler-load time).
-  - `parameter_patch` — RFC 7396 JSON Merge Patch on top of the Run's
+  - `parameters_patch` — RFC 7396 JSON Merge Patch on top of the Run's
     current `effective_parameters`. Non-empty required (empty patches
     silently no-op and mislead the audit; rejected at the decider with
     `InvalidRunAdjustPatchError`).
@@ -41,6 +41,6 @@ class AdjustRun:
     """Adjust a Run's effective parameters mid-flight."""
 
     run_id: UUID
-    parameter_patch: dict[str, Any]
+    parameters_patch: dict[str, Any]
     reason: str
     decided_by_decision_id: UUID | None = None

@@ -99,7 +99,7 @@ async def test_forced_concurrent_supersede_caution_raises_concurrency_error(
     def _build_supersede_batch(child_id: UUID) -> list[StreamAppend]:
         parent_event = CautionSuperseded(
             caution_id=parent_id,
-            by_caution_id=child_id,
+            superseded_by_caution_id=child_id,
             occurred_at=_NOW,
         )
         child_event = CautionRegistered(
@@ -170,7 +170,7 @@ async def test_forced_concurrent_supersede_caution_raises_concurrency_error(
     # back atomically and has zero events.
     parent_events, _ = await deps.event_store.load("Caution", parent_id)
     superseded_targets = [
-        UUID(e.payload["by_caution_id"])
+        UUID(e.payload["superseded_by_caution_id"])
         for e in parent_events
         if e.event_type == "CautionSuperseded"
     ]

@@ -99,7 +99,7 @@ async def test_full_run_cascade_to_completed(
         json={
             "name": "Test Method",
             "capability_id": capability_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     )
     method_id = method.json()["method_id"]

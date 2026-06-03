@@ -7,9 +7,9 @@ live in test_start_run_handler.py.
 
 Validation order pinned per gate-review Q5:
   1. State must be None (RunAlreadyExistsError)
-  2. Plan not Deprecated (PlanDeprecatedError)
-  3. Subject (if non-None) in {Mounted, Measured} (SubjectNotMountableError)
-  4. No bound Asset Decommissioned (RunAssetDecommissionedError)
+  2. Plan not Deprecated (RunBoundPlanDeprecatedError)
+  3. Subject (if non-None) in {Mounted, Measured} (RunSubjectNotMountableError)
+  4. No bound Asset Decommissioned (RunPlanAssetDecommissionedError)
   5. Family superset (RunCapabilitiesNotSatisfiedError)
   6. Name validation (InvalidRunNameError)
 """
@@ -43,15 +43,15 @@ from cora.recipe.aggregates.plan import (
 from cora.run.aggregates.run import (
     InvalidRunNameError,
     InvalidRunParametersError,
-    PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCapabilitiesNotSatisfiedError,
     RunName,
+    RunPlanAssetDecommissionedError,
     RunStarted,
     RunStatus,
-    SubjectNotMountableError,
+    RunSubjectNotMountableError,
 )
 from cora.run.features import start_run
 from cora.run.features.start_run import RunStartContext, StartRun
@@ -98,7 +98,7 @@ def _plan(
 def _asset(
     *,
     asset_id: UUID | None = None,
-    families: frozenset[UUID] | None = None,
+    family_ids: frozenset[UUID] | None = None,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
 ) -> Asset:
     return Asset(
@@ -107,7 +107,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=families if families is not None else frozenset(),
+        family_ids=family_ids if family_ids is not None else frozenset(),
     )
 
 
@@ -131,7 +131,7 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -144,7 +144,7 @@ def test_decide_emits_run_started_for_valid_sample_run() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -168,7 +168,7 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     context = RunStartContext(
         plan=plan,
         subject=None,
@@ -180,7 +180,7 @@ def test_decide_emits_run_started_for_dark_field_run_without_subject() -> None:
         state=None,
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -203,7 +203,7 @@ def test_decide_accepts_subject_in_measured_state() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject(status=SubjectStatus.MEASURED)
     context = RunStartContext(
         plan=plan,
@@ -215,7 +215,7 @@ def test_decide_accepts_subject_in_measured_state() -> None:
         state=None,
         command=StartRun(name="Re-measurement", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -229,7 +229,7 @@ def test_decide_trims_run_name_via_value_object() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -241,7 +241,7 @@ def test_decide_trims_run_name_via_value_object() -> None:
         state=None,
         command=StartRun(name="  Run  ", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -277,7 +277,7 @@ def test_decide_raises_run_already_exists_when_state_is_not_none() -> None:
             state=state,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
-            needed_families_snapshot=frozenset(),
+            needed_family_ids_snapshot=frozenset(),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -300,12 +300,12 @@ def test_decide_raises_plan_deprecated_when_plan_is_deprecated() -> None:
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    with pytest.raises(PlanDeprecatedError) as exc_info:
+    with pytest.raises(RunBoundPlanDeprecatedError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
-            needed_families_snapshot=frozenset(),
+            needed_family_ids_snapshot=frozenset(),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -341,12 +341,12 @@ def test_decide_raises_subject_not_mountable_for_disallowed_subject_states(
         assets={asset_id: asset},
         referencing_clearances=_active_clearance_stub(),
     )
-    with pytest.raises(SubjectNotMountableError) as exc_info:
+    with pytest.raises(RunSubjectNotMountableError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=subject.id),
             context=context,
-            needed_families_snapshot=frozenset(),
+            needed_family_ids_snapshot=frozenset(),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -373,7 +373,7 @@ def test_decide_skips_subject_check_when_subject_id_is_none() -> None:
         state=None,
         command=StartRun(name="Dark field", plan_id=plan.id, subject_id=None),
         context=context,
-        needed_families_snapshot=frozenset(),
+        needed_family_ids_snapshot=frozenset(),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -397,12 +397,12 @@ def test_decide_raises_asset_decommissioned_when_any_bound_asset_decommissioned(
     context = RunStartContext(
         plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
     )
-    with pytest.raises(RunAssetDecommissionedError) as exc_info:
+    with pytest.raises(RunPlanAssetDecommissionedError) as exc_info:
         start_run.decide(
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
-            needed_families_snapshot=frozenset(),
+            needed_family_ids_snapshot=frozenset(),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -422,7 +422,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_drifted() -> None:
     different_cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({different_cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({different_cap}))
     context = RunStartContext(
         plan=plan,
         subject=None,
@@ -434,7 +434,7 @@ def test_decide_raises_capabilities_not_satisfied_when_assets_drifted() -> None:
             state=None,
             command=StartRun(name="X", plan_id=plan.id, subject_id=None),
             context=context,
-            needed_families_snapshot=frozenset({needed_cap}),
+            needed_family_ids_snapshot=frozenset({needed_cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -452,8 +452,8 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
     a2 = uuid4()
     plan = _plan(asset_ids=frozenset({a1, a2}))
     assets = {
-        a1: _asset(asset_id=a1, families=frozenset({cap1})),
-        a2: _asset(asset_id=a2, families=frozenset({cap2})),
+        a1: _asset(asset_id=a1, family_ids=frozenset({cap1})),
+        a2: _asset(asset_id=a2, family_ids=frozenset({cap2})),
     }
     context = RunStartContext(
         plan=plan, subject=None, assets=assets, referencing_clearances=_active_clearance_stub()
@@ -462,7 +462,7 @@ def test_decide_uses_union_of_bound_assets_capabilities_for_satisfaction() -> No
         state=None,
         command=StartRun(name="X", plan_id=plan.id, subject_id=None),
         context=context,
-        needed_families_snapshot=frozenset({cap1, cap2}),
+        needed_family_ids_snapshot=frozenset({cap1, cap2}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -490,7 +490,7 @@ def test_decide_raises_invalid_run_name_for_whitespace_only() -> None:
             state=None,
             command=StartRun(name="   ", plan_id=plan.id, subject_id=None),
             context=context,
-            needed_families_snapshot=frozenset(),
+            needed_family_ids_snapshot=frozenset(),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -518,7 +518,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         state=None,
         command=cmd,
         context=context,
-        needed_families_snapshot=frozenset(),
+        needed_family_ids_snapshot=frozenset(),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -528,7 +528,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         state=None,
         command=cmd,
         context=context,
-        needed_families_snapshot=frozenset(),
+        needed_family_ids_snapshot=frozenset(),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -566,7 +566,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -587,7 +587,7 @@ def test_decide_emits_run_started_with_6gc_parameter_fields() -> None:
             trigger_source="operator:opid:5",
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters=effective,
         method_parameters_schema=_energy_schema(),
         now=_NOW,
@@ -607,7 +607,7 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -621,7 +621,7 @@ def test_decide_raises_invalid_run_parameters_on_post_merge_violation() -> None:
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={"energy": 1.0},  # below minimum=5
             method_parameters_schema=_energy_schema(),
             now=_NOW,
@@ -638,7 +638,7 @@ def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> 
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -652,7 +652,7 @@ def test_decide_strict_when_method_schema_is_none_with_non_empty_effective() -> 
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={"undeclared_key": "anything"},
             method_parameters_schema=None,
             now=_NOW,
@@ -669,7 +669,7 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -682,7 +682,7 @@ def test_decide_accepts_no_schema_when_effective_is_empty() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -708,7 +708,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_out", direction=PortDirection.OUTPUT, signal_type="TTL")}
         ),
@@ -719,7 +719,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -752,7 +752,7 @@ def test_decide_passes_when_plan_wires_endpoints_still_valid() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -777,7 +777,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(),  # port was removed!
     )
     tgt_asset = Asset(
@@ -786,7 +786,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -820,7 +820,7 @@ def test_decide_rejects_when_plan_wire_references_removed_port() -> None:
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -848,7 +848,7 @@ def _wire_capable_assets(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_out", direction=src_direction, signal_type=src_signal_type)}
         ),
@@ -859,7 +859,7 @@ def _wire_capable_assets(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=tgt_direction, signal_type=tgt_signal_type)}
         ),
@@ -906,7 +906,7 @@ def test_decide_rejects_when_plan_wire_references_unbound_asset_at_run_start() -
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -946,7 +946,7 @@ def test_decide_rejects_when_plan_wire_target_port_direction_flipped() -> None:
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -983,7 +983,7 @@ def test_decide_rejects_when_plan_wire_signal_type_changed() -> None:
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -1011,7 +1011,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {
                 AssetPort(name="trigger_out_1", direction=PortDirection.OUTPUT, signal_type="TTL"),
@@ -1025,7 +1025,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(
             {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
         ),
@@ -1037,7 +1037,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         ports=frozenset(),  # port removed since wire-add
     )
     wire_valid = Wire(
@@ -1072,7 +1072,7 @@ def test_decide_revalidation_fails_fast_on_first_invalid_wire_in_a_set() -> None
             state=None,
             command=StartRun(name="Run", plan_id=plan.id, subject_id=_subject().id),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -1112,7 +1112,7 @@ def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> No
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1125,7 +1125,7 @@ def test_decide_embeds_empty_acknowledged_cautions_when_context_has_none() -> No
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1144,7 +1144,7 @@ def test_decide_embeds_snapshot_in_run_started_payload() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     caution = _caution_ref(severity="Caution")
     context = RunStartContext(
@@ -1158,7 +1158,7 @@ def test_decide_embeds_snapshot_in_run_started_payload() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1187,7 +1187,7 @@ def test_decide_does_not_gate_on_active_cautions() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     many_cautions = (
         _caution_ref(severity="Notice"),
@@ -1206,7 +1206,7 @@ def test_decide_does_not_gate_on_active_cautions() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1224,7 +1224,7 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     warning = _caution_ref(
         severity="Warning",
@@ -1241,7 +1241,7 @@ def test_decide_threads_warning_severity_caution_through_to_event() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1295,7 +1295,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1313,7 +1313,7 @@ def test_decide_embeds_campaign_id_for_membership_eligible_status(
             campaign_id=campaign.id,
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1337,7 +1337,7 @@ def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1356,7 +1356,7 @@ def test_decide_rejects_terminal_campaign(campaign_status_name: str) -> None:
                 campaign_id=campaign.id,
             ),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -1373,7 +1373,7 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1386,7 +1386,7 @@ def test_decide_no_campaign_id_passes_through_normally() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1415,7 +1415,7 @@ def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1434,7 +1434,7 @@ def test_decide_emits_campaign_run_added_when_campaign_supplied() -> None:
             campaign_id=campaign.id,
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1455,7 +1455,7 @@ def test_decide_defaults_decided_by_decision_id_to_none_when_omitted() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1467,7 +1467,7 @@ def test_decide_defaults_decided_by_decision_id_to_none_when_omitted() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1487,7 +1487,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1505,7 +1505,7 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
             decided_by_decision_id=decision_id,
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
@@ -1518,12 +1518,12 @@ def test_decide_threads_decided_by_decision_id_through_to_event() -> None:
 
 
 @pytest.mark.unit
-def test_decide_defaults_pinned_calibrations_to_empty_when_omitted() -> None:
+def test_decide_defaults_pinned_calibration_ids_to_empty_when_omitted() -> None:
     """Pin set defaults to empty frozenset; emitted event payload is `()`."""
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1535,23 +1535,23 @@ def test_decide_defaults_pinned_calibrations_to_empty_when_omitted() -> None:
         state=None,
         command=StartRun(name="Run", plan_id=plan.id, subject_id=subject.id),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].pinned_calibrations == ()
+    assert decision.run_events[0].pinned_calibration_ids == ()
 
 
 @pytest.mark.unit
-def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
+def test_decide_threads_pinned_calibration_ids_sorted_through_to_event() -> None:
     """The decider sorts the operator-supplied frozenset before
     emit so the event payload has deterministic bytes."""
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1569,22 +1569,22 @@ def test_decide_threads_pinned_calibrations_sorted_through_to_event() -> None:
             plan_id=plan.id,
             subject_id=subject.id,
             # Frozenset has no order; the decider must sort.
-            pinned_calibrations=frozenset({pin_c, pin_a, pin_b}),
+            pinned_calibration_ids=frozenset({pin_c, pin_a, pin_b}),
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
-    assert decision.run_events[0].pinned_calibrations == tuple(sorted([pin_a, pin_b, pin_c]))
+    assert decision.run_events[0].pinned_calibration_ids == tuple(sorted([pin_a, pin_b, pin_c]))
 
 
-def test_decide_rejects_pinned_calibrations_over_cap() -> None:
+def test_decide_rejects_pinned_calibration_ids_over_cap() -> None:
     """Cardinality cap on the AsShot pin set. Symmetric to Data BC's
     register_dataset decider rejecting > 64 entries on
-    used_calibrations. Mirrors the Data BC cardinality boundary
+    used_calibration_ids. Mirrors the Data BC cardinality boundary
     test."""
     from cora.run.aggregates.run import (
         RUN_PINNED_CALIBRATIONS_MAX_ENTRIES,
@@ -1594,7 +1594,7 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1610,10 +1610,10 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
                 name="Too many pins",
                 plan_id=plan.id,
                 subject_id=subject.id,
-                pinned_calibrations=too_many,
+                pinned_calibration_ids=too_many,
             ),
             context=context,
-            needed_families_snapshot=frozenset({cap}),
+            needed_family_ids_snapshot=frozenset({cap}),
             effective_parameters={},
             method_parameters_schema=None,
             now=_NOW,
@@ -1621,16 +1621,16 @@ def test_decide_rejects_pinned_calibrations_over_cap() -> None:
         )
 
 
-def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
+def test_decide_accepts_pinned_calibration_ids_exactly_at_cap() -> None:
     """Boundary guard: exactly at the cap is accepted (off-by-one
     mirror of Data BC's
-    test_decide_accepts_used_calibrations_at_cardinality_cap)."""
+    test_decide_accepts_used_calibration_ids_at_cardinality_cap)."""
     from cora.run.aggregates.run import RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
 
     cap = uuid4()
     asset_id = uuid4()
     plan = _plan(asset_ids=frozenset({asset_id}))
-    asset = _asset(asset_id=asset_id, families=frozenset({cap}))
+    asset = _asset(asset_id=asset_id, family_ids=frozenset({cap}))
     subject = _subject()
     context = RunStartContext(
         plan=plan,
@@ -1645,13 +1645,13 @@ def test_decide_accepts_pinned_calibrations_exactly_at_cap() -> None:
             name="Cap pins",
             plan_id=plan.id,
             subject_id=subject.id,
-            pinned_calibrations=at_cap,
+            pinned_calibration_ids=at_cap,
         ),
         context=context,
-        needed_families_snapshot=frozenset({cap}),
+        needed_family_ids_snapshot=frozenset({cap}),
         effective_parameters={},
         method_parameters_schema=None,
         now=_NOW,
         new_id=uuid4(),
     )
-    assert len(decision.run_events[0].pinned_calibrations) == RUN_PINNED_CALIBRATIONS_MAX_ENTRIES
+    assert len(decision.run_events[0].pinned_calibration_ids) == RUN_PINNED_CALIBRATIONS_MAX_ENTRIES

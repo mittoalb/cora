@@ -41,7 +41,7 @@ right ordering.
      during the scan.
   3. Operator observes the reconstruction quality. If the slice
      is too noisy / saturated / off-center: decide to adjust.
-  4. Issue `adjust_run` with a `parameter_patch` (RFC 7396 JSON
+  4. Issue `adjust_run` with a `parameters_patch` (RFC 7396 JSON
      Merge) targeting only the parameters needing change. The
      decider validates the merged result against the Method's
      `parameters_schema` (cross-BC STRICT anchor).
@@ -196,7 +196,7 @@ _RECIPE = RecipeSpec(
     capability_name="Tomography",
     method_id=_METHOD_STREAM_ID,
     method_name="streaming_tomography",
-    needed_families=frozenset(
+    needed_family_ids=frozenset(
         {_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
     ),
     parameters_schema={
@@ -327,7 +327,7 @@ async def test_streaming_tomography_with_adjust_run(
     await bind_adjust_run(deps)(
         AdjustRun(
             run_id=_RUN_ID,
-            parameter_patch={"exposure_ms": 150},
+            parameters_patch={"exposure_ms": 150},
             reason=(
                 "tomoStream live reco showed noise level above acceptable "
                 "threshold at ~projection 300/1500; bumping exposure from "
@@ -393,7 +393,7 @@ async def test_streaming_tomography_with_adjust_run(
     assert len(adjust_events) == 1
     adjust_payload = adjust_events[0].payload
     # adjust_run patch is recorded verbatim
-    assert adjust_payload["parameter_patch"] == {"exposure_ms": 150}
+    assert adjust_payload["parameters_patch"] == {"exposure_ms": 150}
     assert "tomoStream" in adjust_payload["reason"]
     assert "150ms" in adjust_payload["reason"]
     # No Decision link today (operator-direct decision; agent-driven variant

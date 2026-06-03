@@ -225,7 +225,7 @@ _RECIPE = RecipeSpec(
     capability_name="Tomography",
     method_id=_METHOD_ID,
     method_name="tomography",
-    needed_families=frozenset(
+    needed_family_ids=frozenset(
         {_CAP_ROTARY_STAGE_ID, _CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
     ),
     parameters_schema={

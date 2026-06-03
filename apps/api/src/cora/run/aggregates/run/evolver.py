@@ -110,7 +110,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
             trigger_source=trigger_source,
             external_refs=external_refs,
             campaign_id=campaign_id,
-            pinned_calibrations=pinned_calibrations,
+            pinned_calibration_ids=pinned_calibration_ids,
         ):
             _ = state  # RunStarted is the genesis event; prior state ignored.
             # Shallow-copy the payload dicts into state so mutating either
@@ -135,7 +135,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 # AsShot anchor set at genesis (frozenset for in-
                 # memory equality semantics; the event carries a tuple for
                 # deterministic wire byte ordering).
-                pinned_calibrations=frozenset(pinned_calibrations),
+                pinned_calibration_ids=frozenset(pinned_calibration_ids),
             )
         case RunHeld():
             prior = require_state(state, "RunHeld")
@@ -155,7 +155,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunResumed():
             prior = require_state(state, "RunResumed")
@@ -175,7 +175,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunCompleted():
             prior = require_state(state, "RunCompleted")
@@ -195,7 +195,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunAborted():
             prior = require_state(state, "RunAborted")
@@ -215,7 +215,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunStopped():
             prior = require_state(state, "RunStopped")
@@ -235,7 +235,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunTruncated():
             prior = require_state(state, "RunTruncated")
@@ -255,7 +255,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunAdjusted(
             effective_parameters=effective_parameters,
@@ -284,10 +284,10 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=adjusted_at,
                 adjustment_count=prior.adjustment_count + 1,
                 # AsShot invariant: adjust_run never touches the
-                # pinned_calibrations; per the design memo this is the strongest
+                # pinned_calibration_ids; per the design memo this is the strongest
                 # form of the AsShot rule (even mid-flight steering can't
                 # change what calibration the Run was acquired against).
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunReadingLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write: preserve all
@@ -310,7 +310,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunAddedToCampaign(campaign_id=campaign_id):
             # post-hoc membership assignment from
@@ -335,7 +335,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunRemovedFromCampaign():
             # post-hoc membership removal from
@@ -360,7 +360,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 last_adjusted_at=prior.last_adjusted_at,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
-                pinned_calibrations=prior.pinned_calibrations,
+                pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

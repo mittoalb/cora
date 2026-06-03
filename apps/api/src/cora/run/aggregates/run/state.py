@@ -67,8 +67,8 @@ treats them as opaque domain data and validates:
   - plan must not be Deprecated
   - subject (if present) must be in {Mounted, Measured}
   - no bound Asset may be Decommissioned
-  - capability superset RE-VALIDATED: union(asset.families) ⊇
-    method.needed_families (from current Asset state, not the
+  - capability superset RE-VALIDATED: union(asset.family_ids) ⊇
+    method.needed_family_ids (from current Asset state, not the
     Plan-bind snapshot — drift is real and Run is the last gate)
   - name validation (via RunName VO)
 
@@ -122,7 +122,7 @@ RUN_TRUNCATE_REASON_MAX_LENGTH = 500
 # same triggers as RunAbortReason.
 RUN_ADJUST_REASON_MAX_LENGTH = 500
 # cardinality cap on the AsShot pin set
-# (Run.pinned_calibrations). Mirrors Data BC's
+# (Run.pinned_calibration_ids). Mirrors Data BC's
 # DATASET_USED_CALIBRATIONS_MAX_ENTRIES exactly (same default + same
 # precedent justification: per-entry existence is NOT checked at the
 # write path — revision-cited atomic IDs are cross-BC eventual-
@@ -299,7 +299,7 @@ class RunNotFoundError(Exception):
         self.run_id = run_id
 
 
-class PlanDeprecatedError(Exception):
+class RunBoundPlanDeprecatedError(Exception):
     """Attempted to start a Run against a Deprecated Plan.
 
     Plan deprecation is advisory at the Plan-aggregate layer (Plan
@@ -307,8 +307,8 @@ class PlanDeprecatedError(Exception):
     Run-start rejects — you can't execute a tombstoned Plan.
     Mapped to HTTP 409.
 
-    Symmetric to Plan-bind's PracticeDeprecatedError /
-    MethodDeprecatedError pattern.
+    Symmetric to Plan-bind's PlanBoundPracticeDeprecatedError /
+    PlanBoundMethodDeprecatedError pattern.
     """
 
     def __init__(self, plan_id: UUID) -> None:
@@ -316,7 +316,7 @@ class PlanDeprecatedError(Exception):
         self.plan_id = plan_id
 
 
-class SubjectNotMountableError(Exception):
+class RunSubjectNotMountableError(Exception):
     """Attempted to start a Run against a Subject not in Mounted | Measured.
 
     Subject-state precondition for Run-start (gate-review Q6):
@@ -337,7 +337,7 @@ class SubjectNotMountableError(Exception):
         self.current_status = current_status
 
 
-class RunAssetDecommissionedError(Exception):
+class RunPlanAssetDecommissionedError(Exception):
     """Plan's bound Assets include one or more Decommissioned at Run-start.
 
     Re-validation of Asset state at Run-start (NOT just Plan-bind
@@ -345,7 +345,7 @@ class RunAssetDecommissionedError(Exception):
     Run-start, the Run can't proceed against the now-tombstoned
     Asset. Mapped to HTTP 409.
 
-    Mirrors Plan-bind's AssetDecommissionedError shape.
+    Mirrors Plan-bind's PlanAssetDecommissionedError shape.
     """
 
     def __init__(self, asset_ids: list[UUID]) -> None:
@@ -1078,15 +1078,15 @@ class Run:
     # transition arm in the evolver (RunHeld / RunResumed /
     # RunCompleted / RunAborted / RunStopped / RunTruncated /
     # RunAdjusted / RunAddedToCampaign / RunRemovedFromCampaign /
-    # RunReadingLogbookOpened) preserves `prior.pinned_calibrations`
+    # RunReadingLogbookOpened) preserves `prior.pinned_calibration_ids`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
     # reconstruction in the Data BC, RunDebriefer AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically
     # months later, even if later refined revisions arrive on the
     # same Calibration aggregate. DNG AsShot vs Current precedent
     # (Q5/Q6 research). Defaults to empty frozenset so legacy streams
-    # without the field fold cleanly via `payload.get("pinned_calibrations", [])`.
-    pinned_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # without the field fold cleanly via `payload.get("pinned_calibration_ids", [])`.
+    pinned_calibration_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
 
 
 class InvalidRunParametersError(ValueError):
@@ -1130,7 +1130,7 @@ class RunCannotAdjustError(Exception):
 
 
 class InvalidRunAdjustPatchError(ValueError):
-    """The supplied `parameter_patch` is empty or otherwise unusable.
+    """The supplied `parameters_patch` is empty or otherwise unusable.
 
     Empty patches are rejected at the decider so the audit log never
     carries a no-op "operator adjusted with no change" entry. The API
@@ -1187,7 +1187,7 @@ class InvalidRunAdjustReasonError(ValueError):
 
 
 class InvalidPinnedCalibrationsError(ValueError):
-    """The supplied pinned_calibrations set has too many entries.
+    """The supplied pinned_calibration_ids set has too many entries.
 
     Per-entry validation (each is a UUID) is type-enforced; the
     set-cardinality cap protects against accidentally massive AsShot-
@@ -1208,20 +1208,20 @@ class InvalidPinnedCalibrationsError(ValueError):
 
     def __init__(self, count: int) -> None:
         super().__init__(
-            f"Run pinned_calibrations must have at most "
+            f"Run pinned_calibration_ids must have at most "
             f"{RUN_PINNED_CALIBRATIONS_MAX_ENTRIES} entries (got: {count})"
         )
         self.count = count
 
 
-def validate_pinned_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
-    """Normalize / validate pinned_calibrations for the Run state and decider.
+def validate_pinned_calibration_ids(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate pinned_calibration_ids for the Run state and decider.
 
     Cardinality-only check. NO per-element existence
     check (revision-cited atomic-ID model; cross-BC eventual-
     consistency per [[project_calibration_design]] anti-hook #3 +
     Vernon/Evans DDD canon). Mirrors Data BC's
-    `validate_used_calibrations` exactly — same shape, same default
+    `validate_used_calibration_ids` exactly — same shape, same default
     cap, same justification.
     """
     if len(value) > RUN_PINNED_CALIBRATIONS_MAX_ENTRIES:

@@ -19,7 +19,7 @@ from cora.access.aggregates.actor.events import (
 from cora.decision import DecisionHandlers, UnauthorizedError, wire_decision
 from cora.decision.aggregates.decision import (
     DeciderActorNotFoundError,
-    ParentDecisionNotFoundError,
+    DecisionParentNotFoundError,
 )
 from cora.decision.aggregates.decision.events import (
     DecisionRegistered,
@@ -205,7 +205,7 @@ async def test_handler_raises_parent_not_found_when_parent_missing() -> None:
     await _seed_actor(store, actor_id)
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     missing_parent = uuid4()
-    with pytest.raises(ParentDecisionNotFoundError) as exc_info:
+    with pytest.raises(DecisionParentNotFoundError) as exc_info:
         await register_decision.bind(deps)(
             _good_command(actor_id=actor_id, parent_id=missing_parent, override_kind="correction"),
             principal_id=_PRINCIPAL_ID,

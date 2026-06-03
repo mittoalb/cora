@@ -144,7 +144,7 @@ class SupplyStatus(StrEnum):
                         to confirm `Recovering -> Available`
       - `Decommissioned`: lifecycle terminal; the Supply was deregistered.
                           NOT a health state; a tombstone parallel to
-                          `Actor.is_active=false`, `Subject.status=Discarded`,
+                          `Actor.active=false`, `Subject.status=Discarded`,
                           `Asset.lifecycle=Decommissioned`. No transition exits
                           this state; re-registration creates a fresh `supply_id`.
                           Do NOT interpret this value as license to add `Faulted`,
@@ -377,7 +377,7 @@ class SupplyCannotDeregisterError(Exception):
     state lifecycle-terminal precedent in `SubjectCannotDiscardError`
     and `AssetCannotDecommissionError`. (The Access BC's
     `ActorCannotDeactivateError` is single-arg by design: Actor's
-    `is_active` is binary, so there is no informative status value to
+    `active` is binary, so there is no informative status value to
     surface in the error message.)
     """
 

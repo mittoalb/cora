@@ -23,7 +23,7 @@ lifecycle.
 
 `OutboundTerms` (this facility publishes to the peer):
 
-  - `scope_set` is the bounded set of publishable scopes the peer may
+  - `scopes` is the bounded set of publishable scopes the peer may
     pull under this permit.
   - `read_scope` and `onward_action_scope` are orthogonal axes.
     Combinations that collapse the matrix (for example onward
@@ -202,7 +202,7 @@ class ScopeRef:
 class OutboundTerms:
     """Direction-specific contractual fields when this facility publishes."""
 
-    scope_set: frozenset[ScopeRef]
+    scopes: frozenset[ScopeRef]
     read_scope: ReadScope
     onward_action_scope: OnwardActionScope
 
@@ -238,7 +238,7 @@ class Permit:
     discriminator; the decider enforces the invariant on every
     transition.
 
-    `allowed_credentials`, `allowed_payload_types`, and
+    `allowed_credential_ids`, `allowed_payload_types`, and
     `allowed_artifact_kinds` narrow the permit across both
     directions: only the named Credential ids, payload-type strings,
     and artifact kinds are valid under this permit. Each MUST be
@@ -259,7 +259,7 @@ class Permit:
     id: UUID
     peer_facility_id: str
     direction: Direction
-    allowed_credentials: frozenset[UUID]
+    allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier

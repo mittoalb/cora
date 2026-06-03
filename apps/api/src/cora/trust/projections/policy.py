@@ -4,7 +4,7 @@
 Subscribed events:
   - PolicyDefined  -> INSERT (id + name + conduit_id + occurred_at)
 
-The list-typed `permitted_principals` and `permitted_commands`
+The list-typed `permitted_principal_ids` and `permitted_commands`
 payload fields are intentionally NOT projected: they are list-shaped
 and a future `proj_trust_policy_principals` join projection covers
 "list policies allowing Principal X" if that use case crystallizes

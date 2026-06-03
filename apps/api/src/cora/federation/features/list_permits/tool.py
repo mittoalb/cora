@@ -24,7 +24,7 @@ class PermitSummaryItemOutput(BaseModel):
     permit_id: UUID
     peer_facility_id: str = Field(..., min_length=1)
     direction: Direction
-    allowed_credentials: list[UUID] = Field(default_factory=list[UUID])
+    allowed_credential_ids: list[UUID] = Field(default_factory=list[UUID])
     allowed_payload_types: list[str] = Field(default_factory=list[str])
     allowed_artifact_kinds: list[str] = Field(default_factory=list[str])
     abi_tier_floor: AbiTier
@@ -55,7 +55,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "List federation Permits with cursor pagination + 3 optional "
             "filters: direction (Outbound / Inbound) / status (Defined / "
             "Active / Suspended / Revoked) / peer_facility_id. Returns "
-            "sorted by defined_at ASC. Per-arc terms detail (scope_set / "
+            "sorted by defined_at ASC. Per-arc terms detail (scopes / "
             "read_scope / onward_action_scope / accepted_canonicalization_versions "
             "/ etc.) is NOT in the response; fetch get_permit for the full "
             "polymorphic terms VO."
@@ -101,7 +101,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     permit_id=item.permit_id,
                     peer_facility_id=item.peer_facility_id,
                     direction=Direction(item.direction),
-                    allowed_credentials=[UUID(str(c)) for c in item.allowed_credentials],
+                    allowed_credential_ids=[UUID(str(c)) for c in item.allowed_credential_ids],
                     allowed_payload_types=[str(p) for p in item.allowed_payload_types],
                     allowed_artifact_kinds=[str(k) for k in item.allowed_artifact_kinds],
                     abi_tier_floor=AbiTier(item.abi_tier_floor),

@@ -81,7 +81,7 @@ def _policy(
         id=uuid4(),
         name=PolicyName("Test"),
         conduit_id=conduit_id,
-        permitted_principals=principals,
+        permitted_principal_ids=principals,
         permitted_commands=commands,
     )
 
@@ -136,7 +136,7 @@ def test_evaluate_denies_when_command_not_permitted() -> None:
 
 
 @pytest.mark.unit
-def test_evaluate_denies_with_empty_permitted_principals() -> None:
+def test_evaluate_denies_with_empty_permitted_principal_ids() -> None:
     """Empty allow-list policy denies every principal (deny-all-by-construction)."""
     result = evaluate(
         _policy(principals=frozenset()),
@@ -206,7 +206,7 @@ def _v1_legacy_policy() -> Policy:
         id=uuid4(),
         name=PolicyName("V1 legacy"),
         conduit_id=_CONDUIT_OK,
-        permitted_principals=frozenset({_PRINCIPAL_OK}),
+        permitted_principal_ids=frozenset({_PRINCIPAL_OK}),
         permitted_commands=frozenset({"RegisterActor"}),
         surface_id=_NIL_SURFACE,
     )
@@ -218,7 +218,7 @@ def _v2_http_policy() -> Policy:
         id=uuid4(),
         name=PolicyName("V2 HTTP"),
         conduit_id=_CONDUIT_OK,
-        permitted_principals=frozenset({_PRINCIPAL_OK}),
+        permitted_principal_ids=frozenset({_PRINCIPAL_OK}),
         permitted_commands=frozenset({"RegisterActor"}),
         surface_id=_SURFACE_HTTP,
     )

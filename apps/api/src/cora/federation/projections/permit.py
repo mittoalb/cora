@@ -40,9 +40,9 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_PERMIT_SQL = """
 INSERT INTO proj_federation_permit_summary
     (permit_id, peer_facility_id, direction,
-     allowed_credentials, allowed_payload_types, allowed_artifact_kinds,
+     allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds,
      abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
-     read_scope, onward_action_scope, scope_set,
+     read_scope, onward_action_scope, scopes,
      accepted_canonicalization_versions, required_receipt_kinds,
      publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
      defined_at)
@@ -102,7 +102,7 @@ def _split_terms(terms: dict[str, Any]) -> dict[str, Any]:
             "terms_kind": "Outbound",
             "read_scope": json.dumps(terms["read_scope"]),
             "onward_action_scope": json.dumps(terms["onward_action_scope"]),
-            "scope_set": json.dumps(terms["scope_set"]),
+            "scopes": json.dumps(terms["scopes"]),
             "accepted_canonicalization_versions": None,
             "required_receipt_kinds": None,
             "publisher_grant_correlation_handle": None,
@@ -113,7 +113,7 @@ def _split_terms(terms: dict[str, Any]) -> dict[str, Any]:
             "terms_kind": "Inbound",
             "read_scope": None,
             "onward_action_scope": None,
-            "scope_set": None,
+            "scopes": None,
             "accepted_canonicalization_versions": json.dumps(
                 terms["accepted_canonicalization_versions"]
             ),
@@ -158,7 +158,7 @@ class PermitSummaryProjection:
                     UUID(payload["permit_id"]),
                     payload["peer_facility_id"],
                     payload["direction"],
-                    json.dumps(payload["allowed_credentials"]),
+                    json.dumps(payload["allowed_credential_ids"]),
                     json.dumps(payload["allowed_payload_types"]),
                     json.dumps(payload["allowed_artifact_kinds"]),
                     payload["abi_tier_floor"],
@@ -167,7 +167,7 @@ class PermitSummaryProjection:
                     terms_cols["terms_kind"],
                     terms_cols["read_scope"],
                     terms_cols["onward_action_scope"],
-                    terms_cols["scope_set"],
+                    terms_cols["scopes"],
                     terms_cols["accepted_canonicalization_versions"],
                     terms_cols["required_receipt_kinds"],
                     terms_cols["publisher_grant_correlation_handle"],

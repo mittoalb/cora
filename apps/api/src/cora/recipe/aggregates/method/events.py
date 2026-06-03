@@ -15,7 +15,7 @@ the Equipment BC.
 
 ## Payload conventions
 
-`needed_families` is stored as `tuple[UUID, ...]` here (events carry
+`needed_family_ids` is stored as `tuple[UUID, ...]` here (events carry
 primitives per CONTRIBUTING.md; tuples JSON-serialize cleanly and are
 immutable so the fold step can't accidentally alias a mutable list
 into state). The evolver converts to `frozenset` when folding into
@@ -46,7 +46,7 @@ class MethodDefined:
 
     Status is implicit (`Defined`) — the evolver sets it.
 
-    `needed_families` carries the Family ids the Method
+    `needed_family_ids` carries the Family ids the Method
     requires; eventual-consistency stance, no cross-aggregate
     verification.
 
@@ -54,12 +54,12 @@ class MethodDefined:
     KIND strings the Method requires, NOT Supply instance ids.
     Older events without the field fold via `payload.get("needed_supplies", ())`. The
     values are sorted by string form in `to_payload` for persistence
-    determinism (matches needed_families). Default empty tuple.
+    determinism (matches needed_family_ids). Default empty tuple.
     """
 
     method_id: UUID
     name: str
-    needed_families: tuple[UUID, ...]
+    needed_family_ids: tuple[UUID, ...]
     occurred_at: datetime
     needed_supplies: tuple[str, ...] = ()
     # additive evolution: capability_id points to the
@@ -86,7 +86,7 @@ class MethodVersioned:
 
     `content_hash` is the SHA-256 of the canonical body bytes for this
     Method revision's content subset (`name + parameters_schema +
-    capability_id + needed_families + needed_supplies`), captured by
+    capability_id + needed_family_ids + needed_supplies`), captured by
     the decider per the non-determinism principle. 64-char lowercase
     hex. The same content emitted twice (re-attestation) produces the
     same hash, which is the intended equivalence-detection semantic
@@ -159,7 +159,7 @@ def event_type_name(event: MethodEvent) -> str:
 def to_payload(event: MethodEvent) -> dict[str, Any]:
     """Serialize a Method event to a JSON-friendly dict for jsonb storage.
 
-    `needed_families` is sorted by UUID string form so the
+    `needed_family_ids` is sorted by UUID string form so the
     persisted payload is deterministic — same logical family
     set, same payload bytes, same idempotency hash. Same precedent
     as Trust's PolicyDefined.
@@ -168,7 +168,7 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
         case MethodDefined(
             method_id=method_id,
             name=name,
-            needed_families=needed_families,
+            needed_family_ids=needed_family_ids,
             needed_supplies=needed_supplies,
             capability_id=capability_id,
             occurred_at=occurred_at,
@@ -176,9 +176,9 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
             return {
                 "method_id": str(method_id),
                 "name": name,
-                "needed_families": sorted(str(c) for c in needed_families),
+                "needed_family_ids": sorted(str(c) for c in needed_family_ids),
                 # additive: kind strings sorted lexically for
-                # deterministic payload bytes (matches needed_families
+                # deterministic payload bytes (matches needed_family_ids
                 # convention; same idempotency-hash story).
                 "needed_supplies": sorted(needed_supplies),
                 # additive: capability_id is None on older events
@@ -236,7 +236,7 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                 return MethodDefined(
                     method_id=UUID(payload["method_id"]),
                     name=payload["name"],
-                    needed_families=tuple(UUID(c) for c in payload["needed_families"]),
+                    needed_family_ids=tuple(UUID(c) for c in payload["needed_family_ids"]),
                     # forward-compat: older MethodDefined
                     # payloads have no needed_supplies key; default to empty
                     # tuple. Additive-evolution pattern.

@@ -43,7 +43,7 @@ class _OutboundTermsInput(BaseModel):
     """JSON sub-input for `OutboundTerms`."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefInput] = Field(..., min_length=1)
+    scopes: list[_ScopeRefInput] = Field(..., min_length=1)
     read_scope: ReadScope
     onward_action_scope: OnwardActionScope
 
@@ -73,8 +73,8 @@ class DefinePermitOutput(BaseModel):
 def _build_terms(body: _TermsInput) -> OutboundTerms | InboundTerms:
     if isinstance(body, _OutboundTermsInput):
         return OutboundTerms(
-            scope_set=frozenset(
-                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scope_set
+            scopes=frozenset(
+                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scopes
             ),
             read_scope=body.read_scope,
             onward_action_scope=body.onward_action_scope,
@@ -102,7 +102,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             "Define a new federation Permit (genesis; lands in Defined). "
             "Atomically emits a DecisionRegistered audit on the Decision "
             "stream. Required: peer_facility_id, direction, "
-            "allowed_credentials, allowed_payload_types, "
+            "allowed_credential_ids, allowed_payload_types, "
             "allowed_artifact_kinds, abi_tier_floor, expires_at, terms. "
             "`terms.kind` discriminates Outbound vs Inbound and must match "
             "`direction`."
@@ -118,7 +118,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             Direction,
             Field(description="Permit direction (must match terms.kind)."),
         ],
-        allowed_credentials: Annotated[
+        allowed_credential_ids: Annotated[
             list[UUID],
             Field(min_length=1, description="Credential ids permitted under this permit."),
         ],
@@ -148,7 +148,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefinePermit(
                 peer_facility_id=peer_facility_id,
                 direction=direction,
-                allowed_credentials=frozenset(allowed_credentials),
+                allowed_credential_ids=frozenset(allowed_credential_ids),
                 allowed_payload_types=frozenset(allowed_payload_types),
                 allowed_artifact_kinds=frozenset(allowed_artifact_kinds),
                 abi_tier_floor=abi_tier_floor,

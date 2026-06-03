@@ -30,7 +30,7 @@ def _seed_practice_with_capability(
         json={
             "name": "Test Method",
             "capability_id": cap_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     ).json()["method_id"]
     practice_id = client.post(
@@ -92,7 +92,7 @@ def test_mcp_inspect_plan_binding_returns_structured_diagnostic() -> None:
     structured = result["structuredContent"]
     assert structured["practice_id"] == practice_id
     assert structured["binding_status"] == "Satisfied"
-    assert structured["missing_families"] == []
+    assert structured["missing_family_ids"] == []
     assert structured["missing_affordances"] == []
     assert structured["capability_required_affordances"] == ["Marking", "Rotatable"]
     assert len(structured["wired_assets"]) == 1
@@ -138,7 +138,7 @@ def test_mcp_inspect_plan_binding_returns_structured_diagnostic_on_failure_statu
     structured = result["structuredContent"]
     assert structured["binding_status"] == "MissingAffordances"
     assert structured["missing_affordances"] == ["Marking"]
-    assert structured["missing_families"] == []
+    assert structured["missing_family_ids"] == []
     assert len(structured["wired_assets"]) == 1
     assert structured["wired_assets"][0]["contributed_affordances"] == ["Rotatable"]
     # In-memory MCP contract harness has no pool -> projection-backed

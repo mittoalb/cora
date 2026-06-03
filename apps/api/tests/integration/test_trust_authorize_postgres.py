@@ -51,7 +51,7 @@ async def test_trust_authorize_gates_via_real_postgres_policy(
         DefinePolicy(
             name="Test-policy",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_ALLOWED_PRINCIPAL}),
+            permitted_principal_ids=frozenset({_ALLOWED_PRINCIPAL}),
             permitted_commands=frozenset({"RegisterActor"}),
         ),
         principal_id=_PRINCIPAL_ID,

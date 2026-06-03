@@ -8,6 +8,7 @@ projection module under `cora.equipment.projections`.
 """
 
 from cora.equipment.projections import (
+    AssemblySummaryProjection,
     AssetFamilyMembershipProjection,
     AssetLocationProjection,
     AssetSummaryProjection,
@@ -15,8 +16,9 @@ from cora.equipment.projections import (
     FrameChildrenProjection,
     FrameConsumersProjection,
     FrameSummaryProjection,
+    ModelSummaryProjection,
     MountChildrenProjection,
-    MountLookupProjection,
+    MountSlotCodeProjection,
     MountSummaryProjection,
 )
 from cora.infrastructure.kernel import Kernel
@@ -32,13 +34,15 @@ def register_equipment_projections(
     registry.register(AssetSummaryProjection())
     registry.register(AssetFamilyMembershipProjection())
     registry.register(FamilySummaryProjection())
+    registry.register(ModelSummaryProjection())
     registry.register(FrameSummaryProjection())
     registry.register(FrameChildrenProjection())
     registry.register(FrameConsumersProjection())
     registry.register(MountSummaryProjection())
-    registry.register(MountLookupProjection())
+    registry.register(MountSlotCodeProjection())
     registry.register(MountChildrenProjection())
     registry.register(AssetLocationProjection())
+    registry.register(AssemblySummaryProjection())
 
 
 __all__ = ["register_equipment_projections"]

@@ -78,7 +78,7 @@ async def load_recipe_at_version(
     Walks the Recipe event stream from genesis, folding events into
     `Recipe` state incrementally. Stops AT the first `RecipeVersioned`
     event whose `version_tag` matches the pinned tag and returns the
-    post-fold state. Used by `run_procedure` replay (per
+    post-fold state. Used by `conduct_procedure` replay (per
     [[project-run-procedure-replay-design]]) to resolve a Recipe to
     the exact snapshot pinned in `RecipeExpansionRecorded.recipe_version`.
 

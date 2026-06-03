@@ -209,9 +209,9 @@ class RunStarted:
     # with adjust_run + the cross-BC eventual-consistency stance).
     # IMMUTABLE after start by aggregate-level invariant — every Run
     # transition arm preserves it verbatim. Forward-compat via
-    # `payload.get("pinned_calibrations", [])` returning an empty list
+    # `payload.get("pinned_calibration_ids", [])` returning an empty list
     # for legacy streams without the field.
-    pinned_calibrations: tuple[UUID, ...] = ()
+    pinned_calibration_ids: tuple[UUID, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -440,7 +440,7 @@ class RunAdjusted:
     """
 
     run_id: UUID
-    parameter_patch: dict[str, Any]
+    parameters_patch: dict[str, Any]
     effective_parameters: dict[str, Any]
     reason: str
     occurred_at: datetime
@@ -524,7 +524,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=campaign_id,
             decided_by_decision_id=decided_by_decision_id,
-            pinned_calibrations=pinned_calibrations,
+            pinned_calibration_ids=pinned_calibration_ids,
             occurred_at=occurred_at,
         ):
             return {
@@ -556,7 +556,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 # CalibrationRevision ids sorted lexicographically for
                 # deterministic byte ordering (the typed in-memory shape is
                 # frozenset; the wire shape is a sorted list for stable bytes).
-                "pinned_calibrations": sorted(str(pin) for pin in pinned_calibrations),
+                "pinned_calibration_ids": sorted(str(pin) for pin in pinned_calibration_ids),
                 "occurred_at": occurred_at.isoformat(),
             }
         case RunHeld(run_id=run_id, occurred_at=occurred_at):
@@ -609,7 +609,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             }
         case RunAdjusted(
             run_id=run_id,
-            parameter_patch=parameter_patch,
+            parameters_patch=parameters_patch,
             effective_parameters=effective_parameters,
             reason=reason,
             decided_by_decision_id=decided_by_decision_id,
@@ -617,7 +617,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
         ):
             return {
                 "run_id": str(run_id),
-                "parameter_patch": parameter_patch,
+                "parameters_patch": parameters_patch,
                 "effective_parameters": effective_parameters,
                 "reason": reason,
                 "decided_by_decision_id": (
@@ -683,7 +683,7 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # `trigger_source`, `external_refs`,
                 # `acknowledged_cautions`, `campaign_id`,
                 # `decided_by_decision_id` (Decision-to-Run linkage),
-                # `pinned_calibrations` (Calibration AsShot anchor)
+                # `pinned_calibration_ids` (Calibration AsShot anchor)
                 # were all added additively. Each .get(...) returns
                 # the field's default when the key isn't in the jsonb
                 # payload, so legacy streams replay without an upcaster.
@@ -715,8 +715,8 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                     decided_by_decision_id=UUID(raw_decided_by)
                     if raw_decided_by is not None
                     else None,
-                    pinned_calibrations=tuple(
-                        UUID(p) for p in payload.get("pinned_calibrations", [])
+                    pinned_calibration_ids=tuple(
+                        UUID(p) for p in payload.get("pinned_calibration_ids", [])
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
@@ -794,12 +794,12 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # `decided_by_decision_id` is optional on the
                 # event payload. Forward-compat additive: synthetic / future
                 # callers omitting the key (None semantically) deserialize
-                # as decided_by_decision_id=None. `parameter_patch` and
+                # as decided_by_decision_id=None. `parameters_patch` and
                 # `effective_parameters` are always carried (never optional).
                 raw_decision_id = payload.get("decided_by_decision_id")
                 return RunAdjusted(
                     run_id=UUID(payload["run_id"]),
-                    parameter_patch=payload["parameter_patch"],
+                    parameters_patch=payload["parameters_patch"],
                     effective_parameters=payload["effective_parameters"],
                     reason=payload["reason"],
                     decided_by_decision_id=(

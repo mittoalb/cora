@@ -15,7 +15,7 @@ from cora.equipment.aggregates.mount import (
     MountCannotDecommissionError,
     MountDecommissioned,
     MountHasActiveChildrenError,
-    MountHasInstalledAssetError,
+    MountHasAssetInstalledError,
     MountNotFoundError,
     MountStatus,
 )
@@ -29,7 +29,7 @@ from cora.equipment.features.decommission_mount import (
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 
 
-def _placement(parent_frame: object) -> Placement:
+def _placement(parent_frame_id: object) -> Placement:
     return Placement(
         x=0.0,
         y=0.0,
@@ -37,7 +37,7 @@ def _placement(parent_frame: object) -> Placement:
         rx=0.0,
         ry=0.0,
         rz=0.0,
-        parent_frame_id=parent_frame,  # type: ignore[arg-type]
+        parent_frame_id=parent_frame_id,  # type: ignore[arg-type]
         reference_surface=ReferenceSurface.SHIELDING_FACE,
         tol_x=0.0,
         tol_y=0.0,
@@ -108,7 +108,7 @@ def test_decide_raises_cannot_decommission_when_already_decommissioned() -> None
 def test_decide_raises_has_installed_asset_when_slot_is_occupied() -> None:
     occupant = uuid4()
     mount = _mount(installed_asset_id=occupant)
-    with pytest.raises(MountHasInstalledAssetError) as info:
+    with pytest.raises(MountHasAssetInstalledError) as info:
         decommission_mount.decide(
             state=mount,
             command=DecommissionMount(mount_id=mount.id, reason="x"),

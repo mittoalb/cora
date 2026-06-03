@@ -5,7 +5,7 @@ conditions both surface as `AssetCannotAddFamilyError` with a
 diagnostic `reason` string:
 
   - asset is `Decommissioned` (retired; no further family changes)
-  - family_id already in `state.families` (strict-not-idempotent;
+  - family_id already in `state.family_ids` (strict-not-idempotent;
     same precedent as activate / mount-second-call-raises)
 
 Mirrors `AssetCannotRelocateError`'s collapsed-conditions pattern.
@@ -37,7 +37,7 @@ def decide(
     Invariants:
       - State must not be None -> AssetNotFoundError
       - Asset must not be Decommissioned -> AssetCannotAddFamilyError
-      - family_id must not already be in state.families
+      - family_id must not already be in state.family_ids
         (strict-not-idempotent) -> AssetCannotAddFamilyError
     """
     if state is None:
@@ -53,7 +53,7 @@ def decide(
             ),
         )
 
-    if command.family_id in state.families:
+    if command.family_id in state.family_ids:
         raise AssetCannotAddFamilyError(
             state.id,
             command.family_id,

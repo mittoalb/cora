@@ -32,7 +32,7 @@ def test_identity_providers_env_var_loads_single_jwt_idp(
                 "audiences": {
                     "00000000-0000-0000-0000-000000000020": "https://cora.example/http",
                 },
-                "algorithms_allowed": ["RS256"],
+                "allowed_algorithms": ["RS256"],
             }
         ]
     )
@@ -43,7 +43,7 @@ def test_identity_providers_env_var_loads_single_jwt_idp(
     assert isinstance(idp, IdentityProviderConfig)
     assert idp.issuer == "https://idp.example.com"
     assert idp.jwks_url == "https://idp.example.com/jwks"
-    assert idp.algorithms_allowed == ["RS256"]
+    assert idp.allowed_algorithms == ["RS256"]
 
 
 @pytest.mark.unit

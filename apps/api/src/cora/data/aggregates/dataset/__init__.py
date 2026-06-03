@@ -78,7 +78,7 @@ from cora.data.aggregates.dataset.state import (
     PromotionReason,
     validate_byte_size,
     validate_derived_from,
-    validate_used_calibrations,
+    validate_used_calibration_ids,
 )
 
 __all__ = [
@@ -140,5 +140,5 @@ __all__ = [
     "to_payload",
     "validate_byte_size",
     "validate_derived_from",
-    "validate_used_calibrations",
+    "validate_used_calibration_ids",
 ]

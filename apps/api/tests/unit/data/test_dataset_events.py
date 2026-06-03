@@ -88,7 +88,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         "occurred_at": _NOW.isoformat(),
         "producing_run_end_state": None,
         "intent": "Trial",
-        "used_calibrations": [],
+        "used_calibration_ids": [],
     }
 
 
@@ -421,17 +421,17 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
         from_stored(_stored(event_type, {}))
 
 
-# ---------- DatasetRegistered.used_calibrations AsShot citation ----------
+# ---------- DatasetRegistered.used_calibration_ids AsShot citation ----------
 
 
 from uuid import UUID  # noqa: E402
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_used_calibrations_as_sorted_string_list() -> None:
+def test_to_payload_serializes_used_calibration_ids_as_sorted_string_list() -> None:
     """The aggregate carries `tuple[UUID, ...]` for deterministic
     bytes; to_payload emits a sorted list of UUID strings. Matches
-    derived_from + Run.pinned_calibrations precedent. Mixed order
+    derived_from + Run.pinned_calibration_ids precedent. Mixed order
     on the in-memory tuple must produce the same payload bytes as
     any other ordering."""
     cal_a = UUID("01900000-0000-7000-8000-00000000ca01")
@@ -451,14 +451,14 @@ def test_to_payload_serializes_used_calibrations_as_sorted_string_list() -> None
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
-        used_calibrations=(cal_c, cal_a, cal_b),
+        used_calibration_ids=(cal_c, cal_a, cal_b),
     )
     payload = to_payload(event)
-    assert payload["used_calibrations"] == sorted([str(cal_a), str(cal_b), str(cal_c)])
+    assert payload["used_calibration_ids"] == sorted([str(cal_a), str(cal_b), str(cal_c)])
 
 
 @pytest.mark.unit
-def test_to_payload_serializes_empty_used_calibrations_as_empty_list() -> None:
+def test_to_payload_serializes_empty_used_calibration_ids_as_empty_list() -> None:
     """Default empty tuple serializes to empty list (NOT missing key)
     so writers emit a uniform payload shape."""
     event = DatasetRegistered(
@@ -476,14 +476,14 @@ def test_to_payload_serializes_empty_used_calibrations_as_empty_list() -> None:
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    assert payload["used_calibrations"] == []
+    assert payload["used_calibration_ids"] == []
 
 
 @pytest.mark.unit
-def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibrations() -> None:
+def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibration_ids() -> None:
     """Backward compat: legacy DatasetRegistered events (without
-    used_calibrations in the payload) fold cleanly via
-    `payload.get("used_calibrations", [])` returning an empty list
+    used_calibration_ids in the payload) fold cleanly via
+    `payload.get("used_calibration_ids", [])` returning an empty list
     that becomes an empty tuple on the event dataclass."""
     dataset_id = uuid4()
     pre_12c_payload: dict[str, object] = {
@@ -499,16 +499,16 @@ def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibratio
         "occurred_at": _NOW.isoformat(),
         "producing_run_end_state": None,
         "intent": "Trial",
-        # NOTE: used_calibrations deliberately ABSENT
+        # NOTE: used_calibration_ids deliberately ABSENT
     }
     stored = _stored("DatasetRegistered", pre_12c_payload)
     event = from_stored(stored)
     assert isinstance(event, DatasetRegistered)
-    assert event.used_calibrations == ()
+    assert event.used_calibration_ids == ()
 
 
 @pytest.mark.unit
-def test_used_calibrations_round_trip_through_stored_envelope() -> None:
+def test_used_calibration_ids_round_trip_through_stored_envelope() -> None:
     """Full to_payload -> from_stored cycle preserves the citation
     set verbatim (UUID identity is preserved; the on-the-wire form
     is sorted but the rebuilt tuple holds UUID objects)."""
@@ -527,18 +527,18 @@ def test_used_calibrations_round_trip_through_stored_envelope() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
-        used_calibrations=(cal_b, cal_a),  # scrambled
+        used_calibration_ids=(cal_b, cal_a),  # scrambled
     )
     payload = to_payload(event)
     stored = _stored("DatasetRegistered", payload)
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, DatasetRegistered)
     # Tuple is sorted on the wire; rebuild keeps that order.
-    assert rebuilt.used_calibrations == (cal_a, cal_b)
+    assert rebuilt.used_calibration_ids == (cal_a, cal_b)
 
 
 @pytest.mark.unit
-def test_used_calibrations_payload_bytes_are_order_independent() -> None:
+def test_used_calibration_ids_payload_bytes_are_order_independent() -> None:
     """Two events with the same logical citation set in different
     construction orders produce byte-identical jsonb payloads.
     Pins the determinism-of-on-the-wire-bytes invariant that the
@@ -548,7 +548,7 @@ def test_used_calibrations_payload_bytes_are_order_independent() -> None:
     cal_c = UUID("01900000-0000-7000-8000-00000000ca03")
     dataset_id = uuid4()
 
-    def _build(used_calibrations: tuple[UUID, ...]) -> DatasetRegistered:
+    def _build(used_calibration_ids: tuple[UUID, ...]) -> DatasetRegistered:
         return DatasetRegistered(
             dataset_id=dataset_id,
             name="D",
@@ -562,9 +562,9 @@ def test_used_calibrations_payload_bytes_are_order_independent() -> None:
             subject_id=None,
             derived_from=frozenset(),
             occurred_at=_NOW,
-            used_calibrations=used_calibrations,
+            used_calibration_ids=used_calibration_ids,
         )
 
     e1 = _build((cal_a, cal_b, cal_c))
     e2 = _build((cal_c, cal_b, cal_a))
-    assert to_payload(e1)["used_calibrations"] == to_payload(e2)["used_calibrations"]
+    assert to_payload(e1)["used_calibration_ids"] == to_payload(e2)["used_calibration_ids"]

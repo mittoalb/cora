@@ -7,7 +7,7 @@ Module-as-namespace surface:
     cmd = define_policy.DefinePolicy(
         name="Beam-team-PSS",
         conduit_id=...,
-        permitted_principals=frozenset({...}),
+        permitted_principal_ids=frozenset({...}),
         permitted_commands=frozenset({"RegisterActor"}),
     )
     handler = define_policy.bind(deps)

@@ -76,7 +76,7 @@ def evolve(state: Caution | None, event: CautionEvent) -> Caution:
                 status=CautionStatus.ACTIVE,
                 parent_caution_id=parent_caution_id,
             )
-        case CautionSuperseded(by_caution_id=by_caution_id):
+        case CautionSuperseded(superseded_by_caution_id=superseded_by_caution_id):
             prior = require_state(state, "CautionSuperseded")
             return Caution(
                 id=prior.id,
@@ -91,7 +91,7 @@ def evolve(state: Caution | None, event: CautionEvent) -> Caution:
                 propagate_to_children=prior.propagate_to_children,
                 status=CautionStatus.SUPERSEDED,
                 parent_caution_id=prior.parent_caution_id,
-                superseded_by_caution_id=by_caution_id,
+                superseded_by_caution_id=superseded_by_caution_id,
                 retired_reason=prior.retired_reason,
             )
         case CautionRetired(reason=reason):

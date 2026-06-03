@@ -38,7 +38,7 @@ _EXPIRES_AT = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
 
 def _terms() -> OutboundTerms:
     return OutboundTerms(
-        scope_set=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
+        scopes=frozenset({ScopeRef(kind="dataset", name="ct-2bm")}),
         read_scope=ReadScope.READ_ALL_ARTIFACTS,
         onward_action_scope=OnwardActionScope.READ_ONLY,
     )
@@ -49,7 +49,7 @@ def _existing_permit(*, status: PermitStatus) -> Permit:
         id=_PERMIT_ID,
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset(),
+        allowed_credential_ids=frozenset(),
         allowed_payload_types=frozenset({"application/cora.dataset+json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,

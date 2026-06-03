@@ -20,13 +20,13 @@ from cora.operation.aggregates.procedure import (
     InvalidStepKindError,
     ProcedureAbortReason,
     ProcedureAlreadyExistsError,
-    ProcedureAssetDecommissionedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
     ProcedureName,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureStatus,
     ProcedureStepsLogbookClosedError,
     ProcedureTruncateReason,
@@ -196,7 +196,7 @@ def test_procedure_cannot_abort_error_carries_id_and_status() -> None:
 @pytest.mark.unit
 def test_procedure_asset_decommissioned_error_carries_ids() -> None:
     a, b = uuid4(), uuid4()
-    err = ProcedureAssetDecommissionedError([a, b])
+    err = ProcedurePlanAssetDecommissionedError([a, b])
     assert err.asset_ids == [a, b]
     assert str(a) in str(err)
     assert str(b) in str(err)

@@ -3,7 +3,7 @@
 Target-state transition: any condition -> Nominal.
 Mirror of `degrade_asset` decider tests; same shape, target Nominal.
 
-Distinct from `exit_maintenance` which moves lifecycle
+Distinct from `exit_asset_maintenance` which moves lifecycle
 (Maintenance -> Active); this slice moves condition (any -> Nominal).
 """
 

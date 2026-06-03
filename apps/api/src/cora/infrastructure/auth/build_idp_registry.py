@@ -77,7 +77,7 @@ def build_idp_registry(
                     jwks_url=config.jwks_url,
                     audience_for_surface=config.audiences,
                     subject_mapper=subject_mapper,
-                    algorithms_allowed=config.algorithms_allowed,
+                    allowed_algorithms=config.allowed_algorithms,
                     principal_kind=config.principal_kind,
                     allow_insecure_jwks_url=config.allow_insecure_jwks_url,
                 )

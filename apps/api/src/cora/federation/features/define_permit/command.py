@@ -8,7 +8,7 @@ Carries the caller-controlled fields for defining a new Permit:
   - `direction`: query-convenience discriminator mirroring
     `type(terms)`. The decider enforces
     `direction == Outbound iff isinstance(terms, OutboundTerms)`.
-  - `allowed_credentials`: bounded set of Credential ids permitted
+  - `allowed_credential_ids`: bounded set of Credential ids permitted
     under this permit. Empty rejected.
   - `allowed_payload_types`: payload-type strings honored on either
     side of the relationship. Empty rejected.
@@ -43,7 +43,7 @@ class DefinePermit:
 
     peer_facility_id: str
     direction: Direction
-    allowed_credentials: frozenset[UUID]
+    allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier

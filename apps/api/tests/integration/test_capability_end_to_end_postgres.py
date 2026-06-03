@@ -144,7 +144,7 @@ async def test_capability_bound_full_lane_postgres(db_pool: asyncpg.Pool) -> Non
         DefineMethod(
             name="EndToEndMethod",
             capability_id=cap_id,
-            needed_families=frozenset({family_id}),
+            needed_family_ids=frozenset({family_id}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

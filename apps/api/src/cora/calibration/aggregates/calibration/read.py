@@ -7,7 +7,7 @@
 
 `load_calibration(event_store, calibration_id) -> Calibration | None`
 mirrors `load_caution` / `load_clearance` / `load_asset`. Used by the
-`get_calibration` query slice and the `append_revision` handler (which
+`get_calibration` query slice and the `append_calibration_revision` handler (which
 pre-loads the target Calibration before the decider).
 
 `CalibrationLifecycleTimestamps` + `load_calibration_timestamps`

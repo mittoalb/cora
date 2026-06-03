@@ -5,7 +5,7 @@ loads a cross-aggregate projection BEFORE calling the decider for
 slot_code uniqueness):
 
   1. Authz check (Deny -> UnauthorizedError).
-  2. Load mount_lookup projection -> existing_mount_id for slot_code.
+  2. Load mount_slot_code projection -> existing_mount_id for slot_code.
   3. Call pure decider with state=None + context + command + now + new_id.
   4. Wrap emitted events and append to the Mount stream (single-
      stream write with expected_version=0 for genesis).
@@ -22,7 +22,7 @@ from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.register_mount.command import RegisterMount
 from cora.equipment.features.register_mount.context import RegisterMountContext
 from cora.equipment.features.register_mount.decider import decide
-from cora.equipment.projections.mount_lookup import load_mount_id_by_slot_code
+from cora.equipment.projections.mount_slot_code import load_mount_id_by_slot_code
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -105,9 +105,13 @@ def bind(deps: Kernel) -> Handler:
         now = deps.clock.now()
 
         # Projection precondition: is the slot_code already in use?
-        existing_mount_id = await load_mount_id_by_slot_code(
-            deps.pool,
-            command.slot_code,
+        # Pool-None short-circuit preserves the pre-tightening permissive
+        # default (slot free) for the pool-less test path; in production
+        # deps.pool is always set.
+        existing_mount_id = (
+            await load_mount_id_by_slot_code(deps.pool, command.slot_code)
+            if deps.pool is not None
+            else None
         )
         context = RegisterMountContext(existing_mount_id=existing_mount_id)
 

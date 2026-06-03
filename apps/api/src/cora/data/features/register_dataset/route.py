@@ -139,13 +139,13 @@ class RegisterDatasetRequest(BaseModel):
             "fusions / comparative derivations."
         ),
     )
-    used_calibrations: list[UUID] = Field(
+    used_calibration_ids: list[UUID] = Field(
         default_factory=list[UUID],
         max_length=DATASET_USED_CALIBRATIONS_MAX_ENTRIES,
         description=(
             "Optional list of CalibrationRevision ids the reconstruction "
             "(or any derivative) actually used (Calibration BC AsShot "
-            "citation pattern). Symmetric to Run.pinned_calibrations "
+            "citation pattern). Symmetric to Run.pinned_calibration_ids "
             "on the acquired-from Run; the two sets are "
             "independent: reconstruction may legitimately cite refined "
             "revisions not in the producing Run's pin set (Current vs "
@@ -254,7 +254,7 @@ async def post_datasets(
             producing_run_id=body.producing_run_id,
             subject_id=body.subject_id,
             derived_from=frozenset(body.derived_from),
-            used_calibrations=frozenset(body.used_calibrations),
+            used_calibration_ids=frozenset(body.used_calibration_ids),
         ),
         principal_id=principal_id,
         correlation_id=cid,

@@ -12,7 +12,7 @@ Clock and IdGenerator ports.
 The decider does NOT verify `method_id` refers to a real Method
 stream or `site_id` refers to a real Site-level Asset stream. Same
 precedent as Trust Conduit zone refs (3b), Asset parent refs (5b),
-Method.needed_families (6a), and Asset.families entries
+Method.needed_family_ids (6a), and Asset.family_ids entries
 (5f-1). Mismatch surfaces at Plan binding (6e).
 """
 

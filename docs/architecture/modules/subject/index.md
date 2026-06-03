@@ -34,7 +34,7 @@ A `Subject` is the entity being measured, observed, or studied. The state record
 | `SubjectStatus` | closed StrEnum: `Received` \| `Mounted` \| `Measured` \| `Removed` \| `Returned` \| `Stored` \| `Discarded` | `Subject.status` |
 | `SubjectDiscardReason` | trimmed string, 1-500 chars | `discard_subject` decider input; serialized as plain `str` on `SubjectDiscarded.reason` |
 
-`SubjectStatus.Returned`, `Stored`, and `Discarded` are terminal. `SubjectStatus.Received` is the genesis status set by the evolver on `SubjectRegistered`; no event payload ever carries a `status` field, since the event type itself encodes the state change. The same precedent runs through the Access module's `Actor.is_active`.
+`SubjectStatus.Returned`, `Stored`, and `Discarded` are terminal. `SubjectStatus.Received` is the genesis status set by the evolver on `SubjectRegistered`; no event payload ever carries a `status` field, since the event type itself encodes the state change. The same precedent runs through the Access module's `Actor.active`.
 
 `SubjectDiscardReason` is required free text on every discard: the irrecoverable terminal disposition must carry the operator's stated reason. The two intermediate-mount-cycle events (`SubjectMounted`, `SubjectDismounted`) also carry a reason field for full sample-handling provenance.
 

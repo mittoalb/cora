@@ -25,7 +25,7 @@ def _setup_plan_with_two_assets_and_ports(client: TestClient) -> dict[str, Any]:
     ]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_family_ids": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

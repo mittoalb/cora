@@ -19,7 +19,7 @@ Slice-local module by design: only `start_procedure` uses it today.
 
   - `assets`: dict keyed by asset_id, loaded from
     `procedure.target_asset_ids`. Decider rejects if any is
-    Decommissioned (`ProcedureAssetDecommissionedError`). Empty dict
+    Decommissioned (`ProcedurePlanAssetDecommissionedError`). Empty dict
     is valid (facility-envelope procedures, for example beam-mode
     change, have no target Assets).
 

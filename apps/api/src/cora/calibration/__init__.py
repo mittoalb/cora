@@ -7,9 +7,9 @@ history. Sibling to Safety + Caution per [[project_calibration_design]].
 The Calibration aggregate captures what the alignment Procedure
 *measured* (Measured source), what numerical methods *computed* from
 acquired Datasets (Computed source), and what operators *asserted*
-directly (Asserted source). Run.pinned_calibrations records what was
+directly (Asserted source). Run.pinned_calibration_ids records what was
 live at scan start (AsShot anchor per DNG precedent); reconstructed
-Dataset.used_calibrations may cite later refined revisions (per the
+Dataset.used_calibration_ids may cite later refined revisions (per the
 Calibration BC's revision-cited atomic-ID model — the Dataset's set
 is its own list of revision IDs, not an attribute-overlay on top of
 the Run's set; see [[project_calibration_design]] anti-hook #3 +

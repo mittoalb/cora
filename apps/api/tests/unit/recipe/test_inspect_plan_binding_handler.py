@@ -136,13 +136,13 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_families: frozenset[UUID] = frozenset(),
+    needed_family_ids: frozenset[UUID] = frozenset(),
     capability_id: UUID | None = None,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=tuple(sorted(needed_families, key=str)),
+        needed_family_ids=tuple(sorted(needed_family_ids, key=str)),
         capability_id=capability_id,
         occurred_at=_NOW,
     )
@@ -235,7 +235,7 @@ async def _seed_asset(
     asset_id: UUID,
     *,
     name: str = "TestAsset",
-    families: frozenset[UUID] = frozenset(),
+    family_ids: frozenset[UUID] = frozenset(),
     degraded: bool = False,
     faulted: bool = False,
     decommissioned: bool = False,
@@ -258,7 +258,7 @@ async def _seed_asset(
         command_name="RegisterAsset",
     )
     version = 1
-    for family_id in sorted(families, key=str):
+    for family_id in sorted(family_ids, key=str):
         family_event = AssetFamilyAdded(asset_id=asset_id, family_id=family_id, occurred_at=_NOW)
         await _append(
             store,
@@ -316,7 +316,7 @@ async def _seed_asset(
             expected_version=version,
             event_type=asset_event_type_name(maint_event),
             payload=asset_to_payload(maint_event),
-            command_name="EnterMaintenance",
+            command_name="EnterAssetMaintenance",
         )
         version += 1
     if decommissioned:
@@ -374,11 +374,11 @@ async def test_handler_returns_satisfied_when_families_and_affordances_covered()
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -389,7 +389,7 @@ async def test_handler_returns_satisfied_when_families_and_affordances_covered()
     )
 
     assert view.binding_status is BindingStatus.SATISFIED
-    assert view.missing_families == frozenset()
+    assert view.missing_family_ids == frozenset()
     assert view.missing_affordances == frozenset()
     assert view.capability_id == _CAPABILITY_ID
     assert len(view.wired_assets) == 1
@@ -407,11 +407,11 @@ async def test_handler_returns_missing_families_when_asset_lacks_family() -> Non
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset())  # no families
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset())  # no families
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -422,7 +422,7 @@ async def test_handler_returns_missing_families_when_asset_lacks_family() -> Non
     )
 
     assert view.binding_status is BindingStatus.MISSING_FAMILIES
-    assert view.missing_families == frozenset({_FAMILY_ROTARY_ID})
+    assert view.missing_family_ids == frozenset({_FAMILY_ROTARY_ID})
     assert view.missing_affordances == frozenset()  # capability has none required
 
 
@@ -439,11 +439,11 @@ async def test_handler_returns_missing_affordances_when_family_lacks_affordance(
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -454,7 +454,7 @@ async def test_handler_returns_missing_affordances_when_family_lacks_affordance(
     )
 
     assert view.binding_status is BindingStatus.MISSING_AFFORDANCES
-    assert view.missing_families == frozenset()
+    assert view.missing_family_ids == frozenset()
     assert view.missing_affordances == frozenset({Affordance.MARKING})
 
 
@@ -473,13 +473,13 @@ async def test_handler_populates_both_missing_sets_when_both_dimensions_fail() -
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID, _FAMILY_CAMERA_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID, _FAMILY_CAMERA_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
     # Asset carries only the rotary Family -> camera Family missing AND
     # Recording affordance missing.
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -490,7 +490,7 @@ async def test_handler_populates_both_missing_sets_when_both_dimensions_fail() -
     )
 
     assert view.binding_status is BindingStatus.MISSING_FAMILIES
-    assert view.missing_families == frozenset({_FAMILY_CAMERA_ID})
+    assert view.missing_family_ids == frozenset({_FAMILY_CAMERA_ID})
     assert view.missing_affordances == frozenset({Affordance.RECORDING})
 
 
@@ -659,7 +659,7 @@ async def test_handler_raises_family_not_found_when_asset_references_missing_fam
     await _seed_method(store, _METHOD_ID, capability_id=_CAPABILITY_ID)
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
     # Asset bound to a family_id whose Family stream was never seeded.
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -703,11 +703,11 @@ async def test_handler_skips_candidate_lookup_when_pool_is_none() -> None:
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 
@@ -737,11 +737,11 @@ async def test_handler_returns_empty_candidates_when_no_affordances_missing() ->
     await _seed_method(
         store,
         _METHOD_ID,
-        needed_families=frozenset({_FAMILY_ROTARY_ID}),
+        needed_family_ids=frozenset({_FAMILY_ROTARY_ID}),
         capability_id=_CAPABILITY_ID,
     )
     await _seed_practice(store, _PRACTICE_ID, method_id=_METHOD_ID)
-    await _seed_asset(store, _ASSET_A_ID, families=frozenset({_FAMILY_ROTARY_ID}))
+    await _seed_asset(store, _ASSET_A_ID, family_ids=frozenset({_FAMILY_ROTARY_ID}))
     deps = build_deps(now=_NOW, event_store=store)
     handler = inspect_plan_binding.bind(deps)
 

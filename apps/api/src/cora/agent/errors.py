@@ -106,3 +106,83 @@ class DecisionNotEmittedByCautionDrafterError(Exception):
         self.decision_id = decision_id
         self.actor_id = actor_id
         self.observed_kind = observed_kind
+
+
+class InvalidDismissalReasonError(Exception):
+    """The `dismiss_event_in_reaction` reason failed validation (empty,
+    too long, or otherwise out of bounds). Maps to HTTP 400."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+class SubscriberBookmarkNotFoundError(Exception):
+    """No `projection_bookmarks` row matches the supplied subscriber
+    name. Either the subscriber is misspelled, or its migration
+    hasn't landed in this deployment. Maps to HTTP 404."""
+
+    def __init__(self, subscriber_name: str) -> None:
+        super().__init__(
+            f"No projection_bookmarks row for subscriber {subscriber_name!r}. "
+            "Check the spelling against the registered Reactions / Projections, "
+            "or verify the subscriber's migration has been applied."
+        )
+        self.subscriber_name = subscriber_name
+
+
+class DismissalEventNotFoundError(Exception):
+    """The supplied event_id does not exist in the events table.
+    Either the operator pasted the wrong id, or the event was
+    canonicalized away by a maintenance migration. Maps to HTTP 404."""
+
+    def __init__(self, event_id: UUID) -> None:
+        super().__init__(
+            f"No event row for event_id {event_id}. The operator dashboard "
+            "should be the source of truth for the wedged event's id."
+        )
+        self.event_id = event_id
+
+
+class EventAlreadyDismissedError(Exception):
+    """The bookmark is already at or past the target event, so the
+    dismissal would be a no-op (or worse, would rewind the cursor).
+    Surfaces as 409 so the operator can refresh the dashboard and
+    re-evaluate."""
+
+    def __init__(
+        self,
+        *,
+        subscriber_name: str,
+        event_id: UUID,
+        bookmark_transaction_id: int,
+        bookmark_position: int,
+        event_transaction_id: int,
+        event_position: int,
+    ) -> None:
+        super().__init__(
+            f"Subscriber {subscriber_name!r} bookmark "
+            f"({bookmark_transaction_id}, {bookmark_position}) is at or past "
+            f"event {event_id} cursor ({event_transaction_id}, "
+            f"{event_position}); dismissal would be a no-op or rewind."
+        )
+        self.subscriber_name = subscriber_name
+        self.event_id = event_id
+        self.bookmark_transaction_id = bookmark_transaction_id
+        self.bookmark_position = bookmark_position
+        self.event_transaction_id = event_transaction_id
+        self.event_position = event_position
+
+
+class DismissalRequiresPostgresError(Exception):
+    """`dismiss_event_in_reaction` requires a Postgres pool because the
+    bookmark advance is a SQL UPDATE on `projection_bookmarks`. The
+    in-memory test adapter has no such table; raise so the operator
+    sees a clear "not in this configuration" instead of a stale-cache
+    success. Maps to HTTP 503."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "dismiss_event_in_reaction requires a Postgres pool; the "
+            "in-memory adapter has no projection_bookmarks table to advance."
+        )

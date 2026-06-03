@@ -64,13 +64,13 @@ def _command(**overrides: object) -> DefinePermit:
     base: dict[str, object] = {
         "peer_facility_id": "aps-2bm",
         "direction": Direction.OUTBOUND,
-        "allowed_credentials": frozenset({_CREDENTIAL_ID}),
+        "allowed_credential_ids": frozenset({_CREDENTIAL_ID}),
         "allowed_payload_types": frozenset({"application/json"}),
         "allowed_artifact_kinds": frozenset({"dataset"}),
         "abi_tier_floor": AbiTier.STABLE,
         "expires_at": _EXPIRES_AT,
         "terms": OutboundTerms(
-            scope_set=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
+            scopes=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
             read_scope=ReadScope.READ_ALL_ARTIFACTS,
             onward_action_scope=OnwardActionScope.READ_ONLY,
         ),
@@ -130,7 +130,7 @@ async def test_define_permit_handler_writes_permit_payload_fields() -> None:
     assert payload["permit_id"] == str(_NEW_PERMIT_ID)
     assert payload["peer_facility_id"] == "aps-2bm"
     assert payload["direction"] == Direction.OUTBOUND.value
-    assert payload["allowed_credentials"] == [str(_CREDENTIAL_ID)]
+    assert payload["allowed_credential_ids"] == [str(_CREDENTIAL_ID)]
     assert payload["allowed_payload_types"] == ["application/json"]
     assert payload["allowed_artifact_kinds"] == ["dataset"]
     assert payload["abi_tier_floor"] == AbiTier.STABLE.value

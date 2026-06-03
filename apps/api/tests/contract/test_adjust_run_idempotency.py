@@ -53,7 +53,7 @@ def test_post_adjust_run_same_key_same_body_returns_cached_204() -> None:
         run_id = _setup_full_run(client)
         headers = {"Idempotency-Key": "adj-1"}
         body = {
-            "parameter_patch": {"energy": 12.0},
+            "parameters_patch": {"energy": 12.0},
             "reason": "re-center",
         }
         r1 = client.post(f"/runs/{run_id}/adjust", json=body, headers=headers)
@@ -74,12 +74,12 @@ def test_post_adjust_run_same_key_different_body_returns_422() -> None:
         headers = {"Idempotency-Key": "adj-2"}
         r1 = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy": 12.0}, "reason": "first"},
+            json={"parameters_patch": {"energy": 12.0}, "reason": "first"},
             headers=headers,
         )
         r2 = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy": 14.0}, "reason": "second"},
+            json={"parameters_patch": {"energy": 14.0}, "reason": "second"},
             headers=headers,
         )
 
@@ -97,11 +97,11 @@ def test_post_adjust_run_without_key_applies_each_time() -> None:
         run_id = _setup_full_run(client)
         r1 = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy": 12.0}, "reason": "first"},
+            json={"parameters_patch": {"energy": 12.0}, "reason": "first"},
         )
         r2 = client.post(
             f"/runs/{run_id}/adjust",
-            json={"parameter_patch": {"energy": 14.0}, "reason": "second"},
+            json={"parameters_patch": {"energy": 14.0}, "reason": "second"},
         )
 
     assert r1.status_code == 204

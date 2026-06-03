@@ -29,8 +29,8 @@ InvalidRunInterruptedAtError).
     InvalidSamplingProcedureError, InvalidRunExternalRefError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
-  - 409 (Run-start binding-state guards): PlanDeprecatedError,
-    SubjectNotMountableError, RunAssetDecommissionedError,
+  - 409 (Run-start binding-state guards): RunBoundPlanDeprecatedError,
+    RunSubjectNotMountableError, RunPlanAssetDecommissionedError,
     RunCapabilitiesNotSatisfiedError
   - 409 (Run-start safety-clearance gate, 11a-c-3):
     RunRequiresActiveClearanceError, RunClearanceCoverageMismatchError
@@ -66,10 +66,9 @@ from cora.run.aggregates.run import (
     InvalidRunStopReasonError,
     InvalidRunTruncateReasonError,
     InvalidSamplingProcedureError,
-    PlanDeprecatedError,
     RunAlreadyAssignedToCampaignError,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCannotAbortError,
     RunCannotAdjustError,
     RunCannotCompleteError,
@@ -81,11 +80,12 @@ from cora.run.aggregates.run import (
     RunCapabilitiesNotSatisfiedError,
     RunClearanceCoverageMismatchError,
     RunNotFoundError,
+    RunPlanAssetDecommissionedError,
     RunReadingLogbookClosedError,
     RunRequiresActiveClearanceError,
     RunRequiresAvailableSupplyError,
+    RunSubjectNotMountableError,
     RunSupplyCoverageMismatchError,
-    SubjectNotMountableError,
 )
 from cora.run.errors import UnauthorizedError
 from cora.run.features import (
@@ -200,9 +200,9 @@ def register_run_routes(app: FastAPI) -> None:
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         # Run-start binding-state guards.
-        PlanDeprecatedError,
-        SubjectNotMountableError,
-        RunAssetDecommissionedError,
+        RunBoundPlanDeprecatedError,
+        RunSubjectNotMountableError,
+        RunPlanAssetDecommissionedError,
         RunCapabilitiesNotSatisfiedError,
         # Run-start safety-clearance gate (11a-c-3).
         RunRequiresActiveClearanceError,

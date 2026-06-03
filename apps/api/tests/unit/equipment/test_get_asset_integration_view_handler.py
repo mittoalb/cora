@@ -17,7 +17,7 @@ This file pins:
   - happy path: Asset with 2 families → families view carries name +
     affordances; combined affordances drive applicable_capabilities
     (empty under no-pool but the computation completes)
-  - missing-family tolerance: Family in asset.families with no events
+  - missing-family tolerance: Family in asset.family_ids with no events
     in the store → skip with warning + incomplete=True
   - Deny path: UnauthorizedError raised pre-load (no event-store reads)
   - wire registration: get_asset_integration_view appears on EquipmentHandlers
@@ -186,7 +186,7 @@ async def test_handler_returns_family_views_with_combined_affordances() -> None:
 
 @pytest.mark.unit
 async def test_handler_marks_incomplete_when_family_missing_from_store() -> None:
-    """Missing-Family tolerance: a Family referenced in Asset.families
+    """Missing-Family tolerance: a Family referenced in Asset.family_ids
     whose stream has no events triggers a warning log + sets
     incomplete=True. Mirrors promote_dataset peer-load tolerance."""
     missing_family_id = UUID("01900000-0000-7000-8000-00000000beef")

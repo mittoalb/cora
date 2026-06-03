@@ -41,7 +41,7 @@ def test_post_remove_family_returns_204_on_happy_path() -> None:
 
 @pytest.mark.contract
 def test_post_remove_family_drops_family_from_get_asset_response() -> None:
-    """End-to-end: add then remove leaves families back at empty
+    """End-to-end: add then remove leaves family_ids back at empty
     in the read response."""
     cap = str(uuid4())
     with TestClient(create_app()) as client:
@@ -50,7 +50,7 @@ def test_post_remove_family_drops_family_from_get_asset_response() -> None:
         response = client.get(f"/assets/{asset_id}")
 
     assert response.status_code == 200
-    assert response.json()["families"] == []
+    assert response.json()["family_ids"] == []
 
 
 @pytest.mark.contract

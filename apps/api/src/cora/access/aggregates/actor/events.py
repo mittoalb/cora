@@ -66,7 +66,7 @@ class ActorRegistered:
 @dataclass(frozen=True)
 class ActorDeactivated:
     """An existing actor was deactivated. The actor remains in the
-    system but `Actor.is_active` flips to False."""
+    system but `Actor.active` flips to False."""
 
     actor_id: UUID
     occurred_at: datetime

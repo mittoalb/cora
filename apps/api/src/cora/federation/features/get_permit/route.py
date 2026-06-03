@@ -39,7 +39,7 @@ class _OutboundTermsResponse(BaseModel):
     """Wire shape for outbound terms in the response."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefResponse]
+    scopes: list[_ScopeRefResponse]
     read_scope: str
     onward_action_scope: str
 
@@ -71,7 +71,7 @@ class PermitResponse(BaseModel):
     id: UUID
     peer_facility_id: str
     direction: str
-    allowed_credentials: list[UUID]
+    allowed_credential_ids: list[UUID]
     allowed_payload_types: list[str]
     allowed_artifact_kinds: list[str]
     abi_tier_floor: str
@@ -88,10 +88,10 @@ class PermitResponse(BaseModel):
 
 def _terms_from_view(view: PermitView) -> _TermsResponse:
     if view.terms_kind == "Outbound":
-        scopes = view.scope_set or []
+        scopes = view.scopes or []
         return _OutboundTermsResponse(
             kind="Outbound",
-            scope_set=[
+            scopes=[
                 _ScopeRefResponse(
                     kind=s["kind"],
                     name=s["name"],
@@ -116,7 +116,7 @@ def _response_from_view(view: PermitView) -> PermitResponse:
         id=view.permit_id,
         peer_facility_id=view.peer_facility_id,
         direction=view.direction,
-        allowed_credentials=list(view.allowed_credentials),
+        allowed_credential_ids=list(view.allowed_credential_ids),
         allowed_payload_types=list(view.allowed_payload_types),
         allowed_artifact_kinds=list(view.allowed_artifact_kinds),
         abi_tier_floor=view.abi_tier_floor,

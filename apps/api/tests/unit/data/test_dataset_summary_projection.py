@@ -62,7 +62,7 @@ async def test_dataset_registered_inserts_with_genesis_refs() -> None:
             "derived_from": [],
             "occurred_at": _NOW.isoformat(),
             # compat is exercised by test_dataset_registered_pre_12c_payload_falls_back.
-            "used_calibrations": [],
+            "used_calibration_ids": [],
         },
     )
 
@@ -113,10 +113,12 @@ async def test_dataset_registered_with_null_run_and_subject() -> None:
 
 
 @pytest.mark.unit
-async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibrations() -> None:
-    """Pre-12c DatasetRegistered events lack the `used_calibrations`
+async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibration_ids() -> (
+    None
+):
+    """Pre-12c DatasetRegistered events lack the `used_calibration_ids`
     key in the payload entirely. The projection's `payload.get(
-    "used_calibrations", [])` fallback MUST land an empty UUID list
+    "used_calibration_ids", [])` fallback MUST land an empty UUID list
     on the column so legacy rows backfill cleanly (matches the
     in-memory frozenset default + the from_stored forward-compat
     fold)."""
@@ -131,7 +133,7 @@ async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calib
             "producing_run_id": None,
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
-            # NOTE: used_calibrations deliberately ABSENT
+            # NOTE: used_calibration_ids deliberately ABSENT
         },
     )
 
@@ -144,7 +146,7 @@ async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calib
 
 @pytest.mark.unit
 async def test_dataset_registered_with_citations_inserts_uuid_array() -> None:
-    """When the payload carries `used_calibrations`, the
+    """When the payload carries `used_calibration_ids`, the
     projection parses each entry into a UUID and passes the list as
     the 7th arg. The decider sorts before emit, so the on-the-wire
     order is deterministic; the projection passes through verbatim."""
@@ -162,7 +164,7 @@ async def test_dataset_registered_with_citations_inserts_uuid_array() -> None:
             "subject_id": None,
             "occurred_at": _NOW.isoformat(),
             # Sorted (decider's responsibility); projection trusts.
-            "used_calibrations": sorted([str(cal_a), str(cal_b)]),
+            "used_calibration_ids": sorted([str(cal_a), str(cal_b)]),
         },
     )
 

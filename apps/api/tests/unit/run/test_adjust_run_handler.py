@@ -92,7 +92,7 @@ async def _seed_method(
     define_event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=(),
+        needed_family_ids=(),
         occurred_at=_NOW,
     )
     await _append(
@@ -159,7 +159,7 @@ async def _seed_plan(
         practice_id=practice_id,
         asset_ids=tuple(sorted(asset_ids, key=str)),
         method_id=method_id,
-        method_needed_families_snapshot=(),
+        method_needed_family_ids_snapshot=(),
         asset_families_snapshot={},
         occurred_at=_NOW,
     )
@@ -253,7 +253,7 @@ async def test_handler_appends_run_adjusted_event_with_merged_snapshot() -> None
     result = await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"energy": 12.0},
+            parameters_patch={"energy": 12.0},
             reason="re-center on detected feature",
         ),
         principal_id=_PRINCIPAL_ID,
@@ -267,7 +267,7 @@ async def test_handler_appends_run_adjusted_event_with_merged_snapshot() -> None
     adjusted = events[1]
     assert adjusted.event_id == _ADJUSTED_EVENT_ID
     assert adjusted.metadata == {"command": "AdjustRun"}
-    assert adjusted.payload["parameter_patch"] == {"energy": 12.0}
+    assert adjusted.payload["parameters_patch"] == {"energy": 12.0}
     assert adjusted.payload["effective_parameters"] == {"energy": 12.0}
     assert adjusted.payload["reason"] == "re-center on detected feature"
     assert adjusted.payload["decided_by_decision_id"] is None
@@ -287,7 +287,7 @@ async def test_handler_threads_decision_id_to_event_without_loading_decision() -
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"steering_step": 1},
+            parameters_patch={"steering_step": 1},
             reason="agent loop iteration",
             decided_by_decision_id=decision_id,
         ),
@@ -309,7 +309,7 @@ async def test_handler_raises_run_not_found_when_run_does_not_exist() -> None:
         await adjust_run.bind(deps)(
             AdjustRun(
                 run_id=_RUN_ID,
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 reason="x",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -327,7 +327,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
         await adjust_run.bind(deny_deps)(
             AdjustRun(
                 run_id=run_id,
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 reason="x",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -355,7 +355,7 @@ async def test_handler_raises_plan_not_found_when_plan_stream_empty() -> None:
         await adjust_run.bind(deps)(
             AdjustRun(
                 run_id=_RUN_ID,
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 reason="x",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -379,7 +379,7 @@ async def test_handler_raises_practice_not_found_when_practice_stream_empty() ->
         await adjust_run.bind(deps)(
             AdjustRun(
                 run_id=_RUN_ID,
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 reason="x",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -404,7 +404,7 @@ async def test_handler_raises_method_not_found_when_method_stream_empty() -> Non
         await adjust_run.bind(deps)(
             AdjustRun(
                 run_id=_RUN_ID,
-                parameter_patch={"x": 1},
+                parameters_patch={"x": 1},
                 reason="x",
             ),
             principal_id=_PRINCIPAL_ID,
@@ -427,7 +427,7 @@ async def test_handler_does_not_auto_populate_decided_by_from_causation_id() -> 
     await adjust_run.bind(deps)(
         AdjustRun(
             run_id=run_id,
-            parameter_patch={"x": 1},
+            parameters_patch={"x": 1},
             reason="x",
             decided_by_decision_id=None,
         ),

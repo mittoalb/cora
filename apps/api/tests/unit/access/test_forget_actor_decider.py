@@ -19,7 +19,7 @@ _NOW = datetime(2026, 5, 23, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_decide_emits_actor_profile_forgotten_for_existing_actor() -> None:
     actor_id = uuid4()
-    state = Actor(id=actor_id, is_active=True)
+    state = Actor(id=actor_id, active=True)
 
     events = forget_actor.decide(
         state=state,
@@ -37,7 +37,7 @@ def test_decide_emits_event_even_for_already_deactivated_actor() -> None:
     response to a closing-the-loop GDPR request after deactivation).
     """
     actor_id = uuid4()
-    state = Actor(id=actor_id, is_active=False)
+    state = Actor(id=actor_id, active=False)
 
     events = forget_actor.decide(
         state=state,
@@ -67,7 +67,7 @@ def test_decide_uses_state_id_not_command_id() -> None:
     source-of-truth invariant for the id."""
     actor_id = uuid4()
     command_id = uuid4()
-    state = Actor(id=actor_id, is_active=True)
+    state = Actor(id=actor_id, active=True)
 
     events = forget_actor.decide(
         state=state,

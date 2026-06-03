@@ -14,6 +14,7 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.equipment._alternate_identifier_body import AlternateIdentifierBody
 from cora.equipment._drawing_body import DrawingBody
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
@@ -55,7 +56,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             Field(
                 description=(
                     "Hierarchical level: Enterprise (root, requires "
-                    "null parent_id), Site, Area, Unit, Assembly, Device."
+                    "null parent_id), Site, Area, Unit, Component, Device."
                 ),
             ),
         ],
@@ -80,6 +81,34 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        model_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional reference to the Model catalog entry "
+                    "this Asset is an instance of. Set ONCE at "
+                    "registration; rebind path is decommission + "
+                    "re-register. Raises 404 if the Model stream "
+                    "does not exist."
+                ),
+            ),
+        ] = None,
+        alternate_identifiers: Annotated[
+            list[AlternateIdentifierBody] | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional PIDINST v1.0 Property 13 alternate-"
+                    "identifier tuples (operator-supplied serial "
+                    "numbers, inventory tags, vendor-specific "
+                    "schemes) seeded at registration. Each entry is "
+                    "a flat (kind, value) pair; kind is closed "
+                    "vocabulary SerialNumber | InventoryNumber | "
+                    "Other."
+                ),
+            ),
+        ] = None,
     ) -> RegisterAssetOutput:
         handler = get_handler()
         asset_id = await handler(
@@ -88,6 +117,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 level=level,
                 parent_id=parent_id,
                 drawing=drawing.to_domain() if drawing is not None else None,
+                model_id=model_id,
+                alternate_identifiers=frozenset(
+                    entry.to_domain() for entry in (alternate_identifiers or [])
+                ),
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

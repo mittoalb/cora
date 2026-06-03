@@ -27,7 +27,14 @@ Subject / Equipment / Supply / Safety / Caution:
   - `revoke_tool_from_agent`  (transition; idempotent; no wrap)
   - `revise_agent_budget`     (transition; idempotent; no wrap)
   - `get_agent`               (query)
-  - `re_debrief_run`          (operator-triggered; idempotency-wrapped)
+  - `regenerate_run_debrief`  (operator-triggered; idempotency-wrapped)
+  - `dismiss_event_in_reaction` (operator-triggered atomic bookmark
+                                 advance + Decision audit; no
+                                 idempotency wrap because the slice
+                                 is operator-rare and the
+                                 EventAlreadyDismissedError guard
+                                 catches duplicate dismissals
+                                 strict-not-idempotently)
 """
 
 from dataclasses import dataclass
@@ -36,10 +43,11 @@ from uuid import UUID
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
+    dismiss_event_in_reaction,
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
-    re_debrief_run,
+    regenerate_run_debrief,
     resume_agent,
     revise_agent_budget,
     revoke_tool_from_agent,
@@ -66,39 +74,40 @@ class AgentHandlers:
     revoke_tool_from_agent: revoke_tool_from_agent.Handler
     revise_agent_budget: revise_agent_budget.Handler
     get_agent: get_agent.Handler
-    re_debrief_run: re_debrief_run.IdempotentHandler | None
+    regenerate_run_debrief: regenerate_run_debrief.IdempotentHandler | None
     promote_caution_proposal: promote_caution_proposal.IdempotentHandler
+    dismiss_event_in_reaction: dismiss_event_in_reaction.Handler
 
 
 def wire_agent(deps: Kernel) -> AgentHandlers:
     """Build the Agent BC handlers from shared dependencies.
 
-    `re_debrief_run` requires `kernel.llm` to be set (production
+    `regenerate_run_debrief` requires `kernel.llm` to be set (production
     `AnthropicLLM` or test `FakeLLM`). When the LLM
     is unwired (eg. dev startup without ANTHROPIC_API_KEY), the
-    handler bundle carries `re_debrief_run=None`; the REST route
+    handler bundle carries `regenerate_run_debrief=None`; the REST route
     + MCP tool guard on the None to return HTTP 503.
 
     `define_agent` reads the PII vault from `deps.profile_store`
     (the shared singleton Access BC also uses) so the in-memory
     test adapter is the SAME dict across both BCs.
     """
-    re_debrief_run_handler: re_debrief_run.IdempotentHandler | None
+    regenerate_run_debrief_handler: regenerate_run_debrief.IdempotentHandler | None
     if deps.llm is None:
-        re_debrief_run_handler = None
+        regenerate_run_debrief_handler = None
     else:
-        re_debrief_run_handler = with_tracing(
+        regenerate_run_debrief_handler = with_tracing(
             with_idempotency(
-                re_debrief_run.bind(deps),
+                regenerate_run_debrief.bind(deps),
                 deps.idempotency_store,
-                command_name="ReDebriefRun",
+                command_name="RegenerateRunDebrief",
                 # Handler returns UUID; cache as str (jsonb-friendly) and
                 # rebuild via UUID() on retrieval.
                 serialize_result=str,
                 deserialize_result=UUID,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
-            command_name="ReDebriefRun",
+            command_name="RegenerateRunDebrief",
             bc=_BC,
         )
     return AgentHandlers(
@@ -156,7 +165,7 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
             command_name="GetAgent",
             bc=_BC,
         ),
-        re_debrief_run=re_debrief_run_handler,
+        regenerate_run_debrief=regenerate_run_debrief_handler,
         promote_caution_proposal=with_tracing(
             with_idempotency(
                 promote_caution_proposal.bind(deps),
@@ -168,6 +177,11 @@ def wire_agent(deps: Kernel) -> AgentHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="PromoteCautionProposal",
+            bc=_BC,
+        ),
+        dismiss_event_in_reaction=with_tracing(
+            dismiss_event_in_reaction.bind(deps),
+            command_name="DismissEventInReaction",
             bc=_BC,
         ),
     )

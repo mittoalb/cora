@@ -6,7 +6,7 @@ Module-as-namespace surface, symmetric with the other Run slices:
 
     cmd = adjust_run.AdjustRun(
         run_id=...,
-        parameter_patch={"energy": 13.0},
+        parameters_patch={"energy": 13.0},
         reason="re-centering ROI on detected feature",
     )
     handler = adjust_run.bind(deps)

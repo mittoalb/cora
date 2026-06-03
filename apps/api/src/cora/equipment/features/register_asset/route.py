@@ -16,6 +16,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
+from cora.equipment._alternate_identifier_body import AlternateIdentifierBody
 from cora.equipment._drawing_body import DrawingBody
 from cora.equipment.aggregates.asset import ASSET_NAME_MAX_LENGTH, AssetLevel
 from cora.equipment.features.register_asset.command import RegisterAsset
@@ -32,7 +33,7 @@ class RegisterAssetRequest(BaseModel):
     """Body for `POST /assets`.
 
     `level` accepts the StrEnum's PascalCase string values
-    ("Enterprise" / "Site" / "Area" / "Unit" / "Assembly" /
+    ("Enterprise" / "Site" / "Area" / "Unit" / "Component" /
     "Device"); Pydantic rejects unknowns with 422.
 
     `parent_id` is required for non-Enterprise levels and must be
@@ -51,7 +52,7 @@ class RegisterAssetRequest(BaseModel):
         ...,
         description=(
             "Hierarchical level. One of: Enterprise (root, requires "
-            "null parent_id), Site, Area, Unit, Assembly, Device."
+            "null parent_id), Site, Area, Unit, Component, Device."
         ),
     )
     parent_id: UUID | None = Field(
@@ -68,6 +69,30 @@ class RegisterAssetRequest(BaseModel):
             "Optional engineering reference for the physical specimen "
             "(distinct from Mount.drawing, which references the slot). "
             "Captured at registration only; not mutable in v1."
+        ),
+    )
+    model_id: UUID | None = Field(
+        None,
+        description=(
+            "Optional reference to the Model catalog entry this Asset "
+            "is an instance of (Family -> Model -> Assembly -> Asset "
+            "ladder). Set ONCE at registration; rebind path is "
+            "decommission + re-register. The handler verifies the "
+            "Model stream exists before invoking the decider (404 if "
+            "missing); no subset check at register time because the "
+            "genesis Asset families set is empty."
+        ),
+    )
+    alternate_identifiers: list[AlternateIdentifierBody] | None = Field(
+        None,
+        description=(
+            "Optional PIDINST v1.0 Property 13 alternate-identifier "
+            "tuples (operator-supplied serial numbers, inventory tags, "
+            "vendor-specific schemes) seeded at registration. Each "
+            "entry is a flat (kind, value) pair; kind is closed "
+            "vocabulary SerialNumber | InventoryNumber | Other. "
+            "Cross-Asset uniqueness on (kind, value) is NOT enforced "
+            "in v1."
         ),
     )
 
@@ -96,13 +121,22 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Domain invariant violated: whitespace-only name, "
                 "hierarchy rule (Enterprise must have null parent_id; "
-                "other levels must have non-null parent_id), or invalid "
-                "Drawing (empty number, overlong revision, etc.)."
+                "other levels must have non-null parent_id), invalid "
+                "Drawing (empty number, overlong revision, etc.), or "
+                "invalid AlternateIdentifier value (empty after "
+                "trimming, exceeds 200 chars)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": (
+                "model_id was supplied but the referenced Model stream "
+                "does not exist (ModelNotFoundError)."
+            ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
@@ -138,6 +172,10 @@ async def post_assets(
             level=body.level,
             parent_id=body.parent_id,
             drawing=body.drawing.to_domain() if body.drawing is not None else None,
+            model_id=body.model_id,
+            alternate_identifiers=frozenset(
+                entry.to_domain() for entry in (body.alternate_identifiers or [])
+            ),
         ),
         principal_id=principal_id,
         correlation_id=cid,

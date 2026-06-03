@@ -7,7 +7,7 @@ Read-time composition handler. Assembles the integration-view bundle by:
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_asset(...)                      -> Asset | None  (fold-on-read)
        (returns None → caller maps to 404 / isError)
-    3. for each family in asset.families:
+    3. for each family in asset.family_ids:
            load_family(...)                 -> Family | None (fold-on-read)
        (missing Family → skip with warning log; set incomplete=True; mirrors
         promote_dataset derived_from peer-load tolerance per
@@ -143,7 +143,7 @@ def bind(deps: Kernel) -> Handler:
         # was admin-deleted out of band).
         loaded_families: list[Family] = []
         incomplete = False
-        for family_id in sorted(asset.families, key=str):
+        for family_id in sorted(asset.family_ids, key=str):
             loaded = await load_family(deps.event_store, family_id)
             if loaded is None:
                 _log.warning(

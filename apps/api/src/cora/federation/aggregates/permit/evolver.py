@@ -25,6 +25,7 @@ from cora.federation.aggregates.permit.events import (
     PermitResumed,
     PermitRevoked,
     PermitSuspended,
+    PublicationReceiptRecorded,
 )
 from cora.federation.aggregates.permit.state import Permit, PermitStatus
 from cora.infrastructure.evolver import require_state
@@ -36,7 +37,7 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
             permit_id=permit_id,
             peer_facility_id=peer_facility_id,
             direction=direction,
-            allowed_credentials=allowed_credentials,
+            allowed_credential_ids=allowed_credential_ids,
             allowed_payload_types=allowed_payload_types,
             allowed_artifact_kinds=allowed_artifact_kinds,
             abi_tier_floor=abi_tier_floor,
@@ -49,7 +50,7 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
                 id=permit_id,
                 peer_facility_id=peer_facility_id,
                 direction=direction,
-                allowed_credentials=allowed_credentials,
+                allowed_credential_ids=allowed_credential_ids,
                 allowed_payload_types=allowed_payload_types,
                 allowed_artifact_kinds=allowed_artifact_kinds,
                 abi_tier_floor=abi_tier_floor,
@@ -70,6 +71,9 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
         case PermitRevoked():
             prior = require_state(state, "PermitRevoked")
             return _replace_status(prior, PermitStatus.REVOKED)
+        case PublicationReceiptRecorded():
+            prior = require_state(state, "PublicationReceiptRecorded")
+            return prior
         case _:  # pragma: no cover
             assert_never(event)
 
@@ -79,7 +83,7 @@ def _replace_status(prior: Permit, new_status: PermitStatus) -> Permit:
         id=prior.id,
         peer_facility_id=prior.peer_facility_id,
         direction=prior.direction,
-        allowed_credentials=prior.allowed_credentials,
+        allowed_credential_ids=prior.allowed_credential_ids,
         allowed_payload_types=prior.allowed_payload_types,
         allowed_artifact_kinds=prior.allowed_artifact_kinds,
         abi_tier_floor=prior.abi_tier_floor,

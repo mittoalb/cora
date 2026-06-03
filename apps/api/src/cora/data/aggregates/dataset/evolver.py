@@ -20,12 +20,12 @@ Dataset field through from prior state. Constructing
 encoding=..., status=...)` without explicitly passing the optional
 cross-aggregate refs (`producing_run_id`, `subject_id`,
 `derived_from`) AND the additive fields (`producing_run_end_state`,
-`intent`, `used_calibrations`) would silently WIPE them to defaults.
+`intent`, `used_calibration_ids`) would silently WIPE them to defaults.
 Aligned to explicit construction post-domain-audit to match the
 documented pattern in Asset/Plan/Method/Practice/Family/Subject/Run
-evolvers. The `used_calibrations` AsShot citation set is IMMUTABLE
+evolvers. The `used_calibration_ids` AsShot citation set is IMMUTABLE
 after register — every transition arm preserves
-`prior.used_calibrations` verbatim (mirrors Run.pinned_calibrations
+`prior.used_calibration_ids` verbatim (mirrors Run.pinned_calibration_ids
 AsShot immutability).
 
 Defensive guard: `DatasetDiscarded` and `DatasetPromoted` arms raise
@@ -74,7 +74,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
             derived_from=derived_from,
             producing_run_end_state=producing_run_end_state,
             intent=intent,
-            used_calibrations=used_calibrations,
+            used_calibration_ids=used_calibration_ids,
         ):
             _ = state  # DatasetRegistered is the genesis event; prior state ignored.
             return Dataset(
@@ -101,7 +101,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # AsShot citation set at genesis (frozenset for
                 # in-memory equality semantics; the event carries a tuple
                 # for deterministic wire byte ordering).
-                used_calibrations=frozenset(used_calibrations),
+                used_calibration_ids=frozenset(used_calibration_ids),
             )
         case DatasetDiscarded():
             prior = require_state(state, "DatasetDiscarded")
@@ -121,7 +121,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 producing_run_end_state=prior.producing_run_end_state,
                 intent=prior.intent,
                 # AsShot invariant: never change after register.
-                used_calibrations=prior.used_calibrations,
+                used_calibration_ids=prior.used_calibration_ids,
             )
         case DatasetPromoted():
             prior = require_state(state, "DatasetPromoted")
@@ -141,7 +141,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # The state change: intent flips Trial -> Production.
                 intent=Intent.PRODUCTION,
                 # AsShot invariant: never change after register.
-                used_calibrations=prior.used_calibrations,
+                used_calibration_ids=prior.used_calibration_ids,
             )
         case DatasetDemoted():
             prior = require_state(state, "DatasetDemoted")
@@ -163,7 +163,7 @@ def evolve(state: Dataset | None, event: DatasetEvent) -> Dataset:
                 # [[project-dataset-demote-design]] lock).
                 intent=Intent.RETRACTED,
                 # AsShot invariant: never change after register.
-                used_calibrations=prior.used_calibrations,
+                used_calibration_ids=prior.used_calibration_ids,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

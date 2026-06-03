@@ -3,7 +3,7 @@
 Carries what the caller controls: the policy's display name, the
 governed conduit's id, and the two permission sets.
 
-`permitted_principals` and `permitted_commands` are `frozenset` so
+`permitted_principal_ids` and `permitted_commands` are `frozenset` so
 the command is hashable + deduplicated by construction. The route
 layer accepts JSON arrays and converts before constructing this
 command. Empty sets are allowed (deny-all policies); see the
@@ -32,6 +32,6 @@ class DefinePolicy:
 
     name: str
     conduit_id: UUID
-    permitted_principals: frozenset[UUID]
+    permitted_principal_ids: frozenset[UUID]
     permitted_commands: frozenset[str]
     surface_id: UUID = NIL_SENTINEL_ID

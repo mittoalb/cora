@@ -16,7 +16,7 @@ issues surface first:
   1. State must not be None -> `RunNotFoundError` (reused from Run BC).
   2. State.status must be in `_ADJUSTABLE_STATUSES` (RUNNING | HELD)
      -> `RunCannotAdjustError(run_id, current_status)`.
-  3. `parameter_patch` must be non-empty (len > 0)
+  3. `parameters_patch` must be non-empty (len > 0)
      -> `InvalidRunAdjustPatchError("must contain at least one change")`.
   4. `reason` length 1-500 chars after trim
      -> `InvalidRunAdjustReasonError`.
@@ -27,7 +27,7 @@ issues surface first:
      schemaless Methods skip validation here). Delegates to
      `parameters_validation.validate_adjusted_parameters_against_method_schema`.
      -> `InvalidRunAdjustSchemaError(detail)` on violation.
-  6. Emit `RunAdjusted(run_id, parameter_patch, effective_parameters=merged,
+  6. Emit `RunAdjusted(run_id, parameters_patch, effective_parameters=merged,
      reason=trimmed, decided_by_decision_id, occurred_at=now)`.
 
 The merged effective set is emitted on the payload (alongside the
@@ -94,7 +94,7 @@ def decide(
     Invariants:
       - State must not be None -> RunNotFoundError
       - Current status must be Running or Held -> RunCannotAdjustError
-      - parameter_patch must be non-empty
+      - parameters_patch must be non-empty
         -> InvalidRunAdjustPatchError
       - Reason must be 1-RUN_ADJUST_REASON_MAX_LENGTH chars after
         trim -> InvalidRunAdjustReasonError
@@ -116,18 +116,18 @@ def decide(
     if state.status not in _ADJUSTABLE_STATUSES:
         raise RunCannotAdjustError(state.id, current_status=state.status)
 
-    if not command.parameter_patch:
+    if not command.parameters_patch:
         raise InvalidRunAdjustPatchError("must contain at least one change")
 
     trimmed_reason = _validate_reason(command.reason)
 
-    merged = merge_patch(state.effective_parameters, command.parameter_patch)
+    merged = merge_patch(state.effective_parameters, command.parameters_patch)
     validate_adjusted_parameters_against_method_schema(merged, context.method_parameters_schema)
 
     return [
         RunAdjusted(
             run_id=state.id,
-            parameter_patch=command.parameter_patch,
+            parameters_patch=command.parameters_patch,
             effective_parameters=merged,
             reason=trimmed_reason,
             decided_by_decision_id=command.decided_by_decision_id,

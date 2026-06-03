@@ -23,7 +23,7 @@ the projection read entirely.
 
 Per gate-review Q4: get_plan returns CURRENT state only. The
 audit snapshots in PlanDefined event payload (method_id,
-method_needed_families_snapshot, asset_families_snapshot)
+method_needed_family_ids_snapshot, asset_families_snapshot)
 are NOT exposed by this query — those are bind-time historical
 data, accessible later via a separate audit query if pilot needs
 it (deferred 6e-3+).

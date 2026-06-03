@@ -169,7 +169,7 @@ def bind(deps: Kernel) -> Handler:
             capability = await load_capability(deps.event_store, method.capability_id)
             if capability is None:
                 raise CapabilityNotFoundError(method.capability_id)
-            unique_family_ids = {fid for asset in assets.values() for fid in asset.families}
+            unique_family_ids = {fid for asset in assets.values() for fid in asset.family_ids}
             for family_id in sorted(unique_family_ids, key=str):
                 family = await load_family(deps.event_store, family_id)
                 if family is None:

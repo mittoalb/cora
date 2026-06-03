@@ -460,18 +460,21 @@ async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
     """asyncio.gather on two add_run_to_campaign calls for the same
-    Campaign + different Runs: under the shared-pool serialization
-    that asyncpg's per-connection acquire enforces, both succeed and
-    end up as members. Pins the happy-race path of the multi-stream
-    OCC contract.
+    Campaign + different Runs: under true parallelism one call may lose
+    the optimistic-version race and raise ConcurrencyError, which the
+    operator (or a calling saga) is expected to retry. This test pins
+    that contract end-to-end: both Runs land as members via the
+    documented retry path, never via a lucky no-conflict shape.
 
-    Earlier shipped as `xfail strict=False` per Watch #15 deferral;
-    promoted to a real test in the Tier 2 cleanup once the XPASS
-    became the documented behavior. The forced-version-conflict
-    sibling test (`test_forced_concurrent_add_runs_raises_concurrency_error`)
-    pins the OCC failure path explicitly.
+    Earlier shipped as `xfail strict=False` per Watch #15 deferral.
+    The forced-version-conflict sibling test
+    (`test_forced_concurrent_add_runs_raises_concurrency_error`) pins
+    the OCC failure-on-first-attempt path explicitly; this test pins
+    the operator-retries-and-both-land convergent path.
     """
     import asyncio
+
+    from cora.infrastructure.ports.event_store import ConcurrencyError
 
     campaign_id = uuid4()
     run_ids = [uuid4(), uuid4()]
@@ -501,18 +504,22 @@ async def test_concurrent_add_runs_to_same_campaign_settle_atomically(
         await _seed_run_via_event_store(deps, run_id, event_id=uuid4())
 
     add = add_run_to_campaign.bind(deps)
-    await asyncio.gather(
-        add(
-            AddRunToCampaign(campaign_id=campaign_id, run_id=run_ids[0]),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        ),
-        add(
-            AddRunToCampaign(campaign_id=campaign_id, run_id=run_ids[1]),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        ),
-    )
+
+    async def _add_with_retry(run_id: UUID) -> None:
+        for _attempt in range(3):
+            try:
+                await add(
+                    AddRunToCampaign(campaign_id=campaign_id, run_id=run_id),
+                    principal_id=_PRINCIPAL_ID,
+                    correlation_id=_CORRELATION_ID,
+                )
+                return
+            except ConcurrencyError:
+                continue
+        msg = f"add_run_to_campaign(run={run_id}) did not settle after 3 retries"
+        raise AssertionError(msg)
+
+    await asyncio.gather(*[_add_with_retry(rid) for rid in run_ids])
 
     # End-state: both Runs landed as Campaign members. Single-pool
     # asyncio serialization makes this the realistic semantic today;

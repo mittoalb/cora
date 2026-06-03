@@ -4,12 +4,22 @@ Public concepts:
 
   - `Projection` Protocol: the read-side fold a BC writes to maintain
     a `proj_<bc>_<name>` queryable table from the event stream. Per
-    BC, lives in `cora.<bc>.projections.<name>`. The contract is
-    documented on the Protocol itself.
+    BC, lives in `cora.<bc>.projections.<name>`. Fast, batch large
+    (`batch_size=100`), idempotent at the SQL layer.
+
+  - `Reaction` Protocol: side-effecting Subscriber that emits NEW
+    events (often cross-BC) or calls the outside world (LLM, signer,
+    storage). Per BC, lives in `cora.<bc>.subscribers.<name>`. Slow,
+    batch small (`batch_size=1`), idempotent via deterministic
+    UUIDv5 stream id + ConcurrencyError-as-no-op. Recovery from a
+    wedged bookmark is the `dismiss_event_in_reaction` operator slice.
 
   - `ProjectionRegistry`: the worker iterates this. Each BC registers
-    its projections via a `register_<bc>_projections(registry, deps)`
-    function the composition root calls during lifespan setup.
+    its projections via `register_<bc>_projections(registry, deps)`
+    and its reactions via `register_<bc>_subscribers(registry, deps)`,
+    both called by the composition root during lifespan setup. The
+    class name kept for backward compatibility; the registry accepts
+    any Subscriber (Projection or Reaction).
 
   - `projection_worker_lifespan(deps, registry, settings)`: async
     context manager the FastAPI lifespan wraps. Spawns the worker
@@ -17,7 +27,7 @@ Public concepts:
     no-ops in the in-memory test environment.
 
   - `drain_projections(pool, registry, deadline_seconds)`: integration-
-    test helper that synchronously advances every registered projection
+    test helper that synchronously advances every registered subscriber
     until each bookmark catches up to the head position (or raises
     `ProjectionDrainTimeoutError`). Avoids `asyncio.sleep` flakiness.
 
@@ -27,10 +37,9 @@ Public concepts:
     list endpoint uses these helpers so cursor format is uniform across
     BCs.
 
-Internal primitive: `Subscriber` Protocol (`worker.py`). Today every
-Subscriber is a Projection; future sagas / external adapters will be
-additional kinds of Subscriber sharing the same advance machinery.
-Not exported publicly until a second Subscriber type lands.
+Internal primitive: `Subscriber` Protocol that both Projection and
+Reaction satisfy structurally. Not exported publicly because BC
+authors should write Projections or Reactions, not bare Subscribers.
 """
 
 from cora.infrastructure.projection.cursor import (
@@ -42,7 +51,7 @@ from cora.infrastructure.projection.drain import (
     ProjectionDrainTimeoutError,
     drain_projections,
 )
-from cora.infrastructure.projection.handler import Projection
+from cora.infrastructure.projection.handler import Projection, Reaction
 from cora.infrastructure.projection.lifespan import projection_worker_lifespan
 from cora.infrastructure.projection.registry import (
     DuplicateProjectionError,
@@ -57,6 +66,7 @@ __all__ = [
     "Projection",
     "ProjectionDrainTimeoutError",
     "ProjectionRegistry",
+    "Reaction",
     "decode_cursor",
     "drain_projections",
     "encode_cursor",

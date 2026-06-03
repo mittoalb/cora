@@ -1,4 +1,4 @@
-"""Recipe-expansion replay helpers for the `run_procedure` handler.
+"""Recipe-expansion replay helpers for the `conduct_procedure` handler.
 
 Per [[project-run-procedure-replay-design]] the run-time replay path
 locates the genesis `RecipeExpansionRecorded` provenance event in a

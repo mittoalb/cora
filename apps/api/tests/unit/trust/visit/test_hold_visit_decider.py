@@ -4,7 +4,7 @@ import pytest
 
 from cora.trust.aggregates.visit import (
     InvalidVisitReasonError,
-    VisitCannotTransitionError,
+    VisitCannotHoldError,
     VisitHeld,
     VisitNotFoundError,
     VisitStatus,
@@ -73,10 +73,9 @@ def test_hold_raises_not_found_on_empty_state() -> None:
 )
 @pytest.mark.unit
 def test_hold_rejects_non_in_progress_statuses(current_status: VisitStatus) -> None:
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotHoldError):
         decide(
             state=make_visit(current_status),
             command=HoldVisit(visit_id=VISIT_ID, reason="r"),
             now=NOW,
         )
-    assert exc_info.value.requested_transition == "hold"

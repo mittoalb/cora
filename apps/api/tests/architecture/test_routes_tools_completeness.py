@@ -19,10 +19,11 @@ Scope note: a slice without `handler.py` is treated as a stub (in
 flight) and skipped. The `_tool.register` needle matches the
 imported alias pattern used in every BC's `tools.py`
 (`from cora.<bc>.features.<slice> import tool as <slice>_tool`),
-so conditional dereferences such as Agent's `re_debrief_run` (which
-goes through `_resolve_re_debrief_run` rather than a direct
-`get_handlers().re_debrief_run` access) are still detected via the
-preceding `re_debrief_run_tool.register(...)` call.
+so conditional dereferences such as Agent's `regenerate_run_debrief`
+(which goes through `_resolve_regenerate_run_debrief` rather than a
+direct `get_handlers().regenerate_run_debrief` access) are still
+detected via the preceding `regenerate_run_debrief_tool.register(...)`
+call.
 """
 
 import importlib

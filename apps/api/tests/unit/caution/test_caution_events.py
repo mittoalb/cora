@@ -236,7 +236,7 @@ def test_caution_registered_round_trip_with_parent_caution_id() -> None:
 def test_caution_superseded_event_type_name() -> None:
     event = CautionSuperseded(
         caution_id=_CAUTION_ID,
-        by_caution_id=uuid4(),
+        superseded_by_caution_id=uuid4(),
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "CautionSuperseded"
@@ -247,13 +247,13 @@ def test_caution_superseded_round_trip() -> None:
     by_id = UUID("01900000-0000-7000-8000-00000000c001")
     original = CautionSuperseded(
         caution_id=_CAUTION_ID,
-        by_caution_id=by_id,
+        superseded_by_caution_id=by_id,
         occurred_at=_NOW,
     )
     payload = to_payload(original)
     assert payload == {
         "caution_id": str(_CAUTION_ID),
-        "by_caution_id": str(by_id),
+        "superseded_by_caution_id": str(by_id),
         "occurred_at": _NOW.isoformat(),
     }
     rebuilt = from_stored(_stored("CautionSuperseded", payload))

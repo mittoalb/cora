@@ -1,5 +1,5 @@
-"""SealProjection: folds the Seal aggregate's events into the
-singleton-per-facility `proj_federation_seal` read model.
+"""SealSummaryProjection: folds the Seal aggregate's events into the
+singleton-per-facility `proj_federation_seal_summary_summary` read model.
 
 Subscribed events:
   - SealInitialized           -> INSERT (status='Live',
@@ -36,24 +36,27 @@ column reflects domain (signing) time rather than event-envelope time
 from datetime import datetime
 from uuid import UUID
 
+from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SEAL_SQL = """
-INSERT INTO proj_federation_seal
-    (facility_id, online_credential_id, offline_credential_id,
+INSERT INTO proj_federation_seal_summary
+    (facility_id, seal_stream_id,
+     online_credential_id, offline_credential_id,
      current_head_hash, current_sequence_number,
      initialized_by_actor_id, last_signed_by_actor_id,
      status, initialized_at, last_signed_at)
-VALUES ($1, $2, $3,
+VALUES ($1, $2,
+        $3, $4,
         NULL, 0,
-        $4, NULL,
-        'Live', $5, NULL)
+        $5, NULL,
+        'Live', $6, NULL)
 ON CONFLICT (facility_id) DO NOTHING
 """
 
 _UPDATE_POINTER_SIGNED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET current_head_hash = $2,
     current_sequence_number = $3,
     last_signed_by_actor_id = $4,
@@ -63,21 +66,21 @@ WHERE facility_id = $1
 """
 
 _UPDATE_ONLINE_KEY_ROTATED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET online_credential_id = $2,
     updated_at = now()
 WHERE facility_id = $1
 """
 
 _UPDATE_REPUBLISHING_STARTED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET status = 'Republishing',
     updated_at = now()
 WHERE facility_id = $1
 """
 
 _UPDATE_REPUBLISHING_COMPLETED_SQL = """
-UPDATE proj_federation_seal
+UPDATE proj_federation_seal_summary
 SET status = 'Live',
     current_head_hash = $2,
     current_sequence_number = $3,
@@ -86,10 +89,10 @@ WHERE facility_id = $1
 """
 
 
-class SealProjection:
-    """Maintains the `proj_federation_seal` singleton-per-facility read model."""
+class SealSummaryProjection:
+    """Maintains the `proj_federation_seal_summary` singleton-per-facility read model."""
 
-    name = "proj_federation_seal"
+    name = "proj_federation_seal_summary"
     subscribed_event_types = frozenset(
         {
             "SealInitialized",
@@ -108,13 +111,15 @@ class SealProjection:
         if event.event_type == "SealInitialized":
             payload = event.payload
             initialized_at = datetime.fromisoformat(payload["occurred_at"])
+            facility_id = payload["facility_id"]
             # SAVEPOINT-wrap: the keys_distinct CHECK and
             # singleton-per-facility UNIQUE are cross-stream invariants
             # that should not poison the bookmark transaction.
             async with conn.transaction():
                 await conn.execute(
                     _INSERT_SEAL_SQL,
-                    payload["facility_id"],
+                    facility_id,
+                    seal_stream_id(facility_id),
                     UUID(payload["online_credential_id"]),
                     UUID(payload["offline_credential_id"]),
                     UUID(payload["initialized_by_actor_id"]),
@@ -164,4 +169,4 @@ class SealProjection:
         return
 
 
-__all__ = ["SealProjection"]
+__all__ = ["SealSummaryProjection"]

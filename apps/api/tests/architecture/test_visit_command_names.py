@@ -37,8 +37,8 @@ _VISIT_COMMAND_NAMES: frozenset[str] = frozenset(
         "AbortVisit",
         "VoidVisit",
         # Presence
-        "CheckInToVisit",
-        "CheckOutFromVisit",
+        "CheckInVisit",
+        "CheckOutVisit",
         # Surface control
         "TakeControlOfSurface",
         "ReleaseControlOfSurface",

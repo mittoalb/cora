@@ -125,7 +125,7 @@ async def test_handler_writes_parent_superseded_and_child_registered_atomically(
     parent_events, parent_version = await store.load("Caution", _PARENT_ID)
     assert parent_version == 2
     assert parent_events[1].event_type == "CautionSuperseded"
-    assert parent_events[1].payload["by_caution_id"] == str(_CHILD_ID)
+    assert parent_events[1].payload["superseded_by_caution_id"] == str(_CHILD_ID)
 
     child_events, child_version = await store.load("Caution", _CHILD_ID)
     assert child_version == 1

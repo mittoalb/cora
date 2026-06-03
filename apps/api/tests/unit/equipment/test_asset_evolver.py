@@ -17,6 +17,8 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
+    AssetAlternateIdentifierAdded,
+    AssetAlternateIdentifierRemoved,
     AssetDecommissioned,
     AssetDegraded,
     AssetFamilyAdded,
@@ -31,7 +33,12 @@ from cora.equipment.aggregates.asset.events import (
     AssetRestored,
     AssetSettingsUpdated,
 )
-from cora.equipment.aggregates.asset.state import AssetPort, PortDirection
+from cora.equipment.aggregates.asset.state import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+    AssetPort,
+    PortDirection,
+)
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
 
@@ -598,7 +605,7 @@ def test_evolve_asset_maintenance_exited_on_empty_state_raises() -> None:
 
 
 @pytest.mark.unit
-def test_fold_register_activate_enter_maintenance_yields_maintenance_asset() -> None:
+def test_fold_register_activate_enter_asset_maintenance_yields_maintenance_asset() -> None:
     asset_id = uuid4()
     parent_id = uuid4()
     state = fold(
@@ -683,7 +690,7 @@ def test_evolve_asset_registered_starts_with_empty_capabilities() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 @pytest.mark.unit
@@ -697,13 +704,13 @@ def test_evolve_asset_capability_added_inserts_into_capabilities() -> None:
         level=AssetLevel.UNIT,
         parent_id=parent_id,
         lifecycle=AssetLifecycle.ACTIVE,
-        families=frozenset(),
+        family_ids=frozenset(),
     )
     state = evolve(
         prior,
         AssetFamilyAdded(asset_id=asset_id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
     # Other state preserved.
     assert state.lifecycle is AssetLifecycle.ACTIVE
     assert state.parent_id == parent_id
@@ -723,13 +730,13 @@ def test_evolve_asset_capability_added_is_idempotent_at_evolver_layer() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap1}),
+        family_ids=frozenset({cap1}),
     )
     state = evolve(
         prior,
         AssetFamilyAdded(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
 
 
 @pytest.mark.unit
@@ -741,13 +748,13 @@ def test_evolve_asset_capability_removed_drops_from_capabilities() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap1, cap2}),
+        family_ids=frozenset({cap1, cap2}),
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap2})
+    assert state.family_ids == frozenset({cap2})
 
 
 @pytest.mark.unit
@@ -759,13 +766,13 @@ def test_evolve_asset_capability_removed_is_idempotent_at_evolver_layer() -> Non
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset(),
+        family_ids=frozenset(),
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap1, occurred_at=_NOW),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 @pytest.mark.unit
@@ -795,8 +802,8 @@ def test_evolve_asset_capability_removed_on_empty_state_raises() -> None:
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_capabilities(
@@ -829,13 +836,13 @@ def test_evolve_lifecycle_transition_preserves_capabilities(
             if transition is AssetMaintenanceExited
             else AssetLifecycle.ACTIVE  # decommission accepts any of 3
         ),
-        families=frozenset({cap1, cap2}),
+        family_ids=frozenset({cap1, cap2}),
     )
     state = evolve(
         prior,
         transition(asset_id=prior.id, occurred_at=_NOW),
     )
-    assert state.families == frozenset({cap1, cap2})
+    assert state.family_ids == frozenset({cap1, cap2})
 
 
 @pytest.mark.unit
@@ -849,7 +856,7 @@ def test_evolve_relocate_preserves_capabilities() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=old_parent,
-        families=frozenset({cap1}),
+        family_ids=frozenset({cap1}),
     )
     state = evolve(
         prior,
@@ -861,7 +868,7 @@ def test_evolve_relocate_preserves_capabilities() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.families == frozenset({cap1})
+    assert state.family_ids == frozenset({cap1})
     assert state.parent_id == new_parent
 
 
@@ -886,7 +893,7 @@ def test_fold_register_add_remove_yields_empty_capabilities() -> None:
         ]
     )
     assert state is not None
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
 
 
 # ---------- condition transitions + preservation ----------
@@ -965,11 +972,11 @@ def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> N
         parent_id=parent,
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.NOMINAL,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
     )
     state = evolve(prior, AssetFaulted(asset_id=asset_id, reason="test", occurred_at=_NOW))
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.parent_id == parent
     assert state.level is AssetLevel.DEVICE
     assert state.name == AssetName("X")
@@ -981,8 +988,8 @@ def test_evolve_condition_transition_preserves_lifecycle_and_capabilities() -> N
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_condition(
@@ -1068,7 +1075,7 @@ def test_evolve_capability_removed_preserves_condition() -> None:
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
     )
     state = evolve(
         prior,
@@ -1158,7 +1165,7 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"a": 1},
     )
     state = evolve(
@@ -1167,7 +1174,7 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
     )
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
     assert state.condition is AssetCondition.DEGRADED
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.settings == {"b": 2}
 
 
@@ -1177,8 +1184,8 @@ def test_evolve_settings_transition_preserves_lifecycle_condition_capabilities()
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_settings(
@@ -1260,14 +1267,14 @@ def test_evolve_capability_removed_preserves_settings_orphans() -> None:
         name=AssetName("X"),
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"key_owned_by_removed_cap": "value"},
     )
     state = evolve(
         prior,
         AssetFamilyRemoved(asset_id=prior.id, family_id=cap, occurred_at=_NOW),
     )
-    assert state.families == frozenset()
+    assert state.family_ids == frozenset()
     # Orphan key is preserved.
     assert state.settings == {"key_owned_by_removed_cap": "value"}
 
@@ -1395,7 +1402,7 @@ def test_evolve_port_added_preserves_other_facets() -> None:
         parent_id=parent,
         lifecycle=AssetLifecycle.MAINTENANCE,
         condition=AssetCondition.DEGRADED,
-        families=frozenset({cap}),
+        family_ids=frozenset({cap}),
         settings={"k": 1},
     )
     state = evolve(
@@ -1410,7 +1417,7 @@ def test_evolve_port_added_preserves_other_facets() -> None:
     )
     assert state.lifecycle is AssetLifecycle.MAINTENANCE
     assert state.condition is AssetCondition.DEGRADED
-    assert state.families == frozenset({cap})
+    assert state.family_ids == frozenset({cap})
     assert state.settings == {"k": 1}
     assert state.parent_id == parent
 
@@ -1484,8 +1491,8 @@ def test_evolve_register_without_drawing_yields_none() -> None:
     [
         ("activate", AssetActivated),
         ("decommission", AssetDecommissioned),
-        ("enter_maintenance", AssetMaintenanceEntered),
-        ("exit_maintenance", AssetMaintenanceExited),
+        ("enter_asset_maintenance", AssetMaintenanceEntered),
+        ("exit_asset_maintenance", AssetMaintenanceExited),
     ],
 )
 def test_evolve_lifecycle_transition_preserves_drawing(
@@ -1603,3 +1610,609 @@ def test_evolve_port_removed_preserves_drawing() -> None:
     )
     state = evolve(prior, AssetPortRemoved(asset_id=prior.id, port_name="x", occurred_at=_NOW))
     assert state.drawing == _SAMPLE_DRAWING
+
+
+# ---------- model_id genesis + preservation across transitions ----------
+
+
+@pytest.mark.unit
+def test_evolve_register_with_model_id_carries_model_id_into_state() -> None:
+    """Genesis: AssetRegistered with model_id set lands the binding on
+    Asset.model_id. Lock A: model_id is set ONCE at register_asset time."""
+    asset_id = uuid4()
+    model_id = uuid4()
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=asset_id,
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+            model_id=model_id,
+        ),
+    )
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+def test_evolve_register_without_model_id_yields_none() -> None:
+    """Additive-state pattern: registration without model_id yields
+    Asset.model_id=None (permissive default)."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.model_id is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("exit_maintenance", AssetMaintenanceExited),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_model_id(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry model_id
+    through from prior state. model_id is set ONCE at registration per
+    Lock A and never changes post-genesis, but transition arms still
+    must carry it forward like any other Asset field."""
+    _ = name
+    model_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetMaintenanceExited
+            else AssetLifecycle.ACTIVE
+        ),
+        model_id=model_id,
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_model_id() -> None:
+    """Hierarchy mutation also must preserve model_id."""
+    old_parent = uuid4()
+    new_parent = uuid4()
+    model_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        model_id=model_id,
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition", "kwargs"),
+    [
+        ("family_added", AssetFamilyAdded, {"family_id": uuid4()}),
+        ("family_removed", AssetFamilyRemoved, {"family_id": uuid4()}),
+        ("degraded", AssetDegraded, {"reason": "x"}),
+        ("faulted", AssetFaulted, {"reason": "x"}),
+        ("restored", AssetRestored, {"reason": "x"}),
+        ("settings_updated", AssetSettingsUpdated, {"settings": {"a": 1}}),
+    ],
+)
+def test_evolve_mutation_preserves_model_id(
+    name: str,
+    transition: type,
+    kwargs: dict[str, object],
+) -> None:
+    """Mirror of test_evolve_mutation_preserves_drawing: every mutation
+    arm carries model_id forward."""
+    _ = name
+    model_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        model_id=model_id,
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+def test_evolve_port_added_preserves_model_id() -> None:
+    model_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        model_id=model_id,
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=prior.id,
+            port_name="x",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+def test_evolve_port_removed_preserves_model_id() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    model_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        ports=frozenset({port}),
+        model_id=model_id,
+    )
+    state = evolve(prior, AssetPortRemoved(asset_id=prior.id, port_name="x", occurred_at=_NOW))
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+def test_fold_register_with_model_id_then_lifecycle_transitions_preserves_model_id() -> None:
+    """End-to-end fold: register with model_id, then activate + enter
+    maintenance + exit maintenance + decommission. The model_id binding
+    survives the entire lifecycle path."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    model_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+                model_id=model_id,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.model_id == model_id
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED
+
+
+# ---------- alternate_identifiers genesis + transition arms + preservation ----------
+
+
+_SAMPLE_ALT_ID_A = AlternateIdentifier(
+    kind=AlternateIdentifierKind.SERIAL_NUMBER, value="12345-ABC"
+)
+_SAMPLE_ALT_ID_B = AlternateIdentifier(
+    kind=AlternateIdentifierKind.INVENTORY_NUMBER, value="APS-2BM-CAM-001"
+)
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_defaults_alternate_identifiers_to_empty_frozenset() -> None:
+    """Genesis: AssetRegistered without alternate_identifiers yields
+    Asset.alternate_identifiers=empty frozenset via the event-side
+    default (additive-payload pattern)."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_asset_registered_carries_alternate_identifiers_into_state() -> None:
+    """Lock D: when register_asset seeds alternate_identifiers, the
+    evolver lands them on Asset.alternate_identifiers verbatim."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Unit",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+            alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B})
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_added_inserts_into_frozenset() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+    )
+    state = evolve(
+        prior,
+        AssetAlternateIdentifierAdded(
+            asset_id=asset_id,
+            alternate_identifier=_SAMPLE_ALT_ID_A,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_added_is_idempotent_at_evolver_layer() -> None:
+    """Evolver does NOT enforce strict-not-idempotent; that's the
+    decider's job. Frozenset union semantics: adding an already-present
+    (kind, value) is a no-op at this layer."""
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+    )
+    state = evolve(
+        prior,
+        AssetAlternateIdentifierAdded(
+            asset_id=asset_id,
+            alternate_identifier=_SAMPLE_ALT_ID_A,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_removed_drops_from_frozenset() -> None:
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+    )
+    state = evolve(
+        prior,
+        AssetAlternateIdentifierRemoved(
+            asset_id=asset_id,
+            alternate_identifier=_SAMPLE_ALT_ID_A,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_B})
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_removed_is_idempotent_at_evolver_layer() -> None:
+    """Same rationale as Added's idempotent-at-evolver pin."""
+    asset_id = uuid4()
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        alternate_identifiers=frozenset(),
+    )
+    state = evolve(
+        prior,
+        AssetAlternateIdentifierRemoved(
+            asset_id=asset_id,
+            alternate_identifier=_SAMPLE_ALT_ID_A,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset()
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_added_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            AssetAlternateIdentifierAdded(
+                asset_id=uuid4(),
+                alternate_identifier=_SAMPLE_ALT_ID_A,
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_removed_on_empty_state_raises() -> None:
+    with pytest.raises(ValueError, match="cannot be applied to empty state"):
+        evolve(
+            None,
+            AssetAlternateIdentifierRemoved(
+                asset_id=uuid4(),
+                alternate_identifier=_SAMPLE_ALT_ID_A,
+                occurred_at=_NOW,
+            ),
+        )
+
+
+@pytest.mark.unit
+def test_evolve_alternate_identifier_added_preserves_other_facets() -> None:
+    """Alternate-identifier mutations must not touch lifecycle /
+    condition / settings / capabilities / parent_id / ports / drawing
+    / model_id."""
+    asset_id = uuid4()
+    parent = uuid4()
+    cap = uuid4()
+    model_id = uuid4()
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    drawing = Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A")
+    prior = Asset(
+        id=asset_id,
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=parent,
+        lifecycle=AssetLifecycle.MAINTENANCE,
+        condition=AssetCondition.DEGRADED,
+        family_ids=frozenset({cap}),
+        settings={"k": 1},
+        ports=frozenset({port}),
+        drawing=drawing,
+        model_id=model_id,
+    )
+    state = evolve(
+        prior,
+        AssetAlternateIdentifierAdded(
+            asset_id=asset_id,
+            alternate_identifier=_SAMPLE_ALT_ID_A,
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.lifecycle is AssetLifecycle.MAINTENANCE
+    assert state.condition is AssetCondition.DEGRADED
+    assert state.family_ids == frozenset({cap})
+    assert state.settings == {"k": 1}
+    assert state.ports == frozenset({port})
+    assert state.parent_id == parent
+    assert state.drawing == drawing
+    assert state.model_id == model_id
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("exit_maintenance", AssetMaintenanceExited),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_alternate_identifiers(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry
+    alternate_identifiers through from prior state. Constructing
+    Asset(...) without explicitly passing alternate_identifiers would
+    silently WIPE it to its default (empty frozenset). Same shape as
+    the family_ids / ports / drawing / model_id preservation pins."""
+    _ = name
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetMaintenanceExited
+            else AssetLifecycle.ACTIVE
+        ),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B})
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_alternate_identifiers() -> None:
+    """Hierarchy mutation also must preserve alternate_identifiers."""
+    old_parent = uuid4()
+    new_parent = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition", "kwargs"),
+    [
+        ("family_added", AssetFamilyAdded, {"family_id": uuid4()}),
+        ("family_removed", AssetFamilyRemoved, {"family_id": uuid4()}),
+        ("degraded", AssetDegraded, {"reason": "x"}),
+        ("faulted", AssetFaulted, {"reason": "x"}),
+        ("restored", AssetRestored, {"reason": "x"}),
+        ("settings_updated", AssetSettingsUpdated, {"settings": {"a": 1}}),
+    ],
+)
+def test_evolve_mutation_preserves_alternate_identifiers(
+    name: str,
+    transition: type,
+    kwargs: dict[str, object],
+) -> None:
+    """Mirror of test_evolve_mutation_preserves_drawing /
+    test_evolve_mutation_preserves_model_id: every mutation arm
+    carries alternate_identifiers forward."""
+    _ = name
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+    )
+    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
+
+
+@pytest.mark.unit
+def test_evolve_port_added_preserves_alternate_identifiers() -> None:
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_B}),
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=prior.id,
+            port_name="x",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_B})
+
+
+@pytest.mark.unit
+def test_evolve_port_removed_preserves_alternate_identifiers() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        ports=frozenset({port}),
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+    )
+    state = evolve(
+        prior,
+        AssetPortRemoved(asset_id=prior.id, port_name="x", occurred_at=_NOW),
+    )
+    assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
+
+
+@pytest.mark.unit
+def test_fold_register_then_add_then_remove_yields_empty_alternate_identifiers() -> None:
+    """End-to-end fold: register -> add alt-id -> remove alt-id lands
+    back at empty. Pin against the fold layer."""
+    asset_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="X",
+                level="Unit",
+                parent_id=uuid4(),
+                occurred_at=_NOW,
+            ),
+            AssetAlternateIdentifierAdded(
+                asset_id=asset_id,
+                alternate_identifier=_SAMPLE_ALT_ID_A,
+                occurred_at=_NOW,
+            ),
+            AssetAlternateIdentifierRemoved(
+                asset_id=asset_id,
+                alternate_identifier=_SAMPLE_ALT_ID_A,
+                occurred_at=_NOW,
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.alternate_identifiers == frozenset()
+
+
+@pytest.mark.unit
+def test_fold_register_with_seed_then_lifecycle_transitions_preserves_alternate_identifiers() -> (
+    None
+):
+    """End-to-end fold: register with seeded alternate_identifiers,
+    then activate + enter maintenance + exit maintenance + decommission.
+    The seed survives the entire lifecycle path."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    seed = frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B})
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="APS-2BM",
+                level="Unit",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+                alternate_identifiers=seed,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+        ]
+    )
+    assert state is not None
+    assert state.alternate_identifiers == seed
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED

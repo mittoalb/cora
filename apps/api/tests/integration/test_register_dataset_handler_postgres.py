@@ -103,7 +103,7 @@ async def _seed_chain_and_start_run(
     await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
         DefineMethod(
-            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_families=frozenset({cap_id})
+            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_family_ids=frozenset({cap_id})
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -295,17 +295,17 @@ async def test_register_dataset_against_run_subject_and_lineage_round_trip(
     assert raw_events[0].payload["derived_from"] == []
     assert raw_events[0].payload["encoding"]["conforms_to"] == ["https://manual.nexusformat.org/"]
 
-    # (the entire API surface without used_calibrations) get an empty list
+    # (the entire API surface without used_calibration_ids) get an empty list
     # on the persisted payload. Locks the additive-state forward-compat
     # contract: any regression that drops the field-default would
     # break legacy from_stored fold + read-path consumers without the field.
-    assert raw_events[0].payload["used_calibrations"] == []
+    assert raw_events[0].payload["used_calibration_ids"] == []
 
     derived_events, _ = await deps.event_store.load("Dataset", derived_id)
     assert len(derived_events) == 1
     assert derived_events[0].payload["derived_from"] == [str(raw_id)]
 
-    assert derived_events[0].payload["used_calibrations"] == []
+    assert derived_events[0].payload["used_calibration_ids"] == []
 
     # Discard the raw Dataset (GDPR-shaped).
     await discard_dataset.bind(deps)(

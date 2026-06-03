@@ -130,7 +130,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=("Optional lineage edges to upstream Datasets. Defaults to empty."),
             ),
         ] = None,
-        used_calibrations: Annotated[
+        used_calibration_ids: Annotated[
             list[UUID] | None,
             Field(
                 default=None,
@@ -138,7 +138,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description=(
                     "Optional CalibrationRevision ids the reconstruction "
                     "actually used (Calibration BC AsShot citation per "
-                    "AsShot citation set). Symmetric to Run.pinned_calibrations on "
+                    "AsShot citation set). Symmetric to Run.pinned_calibration_ids on "
                     "the acquired-from Run; reconstruction may legitimately "
                     "cite refined revisions not in the producing Run's "
                     "pin set. NOT verified at the write path. Omit or "
@@ -160,7 +160,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 producing_run_id=producing_run_id,
                 subject_id=subject_id,
                 derived_from=frozenset(derived_from or []),
-                used_calibrations=frozenset(used_calibrations or []),
+                used_calibration_ids=frozenset(used_calibration_ids or []),
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

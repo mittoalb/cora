@@ -16,10 +16,9 @@ does not re-register them.
 
 ## Loop-collapse pattern
 
-Equipment owns multiple aggregates (Family + Asset, with more
-slices to come). Three error families share the same response
-shape and get collapsed via Trust's `_handle_invalid_name`-style
-loop pattern:
+Equipment owns five aggregates (Family, Model, Asset, Frame, Mount).
+Three error families share the same response shape and get collapsed
+via Trust's `_handle_invalid_name`-style loop pattern:
 
   - 400 (validation): InvalidFamilyName, InvalidAssetName,
     InvalidAssetParent
@@ -38,9 +37,30 @@ from fastapi.responses import JSONResponse
 
 from cora.equipment.aggregates._drawing import InvalidDrawingError
 from cora.equipment.aggregates._placement import InvalidPlacementError
+from cora.equipment.aggregates.assembly import (
+    AssemblyAlreadyExistsError,
+    AssemblyCannotDeprecateError,
+    AssemblyCannotInstantiateError,
+    AssemblyCannotVersionError,
+    AssemblyInstantiationAssetFamilyMismatchError,
+    AssemblyInstantiationMappingIncompleteError,
+    AssemblyInstantiationParameterOverridesInvalidError,
+    AssemblyNotFoundError,
+    FamilyNotFoundForAssemblyError,
+    InvalidAssemblyNameError,
+    InvalidParameterOverridesSchemaError,
+    InvalidSlotCardinalityError,
+    InvalidSlotNameError,
+    InvalidTemplateSlotError,
+    InvalidWireSpecError,
+    WireReferencesUnknownSlotError,
+)
 from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
+    AssetAlternateIdentifierAlreadyPresentError,
+    AssetAlternateIdentifierNotPresentError,
     AssetCannotActivateError,
+    AssetCannotAddAlternateIdentifierError,
     AssetCannotAddFamilyError,
     AssetCannotAddPortError,
     AssetCannotDecommissionError,
@@ -49,7 +69,9 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRelocateError,
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
+    AssetModelMismatchError,
     AssetNotFoundError,
+    InvalidAlternateIdentifierValueError,
     InvalidAssetNameError,
     InvalidAssetParentError,
     InvalidAssetPortNameError,
@@ -77,6 +99,24 @@ from cora.equipment.aggregates.frame import (
     InvalidFrameRevisionError,
     InvalidFrameRootError,
 )
+from cora.equipment.aggregates.model import (
+    InvalidDeclaredFamiliesError,
+    InvalidManufacturerIdentifierError,
+    InvalidManufacturerIdentifierPairingError,
+    InvalidManufacturerNameError,
+    InvalidModelDeprecationReasonError,
+    InvalidModelNameError,
+    InvalidModelVersionTagError,
+    InvalidPartNumberError,
+    ModelAlreadyExistsError,
+    ModelCannotAddFamilyError,
+    ModelCannotDeprecateError,
+    ModelCannotRemoveFamilyError,
+    ModelCannotVersionError,
+    ModelFamilyAlreadyPresentError,
+    ModelFamilyNotPresentError,
+    ModelNotFoundError,
+)
 from cora.equipment.aggregates.mount import (
     AssetAlreadyInstalledElsewhereError,
     AssetNotFoundForMountError,
@@ -87,27 +127,33 @@ from cora.equipment.aggregates.mount import (
     MountCannotDecommissionError,
     MountCannotUpdateError,
     MountHasActiveChildrenError,
-    MountHasInstalledAssetError,
+    MountHasAssetInstalledError,
     MountIsEmptyError,
     MountNotFoundError,
 )
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features import (
     activate_asset,
+    add_asset_alternate_identifier,
     add_asset_family,
     add_asset_port,
+    add_model_family,
     decommission_asset,
     decommission_frame,
     decommission_mount,
+    define_assembly,
     define_family,
+    define_model,
     degrade_asset,
     deprecate_family,
-    enter_maintenance,
-    exit_maintenance,
+    deprecate_model,
+    enter_asset_maintenance,
+    exit_asset_maintenance,
     fault_asset,
     get_asset,
     get_asset_integration_view,
     get_family,
+    get_model,
     install_asset,
     list_assets,
     list_families,
@@ -115,15 +161,19 @@ from cora.equipment.features import (
     register_frame,
     register_mount,
     relocate_asset,
+    remove_asset_alternate_identifier,
     remove_asset_family,
     remove_asset_port,
+    remove_model_family,
     restore_asset,
     uninstall_asset,
     update_asset_settings,
     update_family_settings_schema,
     update_frame_placement,
     update_mount_placement,
+    version_assembly,
     version_family,
+    version_model,
 )
 
 
@@ -191,18 +241,27 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
 
 def register_equipment_routes(app: FastAPI) -> None:
     """Attach Equipment slice routers and exception handlers to the FastAPI app."""
+    # Family aggregate
     app.include_router(define_family.router)
-    app.include_router(get_family.router)
     app.include_router(version_family.router)
     app.include_router(deprecate_family.router)
     app.include_router(update_family_settings_schema.router)
+    app.include_router(get_family.router)
     app.include_router(list_families.router)
+    # Model aggregate
+    app.include_router(define_model.router)
+    app.include_router(version_model.router)
+    app.include_router(deprecate_model.router)
+    app.include_router(add_model_family.router)
+    app.include_router(remove_model_family.router)
+    app.include_router(get_model.router)
+    # Asset aggregate
     app.include_router(register_asset.router)
     app.include_router(activate_asset.router)
     app.include_router(decommission_asset.router)
     app.include_router(relocate_asset.router)
-    app.include_router(enter_maintenance.router)
-    app.include_router(exit_maintenance.router)
+    app.include_router(enter_asset_maintenance.router)
+    app.include_router(exit_asset_maintenance.router)
     app.include_router(add_asset_family.router)
     app.include_router(remove_asset_family.router)
     app.include_router(degrade_asset.router)
@@ -211,17 +270,23 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(update_asset_settings.router)
     app.include_router(add_asset_port.router)
     app.include_router(remove_asset_port.router)
+    app.include_router(add_asset_alternate_identifier.router)
+    app.include_router(remove_asset_alternate_identifier.router)
     app.include_router(get_asset.router)
     app.include_router(get_asset_integration_view.router)
     app.include_router(list_assets.router)
+    # Frame aggregate
     app.include_router(register_frame.router)
     app.include_router(update_frame_placement.router)
     app.include_router(decommission_frame.router)
+    # Mount aggregate
     app.include_router(register_mount.router)
     app.include_router(update_mount_placement.router)
     app.include_router(decommission_mount.router)
     app.include_router(install_asset.router)
     app.include_router(uninstall_asset.router)
+    app.include_router(define_assembly.router)
+    app.include_router(version_assembly.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -232,12 +297,31 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidAssetPortNameError,
         InvalidAssetPortSignalTypeError,
         InvalidAssetSettingsError,
+        InvalidAlternateIdentifierValueError,
         InvalidFrameNameError,
         InvalidFrameRevisionError,
         InvalidFrameRootError,
         InvalidPlacementError,
         InvalidDrawingError,
         InvalidSlotCodeError,
+        InvalidModelNameError,
+        InvalidPartNumberError,
+        InvalidManufacturerNameError,
+        InvalidManufacturerIdentifierError,
+        InvalidManufacturerIdentifierPairingError,
+        InvalidModelVersionTagError,
+        InvalidModelDeprecationReasonError,
+        InvalidDeclaredFamiliesError,
+        InvalidAssemblyNameError,
+        InvalidSlotNameError,
+        InvalidSlotCardinalityError,
+        InvalidTemplateSlotError,
+        InvalidWireSpecError,
+        WireReferencesUnknownSlotError,
+        InvalidParameterOverridesSchemaError,
+        AssemblyInstantiationMappingIncompleteError,
+        AssemblyInstantiationAssetFamilyMismatchError,
+        AssemblyInstantiationParameterOverridesInvalidError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -246,6 +330,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameNotFoundError,
         MountNotFoundError,
         AssetNotFoundForMountError,
+        ModelNotFoundError,
+        AssemblyNotFoundError,
+        FamilyNotFoundForAssemblyError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -253,6 +340,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetAlreadyExistsError,
         FrameAlreadyExistsError,
         MountAlreadyExistsError,
+        ModelAlreadyExistsError,
+        AssemblyAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
@@ -265,6 +354,10 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotRemoveFamilyError,
         AssetCannotAddPortError,
         AssetCannotRemovePortError,
+        AssetAlternateIdentifierAlreadyPresentError,
+        AssetAlternateIdentifierNotPresentError,
+        AssetCannotAddAlternateIdentifierError,
+        AssetModelMismatchError,
         FamilyCannotVersionError,
         FamilyCannotDeprecateError,
         FrameCannotUpdateError,
@@ -273,12 +366,21 @@ def register_equipment_routes(app: FastAPI) -> None:
         FrameInUseError,
         MountCannotUpdateError,
         MountCannotDecommissionError,
-        MountHasInstalledAssetError,
+        MountHasAssetInstalledError,
         MountHasActiveChildrenError,
         MountAlreadyOccupiedError,
         MountIsEmptyError,
         AssetNotInstallableError,
         AssetAlreadyInstalledElsewhereError,
+        ModelCannotVersionError,
+        ModelCannotDeprecateError,
+        ModelCannotAddFamilyError,
+        ModelCannotRemoveFamilyError,
+        ModelFamilyAlreadyPresentError,
+        ModelFamilyNotPresentError,
+        AssemblyCannotVersionError,
+        AssemblyCannotDeprecateError,
+        AssemblyCannotInstantiateError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

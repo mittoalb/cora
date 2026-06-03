@@ -323,7 +323,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="tomography",
-            needed_families=frozenset(
+            needed_family_ids=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
                     _CAP_LINEAR_STAGE_ID,

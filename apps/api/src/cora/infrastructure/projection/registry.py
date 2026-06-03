@@ -1,25 +1,31 @@
-"""Registry of registered Projections (and future Subscriber kinds).
+"""Registry of registered Subscribers (Projections and Reactions).
 
 The composition root populates this during lifespan setup by calling
-each BC's `register_<bc>_projections(registry, deps)` function. The
-worker iterates the registry; the test suite uses it to drive the
+each BC's `register_<bc>_projections(registry, deps)` and
+`register_<bc>_subscribers(registry, deps)` functions. The worker
+iterates the registry; the test suite uses it to drive the
 `drain_projections` helper and the arch-fitness `every-registration-
 has-a-table` check.
+
+The class is named `ProjectionRegistry` for historical reasons; it
+holds any Subscriber-shaped object (Projection or Reaction). Rename
+to `SubscriberRegistry` is deferred: pure cosmetics, ripples
+across every BC's `_subscribers.py` and `_projections.py` wiring.
 """
 
 from collections.abc import Iterator
 
-from cora.infrastructure.projection.handler import Projection
+from cora.infrastructure.projection.handler import Subscriber
 
 
 class DuplicateProjectionError(Exception):
-    """Raised when two projections register with the same name. Names
+    """Raised when two subscribers register with the same name. Names
     must be unique because they key the bookmark row + the proj_* table
     + the arch-fitness checks."""
 
     def __init__(self, name: str) -> None:
         super().__init__(
-            f"Projection with name {name!r} is already registered. "
+            f"Subscriber with name {name!r} is already registered. "
             "Names must be unique across the whole process; they key "
             "the bookmark row and the proj_* table."
         )
@@ -27,41 +33,42 @@ class DuplicateProjectionError(Exception):
 
 
 class EmptySubscriptionError(Exception):
-    """Raised when a projection registers with an empty
+    """Raised when a subscriber registers with an empty
     `subscribed_event_types` set.
 
     The advance query uses `event_type = ANY($subscribed)`; an empty
-    set always matches zero rows, so the projection would silently
+    set always matches zero rows, so the subscriber would silently
     never advance. Catching this at registration surfaces the bug at
-    startup instead of as a "why is my projection empty?" investigation
+    startup instead of as a "why is my subscriber empty?" investigation
     later.
     """
 
     def __init__(self, name: str) -> None:
         super().__init__(
-            f"Projection {name!r} has empty subscribed_event_types. "
-            "An empty set never matches any event; the projection would "
+            f"Subscriber {name!r} has empty subscribed_event_types. "
+            "An empty set never matches any event; the subscriber would "
             "register, the worker would advance it, and zero events "
             "would ever be processed. List the event_type strings the "
-            "projection cares about."
+            "subscriber cares about."
         )
         self.name = name
 
 
 class ProjectionRegistry:
-    """Holds the set of registered projections; iterable by the worker."""
+    """Holds the set of registered subscribers (Projections + Reactions);
+    iterable by the worker."""
 
     def __init__(self) -> None:
-        self._by_name: dict[str, Projection] = {}
+        self._by_name: dict[str, Subscriber] = {}
 
-    def register(self, projection: Projection) -> None:
-        if projection.name in self._by_name:
-            raise DuplicateProjectionError(projection.name)
-        if not projection.subscribed_event_types:
-            raise EmptySubscriptionError(projection.name)
-        self._by_name[projection.name] = projection
+    def register(self, subscriber: Subscriber) -> None:
+        if subscriber.name in self._by_name:
+            raise DuplicateProjectionError(subscriber.name)
+        if not subscriber.subscribed_event_types:
+            raise EmptySubscriptionError(subscriber.name)
+        self._by_name[subscriber.name] = subscriber
 
-    def get(self, name: str) -> Projection | None:
+    def get(self, name: str) -> Subscriber | None:
         return self._by_name.get(name)
 
     def names(self) -> frozenset[str]:
@@ -70,7 +77,7 @@ class ProjectionRegistry:
     def is_empty(self) -> bool:
         return not self._by_name
 
-    def __iter__(self) -> Iterator[Projection]:
+    def __iter__(self) -> Iterator[Subscriber]:
         return iter(self._by_name.values())
 
     def __len__(self) -> int:

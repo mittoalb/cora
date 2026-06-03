@@ -114,7 +114,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     await define_method.bind(deps)(
         DefineMethod(
-            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_families=frozenset({cap_id})
+            capability_id=_CAPABILITY_ID, name="XRF Fly Scan", needed_family_ids=frozenset({cap_id})
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -195,8 +195,8 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         # via `payload.get("decided_by_decision_id")`.
         "decided_by_decision_id": None,
         # pins. Empty tuple by default; forward-compat via
-        # `payload.get("pinned_calibrations", [])`.
-        "pinned_calibrations": [],
+        # `payload.get("pinned_calibration_ids", [])`.
+        "pinned_calibration_ids": [],
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.event_id == run_event_id
@@ -210,8 +210,8 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
     assert state.subject_id == subject_id
     assert state.status is RunStatus.RUNNING
 
-    # that omit pinned_calibrations get an empty frozenset on the
+    # that omit pinned_calibration_ids get an empty frozenset on the
     # folded state — locks the additive-state forward-compat contract
     # end-to-end (event payload → PG round-trip → load_run fold).
     # Mirror of Data BC's 12c-3 pin on test_register_dataset_handler_postgres.
-    assert state.pinned_calibrations == frozenset()
+    assert state.pinned_calibration_ids == frozenset()

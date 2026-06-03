@@ -73,7 +73,7 @@ trigger (`cora.infrastructure.bounded_text`).
 
 The decider does NOT verify each Asset id refers to a real Asset
 stream. Same precedent as Trust's Conduit zone refs (3b), Asset
-parent refs (5b), and Method's needed_families (6a). Empty
+parent refs (5b), and Method's needed_family_ids (6a). Empty
 target_asset_ids is allowed (a procedure that doesn't act on a
 specific Asset, for example facility-envelope beam-mode change). Existence
 + Decommissioned-lifecycle gating happens at start_procedure time
@@ -266,13 +266,13 @@ class ProcedureNotFoundError(Exception):
         self.procedure_id = procedure_id
 
 
-class ProcedureAssetDecommissionedError(Exception):
+class ProcedurePlanAssetDecommissionedError(Exception):
     """Procedure's target Assets include one or more Decommissioned at start.
 
     Re-validation of Asset state at start_procedure (NOT just register-
     time snapshot). If a target Asset got decommissioned between
     register_procedure and start_procedure, the Procedure can't proceed
-    against the now-tombstoned Asset. Mirrors `RunAssetDecommissionedError`.
+    against the now-tombstoned Asset. Mirrors `RunPlanAssetDecommissionedError`.
     Mapped to HTTP 409.
     """
 
@@ -346,7 +346,7 @@ class ProcedureStepsForbiddenForRecipeDrivenError(Exception):
 
     Recipe-driven Procedures (created via `register_procedure_from_recipe`)
     have their step list pinned by `RecipeExpansionRecorded`; the
-    `run_procedure` handler re-expands deterministically from the
+    `conduct_procedure` handler re-expands deterministically from the
     pinned Recipe + bindings and ignores any caller-supplied steps.
     Rather than silently override (which masks client bugs), the
     handler rejects up front per [[project-run-procedure-replay-design]]
@@ -356,7 +356,7 @@ class ProcedureStepsForbiddenForRecipeDrivenError(Exception):
     def __init__(self, procedure_id: UUID) -> None:
         super().__init__(
             f"Procedure {procedure_id} is recipe-driven; steps must be empty. "
-            f"The run_procedure handler re-expands from RecipeExpansionRecorded."
+            f"The conduct_procedure handler re-expands from RecipeExpansionRecorded."
         )
         self.procedure_id = procedure_id
 
@@ -386,7 +386,7 @@ class RecipeExpansionPortVersionMismatchError(Exception):
 class RecipeExpansionRecordNotFoundError(Exception):
     """The recipe-driven Procedure cannot locate the pinned expansion record.
 
-    Raised by the `run_procedure` recipe-replay path
+    Raised by the `conduct_procedure` recipe-replay path
     (per [[project-run-procedure-replay-design]]) in any of three cases:
 
       - The Procedure stream carries no `RecipeExpansionRecorded`

@@ -25,7 +25,7 @@ from cora.equipment.aggregates.frame import (
 
 
 def _transform_against(predecessor_id: object) -> Placement:
-    """Build a Placement whose parent_frame is the given predecessor id."""
+    """Build a Placement whose parent_frame_id is the given predecessor id."""
     return Placement(
         x=0.0,
         y=0.0,

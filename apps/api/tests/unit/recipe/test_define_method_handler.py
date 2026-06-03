@@ -71,7 +71,7 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
         DefineMethod(
             name="XRF Fly Mapping",
             capability_id=_CAPABILITY_ID,
-            needed_families=frozenset({_CAP1, _CAP2}),
+            needed_family_ids=frozenset({_CAP1, _CAP2}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -83,12 +83,12 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
     stored = events[0]
     assert stored.event_type == "MethodDefined"
     assert stored.schema_version == 1
-    # Payload's needed_families is sorted by string form
+    # Payload's needed_family_ids is sorted by string form
     # (deterministic). Compare exact bytes to lock the contract.
     assert stored.payload == {
         "method_id": str(_NEW_ID),
         "name": "XRF Fly Mapping",
-        "needed_families": sorted([str(_CAP1), str(_CAP2)]),
+        "needed_family_ids": sorted([str(_CAP1), str(_CAP2)]),
         # needed_supplies. Pinned by test_method_needed_supplies.py.
         "needed_supplies": [],
         # and round-trips through MethodDefined as a UUID string.
@@ -103,22 +103,22 @@ async def test_handler_appends_method_defined_event_to_store() -> None:
 
 
 @pytest.mark.unit
-async def test_handler_handles_empty_needed_families() -> None:
+async def test_handler_handles_empty_needed_family_ids() -> None:
     """Procedural Method (no equipment requirement) lands as
-    payload `needed_families = []`."""
+    payload `needed_family_ids = []`."""
     store, deps = await _build_seeded_deps()
     handler = define_method.bind(deps)
 
     await handler(
         DefineMethod(
-            name="Sample Cleaning", capability_id=_CAPABILITY_ID, needed_families=frozenset()
+            name="Sample Cleaning", capability_id=_CAPABILITY_ID, needed_family_ids=frozenset()
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     events, _ = await store.load("Method", _NEW_ID)
-    assert events[0].payload["needed_families"] == []
+    assert events[0].payload["needed_family_ids"] == []
 
 
 @pytest.mark.unit
@@ -187,7 +187,7 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
     `MethodDefined.payload` dicts. Required for idempotency-key hashing to stay
     stable across additive payload shape changes (see `with_idempotency`
     SHA256 over normalized request body)."""
-    needed_families = frozenset({_CAP1, _CAP2})
+    needed_family_ids = frozenset({_CAP1, _CAP2})
 
     # Run 1
     store_a, deps_a = await _build_seeded_deps()
@@ -195,7 +195,7 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
         DefineMethod(
             name="XRF Fly Mapping",
             capability_id=_CAPABILITY_ID,
-            needed_families=needed_families,
+            needed_family_ids=needed_family_ids,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -208,7 +208,7 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
         DefineMethod(
             name="XRF Fly Mapping",
             capability_id=_CAPABILITY_ID,
-            needed_families=needed_families,
+            needed_family_ids=needed_family_ids,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

@@ -23,7 +23,7 @@ def evolve(state: Policy | None, event: PolicyEvent) -> Policy:
             policy_id=policy_id,
             name=name,
             conduit_id=conduit_id,
-            permitted_principals=permitted_principals,
+            permitted_principal_ids=permitted_principal_ids,
             permitted_commands=permitted_commands,
             surface_id=surface_id,
         ):
@@ -32,7 +32,7 @@ def evolve(state: Policy | None, event: PolicyEvent) -> Policy:
                 id=policy_id,
                 name=PolicyName(name),
                 conduit_id=conduit_id,
-                permitted_principals=frozenset(permitted_principals),
+                permitted_principal_ids=frozenset(permitted_principal_ids),
                 permitted_commands=frozenset(permitted_commands),
                 surface_id=surface_id,
             )

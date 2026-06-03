@@ -35,7 +35,7 @@ def _decode(value: object) -> dict[str, object]:
 @pytest.mark.integration
 async def test_v2_bootstrap_policy_stream_exists(db_pool: asyncpg.Pool) -> None:
     """V2 PolicyDefined event lands at the seeded UUID with the locked
-    payload shape (sorted permitted_principals + commands; bound to
+    payload shape (sorted permitted_principal_ids + commands; bound to
     HTTP Surface)."""
     rows = await db_pool.fetch(
         """
@@ -54,7 +54,7 @@ async def test_v2_bootstrap_policy_stream_exists(db_pool: asyncpg.Pool) -> None:
     assert payload["conduit_id"] == "00000000-0000-0000-0000-000000000000"
     assert payload["surface_id"] == str(SYSTEM_HTTP_SURFACE_ID)
     assert payload["permitted_commands"] == ["DefinePolicy", "RegisterActor"]
-    assert payload["permitted_principals"] == ["00000000-0000-0000-0000-000000000000"]
+    assert payload["permitted_principal_ids"] == ["00000000-0000-0000-0000-000000000000"]
 
 
 @pytest.mark.integration

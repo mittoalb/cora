@@ -3,8 +3,8 @@
 Pins the decider's universal behaviour across generated inputs:
 
   - state=None → ActorNotFoundError, always.
-  - state.is_active=False → ActorCannotDeactivateError, always.
-  - state.is_active=True → single ActorDeactivated whose actor_id
+  - state.active=False → ActorCannotDeactivateError, always.
+  - state.active=True → single ActorDeactivated whose actor_id
     is state.id (NOT command.actor_id — a load-bearing distinction
     because the handler loads by command.actor_id but the decider
     emits using the rebuilt state, so a mismatched command/state pair
@@ -41,10 +41,10 @@ _DATETIME = st.datetimes()
 def _actor(
     actor_id: UUID,
     *,
-    is_active: bool = True,
+    active: bool = True,
     kind: ActorKind = ActorKind.HUMAN,
 ) -> Actor:
-    return Actor(id=actor_id, is_active=is_active, kind=kind)
+    return Actor(id=actor_id, active=active, kind=kind)
 
 
 @pytest.mark.unit
@@ -73,7 +73,7 @@ def test_deactivate_inactive_state_always_raises_already_deactivated(
     command targets."""
     with pytest.raises(ActorCannotDeactivateError) as exc:
         deactivate_actor.decide(
-            state=_actor(actor_id, is_active=False, kind=kind),
+            state=_actor(actor_id, active=False, kind=kind),
             command=DeactivateActor(actor_id=command_id),
             now=now,
         )
@@ -94,7 +94,7 @@ def test_deactivate_active_actor_emits_event_with_state_id(
     pins the load-bearing source-of-truth invariant for the id.
     """
     events = deactivate_actor.decide(
-        state=_actor(actor_id, is_active=True, kind=kind),
+        state=_actor(actor_id, active=True, kind=kind),
         command=DeactivateActor(actor_id=command_id),
         now=now,
     )
@@ -110,7 +110,7 @@ def test_deactivate_active_actor_emits_event_with_state_id(
 def test_deactivate_is_pure_same_input_same_output(
     actor_id: UUID, kind: ActorKind, now: datetime
 ) -> None:
-    state = _actor(actor_id, is_active=True, kind=kind)
+    state = _actor(actor_id, active=True, kind=kind)
     command = DeactivateActor(actor_id=actor_id)
     first = deactivate_actor.decide(state=state, command=command, now=now)
     second = deactivate_actor.decide(state=state, command=command, now=now)

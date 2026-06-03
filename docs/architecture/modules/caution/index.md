@@ -85,7 +85,7 @@ The authoring actor is carried on the event envelope (`StoredEvent.principal_id`
 | Event | Payload sketch | When emitted |
 |---|---|---|
 | `CautionRegistered` | `caution_id`, `target`, `category`, `severity`, `text`, `workaround`, `author_actor_id`, `tags`, `expires_at?`, `propagate_to_children`, `parent_caution_id?`, `occurred_at` | `register_caution` succeeds, or as the child genesis event in `supersede_caution` |
-| `CautionSuperseded` | `caution_id` (parent), `by_caution_id` (child), `occurred_at` | `supersede_caution` succeeds, written to the parent stream |
+| `CautionSuperseded` | `caution_id` (parent), `superseded_by_caution_id` (child), `occurred_at` | `supersede_caution` succeeds, written to the parent stream |
 | `CautionRetired` | `caution_id`, `reason`, `occurred_at` | `retire_caution` succeeds |
 
 ## Slices

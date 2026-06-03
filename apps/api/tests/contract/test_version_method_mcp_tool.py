@@ -26,7 +26,7 @@ def _define_method_via_tool(
                 "arguments": {
                     "name": name,
                     "capability_id": cap_id,
-                    "needed_families": [],
+                    "needed_family_ids": [],
                 },
             },
         },

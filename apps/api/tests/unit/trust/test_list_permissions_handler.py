@@ -67,7 +67,7 @@ async def _seed_policy(
         policy_id=policy_id,
         name="Test-policy",
         conduit_id=conduit_id,
-        permitted_principals=tuple(principals),
+        permitted_principal_ids=tuple(principals),
         permitted_commands=tuple(commands),
         occurred_at=_NOW,
     )

@@ -55,7 +55,7 @@ def _start_run_and_finish(client: TestClient, *, end_state: str) -> str:
         "family_id"
     ]
     method_id = client.post(
-        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_families": [cap_id]}
+        "/methods", json={"name": "M", "capability_id": _cap_id, "needed_family_ids": [cap_id]}
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",
@@ -188,7 +188,7 @@ def _seed_policy(
         policy_id=policy_id,
         name="Promote-dataset-authz-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=(permitted_principal,),
+        permitted_principal_ids=(permitted_principal,),
         permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
@@ -247,7 +247,7 @@ def promote_authz_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestCli
 def test_p2_gets_403_when_promoting_p1s_dataset(
     promote_authz_app: tuple[TestClient, UUID, UUID],
 ) -> None:
-    """Authz contract: P2 is not in `permitted_principals` for
+    """Authz contract: P2 is not in `permitted_principal_ids` for
     PromoteDataset, so POST /datasets/{id}/promote returns 403 before
     any decider logic runs. Pins the full route → handler →
     deps.authz.authorize → 403 stack for promote_dataset."""

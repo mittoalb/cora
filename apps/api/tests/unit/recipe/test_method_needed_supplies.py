@@ -12,7 +12,7 @@ Covers:
   - Each transition (Versioned, Deprecated, ParametersSchemaUpdated)
     PRESERVES needed_supplies through (preserve-fields invariant)
 
-Asymmetric-with-needed_families design (str vs UUID) is exercised
+Asymmetric-with-needed_family_ids design (str vs UUID) is exercised
 implicitly throughout — needed_supplies elements are kind STRINGS,
 never instance UUIDs.
 """
@@ -100,7 +100,7 @@ def test_decider_accepts_empty_needed_supplies() -> None:
         command=DefineMethod(
             capability_id=_CAP.id,
             name="Sample Cleaning",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
             needed_supplies=frozenset(),
         ),
         capability=_CAP,
@@ -117,7 +117,7 @@ def test_decider_accepts_populated_needed_supplies() -> None:
         command=DefineMethod(
             capability_id=_CAP.id,
             name="Tomography",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
             needed_supplies=frozenset({"PhotonBeam", "LiquidNitrogen"}),
         ),
         capability=_CAP,
@@ -136,7 +136,7 @@ def test_decider_trims_each_kind_string() -> None:
         command=DefineMethod(
             capability_id=_CAP.id,
             name="X",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
             needed_supplies=frozenset({"  PhotonBeam  ", "LiquidNitrogen"}),
         ),
         capability=_CAP,
@@ -155,7 +155,7 @@ def test_decider_rejects_whitespace_only_kind() -> None:
             command=DefineMethod(
                 capability_id=_CAP.id,
                 name="X",
-                needed_families=frozenset(),
+                needed_family_ids=frozenset(),
                 needed_supplies=frozenset({"   "}),
             ),
             capability=_CAP,
@@ -172,7 +172,7 @@ def test_decider_rejects_empty_kind() -> None:
             command=DefineMethod(
                 capability_id=_CAP.id,
                 name="X",
-                needed_families=frozenset(),
+                needed_family_ids=frozenset(),
                 needed_supplies=frozenset({""}),
             ),
             capability=_CAP,
@@ -190,7 +190,7 @@ def test_decider_rejects_oversized_kind() -> None:
             command=DefineMethod(
                 capability_id=_CAP.id,
                 name="X",
-                needed_families=frozenset(),
+                needed_family_ids=frozenset(),
                 needed_supplies=frozenset({"x" * 51}),
             ),
             capability=_CAP,
@@ -207,7 +207,7 @@ def test_decider_accepts_max_length_kind() -> None:
         command=DefineMethod(
             capability_id=_CAP.id,
             name="X",
-            needed_families=frozenset(),
+            needed_family_ids=frozenset(),
             needed_supplies=frozenset({boundary}),
         ),
         capability=_CAP,
@@ -228,7 +228,7 @@ def test_to_payload_sorts_needed_supplies_lexically() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_families=(),
+        needed_family_ids=(),
         needed_supplies=("LiquidNitrogen", "PhotonBeam", "ComputePool"),
         occurred_at=_NOW,
     )
@@ -241,7 +241,7 @@ def test_event_round_trips_with_needed_supplies() -> None:
     original = MethodDefined(
         method_id=uuid4(),
         name="Tomography",
-        needed_families=(),
+        needed_family_ids=(),
         needed_supplies=("LiquidNitrogen", "PhotonBeam"),
         occurred_at=_NOW,
     )
@@ -264,7 +264,7 @@ def test_legacy_event_payload_folds_with_empty_needed_supplies() -> None:
     legacy_payload: dict[str, object] = {
         "method_id": str(uuid4()),
         "name": "Legacy Method",
-        "needed_families": [],
+        "needed_family_ids": [],
         "occurred_at": _NOW.isoformat(),
         # No needed_supplies key — legacy payload shape.
     }
@@ -285,7 +285,7 @@ def test_evolve_method_defined_sets_needed_supplies() -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Tomography",
-        needed_families=(),
+        needed_family_ids=(),
         needed_supplies=("PhotonBeam", "LiquidNitrogen"),
         occurred_at=_NOW,
     )
@@ -302,7 +302,7 @@ def _seed_state(supplies: frozenset[str]) -> Method:
         MethodDefined(
             method_id=uuid4(),
             name="Tomography",
-            needed_families=(),
+            needed_family_ids=(),
             needed_supplies=tuple(supplies),
             occurred_at=_NOW,
         ),
@@ -350,7 +350,7 @@ def test_fold_full_lifecycle_preserves_needed_supplies() -> None:
             MethodDefined(
                 method_id=method_id,
                 name="Tomography",
-                needed_families=(),
+                needed_family_ids=(),
                 needed_supplies=("PhotonBeam", "LiquidNitrogen"),
                 occurred_at=_NOW,
             ),
@@ -398,7 +398,7 @@ def test_event_type_name_for_method_defined_unchanged() -> None:
     event = MethodDefined(
         method_id=uuid4(),
         name="X",
-        needed_families=(),
+        needed_family_ids=(),
         needed_supplies=(),
         occurred_at=_NOW,
     )

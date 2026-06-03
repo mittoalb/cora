@@ -13,11 +13,16 @@ from mcp.server.fastmcp import FastMCP
 
 from cora.agent.features.define_agent import tool as define_agent_tool
 from cora.agent.features.deprecate_agent import tool as deprecate_agent_tool
+from cora.agent.features.dismiss_event_in_reaction import (
+    tool as dismiss_event_in_reaction_tool,
+)
 from cora.agent.features.get_agent import tool as get_agent_tool
 from cora.agent.features.grant_tool_to_agent import tool as grant_tool_to_agent_tool
 from cora.agent.features.promote_caution_proposal import tool as promote_caution_proposal_tool
-from cora.agent.features.re_debrief_run import tool as re_debrief_run_tool
-from cora.agent.features.re_debrief_run.handler import IdempotentHandler as ReDebriefRunHandler
+from cora.agent.features.regenerate_run_debrief import tool as regenerate_run_debrief_tool
+from cora.agent.features.regenerate_run_debrief.handler import (
+    IdempotentHandler as RegenerateRunDebriefHandler,
+)
 from cora.agent.features.resume_agent import tool as resume_agent_tool
 from cora.agent.features.revise_agent_budget import tool as revise_agent_budget_tool
 from cora.agent.features.revoke_tool_from_agent import tool as revoke_tool_from_agent_tool
@@ -73,24 +78,28 @@ def register_agent_tools(
         mcp,
         get_handler=lambda: get_handlers().promote_caution_proposal,
     )
-    # re_debrief_run handler is Optional in the bundle
+    # regenerate_run_debrief handler is Optional in the bundle
     # (None when kernel.llm is unwired). The tool's lambda dereferences
     # at call time and raises a RuntimeError to surface as MCP isError;
     # this matches the REST 503 semantics. Production deploys with
     # ANTHROPIC_API_KEY set never hit the None branch.
-    re_debrief_run_tool.register(
+    regenerate_run_debrief_tool.register(
         mcp,
-        get_handler=lambda: _resolve_re_debrief_run(get_handlers()),
+        get_handler=lambda: _resolve_regenerate_run_debrief(get_handlers()),
+    )
+    dismiss_event_in_reaction_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().dismiss_event_in_reaction,
     )
 
 
-def _resolve_re_debrief_run(handlers: AgentHandlers) -> ReDebriefRunHandler:
-    """Dereference the Optional re_debrief_run handler with a loud
+def _resolve_regenerate_run_debrief(handlers: AgentHandlers) -> RegenerateRunDebriefHandler:
+    """Dereference the Optional regenerate_run_debrief handler with a loud
     failure when unwired. Mirrors the REST route's 503 path."""
-    if handlers.re_debrief_run is None:
+    if handlers.regenerate_run_debrief is None:
         msg = (
-            "re_debrief_run is unavailable: kernel.llm is not wired "
+            "regenerate_run_debrief is unavailable: kernel.llm is not wired "
             "(ANTHROPIC_API_KEY not configured)."
         )
         raise RuntimeError(msg)
-    return handlers.re_debrief_run
+    return handlers.regenerate_run_debrief

@@ -73,13 +73,13 @@ from cora.recipe.aggregates.method.events import (
     to_payload as method_to_payload,
 )
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
-    InvalidPlanError,
     InvalidPlanNameError,
-    MethodDeprecatedError,
     PlanAffordancesNotSatisfiedError,
+    PlanAssetDecommissionedError,
+    PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanFamiliesNotSatisfiedError,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import PracticeNotFoundError
 from cora.recipe.aggregates.practice.events import (
@@ -139,14 +139,14 @@ async def _seed_method(
     store: InMemoryEventStore,
     method_id: UUID,
     *,
-    needed_families: frozenset[UUID] = frozenset(),
+    needed_family_ids: frozenset[UUID] = frozenset(),
     capability_id: UUID | None = None,
     deprecated: bool = False,
 ) -> None:
     event = MethodDefined(
         method_id=method_id,
         name="Test Method",
-        needed_families=tuple(sorted(needed_families, key=str)),
+        needed_family_ids=tuple(sorted(needed_family_ids, key=str)),
         capability_id=capability_id,
         occurred_at=_NOW,
     )
@@ -319,7 +319,7 @@ async def test_handler_returns_generated_plan_id() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_families=frozenset({cap}))
+    await _seed_method(store, method_id, needed_family_ids=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -344,7 +344,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     asset_id = uuid4()
     cap = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_families=frozenset({cap}))
+    await _seed_method(store, method_id, needed_family_ids=frozenset({cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -370,7 +370,7 @@ async def test_handler_appends_plan_defined_event_to_store() -> None:
     assert stored.payload["practice_id"] == str(practice_id)
     assert stored.payload["asset_ids"] == [str(asset_id)]
     assert stored.payload["method_id"] == str(method_id)
-    assert stored.payload["method_needed_families_snapshot"] == [str(cap)]
+    assert stored.payload["method_needed_family_ids_snapshot"] == [str(cap)]
     assert stored.payload["asset_families_snapshot"] == {str(asset_id): [str(cap)]}
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
@@ -524,7 +524,7 @@ async def test_handler_propagates_practice_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(PracticeDeprecatedError):
+    with pytest.raises(PlanBoundPracticeDeprecatedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,
@@ -544,7 +544,7 @@ async def test_handler_propagates_method_deprecated_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(MethodDeprecatedError):
+    with pytest.raises(PlanBoundMethodDeprecatedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,
@@ -564,7 +564,7 @@ async def test_handler_propagates_asset_decommissioned_error() -> None:
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(AssetDecommissionedError):
+    with pytest.raises(PlanAssetDecommissionedError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset({asset_id})),
             principal_id=_PRINCIPAL_ID,
@@ -580,7 +580,7 @@ async def test_handler_propagates_capabilities_not_satisfied_error() -> None:
     practice_id = uuid4()
     asset_id = uuid4()
     store = InMemoryEventStore()
-    await _seed_method(store, method_id, needed_families=frozenset({needed_cap}))
+    await _seed_method(store, method_id, needed_family_ids=frozenset({needed_cap}))
     await _seed_practice(store, practice_id, method_id=method_id)
     await _seed_asset(store, asset_id, capabilities=frozenset({different_cap}))
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
@@ -627,7 +627,7 @@ async def test_handler_propagates_invalid_plan_error_for_empty_asset_ids() -> No
     deps = build_deps(ids=[_NEW_ID, _EVENT_ID], now=_NOW, event_store=store)
     handler = define_plan.bind(deps)
 
-    with pytest.raises(InvalidPlanError):
+    with pytest.raises(PlanAssetsRequiredError):
         await handler(
             DefinePlan(name="X", practice_id=practice_id, asset_ids=frozenset()),
             principal_id=_PRINCIPAL_ID,
@@ -753,7 +753,7 @@ async def test_handler_loads_capability_and_families_when_method_has_capability_
     await _seed_method(
         store,
         method_id,
-        needed_families=frozenset({family_id}),
+        needed_family_ids=frozenset({family_id}),
         capability_id=capability_id,
     )
     await _seed_practice(store, practice_id, method_id=method_id)
@@ -786,7 +786,7 @@ async def test_handler_raises_capability_not_found_when_method_points_at_missing
     await _seed_method(
         store,
         method_id,
-        needed_families=frozenset({family_id}),
+        needed_family_ids=frozenset({family_id}),
         capability_id=bogus_capability,
     )
     await _seed_practice(store, practice_id, method_id=method_id)
@@ -804,7 +804,7 @@ async def test_handler_raises_capability_not_found_when_method_points_at_missing
 
 @pytest.mark.unit
 async def test_handler_raises_family_not_found_when_asset_references_missing_family() -> None:
-    """Sad path: an Asset's `families` references a Family UUID whose stream
+    """Sad path: an Asset's `family_ids` references a Family UUID whose stream
     doesn't exist. With the affordance-cover fan-out enabled (Method has
     capability_id), the handler can't compute the affordance union without
     the Family. Raises `FamilyNotFoundError`; surfaces as 404."""
@@ -821,7 +821,7 @@ async def test_handler_raises_family_not_found_when_asset_references_missing_fam
     await _seed_method(
         store,
         method_id,
-        needed_families=frozenset({bogus_family}),
+        needed_family_ids=frozenset({bogus_family}),
         capability_id=capability_id,
     )
     await _seed_practice(store, practice_id, method_id=method_id)
@@ -859,7 +859,7 @@ async def test_handler_propagates_affordances_not_satisfied_error() -> None:
     await _seed_method(
         store,
         method_id,
-        needed_families=frozenset({family_id}),
+        needed_family_ids=frozenset({family_id}),
         capability_id=capability_id,
     )
     await _seed_practice(store, practice_id, method_id=method_id)

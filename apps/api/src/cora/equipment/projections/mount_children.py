@@ -86,7 +86,7 @@ class MountChildrenProjection:
 
 
 async def load_active_mount_children(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     parent_mount_id: UUID,
 ) -> tuple[UUID, ...]:
     """Return the currently-active child mount IDs of `parent_mount_id`.
@@ -94,11 +94,6 @@ async def load_active_mount_children(
     Used by the decommission_mount handler as a projection
     precondition: if the returned tuple is non-empty, the decider
     raises MountHasActiveChildrenError.
-
-    Returns an empty tuple when `pool` is None (test environments
-    that opt out of Postgres).
     """
-    if pool is None:
-        return ()
     rows = await pool.fetch(_SELECT_ACTIVE_CHILDREN_SQL, parent_mount_id)
     return tuple(row["child_mount_id"] for row in rows)

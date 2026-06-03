@@ -19,7 +19,7 @@ Agent owns one aggregate. Four error families share response
 shapes and get collapsed via the established Trust / Equipment /
 Supply / Safety / Caution loop pattern:
 
-  - 400 (validation): all `Invalid<X>` errors + AgentToolsExceedsLimit
+  - 400 (validation): all `Invalid<X>` errors
   - 404 (load miss): AgentNotFound
   - 409 (defensive guard for AlreadyExists): AgentAlreadyExists
   - 409 (transition guards): AgentCannot<Verb> family (Version,
@@ -41,7 +41,6 @@ from cora.agent.aggregates.agent import (
     AgentDeactivatedError,
     AgentNotFoundError,
     AgentNotSeededError,
-    AgentToolsExceedsLimitError,
     InvalidAgentBudgetError,
     InvalidAgentCanonicalUriError,
     InvalidAgentCapabilitiesError,
@@ -51,6 +50,7 @@ from cora.agent.aggregates.agent import (
     InvalidAgentKindError,
     InvalidAgentNameError,
     InvalidAgentSuspensionReasonError,
+    InvalidAgentToolsError,
     InvalidAgentVersionError,
     InvalidModelRefError,
     InvalidToolNameError,
@@ -60,15 +60,21 @@ from cora.agent.errors import (
     CautionProposalNotActionableError,
     DecisionNotCautionProposalError,
     DecisionNotEmittedByCautionDrafterError,
+    DismissalEventNotFoundError,
+    DismissalRequiresPostgresError,
+    EventAlreadyDismissedError,
+    InvalidDismissalReasonError,
+    SubscriberBookmarkNotFoundError,
     UnauthorizedError,
 )
 from cora.agent.features import (
     define_agent,
     deprecate_agent,
+    dismiss_event_in_reaction,
     get_agent,
     grant_tool_to_agent,
     promote_caution_proposal,
-    re_debrief_run,
+    regenerate_run_debrief,
     resume_agent,
     revise_agent_budget,
     revoke_tool_from_agent,
@@ -121,11 +127,25 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     """Shared 409 handler for state-transition guards.
 
     Covers the `AgentCannot<Verb>Error` family: Version + Deprecate +
-    Suspend + Resume + GrantTool + RevokeTool + ReviseBudget.
+    Suspend + Resume + GrantTool + RevokeTool + ReviseBudget; plus
+    `EventAlreadyDismissedError` from `dismiss_event_in_reaction`.
     """
     _ = request
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_dismissal_requires_postgres(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """503 handler for the in-memory-mode rejection on
+    `dismiss_event_in_reaction`. Production deployments never see this."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": str(exc)},
     )
 
@@ -141,17 +161,18 @@ def register_agent_routes(app: FastAPI) -> None:
     app.include_router(revoke_tool_from_agent.router)
     app.include_router(revise_agent_budget.router)
     app.include_router(get_agent.router)
-    app.include_router(re_debrief_run.router)
+    app.include_router(regenerate_run_debrief.router)
     app.include_router(promote_caution_proposal.router)
-    # 400 validation handlers: Invalid<X> family + AgentToolsExceedsLimit
-    # cardinality guard + cross-aggregate guards.
+    app.include_router(dismiss_event_in_reaction.router)
+    # 400 validation handlers: Invalid<X> family + cross-aggregate guards.
     #
-    # NOT registered here: ParentDecisionAgentMismatchError +
-    # ParentDecisionRunMismatchError (Decision BC owns; raised from
-    # re_debrief_run's handler but the HTTP mapping is decision/routes.py's
-    # responsibility — FastAPI's app-scoped handler catches regardless of
-    # which BC's route raises). Also NOT registered: RunNotFoundError
-    # (Run BC owns -> 404), ParentDecisionNotFoundError (Decision BC -> 404).
+    # NOT registered here: DecisionParentAgentMismatchError +
+    # DecisionParentRunMismatchError (Decision BC owns; raised from
+    # regenerate_run_debrief's handler but the HTTP mapping is
+    # decision/routes.py's responsibility: FastAPI's app-scoped handler
+    # catches regardless of which BC's route raises). Also NOT registered:
+    # RunNotFoundError (Run BC owns -> 404), DecisionParentNotFoundError
+    # (Decision BC -> 404).
     for validation_cls in (
         InvalidAgentKindError,
         InvalidAgentNameError,
@@ -164,7 +185,7 @@ def register_agent_routes(app: FastAPI) -> None:
         InvalidAgentSuspensionReasonError,
         InvalidToolNameError,
         InvalidAgentBudgetError,
-        AgentToolsExceedsLimitError,
+        InvalidAgentToolsError,
         InvalidModelRefError,
         AgentNotSeededError,
         AgentDeactivatedError,
@@ -172,9 +193,15 @@ def register_agent_routes(app: FastAPI) -> None:
         DecisionNotCautionProposalError,
         CautionProposalNotActionableError,
         CautionProposalMalformedError,
+        # dismiss_event_in_reaction validation error.
+        InvalidDismissalReasonError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (AgentNotFoundError,):
+    for not_found_cls in (
+        AgentNotFoundError,
+        SubscriberBookmarkNotFoundError,
+        DismissalEventNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (AgentAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
@@ -186,6 +213,7 @@ def register_agent_routes(app: FastAPI) -> None:
         AgentCannotGrantToolError,
         AgentCannotRevokeToolError,
         AgentCannotReviseBudgetError,
+        EventAlreadyDismissedError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
@@ -194,3 +222,8 @@ def register_agent_routes(app: FastAPI) -> None:
     # authorized to promote a Decision they did not originate
     # through a CautionDrafter agent.
     app.add_exception_handler(DecisionNotEmittedByCautionDrafterError, _handle_unauthorized)
+    # in-memory-mode rejection for the SQL-bound dismiss slice.
+    app.add_exception_handler(
+        DismissalRequiresPostgresError,
+        _handle_dismissal_requires_postgres,
+    )

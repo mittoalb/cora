@@ -2,8 +2,8 @@
 
 Consolidated coverage file: covers `register_visit`, `arrive_visit`,
 `start_visit`, `hold_visit`, `resume_visit`, `complete_visit`,
-`cancel_visit`, `abort_visit`, `void_visit`, `check_in_to_visit`,
-`check_out_from_visit`, `take_control_of_surface`,
+`cancel_visit`, `abort_visit`, `void_visit`, `check_in_visit`,
+`check_out_visit`, `take_control_of_surface`,
 `release_control_of_surface` per the arch-fitness substring-match
 rule. Pins the MCP-tool surface: registration, structured output
 shape, isError on not-found.
@@ -50,8 +50,8 @@ _EXPECTED_TOOL_NAMES = {
     "abort_visit",
     "void_visit",
     # Presence tools.
-    "check_in_to_visit",
-    "check_out_from_visit",
+    "check_in_visit",
+    "check_out_visit",
     # Surface-control tools.
     "take_control_of_surface",
     "release_control_of_surface",
@@ -114,10 +114,10 @@ def test_mcp_lifecycle_tool_returns_iserror_when_visit_not_found(tool_name: str)
     arguments: dict[str, str] = {"visit_id": str(uuid4())}
     if tool_name in {"hold_visit", "cancel_visit", "abort_visit", "void_visit"}:
         arguments["reason"] = "r"
-    # Presence tools carry actor_id (and check_in_to_visit also mode).
-    if tool_name in {"check_in_to_visit", "check_out_from_visit"}:
+    # Presence tools carry actor_id (and check_in_visit also mode).
+    if tool_name in {"check_in_visit", "check_out_visit"}:
         arguments["actor_id"] = str(uuid4())
-    if tool_name == "check_in_to_visit":
+    if tool_name == "check_in_visit":
         arguments["mode"] = "physical"
     # Surface-control tools carry surface_id.
     if tool_name in {"take_control_of_surface", "release_control_of_surface"}:

@@ -33,6 +33,10 @@ from dataclasses import dataclass
 
 import asyncpg
 
+from cora.infrastructure.adapters.canonicalization_registry import (
+    CanonicalizationRegistry,
+)
+from cora.infrastructure.adapters.signing_registry import SigningRegistry
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     LLM,
@@ -49,6 +53,11 @@ from cora.infrastructure.ports import (
     Signer,
     SupplyLookup,
     TokenVerifier,
+)
+from cora.infrastructure.ports.federation import (
+    PermitLookup,
+    PublishPort,
+    SignaturePort,
 )
 
 
@@ -169,11 +178,16 @@ class Kernel:
     supply_lookup: SupplyLookup
     credential_lookup: CredentialLookup
     profile_store: ProfileStore
+    canonicalization_registry: CanonicalizationRegistry
+    signing_registry: SigningRegistry
     pool: asyncpg.Pool | None = None
     llm: LLM | None = None
     logbook_mirror: LogbookMirror | None = None
     token_verifier: TokenVerifier | None = None
     signer: Signer | None = None
+    publish_port: PublishPort | None = None
+    signature_port: SignaturePort | None = None
+    permit_lookup: PermitLookup | None = None
 
 
 Teardown = Callable[[], Awaitable[None]]

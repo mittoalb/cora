@@ -23,10 +23,10 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate
 from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.decommission_asset import bind as bind_decommission
-from cora.equipment.features.enter_maintenance import EnterMaintenance
-from cora.equipment.features.enter_maintenance import bind as bind_enter_maintenance
-from cora.equipment.features.exit_maintenance import ExitMaintenance
-from cora.equipment.features.exit_maintenance import bind as bind_exit
+from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
+from cora.equipment.features.enter_asset_maintenance import bind as bind_enter_asset_maintenance
+from cora.equipment.features.exit_asset_maintenance import ExitAssetMaintenance
+from cora.equipment.features.exit_asset_maintenance import bind as bind_exit
 from cora.equipment.features.list_assets import ListAssets
 from cora.equipment.features.list_assets import bind as bind_list
 from cora.equipment.features.register_asset import RegisterAsset
@@ -89,7 +89,7 @@ async def test_register_emits_commissioned_lifecycle(
 async def test_lifecycle_round_trip_active_maintenance_active(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Activate -> Active; enter_maintenance -> Maintenance; exit
+    """Activate -> Active; enter_asset_maintenance -> Maintenance; exit
     -> Active. Pin: AssetMaintenanceExited writes 'Active'
     just like AssetActivated does (the projection collapses both
     paths to the same target state)."""
@@ -108,8 +108,8 @@ async def test_lifecycle_round_trip_active_maintenance_active(
     await _drain(db_pool)
     await _assert_lifecycle(db_pool, asset_id, "Active")
 
-    await bind_enter_maintenance(deps)(
-        EnterMaintenance(asset_id=asset_id),
+    await bind_enter_asset_maintenance(deps)(
+        EnterAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -117,7 +117,7 @@ async def test_lifecycle_round_trip_active_maintenance_active(
     await _assert_lifecycle(db_pool, asset_id, "Maintenance")
 
     await bind_exit(deps)(
-        ExitMaintenance(asset_id=asset_id),
+        ExitAssetMaintenance(asset_id=asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

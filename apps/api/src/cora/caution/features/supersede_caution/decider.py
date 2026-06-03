@@ -107,7 +107,7 @@ def decide(
     parent_events = [
         CautionSuperseded(
             caution_id=parent.id,
-            by_caution_id=new_id,
+            superseded_by_caution_id=new_id,
             occurred_at=now,
         )
     ]

@@ -73,6 +73,7 @@ nav:
       - Subject: architecture/modules/subject/index.md
       - Data: architecture/modules/data/index.md
       - Decision: architecture/modules/decision/index.md
+      - Federation: architecture/modules/federation/index.md
   - Stack:
     - stack/index.md
     - Backend: stack/backend.md

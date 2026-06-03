@@ -22,7 +22,7 @@ def _setup_plan(client: TestClient) -> str:
     ]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_family_ids": [cap_id]},
     ).json()["method_id"]
     practice_id = client.post(
         "/practices",

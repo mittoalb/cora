@@ -55,7 +55,7 @@ _ORCHESTRATION_SLICES: frozenset[str] = frozenset(
         # Conductor entry: delegates start_procedure / append_procedure_steps /
         # complete_procedure / abort_procedure handlers; no direct event
         # emission. See [[project_edge_runtime_design]].
-        "cora.operation.features.run_procedure",
+        "cora.operation.features.conduct_procedure",
     }
 )
 _NO_DECIDER_SLICES: frozenset[str] = _ENTRY_APPEND_SLICES | _ORCHESTRATION_SLICES

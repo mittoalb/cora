@@ -14,13 +14,13 @@ from mcp.server.fastmcp import FastMCP
 from cora.operation.features.abort_procedure import tool as abort_procedure_tool
 from cora.operation.features.append_procedure_steps import tool as append_procedure_steps_tool
 from cora.operation.features.complete_procedure import tool as complete_procedure_tool
+from cora.operation.features.conduct_procedure import tool as conduct_procedure_tool
 from cora.operation.features.get_procedure import tool as get_procedure_tool
 from cora.operation.features.list_procedures import tool as list_procedures_tool
 from cora.operation.features.register_procedure import tool as register_procedure_tool
 from cora.operation.features.register_procedure_from_recipe import (
     tool as register_procedure_from_recipe_tool,
 )
-from cora.operation.features.run_procedure import tool as run_procedure_tool
 from cora.operation.features.start_procedure import tool as start_procedure_tool
 from cora.operation.features.truncate_procedure import tool as truncate_procedure_tool
 from cora.operation.wire import OperationHandlers
@@ -68,7 +68,7 @@ def register_operation_tools(
         mcp,
         get_handler=lambda: get_handlers().list_procedures,
     )
-    run_procedure_tool.register(
+    conduct_procedure_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().run_procedure,
+        get_handler=lambda: get_handlers().conduct_procedure,
     )

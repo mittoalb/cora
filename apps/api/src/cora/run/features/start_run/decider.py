@@ -22,23 +22,23 @@ fundamental issues surface first:
 
 1. State must be None (defensive: stream collision).
    `RunAlreadyExistsError`.
-2. Plan must not be Deprecated → `PlanDeprecatedError`.
+2. Plan must not be Deprecated → `RunBoundPlanDeprecatedError`.
 3. Subject (if non-None) must be in {Mounted, Measured} →
-   `SubjectNotMountableError`. Skipped entirely for calibration /
+   `RunSubjectNotMountableError`. Skipped entirely for calibration /
    dark-field runs (where command.subject_id is None and
    context.subject is None).
-4. No bound Asset may be Decommissioned → `RunAssetDecommissionedError`
+4. No bound Asset may be Decommissioned → `RunPlanAssetDecommissionedError`
    carrying the offending asset_ids.
-5. RE-VALIDATE: `union(asset.families) ⊇ method.needed_families`
+5. RE-VALIDATE: `union(asset.family_ids) ⊇ method.needed_family_ids`
    against CURRENT Asset state (gate-review Q5: drift since Plan-bind
    is real; Run-start is the last gate before execution).
    `RunCapabilitiesNotSatisfiedError` carrying the missing capability
-   ids. **NOTE**: Method's needed_families comes via Plan; we
+   ids. **NOTE**: Method's needed_family_ids comes via Plan; we
    load Plan but NOT Method here — instead, the handler resolved
    Plan → Method at load time and passes the needs as part of...
    wait, re-reading: actually we don't have Method directly in
    RunStartContext. Plan's bind-time snapshot in PlanDefined event
-   carries `method_needed_families_snapshot`, but we need
+   carries `method_needed_family_ids_snapshot`, but we need
    CURRENT Method state for re-validation. The handler must load
    Method via plan.practice_id → practice.method_id → Method.
    See handler docstring.
@@ -46,7 +46,7 @@ fundamental issues surface first:
    Wait, simpler: we re-load via the snapshot. The PlanDefined
    event captured method_id and the needs snapshot. We could trust
    the snapshot, OR we could re-load Method to get current
-   needed_families. Per gate-review Q5 ("re-validate at Run-
+   needed_family_ids. Per gate-review Q5 ("re-validate at Run-
    start"), we re-load to catch Method drift too.
 
    Actually for 6f-1 simplicity, we trust Plan's bind-time
@@ -88,21 +88,21 @@ from cora.equipment.aggregates.asset import AssetLifecycle
 from cora.recipe.aggregates.plan import PlanStatus, validate_wire_endpoints
 from cora.run.aggregates.run import (
     CautionAcknowledgement,
-    PlanDeprecatedError,
     Run,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCannotJoinCampaignError,
     RunCapabilitiesNotSatisfiedError,
     RunClearanceCoverageMismatchError,
     RunName,
+    RunPlanAssetDecommissionedError,
     RunRequiresActiveClearanceError,
     RunRequiresAvailableSupplyError,
     RunStarted,
+    RunSubjectNotMountableError,
     RunSupplyCoverageMismatchError,
-    SubjectNotMountableError,
     validate_effective_parameters_against_method_schema,
-    validate_pinned_calibrations,
+    validate_pinned_calibration_ids,
 )
 from cora.run.features.start_run.command import StartRun
 from cora.run.features.start_run.context import RunStartContext
@@ -144,7 +144,7 @@ def decide(
     command: StartRun,
     *,
     context: RunStartContext,
-    needed_families_snapshot: frozenset[UUID],
+    needed_family_ids_snapshot: frozenset[UUID],
     needed_supplies_snapshot: frozenset[str] = frozenset(),
     effective_parameters: dict[str, Any],
     method_parameters_schema: dict[str, Any] | None,
@@ -163,13 +163,13 @@ def decide(
         one registered Supply -> RunRequiresAvailableSupplyError
       - Every kind in Method.needed_supplies must have at least
         one AVAILABLE Supply -> RunSupplyCoverageMismatchError
-      - Plan must not be Deprecated -> PlanDeprecatedError
+      - Plan must not be Deprecated -> RunBoundPlanDeprecatedError
       - Subject (when set) must be Mounted or Measured
-        -> SubjectNotMountableError
+        -> RunSubjectNotMountableError
       - No bound Asset may be Decommissioned
-        -> RunAssetDecommissionedError
+        -> RunPlanAssetDecommissionedError
       - Union of current bound Asset families must cover Method's
-        needed_families -> RunCapabilitiesNotSatisfiedError
+        needed_family_ids -> RunCapabilitiesNotSatisfiedError
       - Effective parameters must validate against Method's
         parameters_schema (STRICT when schema is None; non-empty
         effective rejected)
@@ -182,13 +182,13 @@ def decide(
       - When campaign_id is set, Campaign must exist and be in
         Planned, Active, or Held -> RunCannotJoinCampaignError
       - Name must be valid -> InvalidRunNameError (via RunName VO)
-      - pinned_calibrations cardinality must be within bound
+      - pinned_calibration_ids cardinality must be within bound
         -> InvalidPinnedCalibrationsError
-        (via validate_pinned_calibrations)
+        (via validate_pinned_calibration_ids)
 
-    `needed_families_snapshot` is the Method's needed_families
+    `needed_family_ids_snapshot` is the Method's needed_family_ids
     set the handler resolved transitively from `plan.practice_id →
-    practice.method_id → method.needed_families`. Passed in as a
+    practice.method_id → method.needed_family_ids`. Passed in as a
     plain frozenset so the decider stays purely state-driven.
 
     `effective_parameters` is the post-merge dict (Plan defaults +
@@ -245,10 +245,10 @@ def decide(
             )
 
     if context.plan.status is PlanStatus.DEPRECATED:
-        raise PlanDeprecatedError(context.plan.id)
+        raise RunBoundPlanDeprecatedError(context.plan.id)
 
     if context.subject is not None and context.subject.status not in _SUBJECT_RUNNABLE_STATUSES:
-        raise SubjectNotMountableError(
+        raise RunSubjectNotMountableError(
             context.subject.id, current_status=context.subject.status.value
         )
 
@@ -261,15 +261,15 @@ def decide(
         key=str,
     )
     if decommissioned:
-        raise RunAssetDecommissionedError(decommissioned)
+        raise RunPlanAssetDecommissionedError(decommissioned)
 
     # Re-validation: union of CURRENT bound Asset capabilities must
     # cover Method's needs (per gate-review Q5; drift since Plan-bind
     # is real; Run-start is the last gate).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.families
+        cap for asset in context.assets.values() for cap in asset.family_ids
     )
-    missing = needed_families_snapshot - union_capabilities
+    missing = needed_family_ids_snapshot - union_capabilities
     if missing:
         raise RunCapabilitiesNotSatisfiedError(missing)
 
@@ -328,8 +328,8 @@ def decide(
     # existence check (revision-cited atomic-ID model; eventual-
     # consistency stance per [[project_calibration_design]] anti-hook
     # #3). Mirrors Data BC's register_dataset decider-time treatment
-    # for Dataset.used_calibrations exactly.
-    pinned_calibrations = validate_pinned_calibrations(command.pinned_calibrations)
+    # for Dataset.used_calibration_ids exactly.
+    pinned_calibration_ids = validate_pinned_calibration_ids(command.pinned_calibration_ids)
 
     # build the acknowledged_cautions snapshot for the
     # RunStarted event payload. Per the Caution design memo, this
@@ -370,8 +370,8 @@ def decide(
             decided_by_decision_id=command.decided_by_decision_id,
             # sort for deterministic byte-form on the event
             # payload (frozenset has no inherent order). The cardinality
-            # check ran earlier via validate_pinned_calibrations (12b-5).
-            pinned_calibrations=tuple(sorted(pinned_calibrations)),
+            # check ran earlier via validate_pinned_calibration_ids (12b-5).
+            pinned_calibration_ids=tuple(sorted(pinned_calibration_ids)),
             occurred_at=now,
         )
     ]

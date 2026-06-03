@@ -13,6 +13,25 @@ projection per Dudycz pragmatic-redundancy + K8s/GitHub/AIP-142
 resource-API precedent. Mirrors `load_method_timestamps` /
 `load_plan_timestamps` / `load_practice_timestamps`.
 
+## Two list_*_family_ids helpers
+
+Two read helpers enumerate Family ids from the summary projection;
+they differ ONLY in whether Deprecated Families are filtered out.
+
+`list_family_ids` EXCLUDES Deprecated Families. It backs the
+operator-facing discovery path: `inspect_plan_binding`'s candidate
+enumeration should not offer a Deprecated Family as a source for
+new wiring.
+
+`list_all_family_ids` INCLUDES Deprecated Families. It backs the
+cross-BC existence-check path: `define_model` and `add_model_family`
+verify that every referenced Family id resolves to a real Family
+stream, and per the Model aggregate's design memo Family.deprecation
+is an authoring signal, NOT a runtime gate. Binding a Model to a
+Deprecated Family is permitted (mirrors the Asset-to-Deprecated-Family
+posture); using the discovery filter here would surface a misleading
+`FamilyNotFoundError` for a Family that genuinely exists.
+
 `_STREAM_TYPE = "Family"`. The stream-type string is the event store's
 internal categorization key for this aggregate.
 """
@@ -90,16 +109,22 @@ ORDER BY family_id::text
 """
 
 
-async def list_family_ids(pool: asyncpg.Pool) -> list[UUID]:
+async def list_family_ids(pool: asyncpg.Pool | None) -> list[UUID]:
     """Read every non-Deprecated Family id from the summary projection.
 
-    Used by `inspect_plan_binding`'s candidate enumeration: callers
+    Used by `inspect_plan_binding`'s candidate enumeration and by
+    `define_model`'s cross-BC family_lookup precondition. Callers
     iterate every Family, load its aggregate state via `load_family`,
     and filter by `Family.affordances` membership. Deprecated
     Families are excluded at the SQL layer so they're not offered
     as candidate sources (operator can still see Deprecated Families
     when they're directly wired into a Plan; this is discovery-side
     only).
+
+    Returns `[]` when `pool is None` (test / no-database app_env),
+    mirroring the `load_asset_lifecycle` / `load_asset_location`
+    null-pool short-circuit. Tests that need a populated lookup
+    must wire a real pool.
 
     The summary projection doesn't carry an affordances column today
     (5j deferred it); when the first caller demands affordance-
@@ -109,8 +134,40 @@ async def list_family_ids(pool: asyncpg.Pool) -> list[UUID]:
     `inspect_plan_binding` crosses 200ms. Pilot scale (~9 Families)
     keeps the load-all-then-filter approach cheap.
     """
+    if pool is None:
+        return []
     async with pool.acquire() as conn:
         rows = await conn.fetch(_SELECT_FAMILY_IDS_SQL)
+    return [row["family_id"] for row in rows]
+
+
+_SELECT_ALL_FAMILY_IDS_SQL = """
+SELECT family_id
+FROM proj_equipment_family_summary
+ORDER BY family_id::text
+"""
+
+
+async def list_all_family_ids(pool: asyncpg.Pool | None) -> list[UUID]:
+    """Read every Family id from the summary projection, INCLUDING Deprecated.
+
+    Used by `define_model` and `add_model_family` to verify that every
+    declared/added Family id resolves to a real Family stream. Per the
+    Model aggregate's design memo, Family.deprecation is an authoring
+    signal, NOT a runtime gate: a Model is allowed to declare a
+    Deprecated Family. Filtering Deprecated rows out here (as
+    `list_family_ids` does for the discovery path) would surface a
+    misleading `FamilyNotFoundError` for a Family that genuinely
+    exists.
+
+    Returns `[]` when `pool is None` (test / no-database app_env),
+    mirroring `list_family_ids`. Tests that need a populated lookup
+    must wire a real pool.
+    """
+    if pool is None:
+        return []
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(_SELECT_ALL_FAMILY_IDS_SQL)
     return [row["family_id"] for row in rows]
 
 

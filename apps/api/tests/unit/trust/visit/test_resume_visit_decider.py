@@ -3,7 +3,7 @@
 import pytest
 
 from cora.trust.aggregates.visit import (
-    VisitCannotTransitionError,
+    VisitCannotResumeError,
     VisitNotFoundError,
     VisitResumed,
     VisitStatus,
@@ -42,10 +42,9 @@ def test_resume_raises_not_found_on_empty_state() -> None:
 )
 @pytest.mark.unit
 def test_resume_rejects_non_on_hold_statuses(current_status: VisitStatus) -> None:
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotResumeError):
         decide(
             state=make_visit(current_status),
             command=ResumeVisit(visit_id=VISIT_ID),
             now=NOW,
         )
-    assert exc_info.value.requested_transition == "resume"

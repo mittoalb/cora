@@ -34,7 +34,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         name="define_method",
         description=(
             "Define a new abstract technique-class recipe (Method). "
-            "needed_families is a list of Family ids the Method "
+            "needed_family_ids is a list of Family ids the Method "
             "requires; may be empty for purely procedural Methods. "
             "needed_supplies is a list of Supply.kind STRINGS "
             "(for example 'PhotonBeam', 'LiquidNitrogen'); may be empty."
@@ -61,7 +61,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
-        needed_families: Annotated[
+        needed_family_ids: Annotated[
             list[UUID],
             Field(
                 description=(
@@ -96,7 +96,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             DefineMethod(
                 name=name,
                 capability_id=capability_id,
-                needed_families=frozenset(needed_families),
+                needed_family_ids=frozenset(needed_family_ids),
                 needed_supplies=frozenset(needed_supplies or []),
             ),
             principal_id=get_mcp_principal_id(ctx),

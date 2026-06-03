@@ -35,7 +35,7 @@ Note: `MountPlacementUpdated` is NOT subscribed today. If a future
 slice ever allows changing `placement.parent_frame_id` post-registration,
 the projection must subscribe MountPlacementUpdated and re-key the
 referenced_frame_id; not in v1 since update_mount_placement keeps the
-parent_frame fixed (the decider validates new_placement.parent_frame_id
+parent_frame_id fixed (the decider validates new_placement.parent_frame_id
 matches the existing parent_frame_id).
 """
 
@@ -129,7 +129,7 @@ class FrameConsumersProjection:
 
 
 async def load_active_frame_consumers(
-    pool: asyncpg.Pool | None,
+    pool: asyncpg.Pool,
     frame_id: UUID,
 ) -> tuple[UUID, ...]:
     """Return the currently-active consumer IDs that reference `frame_id`.
@@ -137,12 +137,6 @@ async def load_active_frame_consumers(
     Used by the decommission_frame handler as a projection precondition:
     if the returned tuple is non-empty, the decider raises
     `FrameInUseError`.
-
-    Returns an empty tuple when `pool` is None (test environments
-    that opt out of Postgres; the corresponding decommission_frame
-    tests construct the context directly).
     """
-    if pool is None:
-        return ()
     rows = await pool.fetch(_SELECT_ACTIVE_CONSUMERS_SQL, frame_id)
     return tuple(row["consumer_id"] for row in rows)

@@ -61,7 +61,7 @@ deferred).
 
 Mirrors RunDebriefer verbatim: NO `Authorize` port call (agent's
 authority granted at definition time); DOES gate on
-`Actor.is_active` (operator-revocation gate per the security
+`Actor.active` (operator-revocation gate per the security
 gate-review convention).
 
 ## Cross-BC reads
@@ -156,19 +156,25 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
 
 
 class CautionDrafterSubscriber:
-    """Side-effecting subscriber: terminal Run -> one Caution-proposal Decision.
+    """Reaction: terminal Run -> one Caution-proposal Decision.
 
     Constructed by `make_caution_drafter_subscriber` from the Kernel;
-    satisfies the `Projection` Protocol structurally.
+    satisfies the `Reaction` Protocol structurally.
 
     Holds references to the LLM port, event store, and CautionLookup
     port. The Decision's `actor_id` is the seeded CautionDrafter
     Agent's id (== that agent's Actor.id per 8f-a's identity-sharing
     invariant).
+
+    `batch_size = 1` for the same reason as RunDebriefer: the apply
+    path includes a slow LLM round-trip, so holding the bookmark
+    transaction across N events would starve Projection advance loops
+    sharing the same pool.
     """
 
     name = "caution_drafter"
     subscribed_event_types = _TERMINAL_RUN_EVENTS
+    batch_size = 1
 
     def __init__(
         self,
@@ -233,7 +239,7 @@ class CautionDrafterSubscriber:
                 agent_name=CAUTION_DRAFTER_AGENT_NAME,
             )
             return
-        if not actor.is_active:
+        if not actor.active:
             log.warning(
                 "caution_drafter.skip.agent_actor_deactivated",
                 agent_id=str(CAUTION_DRAFTER_AGENT_ID),
@@ -548,12 +554,17 @@ class CautionDrafterSubscriber:
         """
         if self.signer is None or new_event.event_type not in SIGNED_EVENT_TYPES:
             return new_event
-        signature, kid = await self.signer.sign(
+        signature, kid, signing_version = await self.signer.sign(
             event_type=new_event.event_type,
             payload=new_event.payload,
             actor_id=actor.id,
         )
-        return replace(new_event, signature=signature, signature_kid=kid)
+        return replace(
+            new_event,
+            signature=signature,
+            signature_kid=kid,
+            signature_version=signing_version,
+        )
 
 
 def _proposed_target_in_candidates(proposed: Any, valid_target_ids: frozenset[UUID]) -> bool:

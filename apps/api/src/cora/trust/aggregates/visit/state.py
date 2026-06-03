@@ -267,33 +267,169 @@ class VisitNotFoundError(Exception):
         self.visit_id = visit_id
 
 
-class VisitCannotTransitionError(Exception):
-    """Attempted a lifecycle slice from a disqualifying source status.
+def _format_visit_cannot_message(
+    visit_id: UUID,
+    verb: str,
+    current_status: VisitStatus,
+    permitted_sources: tuple[VisitStatus, ...],
+) -> str:
+    permitted_str = " | ".join(s.value for s in permitted_sources)
+    return (
+        f"Visit {visit_id} cannot {verb}: currently in status "
+        f"{current_status.value}, requires one of {permitted_str}"
+    )
 
-    One error class covers every lifecycle transition guard (arrive, start,
-    hold, resume, complete, cancel, abort, void). Per-slice subclassing
-    (Campaign-style `CampaignCannotHoldError` / `CampaignCannotStartError`
-    / etc.) is rejected: Visit has 7 lifecycle transitions, 7 byte-similar
-    subclasses would be churn. Single class with `requested_transition`
-    discriminator preserves the diagnostic message + log-search
-    disambiguation (the slice's log_prefix already disambiguates).
-    """
+
+class VisitCannotArriveError(Exception):
+    """arrive_visit guard failed: status is not in the permitted source set."""
 
     def __init__(
         self,
         visit_id: UUID,
         current_status: VisitStatus,
-        requested_transition: str,
         permitted_sources: tuple[VisitStatus, ...],
     ) -> None:
-        permitted_str = " | ".join(s.value for s in permitted_sources)
         super().__init__(
-            f"Visit {visit_id} cannot {requested_transition}: currently in status "
-            f"{current_status.value}, requires one of {permitted_str}"
+            _format_visit_cannot_message(visit_id, "arrive", current_status, permitted_sources)
         )
         self.visit_id = visit_id
         self.current_status = current_status
-        self.requested_transition = requested_transition
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotStartError(Exception):
+    """start_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "start", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotHoldError(Exception):
+    """hold_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "hold", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotResumeError(Exception):
+    """resume_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "resume", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotCompleteError(Exception):
+    """complete_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "complete", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotCancelError(Exception):
+    """cancel_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "cancel", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotAbortError(Exception):
+    """abort_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "abort", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotVoidError(Exception):
+    """void_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "void", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
+        self.permitted_sources = permitted_sources
+
+
+class VisitCannotCheckInError(Exception):
+    """check_in_visit guard failed: status is not in the permitted source set."""
+
+    def __init__(
+        self,
+        visit_id: UUID,
+        current_status: VisitStatus,
+        permitted_sources: tuple[VisitStatus, ...],
+    ) -> None:
+        super().__init__(
+            _format_visit_cannot_message(visit_id, "check in", current_status, permitted_sources)
+        )
+        self.visit_id = visit_id
+        self.current_status = current_status
         self.permitted_sources = permitted_sources
 
 
@@ -340,7 +476,8 @@ class VisitCannotTakeControlError(Exception):
     """take_control_of_surface guard failed.
 
     Two causes (single class per Visit's `VisitCannot<Verb>Error`
-    convention, matching `VisitCannotTransitionError`):
+    convention, matching the per-verb lifecycle transition errors
+    `VisitCannotArriveError` / `VisitCannotStartError` / etc.):
 
       - Visit's status is not in {Arrived, InProgress, OnHold}; or
       - Surface already has an active controller AND requesting Visit
@@ -435,8 +572,8 @@ class Visit:
     who actually checked in / out, in which mode (physical | remote),
     and when. The Visit lifecycle FSM operates independently of
     presence per V6 explicit-gesture lock: the operator can drive the
-    full FSM without ever calling check_in_to_visit (and conversely,
-    check_in_to_visit requires Visit.status in {Arrived, InProgress,
+    full FSM without ever calling check_in_visit (and conversely,
+    check_in_visit requires Visit.status in {Arrived, InProgress,
     OnHold} -- never auto-transitions Planned -> Arrived).
 
     No actor field on the aggregate beyond inherited

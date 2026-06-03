@@ -39,4 +39,4 @@ async def test_register_asset_then_add_family_round_trips(
     assert fetched.status_code == 200
     body = fetched.json()
     assert body["id"] == str(asset_id)
-    assert body["families"] == [str(family_id)]
+    assert body["family_ids"] == [str(family_id)]

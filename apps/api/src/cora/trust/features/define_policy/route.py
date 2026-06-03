@@ -41,7 +41,7 @@ class DefinePolicyRequest(BaseModel):
         ...,
         description=("UUID of the Conduit this policy governs (not validated for existence)."),
     )
-    permitted_principals: list[UUID] = Field(
+    permitted_principal_ids: list[UUID] = Field(
         ...,
         description=(
             "Principals (UUIDs) allowed to act via this conduit. "
@@ -124,7 +124,7 @@ async def post_policies(
         DefinePolicy(
             name=body.name,
             conduit_id=body.conduit_id,
-            permitted_principals=frozenset(body.permitted_principals),
+            permitted_principal_ids=frozenset(body.permitted_principal_ids),
             permitted_commands=frozenset(body.permitted_commands),
             surface_id=body.surface_id,
         ),

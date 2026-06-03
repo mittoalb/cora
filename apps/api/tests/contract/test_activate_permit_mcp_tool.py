@@ -18,14 +18,14 @@ def _define_permit_arguments() -> dict[str, Any]:
     return {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
-        "allowed_credentials": [str(uuid4())],
+        "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],
         "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2027-05-30T12:00:00+00:00",
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
+            "scopes": [{"kind": "dataset", "name": "alpha", "qualifier": None}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },

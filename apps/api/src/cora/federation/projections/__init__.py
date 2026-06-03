@@ -2,10 +2,10 @@
 
 from cora.federation.projections.credential import CredentialSummaryProjection
 from cora.federation.projections.permit import PermitSummaryProjection
-from cora.federation.projections.seal import SealProjection
+from cora.federation.projections.seal import SealSummaryProjection
 
 __all__ = [
     "CredentialSummaryProjection",
     "PermitSummaryProjection",
-    "SealProjection",
+    "SealSummaryProjection",
 ]

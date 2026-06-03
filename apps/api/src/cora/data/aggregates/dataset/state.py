@@ -94,11 +94,11 @@ identifiers (DOIs via DataCite, including the IGSN-via-DataCite
 flow for samples) land at the export layer when first needed; they
 are not part of the in-domain Dataset identity.
 
-## Addition: Calibration BC AsShot citation (`used_calibrations`)
+## Addition: Calibration BC AsShot citation (`used_calibration_ids`)
 
-`used_calibrations: frozenset[UUID]` records the CalibrationRevision
+`used_calibration_ids: frozenset[UUID]` records the CalibrationRevision
 IDs the reconstruction (or any derivative) actually used. Symmetric
-to Run.pinned_calibrations (AsShot anchor on the acquired-from Run);
+to Run.pinned_calibration_ids (AsShot anchor on the acquired-from Run);
 the two sets are independent — reconstruction
 may legitimately cite refined revisions not in the producing Run's
 pin set (for example, a `tomopy.find_center_vo` refinement). NO write-time
@@ -301,7 +301,7 @@ class InvalidDerivedFromError(ValueError):
 
 
 class InvalidUsedCalibrationsError(ValueError):
-    """The supplied used_calibrations set has too many entries.
+    """The supplied used_calibration_ids set has too many entries.
 
     Per-entry validation (each is a UUID) is type-enforced; the
     set-cardinality cap protects against accidentally massive
@@ -312,13 +312,13 @@ class InvalidUsedCalibrationsError(ValueError):
     NO cross-BC existence check on the cited revision ids per
     [[project_calibration_design]] anti-hook #3 (revision-cited
     atomic-ID model) + canonical DDD eventual-consistency stance
-    on cross-aggregate rules (matches Run.pinned_calibrations
+    on cross-aggregate rules (matches Run.pinned_calibration_ids
     precedent exactly).
     """
 
     def __init__(self, count: int) -> None:
         super().__init__(
-            f"Dataset used_calibrations must have at most "
+            f"Dataset used_calibration_ids must have at most "
             f"{DATASET_USED_CALIBRATIONS_MAX_ENTRIES} entries (got: {count})"
         )
         self.count = count
@@ -759,7 +759,7 @@ class DatasetEncoding:
     1.2's pattern.
 
     The on-the-wire payload representation sorts `conforms_to`
-    deterministically (matches the Policy/permitted_principals
+    deterministically (matches the Policy/permitted_principal_ids
     precedent) so two registrations of the same logical encoding
     produce byte-identical jsonb.
     """
@@ -820,13 +820,13 @@ def validate_derived_from(value: frozenset[UUID]) -> frozenset[UUID]:
     return value
 
 
-def validate_used_calibrations(value: frozenset[UUID]) -> frozenset[UUID]:
-    """Normalize / validate used_calibrations for the Dataset state and decider.
+def validate_used_calibration_ids(value: frozenset[UUID]) -> frozenset[UUID]:
+    """Normalize / validate used_calibration_ids for the Dataset state and decider.
 
     Cardinality-only check. NO per-element existence check (revision-
     cited atomic-ID model; cross-BC eventual-consistency per
     [[project_calibration_design]] anti-hook #3 + Vernon/Evans DDD
-    canon). Mirrors Run.pinned_calibrations decider-time treatment
+    canon). Mirrors Run.pinned_calibration_ids decider-time treatment
     exactly.
     """
     if len(value) > DATASET_USED_CALIBRATIONS_MAX_ENTRIES:
@@ -877,7 +877,7 @@ class Dataset:
     # Calibration BC AsShot citation (revision-cited
     # atomic-ID model per [[project_calibration_design]]). Each entry
     # is a `CalibrationRevision.id` the reconstruction (or any
-    # derivative) actually used. Symmetric to Run.pinned_calibrations;
+    # derivative) actually used. Symmetric to Run.pinned_calibration_ids;
     # the two sets are independent — the Dataset cites whatever revisions it
     # used (often the same as the producing Run's pin set, sometimes
     # including post-acquisition refinements like a refined
@@ -891,11 +891,11 @@ class Dataset:
     # a revision_id in this set; downstream code paths MUST NOT
     # silently inject fallback values.
     # IMMUTABLE after register_dataset by aggregate-level invariant
-    # (mirrors Run.pinned_calibrations AsShot immutability) — every
+    # (mirrors Run.pinned_calibration_ids AsShot immutability) — every
     # transition arm in the evolver (DatasetDiscarded /
-    # DatasetPromoted) preserves `prior.used_calibrations` verbatim.
+    # DatasetPromoted) preserves `prior.used_calibration_ids` verbatim.
     # Defaults to empty frozenset so legacy streams fold cleanly via
-    # `payload.get("used_calibrations", [])` (additive-state pattern;
+    # `payload.get("used_calibration_ids", [])` (additive-state pattern;
     # mirrors derived_from / producing_run_end_state / intent
     # precedent).
-    used_calibrations: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    used_calibration_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])

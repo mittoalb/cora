@@ -21,14 +21,14 @@ def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
-        "allowed_credentials": [str(uuid4())],
+        "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
         "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": _EXPIRES_AT,
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "public"}],
+            "scopes": [{"kind": "dataset", "name": "public"}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },
@@ -115,7 +115,7 @@ def test_mcp_define_permit_tool_returns_iserror_on_outbound_terms_collapse() -> 
                     "arguments": _args(
                         terms={
                             "kind": "Outbound",
-                            "scope_set": [{"kind": "dataset", "name": "public"}],
+                            "scopes": [{"kind": "dataset", "name": "public"}],
                             "read_scope": "ListMetadataOnly",
                             "onward_action_scope": "MayExportOffPlatform",
                         },

@@ -41,8 +41,8 @@ class PlanBindingContext:
 
     All three carry their own status / lifecycle fields so the
     decider can reject Deprecated / Decommissioned upstreams. The
-    family-superset check uses each Asset's `families` and
-    the Method's `needed_families` (gate-review Q3: bound-Asset-
+    family-superset check uses each Asset's `family_ids` and
+    the Method's `needed_family_ids` (gate-review Q3: bound-Asset-
     only, no hierarchy walk).
 
     Cross-BC affordance-cover additive: `capability` and
@@ -56,10 +56,10 @@ class PlanBindingContext:
       case the decider SKIPS the affordance-cover guard entirely.
     - `family_affordances` maps Family.id → that Family's `affordances`
       set. The handler loads every Family referenced by any bound
-      Asset's `families` set. Empty dict when `capability is None`
+      Asset's `family_ids` set. Empty dict when `capability is None`
       (no point loading Families if we won't validate them).
 
-    The decider unions `family_affordances` across `asset.families`
+    The decider unions `family_affordances` across `asset.family_ids`
     and asserts the union covers `capability.required_affordances`.
     """
 

@@ -5,7 +5,7 @@ Two disqualifying conditions both surface as
 (mirrors the relocate decider's collapsed-conditions pattern):
 
   - asset is `Decommissioned`
-  - capability already in `state.families` (strict-not-idempotent)
+  - capability already in `state.family_ids` (strict-not-idempotent)
 """
 
 from datetime import UTC, datetime
@@ -31,7 +31,7 @@ _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 def _asset(
     *,
     lifecycle: AssetLifecycle = AssetLifecycle.ACTIVE,
-    families: frozenset[uuid4] = frozenset(),  # type: ignore[assignment]
+    family_ids: frozenset[uuid4] = frozenset(),  # type: ignore[assignment]
 ) -> Asset:
     return Asset(
         id=uuid4(),
@@ -39,13 +39,13 @@ def _asset(
         level=AssetLevel.UNIT,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=families,  # type: ignore[arg-type]
+        family_ids=family_ids,  # type: ignore[arg-type]
     )
 
 
 @pytest.mark.unit
 def test_decide_emits_asset_capability_added_for_active_asset_without_capability() -> None:
-    state = _asset(lifecycle=AssetLifecycle.ACTIVE, families=frozenset())
+    state = _asset(lifecycle=AssetLifecycle.ACTIVE, family_ids=frozenset())
     new_cap = uuid4()
     events = add_asset_family.decide(
         state=state,
@@ -89,7 +89,7 @@ def test_decide_raises_cannot_add_when_capability_already_present() -> None:
     raises rather than no-op. Operator can detect 'wait, this is
     already commissioned' rather than silently no-op."""
     cap1 = uuid4()
-    state = _asset(families=frozenset({cap1}))
+    state = _asset(family_ids=frozenset({cap1}))
     with pytest.raises(AssetCannotAddFamilyError) as exc_info:
         add_asset_family.decide(
             state=state,
@@ -117,7 +117,7 @@ def test_decide_succeeds_for_every_non_decommissioned_lifecycle(
     Decommissioned. Pinned: a future change that narrowed the
     allowed-lifecycle set would silently break commissioning workflows
     (which often happen pre-Active during install/test phases)."""
-    state = _asset(lifecycle=lifecycle, families=frozenset())
+    state = _asset(lifecycle=lifecycle, family_ids=frozenset())
     new_cap = uuid4()
     events = add_asset_family.decide(
         state=state,
@@ -133,7 +133,7 @@ def test_decide_does_not_validate_capability_existence() -> None:
     """Eventual-consistency stance: decider does NOT verify the
     referenced Family id refers to a real Family stream. Same
     precedent as Trust Conduit zone refs (3b) and
-    Method.needed_families (6a)."""
+    Method.needed_family_ids (6a)."""
     state = _asset()
     bogus_cap = uuid4()
     events = add_asset_family.decide(

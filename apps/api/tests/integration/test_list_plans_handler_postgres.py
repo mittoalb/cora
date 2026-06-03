@@ -91,7 +91,7 @@ async def _seed_chain(deps: Kernel) -> tuple[UUID, UUID, UUID]:
     await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     method_id = await bind_define_method(deps)(
         DefineMethod(
-            capability_id=_CAPABILITY_ID, name="Tomography", needed_families=frozenset({cap_id})
+            capability_id=_CAPABILITY_ID, name="Tomography", needed_family_ids=frozenset({cap_id})
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

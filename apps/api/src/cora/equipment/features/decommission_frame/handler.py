@@ -126,9 +126,13 @@ def bind(deps: Kernel) -> Handler:
         # operationally recoverable. Promote to SERIALIZABLE or a
         # PG advisory lock when first incident report shows the race
         # firing in production.
-        active_consumer_ids = await load_active_frame_consumers(
-            deps.pool,
-            command.frame_id,
+        # Pool-None short-circuit preserves the pre-tightening permissive
+        # default (no consumers) for the pool-less test path; in
+        # production deps.pool is always set.
+        active_consumer_ids = (
+            await load_active_frame_consumers(deps.pool, command.frame_id)
+            if deps.pool is not None
+            else ()
         )
         context = DecommissionFrameContext(active_consumer_ids=active_consumer_ids)
 

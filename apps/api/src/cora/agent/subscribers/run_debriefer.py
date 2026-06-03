@@ -20,10 +20,13 @@ event store has two challenges:
      two transactions.
 
   2. The bookmark transaction holds for the duration of `apply()`
-     including the LLM call. RunDebriefer is `batch_size=1` so the
-     transaction holds one connection for ~5-15 s per terminal
-     event. Acceptable for pilot scale (~few Runs/day); a watch
-     item for facility scale.
+     including the LLM call. RunDebriefer declares `batch_size = 1`
+     on the class (enforced by the worker via
+     `getattr(subscriber, "batch_size", DEFAULT_BATCH_SIZE)`), so the
+     transaction holds one connection for at most one terminal event's
+     LLM round-trip (~5-15 s). Acceptable for pilot scale (~few
+     Runs/day); watch item for facility scale → split off a
+     `ReactionWorker` with its own pool budget.
 
 Mitigation (1): the Decision's `stream_id` is derived
 deterministically from `terminal_event.event_id` via UUIDv5 (see
@@ -72,14 +75,14 @@ who authorised the agent's existence). Per-call authorization is
 an HTTP-handler concern; subscribers are internal workers running
 under the agent's identity.
 
-The subscriber DOES gate on the agent's `Actor.is_active` flag
+The subscriber DOES gate on the agent's `Actor.active` flag
 (per security gate-review convention): an operator deactivating the agent's
 Actor takes effect on the next `apply()` (the worker reloads the
 Actor every pass; an in-flight pass completes). The Agent
 aggregate's lifecycle status (Defined / Versioned / Deprecated)
 is NOT checked here -- watch item -- because requiring an extra
 event-store load per terminal event has measurable cost at
-facility scale and the Actor.is_active hop closes the same
+facility scale and the Actor.active hop closes the same
 revoke-the-agent operator gesture.
 
 ## LogbookMirror
@@ -97,10 +100,10 @@ diagnostic output (defensive against a future SDK regression).
 error message before structured-logging it (per security gate-review
 convention).
 
-## Duplication-by-design with `re_debrief_run` slice
+## Duplication-by-design with `regenerate_run_debrief` slice
 
 `_compose_and_append` here and
-`cora.agent.features.re_debrief_run.decider.decide` use the same
+`cora.agent.features.regenerate_run_debrief.decider.decide` use the same
 Decision BC public validators + `DecisionRegistered` constructor.
 The subscriber inlines the composition (its at-most-once depends
 on a deterministic decision_id derived from terminal_event.event_id
@@ -114,7 +117,7 @@ anomaly subscriber, second on-demand agent slice) OR the
 subscriber's at-most-once scheme converges with the slice's
 (eg. both move to IdempotencyStore-keyed dedup). Pre-trigger: live
 with the duplication, documented here + at
-`cora.agent.features.re_debrief_run.decider`.
+`cora.agent.features.regenerate_run_debrief.decider`.
 """
 
 from __future__ import annotations
@@ -206,7 +209,7 @@ def redact_secrets(message: str) -> str:
     vendor.
 
     Public callable: used by both this subscriber and the
-    `re_debrief_run` handler for parallel error-logging redaction.
+    `regenerate_run_debrief` handler for parallel error-logging redaction.
     """
     return _API_KEY_LIKE_PATTERN.sub(_REDACTED_TOKEN, message)
 
@@ -233,24 +236,32 @@ def _derive_decision_id(terminal_event_id: UUID) -> UUID:
 
 
 class RunDebrieferSubscriber:
-    """Side-effecting subscriber: terminal Run -> one advisory Decision.
+    """Reaction: terminal Run -> one advisory Decision.
 
     Constructed by `make_run_debriefer_subscriber` from the Kernel;
-    satisfies the `Projection` Protocol (and the `Subscriber`
-    primitive it extends) structurally.
+    satisfies the `Reaction` Protocol (and the `Subscriber` primitive
+    it extends) structurally.
 
     Holds references to the LLM port and event store. The Decision's
     `actor_id` is the seeded RunDebriefer Agent's id (== that agent's
     Actor.id per 8f-a's identity-sharing invariant).
 
-    `name` and `subscribed_event_types` are plain class-level
-    constants (matches `DecisionRatingsProjection` precedent; the
-    `Projection` Protocol declares them as instance attrs which a
+    `name`, `subscribed_event_types`, and `batch_size` are plain
+    class-level constants (matches the wider Subscriber convention;
+    the Reaction Protocol declares them as instance attrs which a
     `ClassVar`-annotated class would not satisfy structurally).
+
+    `batch_size = 1` enforces what the original module docstring
+    claimed before the framework supported per-subscriber tuning:
+    the apply path includes a 5-15 s LLM call, so holding the pool
+    connection across N events would starve Projection advance loops
+    sharing the same pool. Worst-case TX duration is bounded to one
+    LLM call.
     """
 
     name = "run_debriefer"
     subscribed_event_types = _TERMINAL_RUN_EVENTS
+    batch_size = 1
 
     def __init__(
         self,
@@ -325,7 +336,7 @@ class RunDebrieferSubscriber:
         # completes. That asymmetry is intentional -- aborting a
         # mid-LLM-call subscriber would orphan the Decision write
         # (LLM cost paid, no audit trail).
-        if not actor.is_active:
+        if not actor.active:
             log.warning(
                 "run_debriefer.skip.agent_actor_deactivated",
                 agent_id=str(RUN_DEBRIEFER_AGENT_ID),
@@ -570,12 +581,17 @@ class RunDebrieferSubscriber:
         """
         if self.signer is None or new_event.event_type not in SIGNED_EVENT_TYPES:
             return new_event
-        signature, kid = await self.signer.sign(
+        signature, kid, signing_version = await self.signer.sign(
             event_type=new_event.event_type,
             payload=new_event.payload,
             actor_id=actor.id,
         )
-        return replace(new_event, signature=signature, signature_kid=kid)
+        return replace(
+            new_event,
+            signature=signature,
+            signature_kid=kid,
+            signature_version=signing_version,
+        )
 
 
 def make_run_debriefer_subscriber(deps: Kernel) -> RunDebrieferSubscriber:

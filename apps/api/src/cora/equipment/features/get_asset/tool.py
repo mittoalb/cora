@@ -40,7 +40,7 @@ class AssetOutput(BaseModel):
     parent_id: UUID | None
     lifecycle: str
     condition: str
-    families: list[UUID]
+    family_ids: list[UUID]
     settings: dict[str, Any]
     ports: list[AssetPortOutput]
 
@@ -76,7 +76,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             parent_id=asset.parent_id,
             lifecycle=asset.lifecycle.value,
             condition=asset.condition.value,
-            families=sorted(asset.families, key=str),
+            family_ids=sorted(asset.family_ids, key=str),
             settings=asset.settings,
             ports=[
                 AssetPortOutput(

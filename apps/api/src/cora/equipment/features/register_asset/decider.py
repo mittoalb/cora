@@ -11,7 +11,7 @@ the Clock and IdGenerator ports.
 
 Per the BC map's hierarchy semantics:
   - `Enterprise` is the root level — `parent_id` MUST be null.
-  - All other levels (Site / Area / Unit / Assembly / Device)
+  - All other levels (Site / Area / Unit / Component / Device)
     MUST have a non-null `parent_id`.
 
 Eventual-consistency stance: the decider does NOT verify the
@@ -22,9 +22,34 @@ worker era. The single-parent tree rule is enforced structurally
 (one `parent_id` field, can't be a list).
 
 **Levels are conventional, not enforced**: the decider does NOT
-check that a Device's parent is an Assembly (etc). Device-in-
+check that a Device's parent is a Component (etc). Device-in-
 Device is allowed when reality demands it (smart instruments
 with addressable sub-modules).
+
+## Model binding (Lock B)
+
+`command.model_id` flows through to the emitted AssetRegistered
+event without inspection. The decider does NOT load the Model
+snapshot: at registration the Asset's families set is empty, so
+the cross-BC subset invariant
+`Model.declared_family_ids subset-of Asset.family_ids` is vacuously
+satisfied and there is nothing to validate against. The handler
+enforces Model existence (raises `ModelNotFoundError` -> 404)
+before invoking decide; the first meaningful subset enforcement
+fires at the first `add_asset_family` call against the bound
+Asset.
+
+## Alternate identifiers (Lock D + Lock F + Lock I)
+
+`command.alternate_identifiers` flows through to the emitted
+AssetRegistered event verbatim. The decider does NOT validate
+`(kind, value)` uniqueness across other Assets in v1 (Lock F):
+PIDINST itself admits "should be unique", same-vendor serial
+schemes legitimately reappear across facilities, and CORA stays
+format-opaque about provenance of the string. Frozenset semantics
+on the field structurally forbid duplicate `(kind, value)` pairs
+on the same Asset. No cross-BC IO fires on this field's behalf
+(Lock I); the handler does not load any external stream.
 """
 
 from datetime import datetime
@@ -83,5 +108,7 @@ def decide(
             parent_id=command.parent_id,
             occurred_at=now,
             drawing=command.drawing,
+            model_id=command.model_id,
+            alternate_identifiers=command.alternate_identifiers,
         )
     ]

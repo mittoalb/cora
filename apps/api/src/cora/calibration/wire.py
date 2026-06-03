@@ -17,7 +17,8 @@ Cross-cutting decorators applied here:
 ## Wired handlers (12a-2)
 
   - `define_calibration` (create-style; idempotency-wrapped)
-  - `append_revision`    (update-style; idempotency-wrapped per design
+  - `append_calibration_revision`
+                          (update-style; idempotency-wrapped per design
                           memo — agent subscribers are the primary
                           callers and need exactly-once-effective
                           semantics across retries)
@@ -29,10 +30,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.calibration.features import (
-    append_revision,
+    append_calibration_revision,
     define_calibration,
     get_calibration,
     list_calibrations,
+    publish_revision,
 )
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
@@ -46,7 +48,8 @@ class CalibrationHandlers:
     """The Calibration BC's handler bundle, each closed over Kernel."""
 
     define_calibration: define_calibration.IdempotentHandler
-    append_revision: append_revision.IdempotentHandler
+    append_calibration_revision: append_calibration_revision.IdempotentHandler
+    publish_revision: publish_revision.IdempotentHandler
     get_calibration: get_calibration.Handler
     list_calibrations: list_calibrations.Handler
 
@@ -66,16 +69,28 @@ def wire_calibration(deps: Kernel) -> CalibrationHandlers:
             command_name="DefineCalibration",
             bc=_BC,
         ),
-        append_revision=with_tracing(
+        append_calibration_revision=with_tracing(
             with_idempotency(
-                append_revision.bind(deps),
+                append_calibration_revision.bind(deps),
                 deps.idempotency_store,
-                command_name="AppendRevision",
+                command_name="AppendCalibrationRevision",
                 serialize_result=str,
                 deserialize_result=UUID,
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
-            command_name="AppendRevision",
+            command_name="AppendCalibrationRevision",
+            bc=_BC,
+        ),
+        publish_revision=with_tracing(
+            with_idempotency(
+                publish_revision.bind(deps),
+                deps.idempotency_store,
+                command_name="PublishCalibrationRevision",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="PublishCalibrationRevision",
             bc=_BC,
         ),
         get_calibration=with_tracing(

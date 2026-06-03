@@ -41,7 +41,7 @@ class ActorResponse(BaseModel):
     id: UUID
     name: str = Field(..., max_length=ACTOR_NAME_MAX_LENGTH)
     kind: Literal["human", "agent", "service_account"]
-    is_active: bool
+    active: bool
 
 
 def _get_handler(request: Request) -> Handler:
@@ -89,5 +89,5 @@ async def get_actors(
         id=view.actor.id,
         name=view.display_name,
         kind=view.actor.kind.value,
-        is_active=view.actor.is_active,
+        active=view.actor.active,
     )

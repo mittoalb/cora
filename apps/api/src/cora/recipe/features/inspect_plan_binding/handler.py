@@ -121,9 +121,9 @@ def bind(deps: Kernel) -> Handler:
         capability = None
         family_affordances: dict[UUID, frozenset[Affordance]] = {}
         union_families: frozenset[UUID] = frozenset(
-            fid for asset in assets.values() for fid in asset.families
+            fid for asset in assets.values() for fid in asset.family_ids
         )
-        missing_families = method.needed_families - union_families
+        missing_family_ids = method.needed_family_ids - union_families
 
         if method.capability_id is not None:
             capability = await load_capability(deps.event_store, method.capability_id)
@@ -140,7 +140,7 @@ def bind(deps: Kernel) -> Handler:
             union_affordances: frozenset[Affordance] = frozenset(
                 affordance
                 for asset in assets.values()
-                for family_id in asset.families
+                for family_id in asset.family_ids
                 for affordance in family_affordances.get(family_id, frozenset())
             )
             missing_affordances = capability.required_affordances - union_affordances
@@ -151,7 +151,7 @@ def bind(deps: Kernel) -> Handler:
 
         if capability is None:
             binding_status = BindingStatus.MISSING_CAPABILITY
-        elif missing_families:
+        elif missing_family_ids:
             binding_status = BindingStatus.MISSING_FAMILIES
         elif missing_affordances:
             binding_status = BindingStatus.MISSING_AFFORDANCES
@@ -164,10 +164,10 @@ def bind(deps: Kernel) -> Handler:
                 asset_name=assets[asset_id].name.value,
                 condition=assets[asset_id].condition,
                 lifecycle=assets[asset_id].lifecycle,
-                family_ids=assets[asset_id].families,
+                family_ids=assets[asset_id].family_ids,
                 contributed_affordances=frozenset(
                     affordance
-                    for family_id in assets[asset_id].families
+                    for family_id in assets[asset_id].family_ids
                     for affordance in family_affordances.get(family_id, frozenset())
                 ),
             )
@@ -191,10 +191,10 @@ def bind(deps: Kernel) -> Handler:
             practice_id=query.practice_id,
             method_id=method.id,
             capability_id=method.capability_id,
-            method_needed_families=method.needed_families,
+            method_needed_family_ids=method.needed_family_ids,
             capability_required_affordances=required_affordances,
             wired_assets=wired_assets,
-            missing_families=missing_families,
+            missing_family_ids=missing_family_ids,
             missing_affordances=missing_affordances,
             missing_affordance_candidates=missing_affordance_candidates,
             binding_status=binding_status,
@@ -208,7 +208,7 @@ def bind(deps: Kernel) -> Handler:
             correlation_id=str(correlation_id),
             binding_status=binding_status.value,
             asset_count=len(query.asset_ids),
-            missing_family_count=len(missing_families),
+            missing_family_count=len(missing_family_ids),
             missing_affordance_count=len(missing_affordances),
             missing_affordance_candidate_count=sum(
                 len(entry.candidates) for entry in missing_affordance_candidates
@@ -288,7 +288,7 @@ async def _load_candidates(
                 asset = await _get_asset(asset_id)
                 if asset is None:
                     continue
-                contributing_subset = asset.families & contributing_families
+                contributing_subset = asset.family_ids & contributing_families
                 candidates.append(
                     CandidateAsset(
                         asset_id=asset_id,

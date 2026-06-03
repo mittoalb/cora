@@ -24,7 +24,7 @@ def test_jwt_only_config_is_valid() -> None:
     )
     assert cfg.jwks_url == "https://idp.example.com/jwks"
     assert cfg.introspection_url is None
-    assert cfg.algorithms_allowed == ["RS256", "ES256"]
+    assert cfg.allowed_algorithms == ["RS256", "ES256"]
     assert cfg.principal_kind == "human"
 
 

@@ -335,7 +335,9 @@ async def test_focus_alignment_plays_out_end_to_end(
         DefineMethod(
             capability_id=_CAPABILITY_ID,
             name="focus_alignment",
-            needed_families=frozenset({_CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}),
+            needed_family_ids=frozenset(
+                {_CAP_LINEAR_STAGE_ID, _CAP_CAMERA_ID, _CAP_SCINTILLATOR_ID}
+            ),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

@@ -24,12 +24,12 @@ fundamental issues surface first:
    impossible thanks to UUIDv7 ids, but keeps the unmapped raise
    from surfacing as 500 instead of 409.
 2. `asset_ids` must be non-empty (structural invariant: a Plan
-   without bindings is meaningless). Raises `InvalidPlanError`.
-3. Practice must not be Deprecated. Raises `PracticeDeprecatedError`.
-4. Method must not be Deprecated. Raises `MethodDeprecatedError`.
+   without bindings is meaningless). Raises `PlanAssetsRequiredError`.
+3. Practice must not be Deprecated. Raises `PlanBoundPracticeDeprecatedError`.
+4. Method must not be Deprecated. Raises `PlanBoundMethodDeprecatedError`.
 5. No bound Asset may be Decommissioned. Raises
-   `AssetDecommissionedError` carrying the offending asset_ids.
-6. `union(asset.families) ⊇ method.needed_families`. Raises
+   `PlanAssetDecommissionedError` carrying the offending asset_ids.
+6. `union(asset.family_ids) ⊇ method.needed_family_ids`. Raises
    `PlanFamiliesNotSatisfiedError` with the missing family
    ids. Per gate-review Q3: bound-Asset-only check (no hierarchy
    traversal); operators model families at whichever
@@ -64,16 +64,16 @@ from cora.recipe.aggregates.method import MethodStatus
 if TYPE_CHECKING:
     from cora.equipment.aggregates.family import Affordance
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
-    InvalidPlanError,
-    MethodDeprecatedError,
     Plan,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetDecommissionedError,
+    PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanDefined,
     PlanFamiliesNotSatisfiedError,
     PlanName,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import PracticeStatus
 from cora.recipe.features.define_plan.command import DefinePlan
@@ -92,13 +92,13 @@ def decide(
 
     Invariants:
       - State must be None (genesis-only) -> PlanAlreadyExistsError
-      - asset_ids must be non-empty -> InvalidPlanError
-      - Practice must not be Deprecated -> PracticeDeprecatedError
-      - Method must not be Deprecated -> MethodDeprecatedError
+      - asset_ids must be non-empty -> PlanAssetsRequiredError
+      - Practice must not be Deprecated -> PlanBoundPracticeDeprecatedError
+      - Method must not be Deprecated -> PlanBoundMethodDeprecatedError
       - No bound Asset may be Decommissioned
-        -> AssetDecommissionedError
+        -> PlanAssetDecommissionedError
       - Union of bound Assets' families must cover Method's
-        needed_families -> PlanFamiliesNotSatisfiedError
+        needed_family_ids -> PlanFamiliesNotSatisfiedError
       - When Method has a Capability, union of bound Families'
         affordances must cover Capability.required_affordances
         -> PlanAffordancesNotSatisfiedError
@@ -109,13 +109,13 @@ def decide(
         raise PlanAlreadyExistsError(state.id)
 
     if not command.asset_ids:
-        raise InvalidPlanError("at least one asset_id required")
+        raise PlanAssetsRequiredError("at least one asset_id required")
 
     if context.practice.status is PracticeStatus.DEPRECATED:
-        raise PracticeDeprecatedError(context.practice.id)
+        raise PlanBoundPracticeDeprecatedError(context.practice.id)
 
     if context.method.status is MethodStatus.DEPRECATED:
-        raise MethodDeprecatedError(context.method.id)
+        raise PlanBoundMethodDeprecatedError(context.method.id)
 
     decommissioned = sorted(
         (
@@ -126,14 +126,14 @@ def decide(
         key=str,
     )
     if decommissioned:
-        raise AssetDecommissionedError(decommissioned)
+        raise PlanAssetDecommissionedError(decommissioned)
 
     # Generator expression keeps the element type inferable as UUID
     # (vs `frozenset().union(*generators)` which infers Unknown | UUID).
     union_capabilities: frozenset[UUID] = frozenset(
-        cap for asset in context.assets.values() for cap in asset.families
+        cap for asset in context.assets.values() for cap in asset.family_ids
     )
-    missing = context.method.needed_families - union_capabilities
+    missing = context.method.needed_family_ids - union_capabilities
     if missing:
         raise PlanFamiliesNotSatisfiedError(missing)
 
@@ -146,7 +146,7 @@ def decide(
         union_affordances: frozenset[Affordance] = frozenset(
             affordance
             for asset in context.assets.values()
-            for family_id in asset.families
+            for family_id in asset.family_ids
             for affordance in context.family_affordances.get(family_id, frozenset())
         )
         missing_affordances = context.capability.required_affordances - union_affordances
@@ -161,9 +161,11 @@ def decide(
             practice_id=command.practice_id,
             asset_ids=tuple(sorted(command.asset_ids, key=str)),
             method_id=context.method.id,
-            method_needed_families_snapshot=tuple(sorted(context.method.needed_families, key=str)),
+            method_needed_family_ids_snapshot=tuple(
+                sorted(context.method.needed_family_ids, key=str)
+            ),
             asset_families_snapshot={
-                asset_id: tuple(sorted(context.assets[asset_id].families, key=str))
+                asset_id: tuple(sorted(context.assets[asset_id].family_ids, key=str))
                 for asset_id in sorted(context.assets.keys(), key=str)
             },
             occurred_at=now,

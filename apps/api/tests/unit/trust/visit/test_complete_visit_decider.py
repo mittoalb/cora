@@ -3,7 +3,7 @@
 import pytest
 
 from cora.trust.aggregates.visit import (
-    VisitCannotTransitionError,
+    VisitCannotCompleteError,
     VisitCompleted,
     VisitNotFoundError,
     VisitStatus,
@@ -42,10 +42,9 @@ def test_complete_raises_not_found_on_empty_state() -> None:
 @pytest.mark.unit
 def test_complete_rejects_pre_work_statuses(current_status: VisitStatus) -> None:
     """Pre-work Visits cannot be completed -- they must use cancel_visit."""
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotCompleteError):
         decide(
             state=make_visit(current_status),
             command=CompleteVisit(visit_id=VISIT_ID),
             now=NOW,
         )
-    assert exc_info.value.requested_transition == "complete"

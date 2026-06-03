@@ -22,7 +22,7 @@ Invariants:
     -> InvalidPermitScopeError
   - expires_at must lie strictly after now
     -> InvalidPermitScopeError
-  - allowed_credentials non-empty
+  - allowed_credential_ids non-empty
     -> InvalidPermitScopeError
   - allowed_payload_types non-empty + every member non-empty after trim
     -> InvalidPermitScopeError
@@ -31,10 +31,10 @@ Invariants:
   - direction must mirror type(command.terms): OUTBOUND with
     OutboundTerms, INBOUND with InboundTerms
     -> InvalidPermitScopeError
-  - When terms is OutboundTerms: scope_set non-empty; read_scope
+  - When terms is OutboundTerms: scopes non-empty; read_scope
     and onward_action_scope not None
     -> PermitScopeCollapseError for the read / onward collapse
-    matrix; InvalidPermitScopeError for empty scope_set.
+    matrix; InvalidPermitScopeError for empty scope set.
 
 Initial status is implicit `Defined` (event type IS the state-change
 indicator; the genesis evolver hardcodes the mapping).
@@ -74,7 +74,7 @@ def decide(
         -> InvalidPermitScopeError
       - expires_at must lie strictly after now
         -> InvalidPermitScopeError
-      - allowed_credentials must be non-empty
+      - allowed_credential_ids must be non-empty
         -> InvalidPermitScopeError
       - allowed_payload_types must be non-empty and every member
         non-empty after trim -> InvalidPermitScopeError
@@ -82,7 +82,7 @@ def decide(
         non-empty after trim -> InvalidPermitScopeError
       - direction must mirror type(terms) (OUTBOUND with OutboundTerms,
         INBOUND with InboundTerms) -> InvalidPermitScopeError
-      - OutboundTerms.scope_set must be non-empty
+      - OutboundTerms.scopes must be non-empty
         -> InvalidPermitScopeError
       - OutboundTerms read_scope=ListMetadataOnly with
         onward_action_scope=MayExportOffPlatform collapses the matrix
@@ -101,8 +101,8 @@ def decide(
             f"got {command.expires_at.isoformat()}"
         )
 
-    if not command.allowed_credentials:
-        raise InvalidPermitScopeError("allowed_credentials must be non-empty")
+    if not command.allowed_credential_ids:
+        raise InvalidPermitScopeError("allowed_credential_ids must be non-empty")
 
     if not command.allowed_payload_types:
         raise InvalidPermitScopeError("allowed_payload_types must be non-empty")
@@ -130,7 +130,7 @@ def decide(
             permit_id=new_id,
             peer_facility_id=peer_facility_id,
             direction=command.direction,
-            allowed_credentials=command.allowed_credentials,
+            allowed_credential_ids=command.allowed_credential_ids,
             allowed_payload_types=command.allowed_payload_types,
             allowed_artifact_kinds=command.allowed_artifact_kinds,
             abi_tier_floor=command.abi_tier_floor,
@@ -153,8 +153,8 @@ def _ensure_direction_matches_terms(
 
 
 def _validate_outbound_terms(terms: OutboundTerms) -> None:
-    if not terms.scope_set:
-        raise InvalidPermitScopeError("OutboundTerms.scope_set must be non-empty")
+    if not terms.scopes:
+        raise InvalidPermitScopeError("OutboundTerms.scopes must be non-empty")
     if (
         terms.read_scope is ReadScope.LIST_METADATA_ONLY
         and terms.onward_action_scope is OnwardActionScope.MAY_EXPORT_OFF_PLATFORM

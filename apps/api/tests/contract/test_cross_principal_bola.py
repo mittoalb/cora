@@ -6,7 +6,7 @@ on the *resource* the caller is trying to touch. The classic
 failure mode is "principal P1 creates resource R; principal P2
 issues GET /resource/<R> and reads it".
 
-CORA's day-1 defense is the Trust BC's `permitted_principals` x
+CORA's day-1 defense is the Trust BC's `permitted_principal_ids` x
 `permitted_commands` policy: when `TrustAuthorize` is wired with
 a real policy, every command is gated by `(principal_id,
 command_name)`. This test pins the load-bearing chain end-to-end
@@ -17,7 +17,7 @@ exposure surface is reads).
 This test does NOT exercise per-resource ownership (ReBAC); see
 `memory/project_authz_future.md` for that planned phase. What it
 DOES prove today: a deployment that turns on TrustAuthorize and
-configures `permitted_principals` correctly cannot leak a P1
+configures `permitted_principal_ids` correctly cannot leak a P1
 aggregate to a P2 read just because both are authenticated, even
 when both have valid X-Principal-Id headers.
 
@@ -87,7 +87,7 @@ def _seed_policy(
         policy_id=policy_id,
         name="Bola-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=(permitted_principal,),
+        permitted_principal_ids=(permitted_principal,),
         permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
@@ -261,7 +261,7 @@ def _create_campaign_as(client: TestClient, principal: UUID) -> UUID:
 
 def _create_dataset_as(client: TestClient, principal: UUID) -> UUID:
     """Create a Dataset via POST /datasets. All cross-aggregate FKs
-    (producing_run_id, subject_id, derived_from, used_calibrations) are
+    (producing_run_id, subject_id, derived_from, used_calibration_ids) are
     optional and omitted here; checksum is a 64-char zero string
     (well-formed sha256 hex)."""
     response = client.post(
@@ -406,7 +406,7 @@ def _seed_recipe_chain(client: TestClient, principal: UUID) -> UUID:
         json={
             "name": "BOLA test method",
             "capability_id": str(capability_id),
-            "needed_families": [],
+            "needed_family_ids": [],
         },
         headers={"X-Principal-Id": str(principal)},
     )
@@ -462,7 +462,7 @@ def _create_method_as(client: TestClient, principal: UUID) -> UUID:
         json={
             "name": "P1's method",
             "capability_id": str(capability_id),
-            "needed_families": [],
+            "needed_family_ids": [],
         },
         headers={"X-Principal-Id": str(principal)},
     )
@@ -593,7 +593,7 @@ def test_p2_cannot_call_list_actors_when_command_not_permitted(
 ) -> None:
     """List-endpoint BOLA defense at TODAY's granularity: the
     `ListActors` command is gated by Trust policy. P2 isn't in
-    `permitted_principals` so the command itself is denied with 403
+    `permitted_principal_ids` so the command itself is denied with 403
     before the projection table is queried.
 
     This is the WEAKER assertion than per-row BOLA (P2 sees zero of

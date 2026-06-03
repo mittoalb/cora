@@ -115,7 +115,7 @@ def bind(deps: Kernel) -> Handler:
             "adjust_run.start",
             command_name=_COMMAND_NAME,
             run_id=str(command.run_id),
-            patch_key_count=len(command.parameter_patch),
+            patch_key_count=len(command.parameters_patch),
             decided_by_decision_id=(
                 str(command.decided_by_decision_id)
                 if command.decided_by_decision_id is not None
@@ -200,7 +200,7 @@ def bind(deps: Kernel) -> Handler:
             command_name=_COMMAND_NAME,
             run_id=str(command.run_id),
             method_id=str(method.id),
-            patch_key_count=len(command.parameter_patch),
+            patch_key_count=len(command.parameters_patch),
             effective_key_count=len(events[0].effective_parameters),
             schema_present=method.parameters_schema is not None,
             decided_by_decision_id=(

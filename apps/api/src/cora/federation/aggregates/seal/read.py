@@ -16,7 +16,7 @@ aggregate read repos. The domain identity that matters
 `SealLifecycleTimestamps` + `load_seal_timestamps` mirror the
 Calibration Path C precedent
 (`project_template_aggregate_timestamps`): lifecycle bookkeeping
-timestamps live on the `proj_federation_seal` projection table, not
+timestamps live on the `proj_federation_seal_summary` projection table, not
 on the aggregate state, and read-side surfaces compose Seal +
 timestamps into a view DTO at the handler layer.
 """
@@ -36,7 +36,7 @@ _STREAM_TYPE = "Seal"
 
 _SELECT_TIMESTAMPS_SQL = """
 SELECT initialized_at, last_signed_at, last_signed_by_actor_id
-FROM proj_federation_seal
+FROM proj_federation_seal_summary
 WHERE facility_id = $1
 """
 
@@ -45,7 +45,7 @@ WHERE facility_id = $1
 class SealLifecycleTimestamps:
     """Observed wall-clock timestamps for Seal lifecycle events.
 
-    Sourced from `proj_federation_seal`, not from aggregate
+    Sourced from `proj_federation_seal_summary`, not from aggregate
     state. `initialized_at` is set once on `SealInitialized`
     (the envelope `occurred_at` of the genesis event).
     `last_signed_at` and `last_signed_by_actor_id` are `None` until

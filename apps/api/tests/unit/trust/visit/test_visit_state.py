@@ -12,7 +12,7 @@ from cora.trust.aggregates.visit import (
     InvalidVisitReasonError,
     Visit,
     VisitAlreadyExistsError,
-    VisitCannotTransitionError,
+    VisitCannotHoldError,
     VisitNotFoundError,
     VisitStatus,
     VisitType,
@@ -113,17 +113,15 @@ def test_visit_not_found_error_carries_id() -> None:
 
 
 @pytest.mark.unit
-def test_visit_cannot_transition_error_carries_full_diagnostic() -> None:
+def test_visit_cannot_hold_error_carries_full_diagnostic() -> None:
     vid = uuid4()
-    err = VisitCannotTransitionError(
+    err = VisitCannotHoldError(
         visit_id=vid,
         current_status=VisitStatus.COMPLETED,
-        requested_transition="hold",
         permitted_sources=(VisitStatus.IN_PROGRESS,),
     )
     assert err.visit_id == vid
     assert err.current_status == VisitStatus.COMPLETED
-    assert err.requested_transition == "hold"
     assert err.permitted_sources == (VisitStatus.IN_PROGRESS,)
     assert "hold" in str(err)
     assert "Completed" in str(err)

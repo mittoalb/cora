@@ -71,7 +71,7 @@ The schema-declared unit is the canonical wire-and-storage unit. Deciders, event
 
 Personal data on Actors lives in a separate mutable `actor_profile` table, not in events. Events carry `actor_id` only. Erasure scrubs the row before deleting it (`UPDATE ... SET name = ''` then `DELETE`) so the dead-tuple bytes carry no PII before VACUUM.
 
-- **Actor aggregate state** holds `id` and `is_active`; no `name`, no `email`. The event payloads carry the same fields.
+- **Actor aggregate state** holds `id` and `active`; no `name`, no `email`. The event payloads carry the same fields.
 - **`actor_profile` table** holds `actor_id PRIMARY KEY`, `name`, optional contact fields, `created_at`, `updated_at`. Written in the same transaction as `ActorRegistered`. The table has `FORCE ROW LEVEL SECURITY` enabled so even superuser sessions go through the policy.
 - **Load path** left-joins `actor_profile` and falls back to `<deleted user>` when the row is absent.
 - **`forget_actor` slice** scrubs-then-deletes the profile row and emits `ActorProfileForgotten(actor_id, occurred_at)` in a single transaction. The audit event carries no personal data.
@@ -146,6 +146,71 @@ Path parameter placeholders (`{asset_id}`, `{clearance_id}`, `{visit_id}`) keep 
 Python handler function names, slice directory names, and command class names are unaffected by this rule. They stay PEP 8 (`post_assets_add_family`, `add_asset_family/`, `AddAssetFamily`). The convention only governs the literal URL strings that external API consumers and OpenAPI specifications see.
 
 An architecture fitness test in `apps/api/tests/architecture/test_rest_url_kebab_case.py` enforces this across every slice's `route.py`.
+
+### URL paths and slice/command/MCP names are independent conventions
+
+Slice directory names, command class names, and MCP tool names carry the SUBJECT in the verb-phrase when the slice mutates a specific aggregate kind: `add_asset_family`, `decommission_asset`, `enter_asset_maintenance`, `update_asset_settings`. Reading aloud, "add asset family" and "enter asset maintenance" are parallel English noun-phrases.
+
+URLs use the BARE verb when the path scope already implies the subject. Sibling endpoints under `/assets/{asset_id}/` all follow this shape: `/activate`, `/decommission`, `/relocate`, `/degrade`, `/fault`, `/restore`, `/enter-maintenance`, `/exit-maintenance`, `/add-family`, `/remove-family`. The `/assets/{asset_id}/` segment is the subject; repeating it in the verb (`/enter-asset-maintenance`) would be redundant.
+
+```
+GOOD: slice = enter_asset_maintenance/, command = EnterAssetMaintenance,
+      MCP tool = enter_asset_maintenance,
+      URL = POST /assets/{asset_id}/enter-maintenance
+BAD:  URL = POST /assets/{asset_id}/enter-asset-maintenance  (subject duplicated with path scope)
+```
+
+The two conventions cover different audiences: code-side names live alongside siblings in the slice directory and need the subject for grep + read-aloud clarity; URL paths live alongside their sibling endpoints under the resource path and stay terse so the path reads as a sentence.
+
+### Multi-segment action paths
+
+When an endpoint manipulates a sub-resource on its parent, the URL nests as `/{parent-id}/{sub-resource}/{verb}`. Examples: `POST /visits/{visit_id}/surface-control/take`, `POST /visits/{visit_id}/surface-control/release`, `POST /federation/seals/{facility_id}/pointer/sign`, `POST /federation/seals/{facility_id}/online-key/rotate`. The noun-resource segment groups related actions; the verb terminates the path.
+
+This nesting is reserved for sub-resources that have multiple actions or own a meaningful name independent of the parent. Single-action endpoints stay flat (`POST /visits/{visit_id}/arrive`).
+
+Multi-word verb-prep URL segments are banned. `take-control-of-surface` was the sole example before commit `bda0d49f1` flipped it to `surface-control/take`; the noun-then-verb shape is the standard.
+
+## Code identifier carve-outs
+
+The field-shape patterns below are deliberate departures from rules that hold elsewhere. Each has a domain reason; each is enforced by an architecture fitness test so a future rename does not undo the carve-out by accident.
+
+### Boolean fields use bare adjectives
+
+The shape is `<adjective>: bool`, not `is_<adjective>: bool`. Aggregate-state and event-payload examples follow this directly: `Caution.propagate_to_children`, `Seal.rotate_seal_online_key.signed_by_offline_root`, `Procedure.conduct_procedure.succeeded`. DTO-side examples follow the same shape (`incomplete` on the `list_permissions` and `get_asset_integration_view` response DTOs). The reader's "is" comes from the field-access read-aloud (`caution.propagate_to_children` reads as "the caution propagates to children"), not from a prefix that doubles the verb.
+
+The `is_`/`has_`/`can_` prefix style is reserved for derived predicates (computed properties or helper methods that ask a yes-no question). `Permit.is_active` is the canonical example: a function `def is_active(state: Permit) -> bool` computes whether the Permit is currently active by inspecting the FSM state. The prefix style does not migrate onto stored field declarations.
+
+### Cannot-transition errors are per-verb, not collapsed
+
+When an aggregate exposes multiple verbs that all reject from the same source-state set (`activate`, `decommission`, `relocate`, `enter_maintenance`, ...), each verb gets its OWN cannot-transition error class. The shape is `<Aggregate>Cannot<Verb>Error`, not a single `<Aggregate>CannotTransitionError` keyed on a `requested_transition: str` field. Asset and Visit are the canonical references: `AssetCannotActivateError` / `AssetCannotDecommissionError` / `AssetCannotEnterMaintenanceError` / `AssetCannotExitMaintenanceError` (asset state.py) and `VisitCannotTakeControlError` / `VisitCannotReleaseControlError` (visit state.py) follow the pattern with detailed docstrings.
+
+The collapsed shape was tried under the name `VisitCannotTransitionError` and split per-verb in commit `ce66d203c`. The verb name in the class IS the diagnostic: `try: ... except AssetCannotActivateError:` reads better than `if e.requested_transition == "activate": ...`, and handler-side mapping to HTTP 409 keys off `isinstance`, not a string field. The transition-name string is duplicate information the call site already knows.
+
+Carve-out: when the aggregate has only ONE such verb (and no foreseeable second), a bare `<Aggregate>CannotTransitionError` is acceptable. Promote to per-verb the moment a second transition slice lands.
+
+### Supply uses `Marked<Status>` for operator-driven transitions
+
+Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's operator-observation events: `SupplyMarkedAvailable`, `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`. The `Marked` prefix encodes the audit distinction "operator observation, not monitor measurement" that motivates Supply's 5-state FSM. A future automated monitor would emit bare past-participle events (`SupplyObservedAvailable`, `SupplyObservedRecovering`); the prefix is the discriminator. See [`project_supply_design`](../projects/supply.md) for the operator-vs-monitor split.
+
+### Run cross-aggregate edits use `*To*` / `*From*`
+
+`RunAddedToCampaign` / `RunRemovedFromCampaign` carry the preposition because the action targets a sibling aggregate (Campaign), not the Run itself. Bare past-participle (`RunAdded` / `RunRemoved`) would read as if the Run was created or deleted; the preposition makes the cross-aggregate scope explicit. Reserved for events where the Run's stream records an attachment-to-sibling action; sibling Campaign events follow the bare past-participle shape from the Campaign side.
+
+### Projection tables use `proj_<bc>_<aggregate>_<rowtype>`, dropping redundant prefix
+
+Projection tables follow the shape `proj_<bc>_<aggregate>_<rowtype>` where `<rowtype>` names the stored relation (`_summary`, `_membership`, `_children`, `_consumers`, `_ratings`, `_presence`). Examples: `proj_equipment_asset_summary`, `proj_recipe_plan_summary`, `proj_federation_credential_summary`, `proj_trust_visit_summary`.
+
+When the BC contains a single aggregate AND the BC name equals the aggregate name, the redundant prefix is dropped: `proj_<aggregate>_<rowtype>`. Examples: `proj_run_summary`, `proj_agent_summary`, `proj_supply_summary`, `proj_caution_summary`. The dropped-prefix form applies to 8 BCs today (agent, calibration, campaign, caution, decision, run, subject, supply).
+
+When the BC contains a single aggregate but the BC name differs from the aggregate name, the BC prefix stays for grep symmetry with multi-aggregate BCs: `proj_access_actor_summary` (BC = access, aggregate = actor), `proj_data_dataset_summary`, `proj_operation_procedure_summary`, `proj_safety_clearance_summary`.
+
+The `<rowtype>` suffix names the persisted relation, not a usage pattern. Sibling pattern across the corpus: `_summary` (one row per aggregate), `_membership` (join row), `_children` / `_consumers` (reference row), `_ratings` (multi-row per aggregate). The `_lookup` suffix was an early outlier; it was renamed to a relation noun in commit `aaade3cb0`.
+
+### Dataset uses `derived_from` (PROV-O) not `derived_from_ids`
+
+`Dataset.derived_from: frozenset[UUID]` is the sole UUID-collection field that drops the `_ids` suffix the rest of the corpus carries (`Method.needed_family_ids`, `Permit.allowed_credential_ids`, `Asset.family_ids`, etc.). The bare term is the PROV-O standard property (`prov:wasDerivedFrom`); preserving it lets future RO-Crate / PROV-O export round-trip the field without translation.
+
+The `_ids` suffix fitness test (`test_uuid_collection_field_suffix.py`) carves this single field out by name. Adding another PROV-O-aligned field reuses the same carve-out registry entry; do not extend the bare-plural shape outside the PROV-O vocabulary.
 
 ## Documentation
 

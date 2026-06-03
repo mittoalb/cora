@@ -27,14 +27,14 @@ def _register_body() -> dict[str, Any]:
     return {
         "peer_facility_id": "aps-2bm",
         "direction": "Outbound",
-        "allowed_credentials": [str(uuid4())],
+        "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
         "allowed_artifact_kinds": ["dataset"],
         "abi_tier_floor": "Stable",
         "expires_at": "2030-01-01T00:00:00+00:00",
         "terms": {
             "kind": "Outbound",
-            "scope_set": [{"kind": "dataset", "name": "public", "qualifier": None}],
+            "scopes": [{"kind": "dataset", "name": "public", "qualifier": None}],
             "read_scope": "ReadAllArtifacts",
             "onward_action_scope": "ReadOnly",
         },

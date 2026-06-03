@@ -11,7 +11,7 @@ Cross-BC query-handler shape:
     4. return ActorView             -> caller maps None to 404 / isError
 
 Returns `ActorView | None`: the Actor aggregate state (id, kind,
-is_active) plus the display name composed from the BC-internal PII
+active) plus the display name composed from the BC-internal PII
 vault (`actor_profile`). Per the PII vault pattern, the event log
 carries no PII; the display name lives in the mutable side table and
 is resolved at read time. Post-erasure the actor_id reference stays

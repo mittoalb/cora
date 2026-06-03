@@ -14,7 +14,7 @@ is mutable and the audit log should record both sides without
 forcing readers to walk the prior event), and the incremental
 family-set mutations (`AssetFamilyAdded` / `AssetFamilyRemoved`,
 each carrying a single `family_id` that the evolver folds into the
-`families` frozenset as new techniques are commissioned or retired).
+`family_ids` frozenset as new techniques are commissioned or retired).
 
 `AssetDecommissioned`'s source set accepts both ACTIVE and
 MAINTENANCE so a faulted asset can be retired without first being
@@ -55,12 +55,16 @@ additive-evolution shape and matches the `AssetSettingsUpdated`
 precedent (also payload.get-based).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
 from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
+from cora.equipment.aggregates.asset.state import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -78,6 +82,25 @@ class AssetRegistered:
     the engineering build-to spec for the physical specimen. Defaults
     to None so legacy AssetRegistered streams (no drawing in the
     payload) fold cleanly via the additive-payload pattern.
+
+    `model_id` is an optional reference to the Model catalog entry
+    this Asset is an instance of (Family -> Model -> Assembly ->
+    Asset ladder). Set at registration per the model-binding design
+    memo (Lock A); rebind path is decommission + re-register.
+    Defaults to None so legacy AssetRegistered streams (no model_id
+    in the payload) fold cleanly via the additive-payload pattern;
+    `to_payload` uses the omit-when-None convention (key absent
+    rather than serialized as JSON null) to mirror the `drawing`
+    precedent.
+
+    `alternate_identifiers` is an optional frozenset of PIDINST
+    Property 13 alternate identifiers seeded at registration. The
+    field defaults to an empty frozenset so legacy AssetRegistered
+    streams (no `alternate_identifiers` key in the payload) fold
+    cleanly via the additive-payload pattern; `to_payload` uses the
+    omit-when-empty convention (key absent rather than serialized as
+    `[]`) to mirror the `drawing` / `model_id` precedents. See
+    [[project-asset-alternate-identifiers-design]] Locks A and D.
     """
 
     asset_id: UUID
@@ -86,6 +109,14 @@ class AssetRegistered:
     parent_id: UUID | None
     occurred_at: datetime
     drawing: Drawing | None = None
+    model_id: UUID | None = None
+    # Parametrized default_factory for the empty frozenset trick used
+    # across Asset / Method / Mount: the empty frozenset has no
+    # element type for pyright to infer under strict, so the
+    # parametrized callable is supplied as the factory.
+    alternate_identifiers: frozenset[AlternateIdentifier] = field(
+        default_factory=frozenset[AlternateIdentifier]
+    )
 
 
 @dataclass(frozen=True)
@@ -152,14 +183,14 @@ class AssetFamilyAdded:
     as operators commission new techniques on the asset; each event
     captures a single addition for clean audit trails ("when did this
     asset gain XRF Mapping?"). The evolver inserts the family_id
-    into `state.families` (frozenset semantics → no-op on
+    into `state.family_ids` (frozenset semantics → no-op on
     duplicate at the evolver layer; the decider's strict-not-idempotent
     guard is what enforces "must not already be present" at command
     time).
 
     Eventual-consistency: `family_id` is NOT verified against the
     Family stream. Same precedent as Conduit zone refs (3b),
-    Asset parent refs (5b), Method.needed_families (6a).
+    Asset parent refs (5b), Method.needed_family_ids (6a).
     """
 
     asset_id: UUID
@@ -172,7 +203,7 @@ class AssetFamilyRemoved:
     """A Family was removed from an asset's family set.
 
     Mirror of `AssetFamilyAdded`. Single-family event; the
-    evolver removes the family_id from `state.families`. The
+    evolver removes the family_id from `state.family_ids`. The
     decider's strict-not-idempotent guard enforces "must currently be
     present" at command time.
     """
@@ -187,7 +218,7 @@ class AssetDegraded:
     """An asset's condition transitioned to `Degraded`.
 
     Condition transition: any condition -> Degraded (target-state
-    semantics, mirrors `enter_maintenance`'s lifecycle target). The
+    semantics, mirrors `enter_asset_maintenance`'s lifecycle target). The
     evolver sets the new condition; no condition field in the
     payload (event TYPE encodes the change).
 
@@ -267,6 +298,46 @@ class AssetPortRemoved:
 
 
 @dataclass(frozen=True)
+class AssetAlternateIdentifierAdded:
+    """An alternate identifier (PIDINST Property 13) was added to an Asset.
+
+    Single-identifier event mirroring `AssetPortAdded` /
+    `AssetFamilyAdded`. Audit value: "when did this Asset gain the
+    `InventoryNumber=APS-2BM-CAM-001` tag?"
+
+    The full `AlternateIdentifier` VO (kind + value) travels in the
+    payload as two primitives — `kind` is the StrEnum value, `value`
+    is the trimmed string — so `from_stored` reconstructs the VO
+    without reading prior state. Mirrors `AssetPortAdded`'s
+    (port_name, direction, signal_type) primitive carry. The decider
+    enforces strict-not-idempotent semantics at command time per
+    [[project-asset-alternate-identifiers-design]] Lock E.
+    """
+
+    asset_id: UUID
+    alternate_identifier: AlternateIdentifier
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class AssetAlternateIdentifierRemoved:
+    """An alternate identifier (PIDINST Property 13) was removed from an Asset.
+
+    Mirror of `AssetAlternateIdentifierAdded`. The full
+    `AlternateIdentifier` VO (kind + value) travels in the payload so
+    the audit reader can see exactly which identifier was removed
+    without folding back through prior events; symmetric with the
+    Added event (the Port mirror carries only `port_name` because
+    `name` is the unique key on `AssetPort`, whereas here uniqueness
+    keys on the full `(kind, value)` tuple).
+    """
+
+    asset_id: UUID
+    alternate_identifier: AlternateIdentifier
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetSettingsUpdated:
     """An asset's settings dict was set / replaced via the
     update_asset_settings slice (5g-c).
@@ -333,6 +404,8 @@ AssetEvent = (
     | AssetSettingsUpdated
     | AssetPortAdded
     | AssetPortRemoved
+    | AssetAlternateIdentifierAdded
+    | AssetAlternateIdentifierRemoved
 )
 
 
@@ -355,6 +428,8 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             parent_id=parent_id,
             occurred_at=occurred_at,
             drawing=drawing,
+            model_id=model_id,
+            alternate_identifiers=alternate_identifiers,
         ):
             payload: dict[str, Any] = {
                 "asset_id": str(asset_id),
@@ -369,6 +444,24 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                     "number": drawing.number,
                     "revision": drawing.revision,
                 }
+            if model_id is not None:
+                payload["model_id"] = str(model_id)
+            if alternate_identifiers:
+                # Omit-when-empty: legacy AssetRegistered shape had no
+                # `alternate_identifiers` key; preserve that wire shape
+                # so existing stream readers can't accidentally observe
+                # an empty list where the key was previously absent.
+                # Sorted by (kind, value) so payload bytes are stable
+                # under the equivalent VO set (frozenset iteration is
+                # nondeterministic; canonical bytes matter for any
+                # future signing/hashing slice).
+                payload["alternate_identifiers"] = [
+                    {"kind": identifier.kind.value, "value": identifier.value}
+                    for identifier in sorted(
+                        alternate_identifiers,
+                        key=lambda ident: (ident.kind.value, ident.value),
+                    )
+                ]
             return payload
         case AssetActivated(asset_id=asset_id, occurred_at=occurred_at):
             return {
@@ -468,6 +561,32 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "port_name": port_name,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case AssetAlternateIdentifierAdded(
+            asset_id=asset_id,
+            alternate_identifier=identifier,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "alternate_identifier": {
+                    "kind": identifier.kind.value,
+                    "value": identifier.value,
+                },
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetAlternateIdentifierRemoved(
+            asset_id=asset_id,
+            alternate_identifier=identifier,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "alternate_identifier": {
+                    "kind": identifier.kind.value,
+                    "value": identifier.value,
+                },
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -495,6 +614,16 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     if raw_drawing is not None
                     else None
                 )
+                raw_model_id = payload.get("model_id")
+                model_id = UUID(raw_model_id) if raw_model_id is not None else None
+                raw_alt_ids = payload.get("alternate_identifiers", [])
+                alternate_identifiers = frozenset(
+                    AlternateIdentifier(
+                        kind=AlternateIdentifierKind(entry["kind"]),
+                        value=entry["value"],
+                    )
+                    for entry in raw_alt_ids
+                )
                 return AssetRegistered(
                     asset_id=UUID(payload["asset_id"]),
                     name=payload["name"],
@@ -502,9 +631,15 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     drawing=drawing,
+                    model_id=model_id,
+                    alternate_identifiers=alternate_identifiers,
                 )
 
-            return deserialize_or_raise("AssetRegistered", _build_registered)
+            return deserialize_or_raise(
+                "AssetRegistered",
+                _build_registered,
+                extra=(ValueError,),
+            )
         case "AssetActivated":
             return deserialize_or_raise(
                 "AssetActivated",
@@ -622,6 +757,36 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "AssetAlternateIdentifierAdded":
+            return deserialize_or_raise(
+                "AssetAlternateIdentifierAdded",
+                lambda: AssetAlternateIdentifierAdded(
+                    asset_id=UUID(payload["asset_id"]),
+                    alternate_identifier=AlternateIdentifier(
+                        kind=AlternateIdentifierKind(
+                            payload["alternate_identifier"]["kind"],
+                        ),
+                        value=payload["alternate_identifier"]["value"],
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+                extra=(ValueError,),
+            )
+        case "AssetAlternateIdentifierRemoved":
+            return deserialize_or_raise(
+                "AssetAlternateIdentifierRemoved",
+                lambda: AssetAlternateIdentifierRemoved(
+                    asset_id=UUID(payload["asset_id"]),
+                    alternate_identifier=AlternateIdentifier(
+                        kind=AlternateIdentifierKind(
+                            payload["alternate_identifier"]["kind"],
+                        ),
+                        value=payload["alternate_identifier"]["value"],
+                    ),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+                extra=(ValueError,),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -629,6 +794,8 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
 
 __all__ = [
     "AssetActivated",
+    "AssetAlternateIdentifierAdded",
+    "AssetAlternateIdentifierRemoved",
     "AssetDecommissioned",
     "AssetDegraded",
     "AssetEvent",

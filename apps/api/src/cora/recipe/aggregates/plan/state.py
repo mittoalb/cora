@@ -27,7 +27,7 @@ field landed when the first mutating event (`PlanVersioned`)
 arrived, not speculatively. Same precedent as Method and Practice.
 
 Audit data captured at bind time (`method_id`, snapshots of the
-Method's needed_families and each bound Asset's families)
+Method's needed_family_ids and each bound Asset's families)
 lives in the `PlanDefined` event payload only — NOT in state.
 Slim Aggregate principle (gate-review Q4): state holds only what
 future deciders need to validate invariants. version_plan and
@@ -47,10 +47,10 @@ The `define_plan` handler pre-loads Practice, Method (via
 entities to the pure decider as a `PlanBindingContext`. The decider
 treats them as opaque domain data and validates:
 
-  - Practice not Deprecated → `PracticeDeprecatedError`
-  - Method not Deprecated → `MethodDeprecatedError`
-  - No bound Asset is Decommissioned → `AssetDecommissionedError`
-  - `union(asset.families) ⊇ method.needed_families` →
+  - Practice not Deprecated → `PlanBoundPracticeDeprecatedError`
+  - Method not Deprecated → `PlanBoundMethodDeprecatedError`
+  - No bound Asset is Decommissioned → `PlanAssetDecommissionedError`
+  - `union(asset.family_ids) ⊇ method.needed_family_ids` →
     `PlanFamiliesNotSatisfiedError`
 
 Handler-side load misses become `PracticeNotFoundError` /
@@ -125,15 +125,16 @@ class InvalidPlanNameError(ValueError):
         self.value = value
 
 
-class InvalidPlanError(ValueError):
-    """The supplied DefinePlan command violates a structural invariant.
+class PlanAssetsRequiredError(ValueError):
+    """A Plan must bind at least one Asset.
 
-    Currently raised when `asset_ids` is empty (a Plan must bind at
-    least one Asset; gate-review locked this as a domain invariant).
+    Raised by `define_plan` when the `asset_ids` argument is empty;
+    gate-review locked the non-empty asset binding as a domain
+    invariant.
     """
 
     def __init__(self, reason: str) -> None:
-        super().__init__(f"Invalid plan: {reason}")
+        super().__init__(f"Plan asset binding invalid: {reason}")
         self.reason = reason
 
 
@@ -153,7 +154,7 @@ class PlanNotFoundError(Exception):
         self.plan_id = plan_id
 
 
-class PracticeDeprecatedError(Exception):
+class PlanBoundPracticeDeprecatedError(Exception):
     """Attempted to bind a Plan to a Deprecated Practice.
 
     Per gate-review Q5: Practice/Method deprecation is advisory at
@@ -168,10 +169,10 @@ class PracticeDeprecatedError(Exception):
         self.practice_id = practice_id
 
 
-class MethodDeprecatedError(Exception):
+class PlanBoundMethodDeprecatedError(Exception):
     """Attempted to bind a Plan whose Practice references a Deprecated Method.
 
-    Mirrors `PracticeDeprecatedError` shape. Mapped to HTTP 409.
+    Mirrors `PlanBoundPracticeDeprecatedError` shape. Mapped to HTTP 409.
     """
 
     def __init__(self, method_id: UUID) -> None:
@@ -179,7 +180,7 @@ class MethodDeprecatedError(Exception):
         self.method_id = method_id
 
 
-class AssetDecommissionedError(Exception):
+class PlanAssetDecommissionedError(Exception):
     """Attempted to bind a Plan to one or more Decommissioned Assets.
 
     Plans are forward-looking bindings; binding to a decommissioned
@@ -280,13 +281,13 @@ class PlanFamiliesNotSatisfiedError(Exception):
     """The bound Assets' families don't cover the Method's needs.
 
     Carries the missing family ids — those required by the
-    Method but not present in any bound Asset's `families`.
+    Method but not present in any bound Asset's `family_ids`.
     Mapped to HTTP 409 (state-conflict family; the binding is
     structurally invalid given current Asset state).
 
     Per gate-review Q3: check is on each bound Asset's OWN
-    families (no hierarchy traversal). Operators model
-    Asset.families at whatever granularity makes sense (Assembly
+    family_ids (no hierarchy traversal). Operators model
+    Asset.family_ids at whatever granularity makes sense (Assembly
     level for composed devices, Device level for leaves) and bind
     the Assets that actually carry the needed families.
     """

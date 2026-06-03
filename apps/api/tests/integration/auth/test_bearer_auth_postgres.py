@@ -89,7 +89,7 @@ def _idps(jwks_url: str, bindings: dict[str, UUID]) -> list[IdentityProviderConf
             issuer=TEST_ISSUER,
             jwks_url=jwks_url,
             audiences={SYSTEM_HTTP_SURFACE_ID: TEST_AUD_HTTP},
-            algorithms_allowed=["RS256"],
+            allowed_algorithms=["RS256"],
             principal_kind="human",
             allow_insecure_jwks_url=True,
             subject_bindings=[
@@ -187,7 +187,7 @@ async def test_bearer_trust_authorize_end_to_end_postgres(
         DefinePolicy(
             name="BearerGate-PermitRegisterActor",
             conduit_id=_CONDUIT_ID,
-            permitted_principals=frozenset({_PRINCIPAL_PERMITTED}),
+            permitted_principal_ids=frozenset({_PRINCIPAL_PERMITTED}),
             permitted_commands=frozenset({"RegisterActor"}),
         ),
         principal_id=_BOOTSTRAP_PRINCIPAL,

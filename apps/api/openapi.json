@@ -144,14 +144,14 @@
       "ActorResponse": {
         "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format from\nthe domain model so the two can evolve independently (for example\nan ActorName invariant change doesn't break older clients).\n\n`kind` distinguishes human-registered Actors from\nagent-co-registered Actors (via the Agent BC `define_agent`\ncross-BC atomic write). Existing consumers that don't read `kind`\nare unaffected; consumers that need the distinction (Decision\nprojections, audit-policy filters) gain it without polymorphism.",
         "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
-          },
-          "is_active": {
-            "title": "Is Active",
-            "type": "boolean"
           },
           "kind": {
             "enum": [
@@ -172,7 +172,7 @@
           "id",
           "name",
           "kind",
-          "is_active"
+          "active"
         ],
         "title": "ActorResponse",
         "type": "object"
@@ -221,6 +221,20 @@
           "created_at"
         ],
         "title": "ActorSummaryDTO",
+        "type": "object"
+      },
+      "AddAssetAlternateIdentifierRequest": {
+        "description": "Body for `POST /assets/{asset_id}/add-alternate-identifier`.\n\nBoth fields required. Pydantic enforces non-empty value at the\nboundary; the `AlternateIdentifier` VO then trims and re-validates\nlength within the decider (the VO construction site).",
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/AlternateIdentifierBody",
+            "description": "The alternate identifier to add. Uniqueness keyed on the (kind, value) pair at the Asset scope ONLY; cross-Asset duplicates are NOT rejected in v1."
+          }
+        },
+        "required": [
+          "identifier"
+        ],
+        "title": "AddAssetAlternateIdentifierRequest",
         "type": "object"
       },
       "AddAssetFamilyRequest": {
@@ -272,6 +286,22 @@
           "signal_type"
         ],
         "title": "AddAssetPortRequest",
+        "type": "object"
+      },
+      "AddModelFamilyRequest": {
+        "description": "Body for `POST /models/{model_id}/families`.",
+        "properties": {
+          "family_id": {
+            "description": "Family id to add to the Model.declared_family_ids set.",
+            "format": "uuid",
+            "title": "Family Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "family_id"
+        ],
+        "title": "AddModelFamilyRequest",
         "type": "object"
       },
       "AddPlanWireRequest": {
@@ -329,10 +359,10 @@
             "description": "Optional Decision id that justified this adjustment. Maps to `prov:wasInformedBy` at the future PROV-O export adapter (same export contract used by Decision.parent_id). NOT verified at the write path (eventual-consistency stance per cross-BC reference precedent). Operators can record ad-hoc adjustments without a Decision.",
             "title": "Decided By Decision Id"
           },
-          "parameter_patch": {
+          "parameters_patch": {
             "additionalProperties": true,
             "description": "RFC 7396 JSON Merge Patch on top of the Run's current `effective_parameters`. The post-merge result is validated against the owning Method's `parameters_schema` (when the Method declares one). Must be non-empty (empty patches rejected with 400; they would silently no-op and mislead the audit).",
-            "title": "Parameter Patch",
+            "title": "Parameters Patch",
             "type": "object"
           },
           "reason": {
@@ -344,7 +374,7 @@
           }
         },
         "required": [
-          "parameter_patch",
+          "parameters_patch",
           "reason"
         ],
         "title": "AdjustRunRequest",
@@ -523,6 +553,38 @@
         "title": "AgentStatus",
         "type": "string"
       },
+      "AlternateIdentifierBody": {
+        "description": "Wire format for an `AlternateIdentifier` value object.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AlternateIdentifierKind",
+            "description": "Closed PIDINST v1.0 vocabulary: SerialNumber (manufacturer per-unit identifier), InventoryNumber (facility asset tag), or Other (vendor-specific or unconventional scheme)."
+          },
+          "value": {
+            "description": "Operator-supplied opaque string identifying the Asset under the given scheme. Trimmed at the domain boundary.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "AlternateIdentifierBody",
+        "type": "object"
+      },
+      "AlternateIdentifierKind": {
+        "description": "Closed vocabulary for an Asset's alternate-identifier kind.\n\nValues are verbatim from PIDINST v1.0 spec page 8 (Table 1)\nProperty 13 `alternateIdentifierType` controlled vocabulary:\nSerialNumber, InventoryNumber, Other. Operationally:\n\n  - `SerialNumber` is the manufacturer's per-unit identifier\n    (the value engraved on the chassis or printed on the QR\n    sticker; for example, an Aerotech ANT130-L's `12345-ABC`).\n  - `InventoryNumber` is the facility-issued asset tag (for\n    example, an APS-issued `APS-2BM-CAM-001`).\n  - `Other` is the catch-all for vendor-specific or\n    unconventional identifier schemes that don't fit the prior\n    two; resolution is operator-supplied free text in the\n    `value` field.\n\nAdding a fourth member is an additive enum change at a future\nmigration boundary. The closed-enum stance mirrors\n`ManufacturerIdentifierType` (Model BC) and the broader\n[[project-family-affordance-design]] closed-vocabulary\nprecedent. See [[project-asset-alternate-identifiers-design]]\nLock B for the design rationale.",
+        "enum": [
+          "SerialNumber",
+          "InventoryNumber",
+          "Other"
+        ],
+        "title": "AlternateIdentifierKind",
+        "type": "string"
+      },
       "AmendClearanceRequest": {
         "description": "Body for `POST /clearances/{parent_clearance_id}/amend`.\n\nMirrors `RegisterClearanceRequest`'s child-fields exactly. The\n`parent_clearance_id` comes from the URL path, not the body.",
         "properties": {
@@ -659,6 +721,92 @@
         "title": "AmendClearanceResponse",
         "type": "object"
       },
+      "AppendCalibrationRevisionRequest": {
+        "description": "Body for `POST /calibrations/{calibration_id}/revisions`.",
+        "properties": {
+          "decided_by_decision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional Decision id that justified appending this revision (operator pivot, agent advisory). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. Mirrors AdjustRun / StartRun / AbortRun pattern. NOT verified at the write path.",
+            "title": "Decided By Decision Id"
+          },
+          "source": {
+            "description": "Tagged source provenance: `{kind: 'Measured', procedure_id}` / `{kind: 'Computed', dataset_id}` / `{kind: 'Asserted', actor_id}`. The kind discriminator is required. Source FK targets are NOT cross-BC validated at the write path (eventual-consistency stance).",
+            "discriminator": {
+              "mapping": {
+                "Asserted": "#/components/schemas/SourceAssertedDTO",
+                "Computed": "#/components/schemas/SourceComputedDTO",
+                "Measured": "#/components/schemas/SourceMeasuredDTO"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SourceMeasuredDTO"
+              },
+              {
+                "$ref": "#/components/schemas/SourceComputedDTO"
+              },
+              {
+                "$ref": "#/components/schemas/SourceAssertedDTO"
+              }
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalibrationStatus",
+            "description": "Confidence tier of this revision: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). A 2-tier ladder; a 3-tier `Refined` middle is a future option, not currently supported."
+          },
+          "supersedes_revision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. The direct derivation edge saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
+            "title": "Supersedes Revision Id"
+          },
+          "value": {
+            "additionalProperties": true,
+            "description": "JSON-shaped revision value (for example, `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "value",
+          "status",
+          "source"
+        ],
+        "title": "AppendCalibrationRevisionRequest",
+        "type": "object"
+      },
+      "AppendCalibrationRevisionResponse": {
+        "description": "Response body for `POST /calibrations/{calibration_id}/revisions`.",
+        "properties": {
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id"
+        ],
+        "title": "AppendCalibrationRevisionResponse",
+        "type": "object"
+      },
       "AppendClearanceReviewStepRequest": {
         "description": "Body for `POST /clearances/{clearance_id}/review-steps`.",
         "properties": {
@@ -788,92 +936,6 @@
         "title": "AppendReasoningEntriesResponse",
         "type": "object"
       },
-      "AppendRevisionRequest": {
-        "description": "Body for `POST /calibrations/{calibration_id}/revisions`.",
-        "properties": {
-          "decided_by_decision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional Decision id that justified appending this revision (operator pivot, agent advisory). Maps to `prov:wasInformedBy` at the future PROV-O export adapter. Mirrors AdjustRun / StartRun / AbortRun pattern. NOT verified at the write path.",
-            "title": "Decided By Decision Id"
-          },
-          "source": {
-            "description": "Tagged source provenance: `{kind: 'Measured', procedure_id}` / `{kind: 'Computed', dataset_id}` / `{kind: 'Asserted', actor_id}`. The kind discriminator is required. Source FK targets are NOT cross-BC validated at the write path (eventual-consistency stance).",
-            "discriminator": {
-              "mapping": {
-                "Asserted": "#/components/schemas/SourceAssertedDTO",
-                "Computed": "#/components/schemas/SourceComputedDTO",
-                "Measured": "#/components/schemas/SourceMeasuredDTO"
-              },
-              "propertyName": "kind"
-            },
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/SourceMeasuredDTO"
-              },
-              {
-                "$ref": "#/components/schemas/SourceComputedDTO"
-              },
-              {
-                "$ref": "#/components/schemas/SourceAssertedDTO"
-              }
-            ],
-            "title": "Source"
-          },
-          "status": {
-            "$ref": "#/components/schemas/CalibrationStatus",
-            "description": "Confidence tier of this revision: `Provisional` (initial estimate or early-data-derived) or `Verified` (blessed for production reconstructions). A 2-tier ladder; a 3-tier `Refined` middle is a future option, not currently supported."
-          },
-          "supersedes_revision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional prior revision id (on the SAME aggregate) that this revision supersedes. The direct derivation edge saves consumers a graph walk vs traversal-only. Cross-aggregate supersession is forbidden: the supersedes target must exist on this calibration.",
-            "title": "Supersedes Revision Id"
-          },
-          "value": {
-            "additionalProperties": true,
-            "description": "JSON-shaped revision value (for example, `{center: 1024.5}`). Validated STRICT against the calibration's quantity-specific VALUE_SCHEMA at the decider; missing required fields or additional properties raise 400.",
-            "title": "Value",
-            "type": "object"
-          }
-        },
-        "required": [
-          "value",
-          "status",
-          "source"
-        ],
-        "title": "AppendRevisionRequest",
-        "type": "object"
-      },
-      "AppendRevisionResponse": {
-        "description": "Response body for `POST /calibrations/{calibration_id}/revisions`.",
-        "properties": {
-          "revision_id": {
-            "format": "uuid",
-            "title": "Revision Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "revision_id"
-        ],
-        "title": "AppendRevisionResponse",
-        "type": "object"
-      },
       "AppendRunReadingsRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /runs/{run_id}/readings`.",
@@ -945,7 +1007,7 @@
         "type": "object"
       },
       "AssetIntegrationViewResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nDecouples wire format from the domain `AssetIntegrationView`. Lists\nserialize in deterministic order (families/cautions/capabilities by\ntheir canonical sort; ports already sorted by name in the handler).\n\n`incomplete` is TRUE if any Family in `asset.families` failed to load\n(eventual-consistency tolerance per\n[[project-dataset-lineage-design]]); consumers should treat the\nbundle as partial in that case.",
+        "description": "Read-side DTO at the API boundary.\n\nDecouples wire format from the domain `AssetIntegrationView`. Lists\nserialize in deterministic order (families/cautions/capabilities by\ntheir canonical sort; ports already sorted by name in the handler).\n\n`incomplete` is TRUE if any Family in `asset.family_ids` failed to load\n(eventual-consistency tolerance per\n[[project-dataset-lineage-design]]); consumers should treat the\nbundle as partial in that case.",
         "properties": {
           "active_cautions": {
             "items": {
@@ -1036,13 +1098,13 @@
         "type": "object"
       },
       "AssetLevel": {
-        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise`: root; the institution itself\n  - `Site`: a facility (for example, APS)\n  - `Area`: a section of a site (for example, the experimental hall)\n  - `Unit`: an operational unit (for example, a beamline)\n  - `Assembly`: a composed component (ISA-88 \"Equipment Module\")\n  - `Device`: an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced: the decider does not check that\na Device's parent is an Assembly.",
+        "description": "The hierarchical level of an Asset.\n\nPer the BC map (ISA-88-derived, single-word convention):\n  - `Enterprise`: root; the institution itself\n  - `Site`: a facility (for example, APS)\n  - `Area`: a section of a site (for example, the experimental hall)\n  - `Unit`: an operational unit (for example, a beamline)\n  - `Component`: a composed sub-system (ISA-88 \"Equipment Module\" tier)\n  - `Device`: an addressable control surface (ISA-88 \"Control Module\")\n\nCommon pattern is the strict ordering above, but Device-in-Device\nis allowed when reality demands it (smart instruments). Levels\nare conventional, not enforced: the decider does not check that\na Device's parent is a Component.",
         "enum": [
           "Enterprise",
           "Site",
           "Area",
           "Unit",
-          "Assembly",
+          "Component",
           "Device"
         ],
         "title": "AssetLevel",
@@ -1101,18 +1163,18 @@
         "type": "object"
       },
       "AssetResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`level`, `lifecycle`, and `condition` are the StrEnum string\nvalues (PascalCase per the BC map). `parent_id` is null only for\nEnterprise-level roots. `families` serializes as a sorted list\nof UUIDs (frozenset semantics in domain state, list at the JSON\nboundary; sorted by UUID string form for response determinism).\n`settings` is the operator-supplied dict (operationally typed by\nFamily schemas at write time). `ports` (5h) serializes as a\nlist sorted by port name.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`level`, `lifecycle`, and `condition` are the StrEnum string\nvalues (PascalCase per the BC map). `parent_id` is null only for\nEnterprise-level roots. `family_ids` serializes as a sorted list\nof UUIDs (frozenset semantics in domain state, list at the JSON\nboundary; sorted by UUID string form for response determinism).\n`settings` is the operator-supplied dict (operationally typed by\nFamily schemas at write time). `ports` (5h) serializes as a\nlist sorted by port name.",
         "properties": {
           "condition": {
             "title": "Condition",
             "type": "string"
           },
-          "families": {
+          "family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Families",
+            "title": "Family Ids",
             "type": "array"
           },
           "id": {
@@ -1165,7 +1227,7 @@
           "parent_id",
           "lifecycle",
           "condition",
-          "families",
+          "family_ids",
           "settings",
           "ports"
         ],
@@ -1191,7 +1253,7 @@
               "Site",
               "Area",
               "Unit",
-              "Assembly",
+              "Component",
               "Device"
             ],
             "title": "Level",
@@ -1351,38 +1413,38 @@
         "type": "object"
       },
       "BindingsByKind": {
-        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit named fields (matching the projection's UUID[] columns\n1:1) instead of a `dict[str, list[UUID]]`: OpenAPI codegen produces\ntyped accessors; SDK consumers see the locked set of keys without\n`additionalProperties` ambiguity. ExternalBinding refs are NOT\nsurfaced here (anti-corruption refs, not projected; see route summary).",
+        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit `<kind>_ids` fields (matching the projection's UUID[]\ncolumns 1:1, mirroring the view-model's `subject_binding_ids` /\n`asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`\nplural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen\nproduces typed accessors; SDK consumers see the locked set of keys\nwithout `additionalProperties` ambiguity. ExternalBinding refs are\nNOT surfaced here (anti-corruption refs, not projected; see route\nsummary).",
         "properties": {
-          "asset": {
+          "asset_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Asset",
+            "title": "Asset Ids",
             "type": "array"
           },
-          "procedure": {
+          "procedure_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Procedure",
+            "title": "Procedure Ids",
             "type": "array"
           },
-          "run": {
+          "run_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Run",
+            "title": "Run Ids",
             "type": "array"
           },
-          "subject": {
+          "subject_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Subject",
+            "title": "Subject Ids",
             "type": "array"
           }
         },
@@ -2461,7 +2523,7 @@
         "title": "CautionViewDTO",
         "type": "object"
       },
-      "CheckInToVisitRequest": {
+      "CheckInVisitRequest": {
         "description": "Body for `POST /visits/{visit_id}/check-in`.",
         "properties": {
           "actor_id": {
@@ -2479,10 +2541,10 @@
           "actor_id",
           "mode"
         ],
-        "title": "CheckInToVisitRequest",
+        "title": "CheckInVisitRequest",
         "type": "object"
       },
-      "CheckOutFromVisitRequest": {
+      "CheckOutVisitRequest": {
         "description": "Body for `POST /visits/{visit_id}/check-out`.",
         "properties": {
           "actor_id": {
@@ -2495,7 +2557,7 @@
         "required": [
           "actor_id"
         ],
-        "title": "CheckOutFromVisitRequest",
+        "title": "CheckOutVisitRequest",
         "type": "object"
       },
       "ChecksumRequest": {
@@ -2913,6 +2975,76 @@
           }
         },
         "title": "CompleteSealRepublishingBody",
+        "type": "object"
+      },
+      "ConductProcedureRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /procedures/{procedure_id}/conduct`.",
+        "properties": {
+          "steps": {
+            "description": "Steps the Conductor walks in order (0-500). Empty list is valid: start + complete fire with no steps.",
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "action": "#/components/schemas/_ActionStepRequest",
+                  "check": "#/components/schemas/_CheckStepRequest",
+                  "setpoint": "#/components/schemas/_SetpointStepRequest"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/_SetpointStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_ActionStepRequest"
+                },
+                {
+                  "$ref": "#/components/schemas/_CheckStepRequest"
+                }
+              ]
+            },
+            "maxItems": 500,
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "title": "ConductProcedureRequest",
+        "type": "object"
+      },
+      "ConductProcedureResponse": {
+        "description": "Response body for the conduct_procedure slice.\n\n`succeeded` is the canonical pass/fail bit; `failure` is non-null\niff `succeeded` is False. `completed_count` is informational\n(the number of steps that ran successfully before halt, if any).",
+        "properties": {
+          "completed_count": {
+            "title": "Completed Count",
+            "type": "integer"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_ConductorFailureResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "procedure_id": {
+            "format": "uuid",
+            "title": "Procedure Id",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "procedure_id",
+          "completed_count",
+          "succeeded"
+        ],
+        "title": "ConductProcedureResponse",
         "type": "object"
       },
       "ConduitListResponse": {
@@ -3818,6 +3950,97 @@
         "title": "DefineAgentResponse",
         "type": "object"
       },
+      "DefineAssemblyRequest": {
+        "description": "Body for `POST /assemblies`.",
+        "properties": {
+          "drawing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DrawingBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional engineering reference for the assembly itself. Excluded from the content_hash."
+          },
+          "name": {
+            "description": "Human-readable display name. Non-unique; the UUID is the storage identity and the content_hash is the structural fingerprint.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parameter_overrides_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional JSON Schema subset declaring the shape of parameter_overrides accepted at instantiation.",
+            "title": "Parameter Overrides Schema"
+          },
+          "presents_as_family_id": {
+            "description": "FamilyId the instantiated Assembly stands in for at the Method.needed_families satisfaction boundary.",
+            "format": "uuid",
+            "title": "Presents As Family Id",
+            "type": "string"
+          },
+          "required_slots": {
+            "description": "Slots that compose this Assembly. Each names a slot (canonical identity within the blueprint), the FamilyIds any filling Asset must include, the cardinality, and optional template defaults. Wire shape is a list; duplicates collapse when the route handler converts to the domain frozenset.",
+            "items": {
+              "$ref": "#/components/schemas/TemplateSlotBody"
+            },
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "required_wires": {
+            "description": "Slot-to-slot signal wires inside the Assembly, keyed by slot_name (NOT Asset UUID). Endpoints must reference slots declared in required_slots. Wire shape is a list; duplicates collapse when the route handler converts to the domain frozenset.",
+            "items": {
+              "$ref": "#/components/schemas/TemplateWireBody"
+            },
+            "title": "Required Wires",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Operator-curated free-form version label (no SemVer enforcement). Excluded from the content_hash.",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "presents_as_family_id"
+        ],
+        "title": "DefineAssemblyRequest",
+        "type": "object"
+      },
+      "DefineAssemblyResponse": {
+        "description": "Response body for `POST /assemblies`.",
+        "properties": {
+          "assembly_id": {
+            "format": "uuid",
+            "title": "Assembly Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assembly_id"
+        ],
+        "title": "DefineAssemblyResponse",
+        "type": "object"
+      },
       "DefineCalibrationRequest": {
         "description": "Body for `POST /calibrations`.",
         "properties": {
@@ -4046,7 +4269,7 @@
         "type": "object"
       },
       "DefineMethodRequest": {
-        "description": "Body for `POST /methods`.\n\n`needed_families` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_families by design; see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
+        "description": "Body for `POST /methods`.\n\n`needed_family_ids` is required (use `[]` for procedural\nMethods that need no specific equipment family). Eventual-\nconsistency: each Family id is NOT verified against the\nFamily stream; mismatch surfaces at Plan binding.\n\n`needed_supplies` is optional; defaults to `[]` for\nbackward-compat (older clients keep working). Each element is\na Supply.kind STRING (1-50 chars), NOT a Supply instance UUID.\nAsymmetric vs needed_family_ids by design; see\n[[project_supply_design]] \u00a7\"Method.needed_supplies consumer\"\nfor the rationale (Family is TYPE registry,\nSupply is INSTANCE aggregate per facility sharing a `kind` label).\nEventual-consistency: kind strings are NOT verified against the\nSupply stream; mismatch surfaces at Plan binding.",
         "properties": {
           "capability_id": {
             "description": "Universal Capability template (Recipe BC) this Method realizes as a Method-shaped executor. REQUIRED per Pattern P. The bound Capability must declare `Method` in its executor_shapes set; otherwise 409. Eventual-consistency: the Capability stream is loaded at handler time, not API-boundary time; a missing stream surfaces as 404 via CapabilityNotFoundError.",
@@ -4061,13 +4284,13 @@
             "title": "Name",
             "type": "string"
           },
-          "needed_families": {
+          "needed_family_ids": {
             "description": "Family ids this Method requires. May be empty. Eventual-consistency: ids are NOT verified against the Family stream at decide time; mismatch surfaces at Plan binding.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Needed Families",
+            "title": "Needed Family Ids",
             "type": "array"
           },
           "needed_supplies": {
@@ -4084,7 +4307,7 @@
         "required": [
           "name",
           "capability_id",
-          "needed_families"
+          "needed_family_ids"
         ],
         "title": "DefineMethodRequest",
         "type": "object"
@@ -4104,6 +4327,76 @@
         "title": "DefineMethodResponse",
         "type": "object"
       },
+      "DefineModelRequest": {
+        "description": "Body for `POST /models`.",
+        "properties": {
+          "declared_family_ids": {
+            "description": "Family ids the catalog entry satisfies. At least one required; deduplicated server-side.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Declared Family Ids",
+            "type": "array"
+          },
+          "manufacturer": {
+            "$ref": "#/components/schemas/ManufacturerBody",
+            "description": "Vendor identity (name plus optional ROR/GRID/ISNI identifier)."
+          },
+          "name": {
+            "description": "Display name for the new Model.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "part_number": {
+            "description": "Vendor SKU; case-sensitive (RV120CCHL and rv120cchl are different Newport entries).",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Part Number",
+            "type": "string"
+          },
+          "version_tag": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional initial revision label (e.g., 'rev-A').",
+            "title": "Version Tag"
+          }
+        },
+        "required": [
+          "name",
+          "manufacturer",
+          "part_number",
+          "declared_family_ids"
+        ],
+        "title": "DefineModelRequest",
+        "type": "object"
+      },
+      "DefineModelResponse": {
+        "description": "Response body for `POST /models`.",
+        "properties": {
+          "model_id": {
+            "format": "uuid",
+            "title": "Model Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_id"
+        ],
+        "title": "DefineModelResponse",
+        "type": "object"
+      },
       "DefinePermitRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /federation/permits`.",
@@ -4121,14 +4414,14 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "description": "Bounded set of Credential ids permitted under this permit.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "minItems": 1,
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {
@@ -4157,7 +4450,7 @@
             "type": "string"
           },
           "terms": {
-            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scope_set` + `read_scope` + `onward_action_scope`; `Inbound` carries `inbound_allowed_artifact_kinds` + optional canonicalization / receipt config.",
+            "description": "Direction-specific contractual fields. Discriminated by `kind`: `Outbound` carries `scopes` + `read_scope` + `onward_action_scope`; `Inbound` carries `inbound_allowed_artifact_kinds` + optional canonicalization / receipt config.",
             "discriminator": {
               "mapping": {
                 "Inbound": "#/components/schemas/_InboundTermsRequest",
@@ -4179,7 +4472,7 @@
         "required": [
           "peer_facility_id",
           "direction",
-          "allowed_credentials",
+          "allowed_credential_ids",
           "allowed_payload_types",
           "allowed_artifact_kinds",
           "abi_tier_floor",
@@ -4208,7 +4501,7 @@
         "description": "Body for `POST /plans`.",
         "properties": {
           "asset_ids": {
-            "description": "Set of Asset ids this Plan binds. Multi-asset binding; at least one required. Each Asset's existence verified at handler-load time (missing \u2192 404); decider checks no Asset is Decommissioned (\u2192 409) and that the union of bound Assets' families covers the Method's needed_families.",
+            "description": "Set of Asset ids this Plan binds. Multi-asset binding; at least one required. Each Asset's existence verified at handler-load time (missing \u2192 404); decider checks no Asset is Decommissioned (\u2192 409) and that the union of bound Assets' families covers the Method's needed_family_ids.",
             "items": {
               "format": "uuid",
               "type": "string"
@@ -4279,13 +4572,13 @@
             "title": "Permitted Commands",
             "type": "array"
           },
-          "permitted_principals": {
+          "permitted_principal_ids": {
             "description": "Principals (UUIDs) allowed to act via this conduit. Empty list yields a deny-all policy.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Permitted Principals",
+            "title": "Permitted Principal Ids",
             "type": "array"
           },
           "surface_id": {
@@ -4298,7 +4591,7 @@
         "required": [
           "name",
           "conduit_id",
-          "permitted_principals",
+          "permitted_principal_ids",
           "permitted_commands"
         ],
         "title": "DefinePolicyRequest",
@@ -4572,6 +4865,23 @@
         "title": "DeprecateCapabilityRequest",
         "type": "object"
       },
+      "DeprecateModelRequest": {
+        "description": "Body for `POST /models/{model_id}/deprecation`.\n\n`reason` is operator free text recording why the catalog entry is\nbeing retired (for example \"superseded by part RV120CCHL\", \"vendor\nEOL 2026\"). Trimmed and length-validated at the\n`ModelDeprecationReason` VO; whitespace-only is rejected as a\ndomain invariant violation (400).",
+        "properties": {
+          "reason": {
+            "description": "Operator-supplied rationale for retiring this Model (for example 'superseded by RV120CCHL', 'vendor EOL 2026'). Free text; trimmed server-side.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DeprecateModelRequest",
+        "type": "object"
+      },
       "DeprecateRecipeRequest": {
         "description": "Body for `POST /recipes/{recipe_id}/deprecate`.\n\nOptional `replaced_by_recipe_id` pointer for the successor\nRecipe. Omit entirely for deprecated-without-replacement.",
         "properties": {
@@ -4650,6 +4960,46 @@
           "reason"
         ],
         "title": "DiscardSubjectRequest",
+        "type": "object"
+      },
+      "DismissEventInReactionRequest": {
+        "description": "Body for `POST /agent/reactions/{subscriber_name}/dismiss-event`.",
+        "properties": {
+          "event_id": {
+            "description": "The event_id the operator wants the subscriber's bookmark advanced past. Read from the operator dashboard's wedged-bookmark surface (last_error_message + last_event_recorded_at on projection_bookmarks); pasting an arbitrary event_id risks rewinding the bookmark, which the decider catches via the lexicographic (transaction_id, position) check.",
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Free-form reason the operator gives for the dismissal (1-500 chars after trimming). Captured verbatim into DecisionRegistered.reasoning for audit. Operationally: 'cannot deserialize this event_type since the rename, advancing past' / 'LLM returned hallucinated context, manual retry tomorrow' etc.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "reason"
+        ],
+        "title": "DismissEventInReactionRequest",
+        "type": "object"
+      },
+      "DismissEventInReactionResponse": {
+        "description": "Body returned on successful dismissal.",
+        "properties": {
+          "decision_id": {
+            "description": "The Decision audit record's id.",
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id"
+        ],
+        "title": "DismissEventInReactionResponse",
         "type": "object"
       },
       "DismountSubjectRequest": {
@@ -5351,7 +5701,7 @@
         "type": "object"
       },
       "InspectPlanBindingResponse": {
-        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_families` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\n`missing_affordance_candidates` enumerates, per missing\naffordance, other facility Assets whose Families declare it.\nEmpty when no affordances are missing; in in-memory test mode\n(no pool) the projection-backed lookup is skipped and this\nstays empty regardless.",
+        "description": "Wire-side diagnostic returned by the endpoint.\n\n`missing_family_ids` and `missing_affordances` are sorted lists;\nempty means that dimension is satisfied. `binding_status` is\nthe at-a-glance verdict (Satisfied / MissingFamilies /\nMissingAffordances / MissingCapability).\n\n`missing_affordance_candidates` enumerates, per missing\naffordance, other facility Assets whose Families declare it.\nEmpty when no affordances are missing; in in-memory test mode\n(no pool) the projection-backed lookup is skipped and this\nstays empty regardless.",
         "properties": {
           "binding_status": {
             "title": "Binding Status",
@@ -5381,12 +5731,12 @@
             "title": "Method Id",
             "type": "string"
           },
-          "method_needed_families": {
+          "method_needed_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Method Needed Families",
+            "title": "Method Needed Family Ids",
             "type": "array"
           },
           "missing_affordance_candidates": {
@@ -5403,12 +5753,12 @@
             "title": "Missing Affordances",
             "type": "array"
           },
-          "missing_families": {
+          "missing_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Missing Families",
+            "title": "Missing Family Ids",
             "type": "array"
           },
           "practice_id": {
@@ -5428,10 +5778,10 @@
           "practice_id",
           "method_id",
           "capability_id",
-          "method_needed_families",
+          "method_needed_family_ids",
           "capability_required_affordances",
           "wired_assets",
-          "missing_families",
+          "missing_family_ids",
           "missing_affordances",
           "missing_affordance_candidates",
           "binding_status"
@@ -5493,6 +5843,96 @@
           "incomplete"
         ],
         "title": "ListPermissionsResponse",
+        "type": "object"
+      },
+      "ManufacturerBody": {
+        "description": "Pydantic mirror of the Manufacturer VO for the request body.\n\n`identifier` and `identifier_type` are both optional but must be\nsupplied together or both omitted (the pairing invariant is\nenforced at the VO constructor; a bare identifier with no scheme\ncannot be resolved).",
+        "properties": {
+          "identifier": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional opaque identifier value. If supplied, `identifier_type` is required (and vice versa).",
+            "title": "Identifier"
+          },
+          "identifier_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ManufacturerIdentifierType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Closed scheme for the optional manufacturer identifier."
+          },
+          "name": {
+            "description": "Display name of the manufacturer.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ManufacturerBody",
+        "type": "object"
+      },
+      "ManufacturerIdentifierType": {
+        "description": "Closed scheme for the optional manufacturer identifier.\n\nThree members ship in v1: ROR (Research Organization Registry),\nGRID (Global Research Identifier Database; subsumed by ROR but\nstill in active use at many facilities), ISNI (International\nStandard Name Identifier). Adding a fourth scheme is an additive\nenum change.",
+        "enum": [
+          "ROR",
+          "GRID",
+          "ISNI"
+        ],
+        "title": "ManufacturerIdentifierType",
+        "type": "string"
+      },
+      "ManufacturerResponse": {
+        "description": "Nested DTO for a model's manufacturer.\n\n`name` is required; `identifier` and `identifier_type` are both\nset or both null (pairing invariant enforced by the domain VO).\n`identifier_type` is the closed-StrEnum scheme string value\n(ROR / GRID / ISNI) when present.",
+        "properties": {
+          "identifier": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
+          "identifier_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier Type"
+          },
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ManufacturerResponse",
         "type": "object"
       },
       "MarkSupplyAvailableRequest": {
@@ -5575,7 +6015,7 @@
         "type": "object"
       },
       "MethodResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_families` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`needed_family_ids` is sorted by UUID string form.\n`needed_supplies` is sorted lexically by kind string;\nSupply.kind values (NOT instance UUIDs).\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version` is the operator-supplied label of the most\nrecent version_method call (null until first version).\n`created_at` / `versioned_at` / `deprecated_at` are projection-\nsourced lifecycle timestamps (Path C). Null\nsemantics under eventual consistency: read together with `status`.\nIf `status >= Defined` but `created_at` is null, the projection\nhas not yet folded `MethodDefined` (transient lag). If\n`status == Versioned` but `versioned_at` is null, the projection\nhas not yet folded the latest `MethodVersioned`. If\n`status == Deprecated` but `deprecated_at` is null, the projection\nhas not yet folded `MethodDeprecated`. A 404 means the Method\naggregate itself does not exist (fold-on-read miss); a 200 with\nnull timestamps always means projection lag, never a missing\ntransition.",
         "properties": {
           "created_at": {
             "anyOf": [
@@ -5611,12 +6051,12 @@
             "title": "Name",
             "type": "string"
           },
-          "needed_families": {
+          "needed_family_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Needed Families",
+            "title": "Needed Family Ids",
             "type": "array"
           },
           "needed_supplies": {
@@ -5657,7 +6097,7 @@
         "required": [
           "id",
           "name",
-          "needed_families",
+          "needed_family_ids",
           "needed_supplies",
           "status",
           "version"
@@ -5810,6 +6250,63 @@
         "title": "ModelRefResponse",
         "type": "object"
       },
+      "ModelResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Defined / Versioned /\nDeprecated). `version_tag` is the operator-supplied label of the\nmost recent version_model call (null until first version).\n`declared_family_ids` serializes as a sorted list of Family UUIDs\n(frozenset semantics in domain state, list at the JSON boundary;\nsorted by UUID string form for response determinism).",
+        "properties": {
+          "declared_family_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Declared Family Ids",
+            "type": "array"
+          },
+          "manufacturer": {
+            "$ref": "#/components/schemas/ManufacturerResponse"
+          },
+          "model_id": {
+            "format": "uuid",
+            "title": "Model Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "part_number": {
+            "maxLength": 100,
+            "title": "Part Number",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version_tag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Tag"
+          }
+        },
+        "required": [
+          "model_id",
+          "name",
+          "manufacturer",
+          "part_number",
+          "declared_family_ids",
+          "status",
+          "version_tag"
+        ],
+        "title": "ModelResponse",
+        "type": "object"
+      },
       "MountSubjectRequest": {
         "description": "Body for `POST /subjects/{subject_id}/mount`.",
         "properties": {
@@ -5946,12 +6443,12 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {
@@ -6052,7 +6549,7 @@
           "id",
           "peer_facility_id",
           "direction",
-          "allowed_credentials",
+          "allowed_credential_ids",
           "allowed_payload_types",
           "allowed_artifact_kinds",
           "abi_tier_floor",
@@ -6101,12 +6598,12 @@
             "title": "Allowed Artifact Kinds",
             "type": "array"
           },
-          "allowed_credentials": {
+          "allowed_credential_ids": {
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Allowed Credentials",
+            "title": "Allowed Credential Ids",
             "type": "array"
           },
           "allowed_payload_types": {
@@ -7044,6 +7541,36 @@
         "title": "PromoteDatasetRequest",
         "type": "object"
       },
+      "PublishCalibrationRevisionRequest": {
+        "description": "Body for `POST /calibrations/{id}/revisions/{revision_id}/publish`.",
+        "properties": {
+          "peer_facility_id": {
+            "description": "Opaque id of the peer facility this publication is targeted at. Resolved at the handler via PermitLookup to locate the matching Active outbound Permit; missing or inactive permits raise 409.",
+            "title": "Peer Facility Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "peer_facility_id"
+        ],
+        "title": "PublishCalibrationRevisionRequest",
+        "type": "object"
+      },
+      "PublishCalibrationRevisionResponse": {
+        "description": "Response body for the publish action.",
+        "properties": {
+          "receipt_id": {
+            "format": "uuid",
+            "title": "Receipt Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "receipt_id"
+        ],
+        "title": "PublishCalibrationRevisionResponse",
+        "type": "object"
+      },
       "RateDecisionRequest": {
         "description": "Body for `POST /decisions/{decision_id}/ratings`.",
         "properties": {
@@ -7070,41 +7597,6 @@
           "rating"
         ],
         "title": "RateDecisionRequest",
-        "type": "object"
-      },
-      "ReDebriefRunRequest": {
-        "description": "Body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
-        "properties": {
-          "parent_decision_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as the path's `run_id`.",
-            "title": "Parent Decision Id"
-          }
-        },
-        "title": "ReDebriefRunRequest",
-        "type": "object"
-      },
-      "ReDebriefRunResponse": {
-        "description": "Response body for `POST /agents/run-debriefer/runs/{run_id}/re-debrief`.",
-        "properties": {
-          "decision_id": {
-            "format": "uuid",
-            "title": "Decision Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "decision_id"
-        ],
-        "title": "ReDebriefRunResponse",
         "type": "object"
       },
       "ReadScope": {
@@ -7499,6 +7991,41 @@
         "title": "ReferenceSurface",
         "type": "string"
       },
+      "RegenerateRunDebriefRequest": {
+        "description": "Body for `POST /agents/run-debriefer/runs/{run_id}/regenerate-debrief`.",
+        "properties": {
+          "parent_decision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional ref to the prior RunDebrief Decision being re-evaluated. When supplied, the new Decision's `parent_id` is set, forming a PROV-O `wasInformedBy` chain. Must reference the same Run as the path's `run_id`.",
+            "title": "Parent Decision Id"
+          }
+        },
+        "title": "RegenerateRunDebriefRequest",
+        "type": "object"
+      },
+      "RegenerateRunDebriefResponse": {
+        "description": "Response body for `POST /agents/run-debriefer/runs/{run_id}/regenerate-debrief`.",
+        "properties": {
+          "decision_id": {
+            "format": "uuid",
+            "title": "Decision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_id"
+        ],
+        "title": "RegenerateRunDebriefResponse",
+        "type": "object"
+      },
       "RegisterActorRequest": {
         "description": "Body for `POST /actors`.",
         "properties": {
@@ -7542,8 +8069,23 @@
         "type": "object"
       },
       "RegisterAssetRequest": {
-        "description": "Body for `POST /assets`.\n\n`level` accepts the StrEnum's PascalCase string values\n(\"Enterprise\" / \"Site\" / \"Area\" / \"Unit\" / \"Assembly\" /\n\"Device\"); Pydantic rejects unknowns with 422.\n\n`parent_id` is required for non-Enterprise levels and must be\nnull for Enterprise; that's a domain invariant enforced by\nthe decider (raises InvalidAssetParentError \u2192 400), not by\nPydantic, since the rule is conditional on `level`.",
+        "description": "Body for `POST /assets`.\n\n`level` accepts the StrEnum's PascalCase string values\n(\"Enterprise\" / \"Site\" / \"Area\" / \"Unit\" / \"Component\" /\n\"Device\"); Pydantic rejects unknowns with 422.\n\n`parent_id` is required for non-Enterprise levels and must be\nnull for Enterprise; that's a domain invariant enforced by\nthe decider (raises InvalidAssetParentError \u2192 400), not by\nPydantic, since the rule is conditional on `level`.",
         "properties": {
+          "alternate_identifiers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AlternateIdentifierBody"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional PIDINST v1.0 Property 13 alternate-identifier tuples (operator-supplied serial numbers, inventory tags, vendor-specific schemes) seeded at registration. Each entry is a flat (kind, value) pair; kind is closed vocabulary SerialNumber | InventoryNumber | Other. Cross-Asset uniqueness on (kind, value) is NOT enforced in v1.",
+            "title": "Alternate Identifiers"
+          },
           "drawing": {
             "anyOf": [
               {
@@ -7557,7 +8099,20 @@
           },
           "level": {
             "$ref": "#/components/schemas/AssetLevel",
-            "description": "Hierarchical level. One of: Enterprise (root, requires null parent_id), Site, Area, Unit, Assembly, Device."
+            "description": "Hierarchical level. One of: Enterprise (root, requires null parent_id), Site, Area, Unit, Component, Device."
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional reference to the Model catalog entry this Asset is an instance of (Family -> Model -> Assembly -> Asset ladder). Set ONCE at registration; rebind path is decommission + re-register. The handler verifies the Model stream exists before invoking the decider (404 if missing); no subset check at register time because the genesis Asset families set is empty.",
+            "title": "Model Id"
           },
           "name": {
             "description": "Display name for the new asset.",
@@ -8084,14 +8639,14 @@
             "title": "Uri",
             "type": "string"
           },
-          "used_calibrations": {
-            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibrations on the acquired-from Run; the two sets are independent: reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant; the aggregate carries a frozenset and the decider sorts for deterministic event-payload bytes.",
+          "used_calibration_ids": {
+            "description": "Optional list of CalibrationRevision ids the reconstruction (or any derivative) actually used (Calibration BC AsShot citation pattern). Symmetric to Run.pinned_calibration_ids on the acquired-from Run; the two sets are independent: reconstruction may legitimately cite refined revisions not in the producing Run's pin set (Current vs AsShot pattern). NO cross-BC existence check at the write path (revision-cited atomic-ID model; eventual-consistency stance per [[project_calibration_design]]). IMMUTABLE on the aggregate after register. Order on the wire is not significant; the aggregate carries a frozenset and the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
             "maxItems": 64,
-            "title": "Used Calibrations",
+            "title": "Used Calibration Ids",
             "type": "array"
           }
         },
@@ -8739,7 +9294,7 @@
       },
       "ReleaseControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/release-control-of-surface.",
+        "description": "Body for POST /visits/{visit_id}/surface-control/release.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit relinquishes control of. Must match the Visit's surface_id.",
@@ -8776,6 +9331,20 @@
           "reason"
         ],
         "title": "RelocateAssetRequest",
+        "type": "object"
+      },
+      "RemoveAssetAlternateIdentifierRequest": {
+        "description": "Body for `POST /assets/{asset_id}/remove-alternate-identifier`.\n\nBoth fields required. Pydantic enforces non-empty value at the\nboundary; the AlternateIdentifier VO then trims and re-validates\nlength within the decider.",
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/AlternateIdentifierBody",
+            "description": "The alternate identifier to remove. Matched against the asset's stored alternate identifiers by exact (kind, value) pair."
+          }
+        },
+        "required": [
+          "identifier"
+        ],
+        "title": "RemoveAssetAlternateIdentifierRequest",
         "type": "object"
       },
       "RemoveAssetFamilyRequest": {
@@ -9213,76 +9782,6 @@
           "items"
         ],
         "title": "RunListResponse",
-        "type": "object"
-      },
-      "RunProcedureRequest": {
-        "additionalProperties": false,
-        "description": "Body for `POST /procedures/{procedure_id}/run`.",
-        "properties": {
-          "steps": {
-            "description": "Steps the Conductor walks in order (0-500). Empty list is valid: start + complete fire with no steps.",
-            "items": {
-              "discriminator": {
-                "mapping": {
-                  "action": "#/components/schemas/_ActionStepRequest",
-                  "check": "#/components/schemas/_CheckStepRequest",
-                  "setpoint": "#/components/schemas/_SetpointStepRequest"
-                },
-                "propertyName": "kind"
-              },
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/_SetpointStepRequest"
-                },
-                {
-                  "$ref": "#/components/schemas/_ActionStepRequest"
-                },
-                {
-                  "$ref": "#/components/schemas/_CheckStepRequest"
-                }
-              ]
-            },
-            "maxItems": 500,
-            "title": "Steps",
-            "type": "array"
-          }
-        },
-        "title": "RunProcedureRequest",
-        "type": "object"
-      },
-      "RunProcedureResponse": {
-        "description": "Response body for the run_procedure slice.\n\n`succeeded` is the canonical pass/fail bit; `failure` is non-null\niff `succeeded` is False. `completed_count` is informational\n(the number of steps that ran successfully before halt, if any).",
-        "properties": {
-          "completed_count": {
-            "title": "Completed Count",
-            "type": "integer"
-          },
-          "failure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/_ConductorFailureResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "procedure_id": {
-            "format": "uuid",
-            "title": "Procedure Id",
-            "type": "string"
-          },
-          "succeeded": {
-            "title": "Succeeded",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "procedure_id",
-          "completed_count",
-          "succeeded"
-        ],
-        "title": "RunProcedureResponse",
         "type": "object"
       },
       "RunReadingRequest": {
@@ -9805,6 +10304,17 @@
         "title": "SignSealPointerRequest",
         "type": "object"
       },
+      "SlotCardinality": {
+        "description": "How many Assets can fill a slot at instantiation time.\n\nClosed enum: adding a fifth member is a deliberate widen, not\nan additive default. Numeric bounds (`AtLeast2`, `AtMost3`) are\nexplicitly out of scope to keep the closed-enum discipline.",
+        "enum": [
+          "Exactly1",
+          "ZeroOrOne",
+          "OneOrMore",
+          "ZeroOrMore"
+        ],
+        "title": "SlotCardinality",
+        "type": "string"
+      },
       "SourceAssertedDTO": {
         "description": "Wire shape for an Asserted source (operator-typed value).",
         "properties": {
@@ -9959,13 +10469,13 @@
             "title": "Override Parameters",
             "type": "object"
           },
-          "pinned_calibrations": {
+          "pinned_calibration_ids": {
             "description": "Optional list of `CalibrationRevision.id`s pinned at this Run's start time (Calibration BC AsShot anchor per Phase 12b / Q5/Q6 design memo). IMMUTABLE on the aggregate after start \u2014 every Run transition arm preserves it verbatim. NOT verified at the write path (cross-BC eventual-consistency stance). Empty list when no calibrations apply (today's default; legacy Runs fold the same way via `payload.get(..., [])`). Order on the wire is not significant \u2014 the aggregate carries a frozenset; the decider sorts for deterministic event-payload bytes.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Pinned Calibrations",
+            "title": "Pinned Calibration Ids",
             "type": "array"
           },
           "plan_id": {
@@ -10346,7 +10856,7 @@
         "type": "string"
       },
       "SupplyStatus": {
-        "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.is_active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
+        "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
         "enum": [
           "Unknown",
           "Available",
@@ -10520,7 +11030,7 @@
       },
       "TakeControlOfSurfaceBody": {
         "additionalProperties": false,
-        "description": "Body for POST /visits/{visit_id}/take-control-of-surface.",
+        "description": "Body for POST /visits/{visit_id}/surface-control/take.",
         "properties": {
           "surface_id": {
             "description": "Surface that the requesting Visit assumes operational control of. Must match the Visit's surface_id.",
@@ -10577,6 +11087,101 @@
           "id"
         ],
         "title": "TargetProcedureDTO",
+        "type": "object"
+      },
+      "TemplateSlotBody": {
+        "description": "Wire format for a TemplateSlot value object.",
+        "properties": {
+          "cardinality": {
+            "$ref": "#/components/schemas/SlotCardinality",
+            "description": "How many Assets can fill this slot at instantiation: Exactly1, ZeroOrOne, OneOrMore, ZeroOrMore."
+          },
+          "default_placement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional template-default placement for the slot."
+          },
+          "default_settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional template defaults applied at instantiation unless overridden by the instantiator.",
+            "title": "Default Settings"
+          },
+          "required_family_ids": {
+            "description": "Set of FamilyIds an instantiated Asset must include at least one of. MUST be non-empty.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Required Family Ids",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "slot_name": {
+            "description": "Canonical name of this slot within the Assembly (e.g., 'camera', 'rotary', 'trigger_source').",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Slot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_name",
+          "required_family_ids",
+          "cardinality"
+        ],
+        "title": "TemplateSlotBody",
+        "type": "object"
+      },
+      "TemplateWireBody": {
+        "description": "Wire format for a TemplateWire value object.",
+        "properties": {
+          "source_port_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Port Name",
+            "type": "string"
+          },
+          "source_slot_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Slot Name",
+            "type": "string"
+          },
+          "target_port_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Target Port Name",
+            "type": "string"
+          },
+          "target_slot_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Target Slot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_slot_name",
+          "source_port_name",
+          "target_slot_name",
+          "target_port_name"
+        ],
+        "title": "TemplateWireBody",
         "type": "object"
       },
       "TriggerSource": {
@@ -10844,6 +11449,82 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VersionAssemblyRequest": {
+        "description": "Body for `POST /assemblies/{assembly_id}/versions`.",
+        "properties": {
+          "drawing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DrawingBody"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional engineering reference for this revision. Excluded from the content_hash."
+          },
+          "name": {
+            "description": "Display name for this revision snapshot. May change across revisions; non-unique.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parameter_overrides_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional JSON Schema subset declaring the shape of parameter_overrides accepted at instantiation. Excluded if the revision keeps the previous schema unchanged.",
+            "title": "Parameter Overrides Schema"
+          },
+          "presents_as_family_id": {
+            "description": "FamilyId the instantiated Assembly stands in for. May change across revisions (e.g., DCM-revisited may move from Monochromator to a wider BeamConditioning Family).",
+            "format": "uuid",
+            "title": "Presents As Family Id",
+            "type": "string"
+          },
+          "required_slots": {
+            "description": "Full slot set for this revision (replace-on-version). Wire shape is a list; duplicates collapse when the route handler converts to the domain frozenset.",
+            "items": {
+              "$ref": "#/components/schemas/TemplateSlotBody"
+            },
+            "title": "Required Slots",
+            "type": "array"
+          },
+          "required_wires": {
+            "description": "Full wire set for this revision (replace-on-version). Endpoints must reference slots declared in required_slots.",
+            "items": {
+              "$ref": "#/components/schemas/TemplateWireBody"
+            },
+            "title": "Required Wires",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Operator-curated free-form version label (no SemVer enforcement). Excluded from the content_hash.",
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "presents_as_family_id"
+        ],
+        "title": "VersionAssemblyRequest",
+        "type": "object"
+      },
       "VersionCapabilityRequest": {
         "description": "Body for `POST /capabilities/{capability_id}/version`.",
         "properties": {
@@ -10946,6 +11627,55 @@
           "version_tag"
         ],
         "title": "VersionMethodRequest",
+        "type": "object"
+      },
+      "VersionModelRequest": {
+        "description": "Body for `POST /models/{model_id}/versions`.\n\nA new version IS a new declaration: every field REPLACES the prior\nvalue wholesale (no diff/merge semantics). `version_tag` is\nREQUIRED here, unlike `define_model` where it is optional.",
+        "properties": {
+          "declared_family_ids": {
+            "description": "Replacement Family ids the catalog entry satisfies at this version. At least one required; deduplicated server-side.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Declared Family Ids",
+            "type": "array"
+          },
+          "manufacturer": {
+            "$ref": "#/components/schemas/ManufacturerBody",
+            "description": "Replacement vendor identity (name plus optional ROR/GRID/ISNI identifier)."
+          },
+          "name": {
+            "description": "Replacement display name for the Model at this version.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "part_number": {
+            "description": "Replacement vendor SKU; case-sensitive (RV120CCHL and rv120cchl are different Newport entries).",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Part Number",
+            "type": "string"
+          },
+          "version_tag": {
+            "description": "Operator-supplied label for this revision (for example 'rev-B', '2026-Q3'). Free text; institution-specific.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Version Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "manufacturer",
+          "part_number",
+          "declared_family_ids",
+          "version_tag"
+        ],
+        "title": "VersionModelRequest",
         "type": "object"
       },
       "VersionPlanRequest": {
@@ -11429,18 +12159,18 @@
           "read_scope": {
             "$ref": "#/components/schemas/ReadScope"
           },
-          "scope_set": {
+          "scopes": {
             "items": {
               "$ref": "#/components/schemas/_ScopeRefRequest"
             },
             "minItems": 1,
-            "title": "Scope Set",
+            "title": "Scopes",
             "type": "array"
           }
         },
         "required": [
           "kind",
-          "scope_set",
+          "scopes",
           "read_scope",
           "onward_action_scope"
         ],
@@ -11463,17 +12193,17 @@
             "title": "Read Scope",
             "type": "string"
           },
-          "scope_set": {
+          "scopes": {
             "items": {
               "$ref": "#/components/schemas/_ScopeRefResponse"
             },
-            "title": "Scope Set",
+            "title": "Scopes",
             "type": "array"
           }
         },
         "required": [
           "kind",
-          "scope_set",
+          "scopes",
           "read_scope",
           "onward_action_scope"
         ],
@@ -12099,6 +12829,124 @@
         ]
       }
     },
+    "/agent/reactions/{subscriber_name}/dismiss-event": {
+      "post": {
+        "operationId": "post_agent_reactions_dismiss_event_agent_reactions__subscriber_name__dismiss_event_post",
+        "parameters": [
+          {
+            "description": "Name of the subscriber (matches `Reaction.name`).",
+            "in": "path",
+            "name": "subscriber_name",
+            "required": true,
+            "schema": {
+              "description": "Name of the subscriber (matches `Reaction.name`).",
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Subscriber Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissEventInReactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissEventInReactionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: empty / oversize reason (InvalidDismissalReasonError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No projection_bookmarks row for the named subscriber (SubscriberBookmarkNotFoundError) OR no event row for the supplied event_id (DismissalEventNotFoundError)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bookmark is already at or past the target event (EventAlreadyDismissedError); refresh the dashboard and re-evaluate before retrying."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The deployment has no Postgres pool (DismissalRequiresPostgresError); the slice is a no-op without projection_bookmarks. Production deployments never see this."
+          }
+        },
+        "summary": "Dismiss a poison event on a Reaction's bookmark",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
     "/agents": {
       "post": {
         "operationId": "post_agents_agents_post",
@@ -12315,17 +13163,17 @@
         ]
       }
     },
-    "/agents/run-debriefer/runs/{run_id}/re-debrief": {
+    "/agents/run-debriefer/runs/{run_id}/regenerate-debrief": {
       "post": {
-        "operationId": "post_re_debrief_run_agents_run_debriefer_runs__run_id__re_debrief_post",
+        "operationId": "post_regenerate_run_debrief_agents_run_debriefer_runs__run_id__regenerate_debrief_post",
         "parameters": [
           {
-            "description": "The Run to re-debrief.",
+            "description": "The Run to regenerate the debrief for.",
             "in": "path",
             "name": "run_id",
             "required": true,
             "schema": {
-              "description": "The Run to re-debrief.",
+              "description": "The Run to regenerate the debrief for.",
               "format": "uuid",
               "title": "Run Id",
               "type": "string"
@@ -12373,7 +13221,7 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/ReDebriefRunRequest"
+                    "$ref": "#/components/schemas/RegenerateRunDebriefRequest"
                   },
                   {
                     "type": "null"
@@ -12389,7 +13237,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReDebriefRunResponse"
+                  "$ref": "#/components/schemas/RegenerateRunDebriefResponse"
                 }
               }
             },
@@ -13162,6 +14010,219 @@
         ]
       }
     },
+    "/assemblies": {
+      "post": {
+        "operationId": "post_assemblies_assemblies_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied key for idempotent retry: replaying the same key returns the original assembly_id without creating a new Assembly.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied key for idempotent retry: replaying the same key returns the original assembly_id without creating a new Assembly.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineAssemblyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineAssemblyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only name or slot_name, non-enum cardinality, malformed wire spec, wire references an unknown slot, invalid parameter_overrides_schema subset, or invalid Placement / Drawing nested VO."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A referenced FamilyId (presents_as_family_id or any slot's required_family_ids member) does not resolve to a defined Family."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Stream collision: the generated UUID already has an AssemblyDefined event (essentially impossible with UUIDv7 ids; defensive guard)."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Define a new Assembly composition blueprint",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assemblies/{assembly_id}/versions": {
+      "post": {
+        "operationId": "post_assembly_version_assemblies__assembly_id__versions_post",
+        "parameters": [
+          {
+            "description": "The target Assembly's UUID.",
+            "in": "path",
+            "name": "assembly_id",
+            "required": true,
+            "schema": {
+              "description": "The target Assembly's UUID.",
+              "format": "uuid",
+              "title": "Assembly Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionAssemblyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only name or slot_name, non-enum cardinality, malformed wire spec, wire references an unknown slot, or invalid parameter_overrides_schema subset."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Assembly with the given assembly_id does not exist, OR a referenced FamilyId (presents_as_family_id or any slot's required_family_ids member) does not resolve to a defined Family."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Assembly is in a status that cannot be versioned (Deprecated is terminal; new revisions must fork via POST /assemblies with a fresh id)."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Publish a new revision snapshot of an existing Assembly",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/assets": {
       "get": {
         "operationId": "list_assets_assets_get",
@@ -13211,7 +14272,7 @@
                     "Site",
                     "Area",
                     "Unit",
-                    "Assembly",
+                    "Component",
                     "Device"
                   ],
                   "type": "string"
@@ -13387,7 +14448,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only name, hierarchy rule (Enterprise must have null parent_id; other levels must have non-null parent_id), or invalid Drawing (empty number, overlong revision, etc.)."
+            "description": "Domain invariant violated: whitespace-only name, hierarchy rule (Enterprise must have null parent_id; other levels must have non-null parent_id), invalid Drawing (empty number, overlong revision, etc.), or invalid AlternateIdentifier value (empty after trimming, exceeds 200 chars)."
           },
           "403": {
             "content": {
@@ -13398,6 +14459,16 @@
               }
             },
             "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "model_id was supplied but the referenced Model stream does not exist (ModelNotFoundError)."
           },
           "422": {
             "description": "Request body failed schema validation (unknown level, missing fields, malformed UUID) OR Idempotency-Key was reused with a different request body."
@@ -13558,6 +14629,106 @@
           }
         },
         "summary": "Activate an existing (Commissioned) asset, putting it into service",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/add-alternate-identifier": {
+      "post": {
+        "operationId": "post_assets_add_alternate_identifier_assets__asset_id__add_alternate_identifier_post",
+        "parameters": [
+          {
+            "description": "Target asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAssetAlternateIdentifierRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identifier value is empty / whitespace-only / exceeds the configured max length after trimming (InvalidAlternateIdentifierValueError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No asset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset cannot accept the alternate identifier under current conditions: the asset is Decommissioned (AssetCannotAddAlternateIdentifierError), OR an alternate identifier with the same (kind, value) pair already exists on the asset (AssetAlternateIdentifierAlreadyPresentError), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation (missing field, invalid kind enum, etc.)."
+          }
+        },
+        "summary": "Add an alternate identifier to an existing Asset's identifier set",
         "tags": [
           "equipment"
         ]
@@ -13932,7 +15103,7 @@
     },
     "/assets/{asset_id}/enter-maintenance": {
       "post": {
-        "operationId": "post_assets_enter_maintenance_assets__asset_id__enter_maintenance_post",
+        "operationId": "post_assets_enter_asset_maintenance_assets__asset_id__enter_maintenance_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -13998,7 +15169,7 @@
                 }
               }
             },
-            "description": "Asset is not in `Active` lifecycle (enter_maintenance requires Active), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+            "description": "Asset is not in `Active` lifecycle (enter_asset_maintenance requires Active), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
           },
           "422": {
             "content": {
@@ -14019,7 +15190,7 @@
     },
     "/assets/{asset_id}/exit-maintenance": {
       "post": {
-        "operationId": "post_assets_exit_maintenance_assets__asset_id__exit_maintenance_post",
+        "operationId": "post_assets_exit_asset_maintenance_assets__asset_id__exit_maintenance_post",
         "parameters": [
           {
             "description": "Target asset's id.",
@@ -14085,7 +15256,7 @@
                 }
               }
             },
-            "description": "Asset is not in `Maintenance` lifecycle (exit_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+            "description": "Asset is not in `Maintenance` lifecycle (exit_asset_maintenance requires Maintenance), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
           },
           "422": {
             "content": {
@@ -14356,6 +15527,106 @@
           }
         },
         "summary": "Move an existing asset under a new parent in the hierarchy",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/remove-alternate-identifier": {
+      "post": {
+        "operationId": "post_assets_remove_alternate_identifier_assets__asset_id__remove_alternate_identifier_post",
+        "parameters": [
+          {
+            "description": "Target asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveAssetAlternateIdentifierRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Identifier value is empty / whitespace-only / exceeds the configured max length after trimming (InvalidAlternateIdentifierValueError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No asset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset cannot remove the alternate identifier under current conditions: the asset is Decommissioned (AssetCannotAddAlternateIdentifierError; the shared lifecycle-guard class is used by BOTH add and remove), OR no alternate identifier with the same (kind, value) pair exists on the asset (strict-not-idempotent, AssetAlternateIdentifierNotPresentError), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation (missing field, invalid kind enum, etc.)."
+          }
+        },
+        "summary": "Remove an alternate identifier from an existing Asset's identifier set",
         "tags": [
           "equipment"
         ]
@@ -15132,7 +16403,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AppendRevisionRequest"
+                "$ref": "#/components/schemas/AppendCalibrationRevisionRequest"
               }
             }
           },
@@ -15143,7 +16414,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppendRevisionResponse"
+                  "$ref": "#/components/schemas/AppendCalibrationRevisionResponse"
                 }
               }
             },
@@ -15194,6 +16465,138 @@
           }
         },
         "summary": "Append a new revision to an existing Calibration",
+        "tags": [
+          "calibration"
+        ]
+      }
+    },
+    "/calibrations/{calibration_id}/revisions/{revision_id}/publish": {
+      "post": {
+        "operationId": "post_publish_calibration_revision_calibrations__calibration_id__revisions__revision_id__publish_post",
+        "parameters": [
+          {
+            "description": "Target calibration's id.",
+            "in": "path",
+            "name": "calibration_id",
+            "required": true,
+            "schema": {
+              "description": "Target calibration's id.",
+              "format": "uuid",
+              "title": "Calibration Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Revision on that calibration to publish.",
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "description": "Revision on that calibration to publish.",
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishCalibrationRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishCalibrationRevisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the publish command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No calibration or no revision exists with the given ids."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Publish-time FSM rejection: revision lacks content_hash, or no Active outbound Permit authorizes publishing this artifact to the peer."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publish an existing Calibration revision to a peer facility",
         "tags": [
           "calibration"
         ]
@@ -23372,6 +24775,578 @@
         ]
       }
     },
+    "/models": {
+      "post": {
+        "operationId": "post_models_models_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the model.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the model.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineModelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (for example whitespace-only name)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "One or more declared families does not resolve to a registered Family."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Define a new vendor-catalog Model",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/models/{model_id}": {
+      "get": {
+        "operationId": "get_models_models__model_id__get",
+        "parameters": [
+          {
+            "description": "Target model's id.",
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "description": "Target model's id.",
+              "format": "uuid",
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No model exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a model by id",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/models/{model_id}/deprecation": {
+      "post": {
+        "operationId": "post_models_deprecation_models__model_id__deprecation_post",
+        "parameters": [
+          {
+            "description": "Target model's id.",
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "description": "Target model's id.",
+              "format": "uuid",
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeprecateModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (for example whitespace-only reason after trimming)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No model exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model is already in `Deprecated` status (deprecate requires `Defined` or `Versioned`), OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Mark an existing Model as deprecated",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/models/{model_id}/families": {
+      "post": {
+        "operationId": "post_models_add_family_models__model_id__families_post",
+        "parameters": [
+          {
+            "description": "Target model's id.",
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "description": "Target model's id.",
+              "format": "uuid",
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddModelFamilyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No model exists with the given id, OR the supplied family_id does not resolve to a registered Family."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is already in the Model's declared_family_ids set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Add a Family to an existing Model's declared_family_ids set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/models/{model_id}/families/{family_id}": {
+      "delete": {
+        "operationId": "delete_models_family_models__model_id__families__family_id__delete",
+        "parameters": [
+          {
+            "description": "Target model's id.",
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "description": "Target model's id.",
+              "format": "uuid",
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Family id to remove from the Model.declared_family_ids set.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "description": "Family id to remove from the Model.declared_family_ids set.",
+              "format": "uuid",
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No model exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model is in `Deprecated` status (mutation requires `Defined` or `Versioned`), OR the family_id is not in the Model's declared_family_ids set, OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Remove a Family from an existing Model's declared_family_ids set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/models/{model_id}/versions": {
+      "post": {
+        "operationId": "post_models_versions_models__model_id__versions_post",
+        "parameters": [
+          {
+            "description": "Target model's id.",
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "description": "Target model's id.",
+              "format": "uuid",
+              "title": "Model Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (for example whitespace-only name, whitespace-only part_number, whitespace-only version_tag, or empty declared_family_ids)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No model exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model is in `Deprecated` status (version requires `Defined` or `Versioned`), OR a concurrent write to the same model stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Issue a new version declaration for an existing Model",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/mounts": {
       "post": {
         "operationId": "post_mounts_mounts_post",
@@ -24091,7 +26066,7 @@
                 }
               }
             },
-            "description": "Binding rejected: upstream Practice or Method is Deprecated, a bound Asset is Decommissioned, or the bound Assets' families don't cover the Method's needed_families."
+            "description": "Binding rejected: upstream Practice or Method is Deprecated, a bound Asset is Decommissioned, or the bound Assets' families don't cover the Method's needed_family_ids."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
@@ -26257,10 +28232,10 @@
         ]
       }
     },
-    "/procedures/{procedure_id}/run": {
+    "/procedures/{procedure_id}/conduct": {
       "post": {
         "description": "Conduct a Procedure end-to-end. Failures land in the response body.",
-        "operationId": "post_procedures_run_procedures__procedure_id__run_post",
+        "operationId": "post_procedures_conduct_procedures__procedure_id__conduct_post",
         "parameters": [
           {
             "description": "Target procedure's id.",
@@ -26298,7 +28273,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RunProcedureRequest"
+                "$ref": "#/components/schemas/ConductProcedureRequest"
               }
             }
           },
@@ -26309,7 +28284,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunProcedureResponse"
+                  "$ref": "#/components/schemas/ConductProcedureResponse"
                 }
               }
             },
@@ -27239,7 +29214,7 @@
                 }
               }
             },
-            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_families, OR the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
+            "description": "Run-start rejected: Plan is Deprecated, Subject is not in Mounted or Measured, a bound Asset is Decommissioned, the bound Assets' current capabilities don't cover the Method's needed_family_ids, OR the supplied Campaign is in a terminal status (Closed / Abandoned) and refuses new members."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
@@ -27494,7 +29469,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: empty parameter_patch, whitespace-only reason, or post-merge effective set fails the Method's parameters_schema."
+            "description": "Domain invariant violated: empty parameters_patch, whitespace-only reason, or post-merge effective set fails the Method's parameters_schema."
           },
           "403": {
             "content": {
@@ -30532,7 +32507,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckInToVisitRequest"
+                "$ref": "#/components/schemas/CheckInVisitRequest"
               }
             }
           },
@@ -30622,7 +32597,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckOutFromVisitRequest"
+                "$ref": "#/components/schemas/CheckOutVisitRequest"
               }
             }
           },
@@ -30849,103 +32824,6 @@
         ]
       }
     },
-    "/visits/{visit_id}/release-control-of-surface": {
-      "post": {
-        "operationId": "post_visits_release_control_visits__visit_id__release_control_of_surface_post",
-        "parameters": [
-          {
-            "description": "Requesting Visit's id.",
-            "in": "path",
-            "name": "visit_id",
-            "required": true,
-            "schema": {
-              "description": "Requesting Visit's id.",
-              "format": "uuid",
-              "title": "Visit Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-            "in": "header",
-            "name": "X-Principal-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-              "title": "X-Principal-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReleaseControlOfSurfaceBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authorize port denied the command."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No Visit exists with the given id."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Visit cannot release: requesting Visit is not the current Surface holder or surface_id does not match."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Requesting Visit releases operational control of a Surface",
-        "tags": [
-          "trust"
-        ]
-      }
-    },
     "/visits/{visit_id}/resume": {
       "post": {
         "operationId": "post_visits_resume_visits__visit_id__resume_post",
@@ -31120,9 +32998,106 @@
         ]
       }
     },
-    "/visits/{visit_id}/take-control-of-surface": {
+    "/visits/{visit_id}/surface-control/release": {
       "post": {
-        "operationId": "post_visits_take_control_visits__visit_id__take_control_of_surface_post",
+        "operationId": "post_visits_release_control_visits__visit_id__surface_control_release_post",
+        "parameters": [
+          {
+            "description": "Requesting Visit's id.",
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "description": "Requesting Visit's id.",
+              "format": "uuid",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReleaseControlOfSurfaceBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Visit exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Visit cannot release: requesting Visit is not the current Surface holder or surface_id does not match."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Requesting Visit releases operational control of a Surface",
+        "tags": [
+          "trust"
+        ]
+      }
+    },
+    "/visits/{visit_id}/surface-control/take": {
+      "post": {
+        "operationId": "post_visits_take_control_visits__visit_id__surface_control_take_post",
         "parameters": [
           {
             "description": "Requesting Visit's id.",

@@ -8,7 +8,7 @@ handler-level integration lives in test_start_procedure_handler.py.
 Validation order:
   1. State must not be None (ProcedureNotFoundError)
   2. State.status must be Defined (ProcedureCannotStartError)
-  3. No target Asset Decommissioned (ProcedureAssetDecommissionedError)
+  3. No target Asset Decommissioned (ProcedurePlanAssetDecommissionedError)
 """
 
 from datetime import UTC, datetime
@@ -24,10 +24,10 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.operation.aggregates.procedure import (
     Procedure,
-    ProcedureAssetDecommissionedError,
     ProcedureCannotStartError,
     ProcedureName,
     ProcedureNotFoundError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureStarted,
     ProcedureStatus,
 )
@@ -64,7 +64,7 @@ def _asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         lifecycle=lifecycle,
-        families=frozenset(),
+        family_ids=frozenset(),
     )
 
 
@@ -148,7 +148,7 @@ def test_decide_rejects_non_defined_status(status: ProcedureStatus) -> None:
 def test_decide_rejects_decommissioned_target_asset() -> None:
     asset = _asset(lifecycle=AssetLifecycle.DECOMMISSIONED)
     proc = _procedure(target_asset_ids=frozenset({asset.id}))
-    with pytest.raises(ProcedureAssetDecommissionedError) as exc:
+    with pytest.raises(ProcedurePlanAssetDecommissionedError) as exc:
         start_procedure.decide(
             state=proc,
             command=StartProcedure(procedure_id=proc.id),
@@ -170,7 +170,7 @@ def test_decide_lists_decommissioned_assets_sorted() -> None:
     )
     asset_active = _asset()
     proc = _procedure(target_asset_ids=frozenset({asset_a.id, asset_b.id, asset_active.id}))
-    with pytest.raises(ProcedureAssetDecommissionedError) as exc:
+    with pytest.raises(ProcedurePlanAssetDecommissionedError) as exc:
         start_procedure.decide(
             state=proc,
             command=StartProcedure(procedure_id=proc.id),

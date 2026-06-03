@@ -250,6 +250,27 @@ CAUTION_PROPOSAL_CHOICES: Final = frozenset(
 )
 
 
+# Operator-authored Decision emitted when dismissing a poison event
+# from a Reaction's subscriber bookmark. The Decision is the audit
+# record of the dismissal; the `dismiss_event_in_reaction` slice
+# atomically pairs it with a `projection_bookmarks` advance so the
+# operator action is recorded in the same place as every other
+# operator judgment call. Open-ended convention identical to the
+# RunDebrief / CautionProposal patterns above.
+DECISION_CONTEXT_REACTION_DISMISSAL = "ReactionDismissal"
+
+
+# Closed `choice` value set for `context = "ReactionDismissal"`
+# Decisions. Single value today (the slice is purely "operator
+# acknowledged this event is poison and advances the bookmark past
+# it"); the Literal exists for symmetry with RunDebriefChoice /
+# CautionProposalChoice and so a future "OperatorReplayed" or
+# "OperatorQuarantined" choice can land additively without breaking
+# downstream parsers.
+ReactionDismissalChoice = Literal["EventDismissed"]
+REACTION_DISMISSAL_CHOICES: Final = frozenset({"EventDismissed"})
+
+
 # acceptance-signal capture: closed 3-value rating set on
 # the new `DecisionRated` event. `useful` and `misleading` are
 # operator-affirmative; `ignored` is a positive marker ("operator saw
@@ -492,7 +513,7 @@ class DeciderActorNotFoundError(Exception):
         self.actor_id = actor_id
 
 
-class ParentDecisionNotFoundError(Exception):
+class DecisionParentNotFoundError(Exception):
     """The parent Decision referenced by `parent_id` does not exist.
 
     Cross-aggregate validation at registration: when `parent_id` is
@@ -505,7 +526,7 @@ class ParentDecisionNotFoundError(Exception):
         self.parent_id = parent_id
 
 
-class ParentDecisionRunMismatchError(Exception):
+class DecisionParentRunMismatchError(Exception):
     """The supplied parent Decision references a different `run_id`
     than the new Decision's command. Prevents accidental cross-Run
     chains in operator-triggered re-invocations of
@@ -525,7 +546,7 @@ class ParentDecisionRunMismatchError(Exception):
         self.parent_run_id = parent_run_id
 
 
-class ParentDecisionAgentMismatchError(Exception):
+class DecisionParentAgentMismatchError(Exception):
     """The supplied parent Decision was authored by a different agent
     (or by a non-`RunDebrief`-context decider). Prevents accidental
     cross-agent chains in operator-triggered re-invocations.

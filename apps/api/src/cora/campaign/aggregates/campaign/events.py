@@ -51,7 +51,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.external_ref import ExternalRef
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -71,11 +71,10 @@ def deserialize_external_ref(payload: dict[str, Any]) -> ExternalRef:
     Wraps KeyError / TypeError as ValueError so callers don't see
     leaked low-level exceptions when an event payload is malformed.
     """
-    try:
-        return ExternalRef(scheme=payload["scheme"], id=payload["id"])
-    except (KeyError, TypeError, AttributeError) as exc:
-        msg = f"Malformed ExternalRef payload {payload!r}: {exc}"
-        raise ValueError(msg) from exc
+    return deserialize_vo_or_raise(
+        "ExternalRef",
+        lambda: ExternalRef(scheme=payload["scheme"], id=payload["id"]),
+    )
 
 
 def _serialize_external_refs(refs: frozenset[ExternalRef]) -> list[dict[str, str]]:

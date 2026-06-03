@@ -9,7 +9,7 @@ POST `/capabilities` first to create a Capability before POSTing
     cap_id = create_capability_via_api(client)
     method_id = client.post(
         "/methods",
-        json={"name": "M", "needed_families": [], "capability_id": cap_id},
+        json={"name": "M", "needed_family_ids": [], "capability_id": cap_id},
     ).json()["method_id"]
 
 Each call creates a UNIQUE Capability code (uuid-suffixed) so
@@ -105,7 +105,7 @@ def seed_method_chain(
         json={
             "name": "M",
             "capability_id": capability_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     ).json()["method_id"]
     if parameters_schema is not None:

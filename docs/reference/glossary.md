@@ -40,7 +40,7 @@ For anyone reading CORA. Each term defined once and used the same way in code, c
 
 *ISA, ISO/IEC, NIST, PROV-O, RAiD.*
 
-- **ISA-95.** Manufacturing operations hierarchy: Enterprise / Site / Area / Unit / Assembly / Device. Used for the Asset model.
+- **ISA-95.** Manufacturing operations hierarchy: Enterprise / Site / Area / Unit / Component / Device. Used for the Asset model.
 - **ISA-88.** Batch control. Basis for Track A (Method / Practice / Plan / Run).
 - **ISA-106.** Continuous-process operations. Basis for Track B.
 - **ISA-99 / IEC 62443.** Industrial cybersecurity. Basis for Track C: Zones, Conduits, Policies (`trust` BC).
@@ -69,7 +69,8 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 
 *Assets, Families, Affordances. The device-classification side of Equipment BC.*
 
-- **Asset.** A physical equipment instance registered in the hierarchy (Enterprise / Site / Area / Unit / Device per ISA-95). Belongs to one or more Families.
+- **Asset.** A physical equipment instance registered in the hierarchy (Enterprise / Site / Area / Unit / Component / Device per ISA-95). Belongs to one or more Families.
+- **Asset two-axis state.** Asset carries two orthogonal state axes: `lifecycle` (`Commissioned` / `Active` / `Maintenance` / `Decommissioned` — is this device part of inventory and assignable) and `condition` (`Nominal` / `Degraded` / `Faulted` — is it actually working right now). The two move independently: a Decommissioned asset can be discovered Faulted on inventory check; an Active asset can be Degraded without being pulled out of service. The split is the deliberate design lock per the asset-condition memo; do not collapse `lifecycle` and `condition` into a single FSM. Matches PI-System asset-health (Good / Warning / Bad) and SEMI E10 productive-vs-unproductive-time orthogonality.
 - **Family.** A device-class abstraction: WHAT kind of equipment this is, device-agnostic. Examples: `RotaryStage`, `LinearStage`, `Camera`, `Scintillator`, `Hexapod`, `Mirror`. Earlier this aggregate was named `Capability`; the operations-layer Recipe BC `Capability` aggregate (separate concept; see below) landed 2026-05-18 and took that name over.
 - **Affordance.** A closed-enum primitive a Family declares it supports. Two patterns: operational affordances (`-able`/`-ible`/`-ing` suffix per Swift Guidelines, "device supports doing X" or "device performs X"; 27 items mixing 22 `-able`/`-ible` actions with 5 `-ing` role/flow gerunds — `Marking`, `Pulsing`, `Following`, `Leading`, `Recording`), and lifecycle affordances (noun, "device has lifecycle property X"; 1 item — `Consumable`). Cross-BC contract: at `define_plan` time, the union of every wired Asset's Families' affordances must cover the bound Method's Capability `required_affordances` (otherwise `PlanAffordancesNotSatisfiedError`, 409). See [Affordances reference](affordances.md) for the 28-item v1 list.
 
@@ -79,7 +80,7 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 
 - **Capability.** *(Recipe BC)* An operations-layer template declaring WHAT a Method or Procedure can do: `required_affordances` (the Family-affordance contract any binding must cover), `parameters_schema` (the parameter contract Method.parameters_schema must be a subset of), `executor_shapes` (closed v1 enum `{METHOD, PROCEDURE}` — which executor kinds may bind). Distinct from Equipment Family (`what a device IS`); Capability is `what an operation provides`. Methods bind via `Method.capability_id` (REQUIRED); Procedures bind via `Procedure.capability_id` (optional). Namespaced `cora.capability.*` codes; status FSM `Defined → Versioned → Deprecated` with optional `replaced_by_capability_id` (LOINC `MAP_TO` precedent).
 - **ExecutorShape.** *(Recipe BC, closed v1 StrEnum)* Declares which executor kinds may implement a Capability: `METHOD` (heavyweight science executor producing datasets via Plan → Run) or `PROCEDURE` (lightweight ceremony executor without datasets, ISA-106 atoms). One Capability may declare both shapes.
-- **Method.** A reusable technique template. Binds to one Capability via `capability_id` (REQUIRED) and to a set of Equipment Families via `needed_families` (hardware-compat). Method's `parameters_schema` must be a structural subset of the bound Capability's `parameters_schema` (`MethodParametersNotSubsetError`, 409).
+- **Method.** A reusable technique template. Binds to one Capability via `capability_id` (REQUIRED) and to a set of Equipment Families via `needed_family_ids` (hardware-compat). Method's `parameters_schema` must be a structural subset of the bound Capability's `parameters_schema` (`MethodParametersNotSubsetError`, 409).
 - **Practice.** A Method bound to a site or set of Families.
 - **Plan.** A Practice bound to specific Assets and a window.
 - **Run.** An execution of a Plan. FSM: started, held, resumed, stopped, completed, aborted, truncated.
@@ -98,7 +99,7 @@ Watch-only (not adopted as a glossary term, see [Deferred](../stack/deferred.md)
 *Calibration BC, AsShot anchor, pinned vs used.*
 
 - **Calibration.** *(Calibration BC)* Aggregate carrying empirically-measured system constants (motor sensitivities, beam profiles, encoder offsets). Distinct from `operation/calibration` ceremonies — Operation runs the ceremony, Calibration stores the resulting values.
-- **AsShot anchor.** Snapshot of which Calibrations were in force at a given moment. `Run.pinned_calibrations` captures the Calibrations pinned at `start_run`; `Dataset.used_calibrations` captures which of those the resulting Dataset actually consumed. The pair separates "what was available" from "what was used," which the analysis chain needs for provenance.
+- **AsShot anchor.** Snapshot of which Calibrations were in force at a given moment. `Run.pinned_calibration_ids` captures the Calibrations pinned at `start_run`; `Dataset.used_calibration_ids` captures which of those the resulting Dataset actually consumed. The pair separates "what was available" from "what was used," which the analysis chain needs for provenance.
 
 ## Supply
 

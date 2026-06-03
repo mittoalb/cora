@@ -248,9 +248,10 @@ async def list_cautions(
         CautionCategoryFilter | None,
         Query(description="Optional category filter (one of the 6 CautionCategory values)."),
     ] = None,
-    severity: Annotated[
+    severities: Annotated[
         list[CautionSeverityFilter] | None,
         Query(
+            alias="severity",
             description=(
                 "Optional exact severity filter; multi-value. "
                 "Pass once for a single value, repeat for any-of "
@@ -297,7 +298,7 @@ async def list_cautions(
         Query(description="Optional author filter ('cautions I authored')."),
     ] = None,
 ) -> CautionListPageResponse:
-    severities = _resolve_severities(severity, min_severity)
+    severities = _resolve_severities(severities, min_severity)
     statuses = _resolve_statuses(status_params)
     page = await handler(
         ListCautions(

@@ -47,7 +47,7 @@ def _seed_policy(
         policy_id=policy_id,
         name="Plan-wire-authz-test-policy",
         conduit_id=UUID(int=0),
-        permitted_principals=(permitted_principal,),
+        permitted_principal_ids=(permitted_principal,),
         permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
@@ -124,7 +124,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
     ).json()["family_id"]
     method_id = client.post(
         "/methods",
-        json={"name": "Test Method", "capability_id": _cap_id, "needed_families": [cap_id]},
+        json={"name": "Test Method", "capability_id": _cap_id, "needed_family_ids": [cap_id]},
         headers=h,
     ).json()["method_id"]
     practice_id = client.post(
@@ -182,7 +182,7 @@ def _setup_plan_with_two_wired_assets(client: TestClient, principal: UUID) -> di
 def test_p2_gets_403_when_adding_a_wire_to_p1s_plan(
     wire_authz_app: tuple[TestClient, UUID, UUID],
 ) -> None:
-    """Authz contract: P2 is not in `permitted_principals` for AddPlanWire,
+    """Authz contract: P2 is not in `permitted_principal_ids` for AddPlanWire,
     so POST /plans/{id}/add-wire returns 403 before any decider logic
     runs. Pins the full route -> handler -> deps.authz.authorize -> 403 stack."""
     client, p1, p2 = wire_authz_app

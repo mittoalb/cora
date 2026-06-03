@@ -9,9 +9,11 @@ the row volume is bounded by facility count (~1-50). Per-row scoping
 (operator confidentiality across facilities) deferred until ReBAC; the
 current Authorize port gating is command-name only.
 
-Cursor key includes a deterministic UUID derived from `facility_id` via
-`seal_stream_id` because the cross-BC list-query factory's cursor
-encoding requires a UUID id; the projection's PK is `TEXT facility_id`.
+Cursor key uses the projection's `seal_stream_id` UUID column
+(populated at INSERT time from `facility_id` via `seal_stream_id`).
+The column is internal to the read model and is intentionally NOT
+surfaced on `SealSummaryDTO` because callers already have
+`facility_id`, and the stream id is a derived identifier.
 """
 
 from datetime import datetime

@@ -5,7 +5,7 @@ command slices:
 
     from cora.recipe.features import define_method
 
-    cmd = define_method.DefineMethod(name="...", needed_families=frozenset({...}))
+    cmd = define_method.DefineMethod(name="...", needed_family_ids=frozenset({...}))
     handler = define_method.bind(deps)
     method_id = await handler(cmd, principal_id=..., correlation_id=...)
 """

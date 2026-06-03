@@ -8,6 +8,8 @@ import pytest
 from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset.events import (
     AssetActivated,
+    AssetAlternateIdentifierAdded,
+    AssetAlternateIdentifierRemoved,
     AssetDecommissioned,
     AssetDegraded,
     AssetFamilyAdded,
@@ -24,6 +26,10 @@ from cora.equipment.aggregates.asset.events import (
     event_type_name,
     from_stored,
     to_payload,
+)
+from cora.equipment.aggregates.asset.state import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
 )
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -197,7 +203,7 @@ def test_to_payload_includes_drawing_block_when_set() -> None:
     event = AssetRegistered(
         asset_id=uuid4(),
         name="Microscope-2BM-A",
-        level="Assembly",
+        level="Component",
         parent_id=uuid4(),
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A"),
@@ -215,7 +221,7 @@ def test_from_stored_rebuilds_asset_registered_with_drawing() -> None:
         {
             "asset_id": str(asset_id),
             "name": "Microscope-2BM-A",
-            "level": "Assembly",
+            "level": "Component",
             "parent_id": str(parent_id),
             "occurred_at": _NOW.isoformat(),
             "drawing": {"system": "EDMS", "number": "9001", "revision": None},
@@ -225,7 +231,7 @@ def test_from_stored_rebuilds_asset_registered_with_drawing() -> None:
     assert rebuilt == AssetRegistered(
         asset_id=asset_id,
         name="Microscope-2BM-A",
-        level="Assembly",
+        level="Component",
         parent_id=parent_id,
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.EDMS, number="9001", revision=None),
@@ -277,10 +283,146 @@ def test_to_payload_then_from_stored_round_trips_with_drawing() -> None:
     original = AssetRegistered(
         asset_id=uuid4(),
         name="Microscope-2BM-A",
-        level="Assembly",
+        level="Component",
         parent_id=uuid4(),
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.DOI, number="10.5281/zenodo.X", revision="v2"),
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetRegistered.model_id ----------
+
+
+@pytest.mark.unit
+def test_to_payload_omits_model_id_key_when_model_id_is_none() -> None:
+    """Omit-when-None convention (Lock G): legacy AssetRegistered shape
+    (no model_id) must serialize without the key so existing stream
+    readers can't accidentally observe a None value where they
+    previously saw the key missing. Mirrors the drawing precedent."""
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert "model_id" not in payload
+
+
+@pytest.mark.unit
+def test_to_payload_includes_model_id_when_set() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    model_id = uuid4()
+    event = AssetRegistered(
+        asset_id=asset_id,
+        name="Microscope-2BM-A",
+        level="Component",
+        parent_id=parent_id,
+        occurred_at=_NOW,
+        model_id=model_id,
+    )
+    payload = to_payload(event)
+    assert payload["model_id"] == str(model_id)
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_registered_with_model_id() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    model_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "Microscope-2BM-A",
+            "level": "Component",
+            "parent_id": str(parent_id),
+            "occurred_at": _NOW.isoformat(),
+            "model_id": str(model_id),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetRegistered(
+        asset_id=asset_id,
+        name="Microscope-2BM-A",
+        level="Component",
+        parent_id=parent_id,
+        occurred_at=_NOW,
+        model_id=model_id,
+    )
+
+
+@pytest.mark.unit
+def test_from_stored_folds_legacy_payload_without_model_id_to_none() -> None:
+    """Backward-compat pin: existing AssetRegistered events written before
+    the model_id widen had no model_id key; they MUST fold to
+    model_id=None without raising. Mirrors the drawing legacy-fold
+    precedent."""
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "Pre-widen Asset",
+            "level": "Unit",
+            "parent_id": str(uuid4()),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.model_id is None
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_without_model_id_explicit() -> None:
+    """Pin the omit-then-rebuild path: model_id=None survives the
+    serialize+deserialize round-trip and emerges as model_id=None
+    (not as a missing attribute or something else)."""
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="No-Model Asset",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.model_id is None
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_with_model_id() -> None:
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="Microscope-2BM-A",
+        level="Component",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        model_id=uuid4(),
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_with_drawing_and_model_id() -> None:
+    """Both additive fields set: the two omit-when-None blocks must
+    compose cleanly and the round-trip preserves both."""
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="Microscope-2BM-A",
+        level="Component",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        drawing=Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A"),
+        model_id=uuid4(),
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -936,6 +1078,8 @@ def test_event_type_name_for_port_events() -> None:
         "AssetSettingsUpdated",
         "AssetPortAdded",
         "AssetPortRemoved",
+        "AssetAlternateIdentifierAdded",
+        "AssetAlternateIdentifierRemoved",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
@@ -947,3 +1091,280 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
     in the load path."""
     with pytest.raises(ValueError, match=f"Malformed {event_type} payload"):
         from_stored(_stored(event_type, {}))
+
+
+# ---------- AssetRegistered.alternate_identifiers ----------
+
+
+_SAMPLE_ALT_ID_A = AlternateIdentifier(
+    kind=AlternateIdentifierKind.SERIAL_NUMBER, value="12345-ABC"
+)
+_SAMPLE_ALT_ID_B = AlternateIdentifier(
+    kind=AlternateIdentifierKind.INVENTORY_NUMBER, value="APS-2BM-CAM-001"
+)
+
+
+@pytest.mark.unit
+def test_to_payload_omits_alternate_identifiers_when_empty() -> None:
+    """Omit-when-empty convention (Lock D): legacy AssetRegistered shape
+    (no alternate_identifiers) must serialize without the key so
+    existing stream readers can't accidentally observe an empty list
+    where the key was previously absent. Mirrors the drawing /
+    model_id precedents."""
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert "alternate_identifiers" not in payload
+
+
+@pytest.mark.unit
+def test_to_payload_includes_alternate_identifiers_when_set() -> None:
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Component",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+    )
+    payload = to_payload(event)
+    assert payload["alternate_identifiers"] == [
+        {"kind": "SerialNumber", "value": "12345-ABC"},
+    ]
+
+
+@pytest.mark.unit
+def test_to_payload_emits_alternate_identifiers_sorted_for_stable_bytes() -> None:
+    """Payload bytes must be deterministic across runs even though
+    frozenset iteration is not. Sorted on (kind, value) gives the
+    same JSON for the same VO set, which matters for any future
+    signing / content-addressed slice."""
+    event = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Component",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_B, _SAMPLE_ALT_ID_A}),
+    )
+    payload = to_payload(event)
+    assert payload["alternate_identifiers"] == [
+        {"kind": "InventoryNumber", "value": "APS-2BM-CAM-001"},
+        {"kind": "SerialNumber", "value": "12345-ABC"},
+    ]
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_asset_registered_with_alternate_identifiers() -> None:
+    asset_id = uuid4()
+    parent_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "X",
+            "level": "Component",
+            "parent_id": str(parent_id),
+            "occurred_at": _NOW.isoformat(),
+            "alternate_identifiers": [
+                {"kind": "SerialNumber", "value": "12345-ABC"},
+                {"kind": "InventoryNumber", "value": "APS-2BM-CAM-001"},
+            ],
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert rebuilt == AssetRegistered(
+        asset_id=asset_id,
+        name="X",
+        level="Component",
+        parent_id=parent_id,
+        occurred_at=_NOW,
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+    )
+
+
+@pytest.mark.unit
+def test_from_stored_folds_legacy_payload_without_alternate_identifiers_to_empty() -> None:
+    """Backward-compat pin: existing AssetRegistered events written
+    before the alternate_identifiers widen had no key; they MUST fold
+    to an empty frozenset without raising. Mirrors the drawing /
+    model_id legacy-fold precedents."""
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetRegistered",
+        {
+            "asset_id": str(asset_id),
+            "name": "Pre-widen Asset",
+            "level": "Unit",
+            "parent_id": str(uuid4()),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    rebuilt = from_stored(stored)
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.alternate_identifiers == frozenset()
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_without_alternate_identifiers_explicit() -> None:
+    """Pin the omit-then-rebuild path: alternate_identifiers=empty
+    frozenset survives the round-trip and emerges as the empty
+    frozenset (not as a missing attribute or list)."""
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="No-AltIds Asset",
+        level="Site",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    rebuilt = from_stored(stored)
+    assert rebuilt == original
+    assert isinstance(rebuilt, AssetRegistered)
+    assert rebuilt.alternate_identifiers == frozenset()
+
+
+@pytest.mark.unit
+def test_to_payload_then_from_stored_round_trips_with_alternate_identifiers() -> None:
+    original = AssetRegistered(
+        asset_id=uuid4(),
+        name="X",
+        level="Component",
+        parent_id=uuid4(),
+        occurred_at=_NOW,
+        alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+    )
+    stored = _stored("AssetRegistered", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetAlternateIdentifierAdded ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_alternate_identifier_added_class_name() -> None:
+    event = AssetAlternateIdentifierAdded(
+        asset_id=uuid4(), alternate_identifier=_SAMPLE_ALT_ID_A, occurred_at=_NOW
+    )
+    assert event_type_name(event) == "AssetAlternateIdentifierAdded"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_alternate_identifier_added() -> None:
+    asset_id = uuid4()
+    event = AssetAlternateIdentifierAdded(
+        asset_id=asset_id,
+        alternate_identifier=_SAMPLE_ALT_ID_A,
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "alternate_identifier": {"kind": "SerialNumber", "value": "12345-ABC"},
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_alternate_identifier_added() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetAlternateIdentifierAdded",
+        {
+            "asset_id": str(asset_id),
+            "alternate_identifier": {"kind": "SerialNumber", "value": "12345-ABC"},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetAlternateIdentifierAdded(
+        asset_id=asset_id,
+        alternate_identifier=_SAMPLE_ALT_ID_A,
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_round_trip_for_alternate_identifier_added() -> None:
+    original = AssetAlternateIdentifierAdded(
+        asset_id=uuid4(),
+        alternate_identifier=_SAMPLE_ALT_ID_B,
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetAlternateIdentifierAdded", to_payload(original))
+    assert from_stored(stored) == original
+
+
+# ---------- AssetAlternateIdentifierRemoved ----------
+
+
+@pytest.mark.unit
+def test_event_type_name_returns_alternate_identifier_removed_class_name() -> None:
+    event = AssetAlternateIdentifierRemoved(
+        asset_id=uuid4(), alternate_identifier=_SAMPLE_ALT_ID_A, occurred_at=_NOW
+    )
+    assert event_type_name(event) == "AssetAlternateIdentifierRemoved"
+
+
+@pytest.mark.unit
+def test_to_payload_serializes_alternate_identifier_removed() -> None:
+    asset_id = uuid4()
+    event = AssetAlternateIdentifierRemoved(
+        asset_id=asset_id,
+        alternate_identifier=_SAMPLE_ALT_ID_B,
+        occurred_at=_NOW,
+    )
+    assert to_payload(event) == {
+        "asset_id": str(asset_id),
+        "alternate_identifier": {"kind": "InventoryNumber", "value": "APS-2BM-CAM-001"},
+        "occurred_at": _NOW.isoformat(),
+    }
+
+
+@pytest.mark.unit
+def test_from_stored_rebuilds_alternate_identifier_removed() -> None:
+    asset_id = uuid4()
+    stored = _stored(
+        "AssetAlternateIdentifierRemoved",
+        {
+            "asset_id": str(asset_id),
+            "alternate_identifier": {"kind": "InventoryNumber", "value": "APS-2BM-CAM-001"},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    assert from_stored(stored) == AssetAlternateIdentifierRemoved(
+        asset_id=asset_id,
+        alternate_identifier=_SAMPLE_ALT_ID_B,
+        occurred_at=_NOW,
+    )
+
+
+@pytest.mark.unit
+def test_round_trip_for_alternate_identifier_removed() -> None:
+    original = AssetAlternateIdentifierRemoved(
+        asset_id=uuid4(),
+        alternate_identifier=_SAMPLE_ALT_ID_A,
+        occurred_at=_NOW,
+    )
+    stored = _stored("AssetAlternateIdentifierRemoved", to_payload(original))
+    assert from_stored(stored) == original
+
+
+@pytest.mark.unit
+def test_from_stored_raises_on_unknown_alternate_identifier_kind() -> None:
+    """An unknown `kind` payload value can't reconstruct the closed
+    StrEnum and must surface as a tagged Malformed error rather than a
+    bare ValueError from the enum constructor."""
+    stored = _stored(
+        "AssetAlternateIdentifierAdded",
+        {
+            "asset_id": str(uuid4()),
+            "alternate_identifier": {"kind": "Unknown", "value": "x"},
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    with pytest.raises(ValueError, match="Malformed AssetAlternateIdentifierAdded payload"):
+        from_stored(stored)

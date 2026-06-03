@@ -44,7 +44,7 @@ class AssetResponse(BaseModel):
     from the domain model so the two can evolve independently.
     `level`, `lifecycle`, and `condition` are the StrEnum string
     values (PascalCase per the BC map). `parent_id` is null only for
-    Enterprise-level roots. `families` serializes as a sorted list
+    Enterprise-level roots. `family_ids` serializes as a sorted list
     of UUIDs (frozenset semantics in domain state, list at the JSON
     boundary; sorted by UUID string form for response determinism).
     `settings` is the operator-supplied dict (operationally typed by
@@ -58,7 +58,7 @@ class AssetResponse(BaseModel):
     parent_id: UUID | None
     lifecycle: str
     condition: str
-    families: list[UUID]
+    family_ids: list[UUID]
     settings: dict[str, Any]
     ports: list[AssetPortDTO]
 
@@ -111,7 +111,7 @@ async def get_assets(
         parent_id=asset.parent_id,
         lifecycle=asset.lifecycle.value,
         condition=asset.condition.value,
-        families=sorted(asset.families, key=str),
+        family_ids=sorted(asset.family_ids, key=str),
         settings=asset.settings,
         ports=[
             AssetPortDTO(

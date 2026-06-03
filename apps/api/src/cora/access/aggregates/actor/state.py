@@ -140,7 +140,7 @@ class Actor:
     compose the display surface via `load_actor_display_name` from
     `cora.access.aggregates.actor.profile`.
 
-    `is_active` defaults to True at construction; the evolver sets it
+    `active` defaults to True at construction; the evolver sets it
     explicitly when folding ActorRegistered (active) and ActorDeactivated
     (inactive). `kind` defaults to `ActorKind.HUMAN`; legacy
     ActorRegistered V1 events lacking the field fold to the default
@@ -148,5 +148,5 @@ class Actor:
     """
 
     id: UUID
-    is_active: bool = True
+    active: bool = True
     kind: ActorKind = ActorKind.HUMAN

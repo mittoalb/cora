@@ -47,13 +47,13 @@ def _command() -> DefinePermit:
     return DefinePermit(
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({_CREDENTIAL_ID}),
+        allowed_credential_ids=frozenset({_CREDENTIAL_ID}),
         allowed_payload_types=frozenset({"application/json"}),
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
         terms=OutboundTerms(
-            scope_set=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
+            scopes=frozenset({ScopeRef(kind="dataset", name="public", qualifier=None)}),
             read_scope=ReadScope.READ_ALL_ARTIFACTS,
             onward_action_scope=OnwardActionScope.READ_ONLY,
         ),

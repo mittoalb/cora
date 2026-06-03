@@ -52,7 +52,7 @@ def test_get_asset_returns_200_with_commissioned_lifecycle_for_new_asset() -> No
         # 5g-b: condition defaults to Nominal at registration.
         "condition": "Nominal",
         # Empty until add_asset_family runs (5f-1).
-        "families": [],
+        "family_ids": [],
         # 5g-c: settings defaults to empty dict at registration.
         "settings": {},
         # 5h: ports defaults to empty list at registration.

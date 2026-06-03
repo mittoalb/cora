@@ -22,8 +22,8 @@ from cora.equipment.features import decommission_asset, register_asset
 from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.operation.aggregates.procedure import (
-    ProcedureAssetDecommissionedError,
     ProcedureCannotStartError,
+    ProcedurePlanAssetDecommissionedError,
     ProcedureStatus,
     fold,
     from_stored,
@@ -154,7 +154,7 @@ async def test_start_procedure_rejects_decommissioned_target_asset_in_postgres(
         correlation_id=_CORRELATION_ID,
     )
 
-    with pytest.raises(ProcedureAssetDecommissionedError) as exc:
+    with pytest.raises(ProcedurePlanAssetDecommissionedError) as exc:
         await start_procedure.bind(deps)(
             StartProcedure(procedure_id=procedure_id),
             principal_id=_PRINCIPAL_ID,

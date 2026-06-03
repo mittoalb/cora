@@ -11,6 +11,8 @@ import pytest
 
 from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
     Asset,
     AssetAlreadyExistsError,
     AssetLevel,
@@ -140,7 +142,7 @@ def test_decide_rejects_enterprise_with_non_null_parent() -> None:
         AssetLevel.SITE,
         AssetLevel.AREA,
         AssetLevel.UNIT,
-        AssetLevel.ASSEMBLY,
+        AssetLevel.COMPONENT,
         AssetLevel.DEVICE,
     ],
 )
@@ -167,7 +169,7 @@ def test_decide_carries_drawing_through_to_emitted_event() -> None:
         state=None,
         command=RegisterAsset(
             name="Microscope-2BM-A",
-            level=AssetLevel.ASSEMBLY,
+            level=AssetLevel.COMPONENT,
             parent_id=uuid4(),
             drawing=drawing,
         ),
@@ -190,6 +192,84 @@ def test_decide_defaults_drawing_to_none_when_omitted() -> None:
         new_id=uuid4(),
     )
     assert events[0].drawing is None
+
+
+@pytest.mark.unit
+def test_decide_propagates_model_id_to_emitted_event() -> None:
+    """Happy path: an optional model_id supplied on the command rides
+    the AssetRegistered event verbatim. The decider does NOT load the
+    Model snapshot per Lock B; the handler is the seam that enforces
+    existence."""
+    model_id = uuid4()
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="Microscope-2BM-A",
+            level=AssetLevel.COMPONENT,
+            parent_id=uuid4(),
+            model_id=model_id,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].model_id == model_id
+
+
+@pytest.mark.unit
+def test_decide_defaults_model_id_to_none_when_omitted() -> None:
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="APS",
+            level=AssetLevel.SITE,
+            parent_id=uuid4(),
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].model_id is None
+
+
+@pytest.mark.unit
+def test_decide_passes_alternate_identifiers_through_to_emitted_event() -> None:
+    """Happy path: a non-empty `alternate_identifiers` set on the
+    command rides the AssetRegistered event verbatim. The decider does
+    NOT validate (kind, value) cross-Asset uniqueness in v1 per Lock F."""
+    identifiers = frozenset(
+        {
+            AlternateIdentifier(kind=AlternateIdentifierKind.SERIAL_NUMBER, value="ANT130L-12345"),
+            AlternateIdentifier(
+                kind=AlternateIdentifierKind.INVENTORY_NUMBER, value="APS-2BM-RS-001"
+            ),
+        }
+    )
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="APS-2BM-RotaryStage",
+            level=AssetLevel.DEVICE,
+            parent_id=uuid4(),
+            alternate_identifiers=identifiers,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].alternate_identifiers == identifiers
+
+
+@pytest.mark.unit
+def test_decide_defaults_alternate_identifiers_to_empty_when_omitted() -> None:
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="APS",
+            level=AssetLevel.SITE,
+            parent_id=uuid4(),
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+    )
+    assert events[0].alternate_identifiers == frozenset()
 
 
 @pytest.mark.unit

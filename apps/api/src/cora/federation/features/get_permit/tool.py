@@ -33,7 +33,7 @@ class _OutboundTermsOutput(BaseModel):
     """Structured-output sub-shape for outbound terms."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefOutput]
+    scopes: list[_ScopeRefOutput]
     read_scope: str
     onward_action_scope: str
 
@@ -65,7 +65,7 @@ class GetPermitOutput(BaseModel):
     id: UUID
     peer_facility_id: str
     direction: str
-    allowed_credentials: list[UUID]
+    allowed_credential_ids: list[UUID]
     allowed_payload_types: list[str]
     allowed_artifact_kinds: list[str]
     abi_tier_floor: str
@@ -82,10 +82,10 @@ class GetPermitOutput(BaseModel):
 
 def _terms_output(view: PermitView) -> _TermsOutput:
     if view.terms_kind == "Outbound":
-        scopes = view.scope_set or []
+        scopes = view.scopes or []
         return _OutboundTermsOutput(
             kind="Outbound",
-            scope_set=[
+            scopes=[
                 _ScopeRefOutput(
                     kind=s["kind"],
                     name=s["name"],
@@ -110,7 +110,7 @@ def _output_from_view(view: PermitView) -> GetPermitOutput:
         id=view.permit_id,
         peer_facility_id=view.peer_facility_id,
         direction=view.direction,
-        allowed_credentials=list(view.allowed_credentials),
+        allowed_credential_ids=list(view.allowed_credential_ids),
         allowed_payload_types=list(view.allowed_payload_types),
         allowed_artifact_kinds=list(view.allowed_artifact_kinds),
         abi_tier_floor=view.abi_tier_floor,

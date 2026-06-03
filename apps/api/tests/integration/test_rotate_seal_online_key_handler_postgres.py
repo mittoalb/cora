@@ -37,7 +37,7 @@ from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.features import initialize_seal, rotate_seal_online_key
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.federation.features.rotate_seal_online_key import RotateSealOnlineKey
-from cora.federation.projections import SealProjection
+from cora.federation.projections import SealSummaryProjection
 from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
@@ -218,7 +218,7 @@ async def test_rotate_seal_online_key_shared_xid8_across_streams(
 async def test_rotate_seal_online_key_projection_lands_new_online_ref(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """After draining projections, proj_federation_seal should reflect the
+    """After draining projections, proj_federation_seal_summary should reflect the
     rotated `online_credential_id` while leaving `offline_credential_id` and `status`
     unchanged."""
     suffix = uuid4().hex[:8]
@@ -243,7 +243,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
     )
 
     registry = ProjectionRegistry()
-    registry.register(SealProjection())
+    registry.register(SealSummaryProjection())
     await drain_projections(db_pool, registry, deadline_seconds=2.0)
 
     async with db_pool.acquire() as conn:
@@ -252,7 +252,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
             SELECT facility_id, online_credential_id, offline_credential_id,
                    status, current_head_hash, current_sequence_number,
                    initialized_at
-              FROM proj_federation_seal
+              FROM proj_federation_seal_summary
              WHERE facility_id = $1
             """,
             facility_id,

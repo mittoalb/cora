@@ -3,7 +3,7 @@
 Supersedes an Active parent caution by creating a new child caution
 with the supplied fields, atomically with the parent's transition to
 `Superseded`. The child gets `parent_caution_id=<parent>` on its
-genesis event; the parent gets `CautionSuperseded(by_caution_id=
+genesis event; the parent gets `CautionSuperseded(superseded_by_caution_id=
 <child>)` on its stream.
 
 The child's fields are operator-supplied (NOT copied from parent) so

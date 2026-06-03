@@ -13,7 +13,7 @@ of an existing tool against a full set still succeed silently.
   - `tool_name` wrapped via `ToolName(...)`; 1-100 chars after trim
     -> `InvalidToolNameError`
   - If grant would add a new entry AND projected size would exceed
-    `AGENT_TOOLS_MAX_COUNT` -> `AgentToolsExceedsLimitError`
+    `AGENT_TOOLS_MAX_COUNT` -> `InvalidAgentToolsError`
 """
 
 from datetime import datetime
@@ -25,7 +25,7 @@ from cora.agent.aggregates.agent import (
     AgentNotFoundError,
     AgentStatus,
     AgentToolGranted,
-    AgentToolsExceedsLimitError,
+    InvalidAgentToolsError,
     ToolName,
 )
 from cora.agent.features.grant_tool_to_agent.command import GrantToolToAgent
@@ -46,7 +46,7 @@ def decide(
       - Tool name must be valid -> InvalidToolNameError
         (via ToolName VO)
       - Projected tools count must not exceed AGENT_TOOLS_MAX_COUNT
-        when adding a new entry -> AgentToolsExceedsLimitError
+        when adding a new entry -> InvalidAgentToolsError
     """
     if state is None:
         raise AgentNotFoundError(command.agent_id)
@@ -59,7 +59,7 @@ def decide(
         return []
 
     if len(state.tools) + 1 > AGENT_TOOLS_MAX_COUNT:
-        raise AgentToolsExceedsLimitError(len(state.tools) + 1)
+        raise InvalidAgentToolsError(len(state.tools) + 1)
 
     return [
         AgentToolGranted(

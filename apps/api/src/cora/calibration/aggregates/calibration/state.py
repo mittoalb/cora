@@ -95,7 +95,7 @@ class ComputedSource:
     center; flat-field correction derived from a flat baseline Dataset.
     The Dataset id is carried for PROV-O `wasDerivedFrom` provenance.
     The same Dataset's reconstruction may then cite the *refined*
-    revision; the AsShot anchor on Run.pinned_calibrations stays unchanged.
+    revision; the AsShot anchor on Run.pinned_calibration_ids stays unchanged.
     """
 
     dataset_id: UUID
@@ -278,8 +278,66 @@ class CalibrationIdentityAlreadyExistsError(Exception):
 
 
 # ---------------------------------------------------------------------------
+# publish_revision domain errors
+# ---------------------------------------------------------------------------
+
+
+class CalibrationRevisionNotFoundError(Exception):
+    """The named revision does not exist on this Calibration."""
+
+    def __init__(self, calibration_id: UUID, revision_id: UUID) -> None:
+        super().__init__(f"Calibration {calibration_id} has no revision {revision_id}")
+        self.calibration_id = calibration_id
+        self.revision_id = revision_id
+
+
+class CalibrationCannotPublishRevisionError(Exception):
+    """The named revision was appended before content_hash was kernel-fused.
+
+    Legacy pre-rollout revisions carry `content_hash = None` per the
+    additive-event pattern; publishing requires a deterministic
+    artifact hash. Operators re-append the revision to populate the
+    hash before retrying the publish.
+    """
+
+    def __init__(self, calibration_id: UUID, revision_id: UUID) -> None:
+        super().__init__(
+            f"Calibration {calibration_id} revision {revision_id} carries no content_hash; "
+            f"re-append the revision to populate it before publishing"
+        )
+        self.calibration_id = calibration_id
+        self.revision_id = revision_id
+
+
+class OutboundPermitNotActiveError(Exception):
+    """No Active outbound Permit authorizes publishing this artifact kind to the peer.
+
+    Covers both "no Permit configured" (status surfaced as the
+    sentinel `"<unresolved>"`) and "Permit exists but is not in
+    the Active FSM position" (`Defined`, `Suspended`, or `Revoked`).
+    The decider routes this to a single error class so operator
+    diagnostics surface a uniform "configure or activate the
+    outbound permit" message regardless of the underlying gap.
+    """
+
+    def __init__(
+        self,
+        peer_facility_id: str,
+        artifact_kind: str,
+        status: str,
+    ) -> None:
+        super().__init__(
+            f"No Active outbound Permit for peer={peer_facility_id!r} "
+            f"artifact_kind={artifact_kind!r} (current status={status!r})"
+        )
+        self.peer_facility_id = peer_facility_id
+        self.artifact_kind = artifact_kind
+        self.status = status
+
+
+# ---------------------------------------------------------------------------
 # Shared value-validation helper (used by both define_calibration and
-# append_revision deciders)
+# append_calibration_revision deciders)
 # ---------------------------------------------------------------------------
 
 
@@ -372,7 +430,7 @@ class CalibrationRevision:
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
     # SHA-256 (64-char lowercase hex) of the canonical body bytes for
-    # this revision's content subset; captured by append_revision per
+    # this revision's content subset; captured by append_calibration_revision per
     # the non-determinism principle and folded by the evolver from the
     # event payload. None for pre-rollout CalibrationRevisionAppended
     # events that landed before the field was added (additive-state

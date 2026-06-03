@@ -8,7 +8,7 @@ command slices:
     cmd = define_permit.DefinePermit(
         peer_facility_id="aps-2bm",
         direction=Direction.OUTBOUND,
-        allowed_credentials=frozenset({...}),
+        allowed_credential_ids=frozenset({...}),
         allowed_payload_types=frozenset({"dataset/v1"}),
         allowed_artifact_kinds=frozenset({"tomogram"}),
         abi_tier_floor=AbiTier.STABLE,

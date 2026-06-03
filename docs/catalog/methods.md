@@ -1,6 +1,6 @@
 # Methods
 
-*Recipe BC Methods. A Method names a technique abstractly (ISA-88 General Recipe layer). Two binding fields, distinct purposes: `needed_families` lists the Equipment [Families](families.md) the technique requires hardware-compat-wise; `capability_id` binds to a Recipe [Capability](capabilities.md) template that declares the operations contract (required affordances, parameter schema, executor shape). Methods are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
+*Recipe BC Methods. A Method names a technique abstractly (ISA-88 General Recipe layer). Two binding fields, distinct purposes: `needed_family_ids` lists the Equipment [Families](families.md) the technique requires hardware-compat-wise; `capability_id` binds to a Recipe [Capability](capabilities.md) template that declares the operations contract (required affordances, parameter schema, executor shape). Methods are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
 
 | Method | Capability | Needed families | Purpose |
 | --- | --- | --- | --- |

@@ -59,7 +59,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 | Event | Payload sketch | When emitted |
 |---|---|---|
 | `CalibrationDefined` | `calibration_id`, `target_id`, `quantity`, `operating_point`, `description?`, `defined_by_actor_id`, `occurred_at` | `define_calibration` succeeds (genesis; no revisions yet) |
-| `CalibrationRevisionAppended` | `revision_id`, `calibration_id`, `value`, `status`, `source_procedure_id?`, `source_dataset_id?`, `source_actor_id?`, `established_at`, `established_by_actor_id`, `decided_by_decision_id?`, `supersedes_revision_id?`, `occurred_at` | `append_revision` succeeds |
+| `CalibrationRevisionAppended` | `revision_id`, `calibration_id`, `value`, `status`, `source_procedure_id?`, `source_dataset_id?`, `source_actor_id?`, `established_at`, `established_by_actor_id`, `decided_by_decision_id?`, `supersedes_revision_id?`, `occurred_at` | `append_calibration_revision` succeeds |
 
 `CalibrationRevisionAppended` serialises the polymorphic source as three nullable `source_*_id` fields with exactly one non-null per the exclusive-arc pattern. The wire shape on REST and MCP keeps the nested `{kind, <id>}` envelope for readability; the event payload and projection columns use exclusive-arc to keep storage shape and constraint enforcement direct.
 
@@ -68,7 +68,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
 | `DefineCalibration` | NEW | `POST /calibrations` | `define_calibration` | required |
-| `AppendRevision` | MODIFIED | `POST /calibrations/{calibration_id}/revisions` | `append_revision` | required |
+| `AppendCalibrationRevision` | MODIFIED | `POST /calibrations/{calibration_id}/revisions` | `append_calibration_revision` | required |
 | `GetCalibration` | QUERY | `GET /calibrations/{calibration_id}` | `get_calibration` | none |
 | `ListCalibrations` | QUERY | `GET /calibrations` | `list_calibrations` | none |
 
@@ -77,7 +77,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 `DefineCalibration`
 : `InvalidCalibrationQuantity`, `InvalidOperatingPoint`, `InvalidCalibrationDescription`, `CalibrationIdentityAlreadyExists` (the `(target_id, quantity, operating_point)` triple already exists), `Unauthorized`
 
-`AppendRevision`
+`AppendCalibrationRevision`
 : `CalibrationNotFound`, `InvalidCalibrationValue`, `InvalidCalibrationSource`, `SupersedesRevisionNotFound` (the `supersedes_revision_id` does not match any revision on this calibration), `Unauthorized`, `ConcurrencyError`
 
 `GetCalibration`
@@ -86,7 +86,7 @@ N/A. The Calibration aggregate has no load-bearing lifecycle FSM. Revisions accu
 `ListCalibrations`
 : (boundary 422 or `Unauthorized` only)
 
-`DefineCalibration` and `AppendRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebriefer subscriber that retries after a network blip must not produce a duplicate revision).
+`DefineCalibration` and `AppendCalibrationRevision` are wrapped by the `Idempotency-Key` header pattern. The append path treats idempotency as load-bearing for agent-subscriber callers (a CautionDrafter or RunDebriefer subscriber that retries after a network blip must not produce a duplicate revision).
 
 ## Storage & Projections
 
@@ -132,12 +132,12 @@ The `UNIQUE (target_id, quantity, operating_point)` constraint is the enforcemen
 | Trust | gated-by | Every write-side Calibration slice is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Equipment | shared-id-with | `Calibration.target_id` references the Asset whose behaviour is being measured (the rotary stage whose rotation centre is tracked, the detector whose pixel pitch is measured) |
 | Operation | shared-id-with | `MeasuredSource.procedure_id` references the alignment Procedure whose run produced the value |
-| Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibrations` records the reverse direction |
+| Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibration_ids` records the reverse direction |
 | Access | shared-id-with | `AssertedSource.actor_id`, `Calibration.defined_by_actor_id`, and each revision's `established_by_actor_id` reference Actors |
 | Decision | shared-id-with | `CalibrationRevision.decided_by_decision_id` references the Decision that justified appending the revision (operator pivot, agent advisory); not verified at the write path |
-| Run | reads-from | `Run.pinned_calibrations` carries an AsShot `(calibration_id, revision_id)` tuple set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle |
+| Run | reads-from | `Run.pinned_calibration_ids` carries an AsShot `(calibration_id, revision_id)` tuple set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle |
 
-Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `(calibration_id, revision_id)` pin on `Run.pinned_calibrations` is the AsShot anchor that makes a reconstruction reproducible: even if a later revision supersedes the pinned one, the Run still cites the exact value it consumed.
+Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `(calibration_id, revision_id)` pin on `Run.pinned_calibration_ids` is the AsShot anchor that makes a reconstruction reproducible: even if a later revision supersedes the pinned one, the Run still cites the exact value it consumed.
 
 ## Examples
 
@@ -211,7 +211,7 @@ The four examples below follow the canonical path for one Calibration: define an
 
     ```python
     mcp.call_tool(
-        "append_revision",
+        "append_calibration_revision",
         {
             "calibration_id": "<calibration-id>",
             "value": {"center": 1024.5, "uncertainty": 0.3},
@@ -254,7 +254,7 @@ The four examples below follow the canonical path for one Calibration: define an
 
     ```python
     mcp.call_tool(
-        "append_revision",
+        "append_calibration_revision",
         {
             "calibration_id": "<calibration-id>",
             "value": {"center": 1024.72, "uncertainty": 0.08},

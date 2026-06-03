@@ -24,13 +24,13 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Dataset` | `id: UUID` | `id`, `name`, `uri`, `checksum`, `byte_size`, `encoding`, `producing_run_id?`, `subject_id?`, `derived_from: frozenset[UUID]`, `status: DatasetStatus`, `producing_run_end_state: str?`, `intent: Intent`, `used_calibrations: frozenset[UUID]` | yes (2-state lifecycle plus orthogonal 3-state Intent) |
+| `Dataset` | `id: UUID` | `id`, `name`, `uri`, `checksum`, `byte_size`, `encoding`, `producing_run_id?`, `subject_id?`, `derived_from: frozenset[UUID]`, `status: DatasetStatus`, `producing_run_end_state: str?`, `intent: Intent`, `used_calibration_ids: frozenset[UUID]` | yes (2-state lifecycle plus orthogonal 3-state Intent) |
 
 `producing_run_id`, `subject_id`, and `derived_from` are eventual-consistency cross-aggregate references: the handler pre-loads each referenced aggregate to confirm it exists, and the decider applies any further checks (no `derived_from` edges into `Discarded` Datasets), but no fold-time re-validation runs. All three are optional. A Dataset can be registered with no producing Run (externally-sourced data, uploaded reference set, pre-existing data being newly cataloged), no Subject (calibration scans, dark fields, synthetic data), and no upstream lineage (raw data captured at the source).
 
 `producing_run_end_state` captures the producing Run's terminal status at the moment of Dataset registration. None when there is no `producing_run_id`. Captured at registration rather than recomputed at promote time, per the capture-don't-recompute principle that runs through every cross-aggregate guard in CORA.
 
-`used_calibrations` is the AsShot citation set: the `CalibrationRevision.id` values the data product actually used during reconstruction or analysis. Set once at registration, immutable across every other transition. Symmetric to the pinned calibrations set carried by Run state at acquisition time; the two sets are independent, since a derivative may legitimately cite a refined revision the producing Run never pinned.
+`used_calibration_ids` is the AsShot citation set: the `CalibrationRevision.id` values the data product actually used during reconstruction or analysis. Set once at registration, immutable across every other transition. Symmetric to the pinned calibrations set carried by Run state at acquisition time; the two sets are independent, since a derivative may legitimately cite a refined revision the producing Run never pinned.
 
 ## Value Objects
 
@@ -89,7 +89,7 @@ Strict re-entry semantics apply across both axes: re-discarding a `Discarded` Da
 **Guards.** Beyond the source-state check, the following slices enforce cross-aggregate or cross-field state:
 
 `register_dataset`
-: When `producing_run_id` is set, the handler pre-loads the Run and confirms its stream is non-empty (`ProducingRunMissing` otherwise; no status check, so Datasets may be registered against `Running` or any terminal Run, since in-situ measurements register Datasets while the Run is still actively running). When `subject_id` is set, the handler confirms the Subject stream is non-empty. When `derived_from` is non-empty, the handler confirms each referenced Dataset stream is non-empty, and the decider rejects any that are currently `Discarded`. `used_calibrations` is bounded in cardinality but not existence-checked against the Calibration BC, matching the revision-cited atomic-id model.
+: When `producing_run_id` is set, the handler pre-loads the Run and confirms its stream is non-empty (`ProducingRunMissing` otherwise; no status check, so Datasets may be registered against `Running` or any terminal Run, since in-situ measurements register Datasets while the Run is still actively running). When `subject_id` is set, the handler confirms the Subject stream is non-empty. When `derived_from` is non-empty, the handler confirms each referenced Dataset stream is non-empty, and the decider rejects any that are currently `Discarded`. `used_calibration_ids` is bounded in cardinality but not existence-checked against the Calibration BC, matching the revision-cited atomic-id model.
 
 `promote_dataset`
 : The current status is not `Discarded`. The producing Run (if any) ended in the `Completed` terminal state. Every Dataset in `derived_from` is currently in `Production` intent. The three branches raise through the single `DatasetCannotPromote` error class with a branch-specific reason string.
@@ -106,12 +106,12 @@ The Dataset aggregate emits four event types.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `DatasetRegistered` | `dataset_id`, `name`, `uri`, `checksum`, `byte_size`, `encoding`, `producing_run_id?`, `subject_id?`, `derived_from`, `producing_run_end_state?`, `intent` (always `Trial`), `used_calibrations`, `occurred_at` | `register_dataset` succeeds (genesis); cross-aggregate references and the producing Run's terminal status are captured atomically |
+| `DatasetRegistered` | `dataset_id`, `name`, `uri`, `checksum`, `byte_size`, `encoding`, `producing_run_id?`, `subject_id?`, `derived_from`, `producing_run_end_state?`, `intent` (always `Trial`), `used_calibration_ids`, `occurred_at` | `register_dataset` succeeds (genesis); cross-aggregate references and the producing Run's terminal status are captured atomically |
 | `DatasetPromoted` | `dataset_id`, `reason`, `occurred_at` | `promote_dataset` succeeds; intent flips to `Production`, audit reason is captured immutably |
 | `DatasetDemoted` | `dataset_id`, `reason`, `occurred_at` | `demote_dataset` succeeds; intent flips to `Retracted`, audit reason is captured immutably |
 | `DatasetDiscarded` | `dataset_id`, `reason`, `occurred_at` | `discard_dataset` succeeds; status flips to `Discarded`, audit reason is captured immutably |
 
-`DatasetRegistered` payloads carry `derived_from`, `conforms_to`, and `used_calibrations` as sorted lists for deterministic byte output. The same logical Dataset yields byte-identical jsonb, which keeps the idempotency-key hash stable.
+`DatasetRegistered` payloads carry `derived_from`, `conforms_to`, and `used_calibration_ids` as sorted lists for deterministic byte output. The same logical Dataset yields byte-identical jsonb, which keeps the idempotency-key hash stable.
 
 `Intent` is carried on `DatasetRegistered.intent` purely so future bulk-import or backfill events can land with a non-default value additively. Today every `DatasetRegistered` event sets `intent = "Trial"` and the field exists for forward-compatibility.
 
@@ -160,7 +160,7 @@ CREATE TABLE proj_data_dataset_summary (
     status              TEXT        NOT NULL CHECK (
         status IN ('Registered', 'Discarded')
     ),
-    used_calibrations   UUID[]      NOT NULL DEFAULT '{}',
+    used_calibration_ids   UUID[]      NOT NULL DEFAULT '{}',
     created_at          TIMESTAMPTZ NOT NULL,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -176,13 +176,13 @@ CREATE INDEX proj_data_dataset_summary_subject_idx
     ON proj_data_dataset_summary (subject_id)
     WHERE subject_id IS NOT NULL;
 
-CREATE INDEX proj_data_dataset_summary_used_calibrations_gin_idx
-    ON proj_data_dataset_summary USING GIN (used_calibrations);
+CREATE INDEX proj_data_dataset_summary_used_calibration_ids_gin_idx
+    ON proj_data_dataset_summary USING GIN (used_calibration_ids);
 ```
 
-One row per Dataset; the lifecycle collapses to a single mutable row by `ON CONFLICT` semantics in the projection. `status` flips from `Registered` to `Discarded` on `DatasetDiscarded`; `used_calibrations` is written at registration and stays untouched on every other transition. The partial indexes on `producing_run_id` and `subject_id` keep the index small in the externally-sourced and standalone-upload cases where both are null.
+One row per Dataset; the lifecycle collapses to a single mutable row by `ON CONFLICT` semantics in the projection. `status` flips from `Registered` to `Discarded` on `DatasetDiscarded`; `used_calibration_ids` is written at registration and stays untouched on every other transition. The partial indexes on `producing_run_id` and `subject_id` keep the index small in the externally-sourced and standalone-upload cases where both are null.
 
-The GIN index on `used_calibrations` supports the "every Dataset that cites revision X" read pattern through the `@>` containment operator. Queries that use `= ANY` instead are rewritten internally and do not probe the GIN index; consumers must use `@>` to get the index path.
+The GIN index on `used_calibration_ids` supports the "every Dataset that cites revision X" read pattern through the `@>` containment operator. Queries that use `= ANY` instead are rewritten internally and do not probe the GIN index; consumers must use `@>` to get the index path.
 
 Several fields are intentionally not projected as filter columns. `checksum`, `byte_size`, `encoding`, `derived_from`, and `intent` are either single-record detail (read from `GET /datasets/{id}` or from the folded stream) or list-shaped (deferred to a future join projection when the use case crystallizes). `intent` is the most likely next addition once the trust-axis read pattern materializes.
 
@@ -194,7 +194,7 @@ Several fields are intentionally not projected as filter columns. `checksum`, `b
 | Run | reads-from | `register_dataset` pre-loads the Run when `producing_run_id` is set; the producing Run's terminal status is captured on `Dataset.producing_run_end_state` and gates `promote_dataset` |
 | Subject | reads-from | `register_dataset` pre-loads the Subject when `subject_id` is set; the link is "this Dataset is about that Subject" and is meaningful regardless of the Subject's lifecycle state |
 | Data (self) | reads-from | `derived_from` references other Datasets; the lineage edge is verified to exist and to not be `Discarded` at registration |
-| Calibration | shared-id-with | `used_calibrations` carries `CalibrationRevision.id` values; the link is the AsShot citation that records which revisions the data product actually used |
+| Calibration | shared-id-with | `used_calibration_ids` carries `CalibrationRevision.id` values; the link is the AsShot citation that records which revisions the data product actually used |
 | Access | shared-id-with | every Dataset command carries `actor_id` on the envelope for principal attribution |
 
 The Data module is read-from by every audit, citation, and lineage consumer. Other modules do not mutate Dataset state; the only inverse direction is the producing Run capturing its end state when the Dataset registers, which is a one-time snapshot, not an ongoing dependency.
@@ -228,7 +228,7 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
       "producing_run_id": "<run-id>",
       "subject_id": "<subject-id>",
       "derived_from": [],
-      "used_calibrations": ["<calibration-revision-id>"]
+      "used_calibration_ids": ["<calibration-revision-id>"]
     }
     ```
 
@@ -256,7 +256,7 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
             "producing_run_id": "<run-id>",
             "subject_id": "<subject-id>",
             "derived_from": [],
-            "used_calibrations": ["<calibration-revision-id>"],
+            "used_calibration_ids": ["<calibration-revision-id>"],
         },
     )
     ```
@@ -350,11 +350,11 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
 === "REST"
 
     ```http
-    GET /datasets?used_calibrations=<calibration-revision-id>&limit=50
+    GET /datasets?used_calibration_ids=<calibration-revision-id>&limit=50
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
     ```
 
-    Returns the page of Datasets that cite the given calibration revision, with an opaque `next_cursor` for keyset pagination. The query path probes the GIN index on `used_calibrations` through the `@>` containment operator. Optional filters for `status` and `producing_run_id` narrow further.
+    Returns the page of Datasets that cite the given calibration revision, with an opaque `next_cursor` for keyset pagination. The query path probes the GIN index on `used_calibration_ids` through the `@>` containment operator. Optional filters for `status` and `producing_run_id` narrow further.
 
 === "MCP"
 
@@ -362,7 +362,7 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
     mcp.call_tool(
         "list_datasets",
         {
-            "used_calibrations": ["<calibration-revision-id>"],
+            "used_calibration_ids": ["<calibration-revision-id>"],
             "limit": 50,
         },
     )

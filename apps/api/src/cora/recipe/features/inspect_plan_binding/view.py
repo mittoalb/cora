@@ -96,7 +96,7 @@ class MissingAffordanceCandidates:
 class InspectPlanBindingView:
     """Full binding diagnostic returned by the handler.
 
-    Always populates both `missing_families` and `missing_affordances`
+    Always populates both `missing_family_ids` and `missing_affordances`
     so the operator sees the whole picture in one read, even when
     the decider would short-circuit on the family check. Empty
     frozensets mean that dimension is satisfied.
@@ -120,10 +120,10 @@ class InspectPlanBindingView:
     practice_id: UUID
     method_id: UUID
     capability_id: UUID | None
-    method_needed_families: frozenset[UUID]
+    method_needed_family_ids: frozenset[UUID]
     capability_required_affordances: frozenset[Affordance]
     wired_assets: tuple[WiredAsset, ...]
-    missing_families: frozenset[UUID]
+    missing_family_ids: frozenset[UUID]
     missing_affordances: frozenset[Affordance]
     missing_affordance_candidates: tuple[MissingAffordanceCandidates, ...]
     binding_status: BindingStatus

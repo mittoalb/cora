@@ -70,7 +70,7 @@ def test_mcp_get_actor_tool_returns_structured_actor_for_known_id() -> None:
     assert structured["id"] == str(actor_id)
     assert structured["name"] == "Doga"
     assert structured["kind"] == "human"
-    assert structured["is_active"] is True
+    assert structured["active"] is True
 
 
 @pytest.mark.contract

@@ -15,7 +15,7 @@ Degradation/recovery cycle:
 Lifecycle terminal:
   - `deregister_supply`        (any non-Decommissioned -> Decommissioned)
 
-Method.needs.supplies wire-up is Recipe-side enrichment (no new
+Method.needed_supplies wire-up is Recipe-side enrichment (no new
 slices in this BC).
 """
 

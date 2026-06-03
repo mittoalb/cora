@@ -10,10 +10,9 @@ from cora.run.aggregates.run import (
     InvalidRunAbortReasonError,
     InvalidRunNameError,
     InvalidRunStopReasonError,
-    PlanDeprecatedError,
     RunAbortReason,
     RunAlreadyExistsError,
-    RunAssetDecommissionedError,
+    RunBoundPlanDeprecatedError,
     RunCannotAbortError,
     RunCannotCompleteError,
     RunCannotHoldError,
@@ -22,10 +21,11 @@ from cora.run.aggregates.run import (
     RunCapabilitiesNotSatisfiedError,
     RunName,
     RunNotFoundError,
+    RunPlanAssetDecommissionedError,
     RunStatus,
     RunStopReason,
-    SubjectNotMountableError,
-    validate_pinned_calibrations,
+    RunSubjectNotMountableError,
+    validate_pinned_calibration_ids,
 )
 
 # ---------- RunName VO ----------
@@ -128,7 +128,7 @@ def test_run_not_found_error_carries_run_id() -> None:
 @pytest.mark.unit
 def test_plan_deprecated_error_carries_plan_id() -> None:
     plan_id = uuid4()
-    err = PlanDeprecatedError(plan_id)
+    err = RunBoundPlanDeprecatedError(plan_id)
     assert err.plan_id == plan_id
     assert "Deprecated" in str(err)
 
@@ -136,7 +136,7 @@ def test_plan_deprecated_error_carries_plan_id() -> None:
 @pytest.mark.unit
 def test_subject_not_mountable_error_carries_subject_id_and_status() -> None:
     subject_id = uuid4()
-    err = SubjectNotMountableError(subject_id, current_status="Removed")
+    err = RunSubjectNotMountableError(subject_id, current_status="Removed")
     assert err.subject_id == subject_id
     assert err.current_status == "Removed"
     msg = str(err)
@@ -147,7 +147,7 @@ def test_subject_not_mountable_error_carries_subject_id_and_status() -> None:
 @pytest.mark.unit
 def test_run_asset_decommissioned_error_carries_asset_ids_list() -> None:
     asset_ids = [uuid4(), uuid4()]
-    err = RunAssetDecommissionedError(asset_ids)
+    err = RunPlanAssetDecommissionedError(asset_ids)
     assert err.asset_ids == asset_ids
     assert "Decommissioned" in str(err)
 
@@ -458,45 +458,45 @@ def test_run_dataclass_has_no_adjustments_logbook_id_field() -> None:
     assert "adjustments_logbook_id" not in field_names
 
 
-# ---------- pinned_calibrations validation ----------
+# ---------- pinned_calibration_ids validation ----------
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_empty() -> None:
+def test_validate_pinned_calibration_ids_accepts_empty() -> None:
     """Empty pin set is the default (Run with no AsShot citations)."""
-    assert validate_pinned_calibrations(frozenset()) == frozenset()
+    assert validate_pinned_calibration_ids(frozenset()) == frozenset()
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_within_cap() -> None:
+def test_validate_pinned_calibration_ids_accepts_within_cap() -> None:
     """A reasonable-size pin set (under the cap) is accepted verbatim
     — no element-level existence check at this layer."""
     s = frozenset(uuid4() for _ in range(10))
-    assert validate_pinned_calibrations(s) == s
+    assert validate_pinned_calibration_ids(s) == s
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_accepts_exactly_at_cap() -> None:
+def test_validate_pinned_calibration_ids_accepts_exactly_at_cap() -> None:
     """Boundary: exactly RUN_PINNED_CALIBRATIONS_MAX_ENTRIES is accepted
-    (off-by-one guard mirrors Data BC's validate_used_calibrations boundary
+    (off-by-one guard mirrors Data BC's validate_used_calibration_ids boundary
     test)."""
     s = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES))
-    assert validate_pinned_calibrations(s) == s
+    assert validate_pinned_calibration_ids(s) == s
 
 
 @pytest.mark.unit
-def test_validate_pinned_calibrations_rejects_over_cap() -> None:
+def test_validate_pinned_calibration_ids_rejects_over_cap() -> None:
     """Cardinality cap rejects > RUN_PINNED_CALIBRATIONS_MAX_ENTRIES;
     raises InvalidPinnedCalibrationsError. Mirrors Data BC's
     InvalidUsedCalibrationsError shape exactly (same precedent + same
     default cap of 64)."""
     s = frozenset(uuid4() for _ in range(RUN_PINNED_CALIBRATIONS_MAX_ENTRIES + 1))
     with pytest.raises(InvalidPinnedCalibrationsError):
-        validate_pinned_calibrations(s)
+        validate_pinned_calibration_ids(s)
 
 
 @pytest.mark.unit
-def test_invalid_pinned_calibrations_error_carries_count() -> None:
+def test_invalid_pinned_calibration_ids_error_carries_count() -> None:
     """The error class exposes `.count` for observability + debugging
     (matches Data BC's InvalidUsedCalibrationsError contract)."""
     bad_count = RUN_PINNED_CALIBRATIONS_MAX_ENTRIES + 5

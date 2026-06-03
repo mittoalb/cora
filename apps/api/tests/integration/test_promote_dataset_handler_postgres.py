@@ -154,7 +154,7 @@ async def test_register_dataset_persists_producing_run_end_state_in_payload(
     )
     await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
     method_id = await define_method.bind(deps)(
-        DefineMethod(capability_id=_CAPABILITY_ID, name="M", needed_families=frozenset({cap_id})),
+        DefineMethod(capability_id=_CAPABILITY_ID, name="M", needed_family_ids=frozenset({cap_id})),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

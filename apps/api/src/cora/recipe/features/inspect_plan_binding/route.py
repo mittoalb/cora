@@ -90,7 +90,7 @@ class MissingAffordanceCandidatesItem(BaseModel):
 class InspectPlanBindingResponse(BaseModel):
     """Wire-side diagnostic returned by the endpoint.
 
-    `missing_families` and `missing_affordances` are sorted lists;
+    `missing_family_ids` and `missing_affordances` are sorted lists;
     empty means that dimension is satisfied. `binding_status` is
     the at-a-glance verdict (Satisfied / MissingFamilies /
     MissingAffordances / MissingCapability).
@@ -105,10 +105,10 @@ class InspectPlanBindingResponse(BaseModel):
     practice_id: UUID
     method_id: UUID
     capability_id: UUID | None
-    method_needed_families: list[UUID]
+    method_needed_family_ids: list[UUID]
     capability_required_affordances: list[str]
     wired_assets: list[WiredAssetItem]
-    missing_families: list[UUID]
+    missing_family_ids: list[UUID]
     missing_affordances: list[str]
     missing_affordance_candidates: list[MissingAffordanceCandidatesItem]
     binding_status: str
@@ -157,7 +157,7 @@ async def inspect_plan_binding(
         practice_id=view.practice_id,
         method_id=view.method_id,
         capability_id=view.capability_id,
-        method_needed_families=sorted(view.method_needed_families, key=str),
+        method_needed_family_ids=sorted(view.method_needed_family_ids, key=str),
         capability_required_affordances=sorted(
             a.value for a in view.capability_required_affordances
         ),
@@ -172,7 +172,7 @@ async def inspect_plan_binding(
             )
             for item in view.wired_assets
         ],
-        missing_families=sorted(view.missing_families, key=str),
+        missing_family_ids=sorted(view.missing_family_ids, key=str),
         missing_affordances=sorted(a.value for a in view.missing_affordances),
         missing_affordance_candidates=[
             MissingAffordanceCandidatesItem(

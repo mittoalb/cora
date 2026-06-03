@@ -1,16 +1,16 @@
--- Phase 12c-2: expose `Dataset.used_calibrations` on the Data BC read surface.
+-- Phase 12c-2: expose `Dataset.used_calibration_ids` on the Data BC read surface.
 --
 -- The Calibration BC ↔ Data BC integration at Phase 12c-1 added the
--- AsShot citation set to `Dataset.used_calibrations` (in-memory +
+-- AsShot citation set to `Dataset.used_calibration_ids` (in-memory +
 -- event payload). This migration surfaces those `CalibrationRevision.id`s
 -- on the `proj_data_dataset_summary` read model so downstream consumers
 -- can query "which calibration revisions did this reconstruction
 -- actually cite?" without folding the Dataset stream.
 --
 -- Symmetric to Phase 12b-2's column on `proj_run_summary`:
---   - 12b-2: `proj_run_summary.pinned_calibrations` (AsShot anchor at
+--   - 12b-2: `proj_run_summary.pinned_calibration_ids` (AsShot anchor at
 --     acquisition; pinned at start_run, immutable)
---   - 12c-2: `proj_data_dataset_summary.used_calibrations` (AsShot
+--   - 12c-2: `proj_data_dataset_summary.used_calibration_ids` (AsShot
 --     citation on derivative; pinned at register_dataset, immutable)
 --
 -- The two sets are independent at the DOMAIN level (revision-cited
@@ -34,21 +34,21 @@
 --      drift, not a write-side block.
 --
 -- Additive forward-only migration:
---   - `used_calibrations uuid[] NOT NULL DEFAULT '{}'` so legacy pre-12c
+--   - `used_calibration_ids uuid[] NOT NULL DEFAULT '{}'` so legacy pre-12c
 --     rows backfill cleanly to an empty array (matches the in-memory
 --     frozenset default + the `from_stored` forward-compat fold of
 --     pre-12c `DatasetRegistered` payloads that lacked
---     `used_calibrations`).
---   - GIN index supports the `WHERE used_calibrations @> ARRAY[$N]::uuid[]`
+--     `used_calibration_ids`).
+--   - GIN index supports the `WHERE used_calibration_ids @> ARRAY[$N]::uuid[]`
 --     filter pattern (mirrors Phase 12b-2's index on the symmetric
 --     Run column).
 --
 -- Projection's `apply()` for `DatasetRegistered` is updated in the
 -- same commit (`cora.data.projections.summary._INSERT_DATASET_SQL`)
--- to write `used_calibrations = payload.get("used_calibrations", [])`.
+-- to write `used_calibration_ids = payload.get("used_calibration_ids", [])`.
 
 ALTER TABLE proj_data_dataset_summary
-    ADD COLUMN used_calibrations UUID[] NOT NULL DEFAULT '{}';
+    ADD COLUMN used_calibration_ids UUID[] NOT NULL DEFAULT '{}';
 
-CREATE INDEX proj_data_dataset_summary_used_calibrations_gin_idx
-    ON proj_data_dataset_summary USING GIN (used_calibrations);
+CREATE INDEX proj_data_dataset_summary_used_calibration_ids_gin_idx
+    ON proj_data_dataset_summary USING GIN (used_calibration_ids);

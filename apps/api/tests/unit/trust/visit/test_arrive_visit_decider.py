@@ -4,7 +4,7 @@ import pytest
 
 from cora.trust.aggregates.visit import (
     VisitArrived,
-    VisitCannotTransitionError,
+    VisitCannotArriveError,
     VisitNotFoundError,
     VisitStatus,
 )
@@ -43,12 +43,11 @@ def test_arrive_raises_not_found_on_empty_state() -> None:
 )
 @pytest.mark.unit
 def test_arrive_rejects_non_planned_statuses(current_status: VisitStatus) -> None:
-    with pytest.raises(VisitCannotTransitionError) as exc_info:
+    with pytest.raises(VisitCannotArriveError) as exc_info:
         decide(
             state=make_visit(current_status),
             command=ArriveVisit(visit_id=VISIT_ID),
             now=NOW,
         )
     assert exc_info.value.current_status == current_status
-    assert exc_info.value.requested_transition == "arrive"
     assert exc_info.value.permitted_sources == (VisitStatus.PLANNED,)

@@ -52,7 +52,7 @@ class _OutboundTermsRequest(BaseModel):
     """JSON wire shape for `OutboundTerms`."""
 
     kind: Literal["Outbound"]
-    scope_set: list[_ScopeRefRequest] = Field(..., min_length=1)
+    scopes: list[_ScopeRefRequest] = Field(..., min_length=1)
     read_scope: ReadScope
     onward_action_scope: OnwardActionScope
 
@@ -95,7 +95,7 @@ class DefinePermitRequest(BaseModel):
             "Must match the `terms.kind` arm; the decider rejects mismatches."
         ),
     )
-    allowed_credentials: list[UUID] = Field(
+    allowed_credential_ids: list[UUID] = Field(
         ...,
         min_length=1,
         description="Bounded set of Credential ids permitted under this permit.",
@@ -122,7 +122,7 @@ class DefinePermitRequest(BaseModel):
         ...,
         description=(
             "Direction-specific contractual fields. Discriminated by `kind`: "
-            "`Outbound` carries `scope_set` + `read_scope` + "
+            "`Outbound` carries `scopes` + `read_scope` + "
             "`onward_action_scope`; `Inbound` carries "
             "`inbound_allowed_artifact_kinds` + optional canonicalization / receipt "
             "config."
@@ -146,8 +146,8 @@ def _get_handler(request: Request) -> IdempotentHandler:
 def _build_terms(body: _TermsRequest) -> OutboundTerms | InboundTerms:
     if isinstance(body, _OutboundTermsRequest):
         return OutboundTerms(
-            scope_set=frozenset(
-                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scope_set
+            scopes=frozenset(
+                ScopeRef(kind=s.kind, name=s.name, qualifier=s.qualifier) for s in body.scopes
             ),
             read_scope=body.read_scope,
             onward_action_scope=body.onward_action_scope,
@@ -229,7 +229,7 @@ async def post_federation_permits(
         DefinePermit(
             peer_facility_id=body.peer_facility_id,
             direction=body.direction,
-            allowed_credentials=frozenset(body.allowed_credentials),
+            allowed_credential_ids=frozenset(body.allowed_credential_ids),
             allowed_payload_types=frozenset(body.allowed_payload_types),
             allowed_artifact_kinds=frozenset(body.allowed_artifact_kinds),
             abi_tier_floor=body.abi_tier_floor,

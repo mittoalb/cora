@@ -197,7 +197,7 @@ async def seed_run_upstream_chain_postgres(
     Returns `(plan_id, subject_id)` — the two ids `StartRun` needs.
 
     Hoisted from `test_run_parameters_handler_postgres.py` once a second
-    integration test (12b `pinned_calibrations`) needed the same scaffold;
+    integration test (12b `pinned_calibration_ids`) needed the same scaffold;
     avoids the private-import + `# pyright: ignore` smell of cross-test
     imports. The function uses fresh UUIDs (uuid4) on every call so
     multiple test fns can call it in the same db_pool without colliding
@@ -207,7 +207,7 @@ async def seed_run_upstream_chain_postgres(
     `update_method_parameters_schema` — STRICT validation at Run start
     requires this to be set for any test that supplies non-empty
     `override_parameters` or `plan_defaults`. Pass `None` for the
-    parameter-less Run path (12b `pinned_calibrations` tests).
+    parameter-less Run path (12b `pinned_calibration_ids` tests).
 
     `plan_defaults`: optional dict patched into the Plan's
     `default_parameters` via `update_plan_default_parameters`. Pass
@@ -259,7 +259,7 @@ async def seed_run_upstream_chain_postgres(
         DefineMethod(
             capability_id=capability_id,
             name="Test Method",
-            needed_families=frozenset({family_id}),
+            needed_family_ids=frozenset({family_id}),
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,

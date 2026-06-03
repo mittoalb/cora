@@ -76,7 +76,7 @@ def test_post_restore_rejects_invalid_path_uuid_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_restore_path_distinct_from_exit_maintenance() -> None:
+def test_post_restore_path_distinct_from_exit_asset_maintenance() -> None:
     """Sanity check: the two endpoints don't collide. Both
     exist, both return 204 on their happy paths, but they target
     different state dimensions."""
@@ -85,7 +85,7 @@ def test_post_restore_path_distinct_from_exit_maintenance() -> None:
         # condition restore (fresh asset already Nominal: no-op 204)
         cond = client.post(f"/assets/{asset_id}/restore", json={"reason": "ok"})
         assert cond.status_code == 204
-        # lifecycle exit_maintenance from a fresh Commissioned
+        # lifecycle exit_asset_maintenance from a fresh Commissioned
         # asset must 409 (it requires Maintenance source); both
         # endpoints exist but they aren't routed to the same handler.
         lifecycle = client.post(f"/assets/{asset_id}/exit-maintenance")

@@ -55,15 +55,16 @@ from cora.recipe.aggregates.method import (
     MethodParametersNotSubsetError,
 )
 from cora.recipe.aggregates.plan import (
-    AssetDecommissionedError,
     InvalidPlanDefaultParametersError,
-    InvalidPlanError,
     InvalidPlanNameError,
     InvalidPlanVersionTagError,
     InvalidWireError,
-    MethodDeprecatedError,
     PlanAffordancesNotSatisfiedError,
     PlanAlreadyExistsError,
+    PlanAssetDecommissionedError,
+    PlanAssetsRequiredError,
+    PlanBoundMethodDeprecatedError,
+    PlanBoundPracticeDeprecatedError,
     PlanCannotDeprecateError,
     PlanCannotVersionError,
     PlanFamiliesNotSatisfiedError,
@@ -76,7 +77,6 @@ from cora.recipe.aggregates.plan import (
     PlanWireSelfLoopError,
     PlanWireSignalTypeMismatchError,
     PlanWireTargetAlreadyConnectedError,
-    PracticeDeprecatedError,
 )
 from cora.recipe.aggregates.practice import (
     InvalidPracticeNameError,
@@ -250,7 +250,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidPracticeNameError,
         InvalidPracticeVersionTagError,
         InvalidPlanNameError,
-        InvalidPlanError,
+        PlanAssetsRequiredError,
         InvalidPlanDefaultParametersError,
         InvalidPlanVersionTagError,
         InvalidWireError,
@@ -303,9 +303,9 @@ def register_recipe_routes(app: FastAPI) -> None:
         # Plan binding-state guards (gate-review Q5): "you cannot bind
         # to this thing because of its current state". Same 409 shape
         # as transition guards, registered together.
-        PracticeDeprecatedError,
-        MethodDeprecatedError,
-        AssetDecommissionedError,
+        PlanBoundPracticeDeprecatedError,
+        PlanBoundMethodDeprecatedError,
+        PlanAssetDecommissionedError,
         PlanFamiliesNotSatisfiedError,
         # cross-BC affordance-cover guard: bound Assets'
         # Family.affordances don't union to Method.capability.required_affordances.

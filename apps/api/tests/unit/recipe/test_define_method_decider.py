@@ -49,7 +49,7 @@ def test_decide_emits_method_defined_when_stream_is_empty() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
-            name="XRF Mapping", capability_id=cap.id, needed_families=frozenset({cap1})
+            name="XRF Mapping", capability_id=cap.id, needed_family_ids=frozenset({cap1})
         ),
         capability=cap,
         now=_NOW,
@@ -58,7 +58,7 @@ def test_decide_emits_method_defined_when_stream_is_empty() -> None:
     assert len(events) == 1
     assert events[0].method_id == new_id
     assert events[0].name == "XRF Mapping"
-    assert set(events[0].needed_families) == {cap1}
+    assert set(events[0].needed_family_ids) == {cap1}
     assert events[0].capability_id == cap.id
     assert events[0].occurred_at == _NOW
 
@@ -70,7 +70,7 @@ def test_decide_trims_name_via_value_object() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
-            name="  Step Tomography  ", capability_id=cap.id, needed_families=frozenset()
+            name="  Step Tomography  ", capability_id=cap.id, needed_family_ids=frozenset()
         ),
         capability=cap,
         now=_NOW,
@@ -80,7 +80,7 @@ def test_decide_trims_name_via_value_object() -> None:
 
 
 @pytest.mark.unit
-def test_decide_accepts_empty_needed_families() -> None:
+def test_decide_accepts_empty_needed_family_ids() -> None:
     """Procedural Methods (purely operational, no Family
     requirement) are valid. Pinned because pilot use cases like
     'Sample Cleaning' might land here."""
@@ -88,13 +88,13 @@ def test_decide_accepts_empty_needed_families() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
-            name="Sample Cleaning", capability_id=cap.id, needed_families=frozenset()
+            name="Sample Cleaning", capability_id=cap.id, needed_family_ids=frozenset()
         ),
         capability=cap,
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needed_families == ()
+    assert events[0].needed_family_ids == ()
 
 
 @pytest.mark.unit
@@ -108,13 +108,13 @@ def test_decide_does_not_validate_capability_existence() -> None:
     events = define_method.decide(
         state=None,
         command=DefineMethod(
-            name="X", capability_id=cap.id, needed_families=frozenset({bogus_cap})
+            name="X", capability_id=cap.id, needed_family_ids=frozenset({bogus_cap})
         ),
         capability=cap,
         now=_NOW,
         new_id=uuid4(),
     )
-    assert set(events[0].needed_families) == {bogus_cap}
+    assert set(events[0].needed_family_ids) == {bogus_cap}
 
 
 @pytest.mark.unit
@@ -123,7 +123,7 @@ def test_decide_rejects_invalid_name() -> None:
     with pytest.raises(InvalidMethodNameError):
         define_method.decide(
             state=None,
-            command=DefineMethod(name="", capability_id=cap.id, needed_families=frozenset()),
+            command=DefineMethod(name="", capability_id=cap.id, needed_family_ids=frozenset()),
             capability=cap,
             now=_NOW,
             new_id=uuid4(),
@@ -135,13 +135,13 @@ def test_decide_rejects_existing_state() -> None:
     existing = Method(
         id=uuid4(),
         name=MethodName("XRF Mapping"),
-        needed_families=frozenset(),
+        needed_family_ids=frozenset(),
     )
     cap = _capability()
     with pytest.raises(MethodAlreadyExistsError) as exc_info:
         define_method.decide(
             state=existing,
-            command=DefineMethod(name="Other", capability_id=cap.id, needed_families=frozenset()),
+            command=DefineMethod(name="Other", capability_id=cap.id, needed_family_ids=frozenset()),
             capability=cap,
             now=_NOW,
             new_id=uuid4(),
@@ -155,7 +155,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     cap1 = uuid4()
     cap = _capability()
     command = DefineMethod(
-        name="XRF Mapping", capability_id=cap.id, needed_families=frozenset({cap1})
+        name="XRF Mapping", capability_id=cap.id, needed_family_ids=frozenset({cap1})
     )
     first = define_method.decide(
         state=None, command=command, capability=cap, now=_NOW, new_id=new_id
@@ -164,12 +164,12 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         state=None, command=command, capability=cap, now=_NOW, new_id=new_id
     )
     # Compare the relevant fields (lists may be in different orders
-    # since command.needed_families is a frozenset; the event's
+    # since command.needed_family_ids is a frozenset; the event's
     # list-of-UUIDs comparison via set equality below is the safe pin).
     assert len(first) == len(second) == 1
     assert first[0].method_id == second[0].method_id
     assert first[0].name == second[0].name
-    assert set(first[0].needed_families) == set(second[0].needed_families)
+    assert set(first[0].needed_family_ids) == set(second[0].needed_family_ids)
     assert first[0].capability_id == second[0].capability_id == cap.id
     assert first[0].occurred_at == second[0].occurred_at
 
@@ -231,7 +231,7 @@ def test_decide_accepts_method_shaped_capability_and_propagates_id() -> None:
 @pytest.mark.unit
 def test_decide_returns_event_when_command_has_only_required_fields() -> None:
     """Frozenset() default factory works (calling DefineMethod with
-    name + capability_id only produces empty needed_families). Pinned
+    name + capability_id only produces empty needed_family_ids). Pinned
     because the `field(default_factory=frozenset)` shape is unusual
     and worth locking."""
     cap = _capability()
@@ -242,5 +242,5 @@ def test_decide_returns_event_when_command_has_only_required_fields() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].needed_families == ()
+    assert events[0].needed_family_ids == ()
     assert events[0].capability_id == cap.id

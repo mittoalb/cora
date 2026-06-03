@@ -2,7 +2,7 @@
 
 Seeds 3 Seal singletons (one per unique facility_id suffix) via
 `initialize_seal`, transitions one of them into `Republishing` via
-`start_seal_republishing`, drains the SealProjection, then queries
+`start_seal_republishing`, drains the SealSummaryProjection, then queries
 `list_seals` and verifies:
 
   - all 3 surface in the projection
@@ -12,7 +12,7 @@ Seeds 3 Seal singletons (one per unique facility_id suffix) via
     seeded set (status='Live' scopes tightly to this test's rows)
 
 Each test mints unique facility_id suffixes so the
-`proj_federation_seal` singleton PK on `facility_id` does not collide
+`proj_federation_seal_summary` singleton PK on `facility_id` does not collide
 across runs sharing the same db_pool. The list-query factory enforces
 its cursor over a UUID id; the slice derives that UUID from the row's
 facility_id via `seal_stream_id`, so cursor pagination is exercised

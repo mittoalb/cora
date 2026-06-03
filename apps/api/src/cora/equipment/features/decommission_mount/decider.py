@@ -6,7 +6,7 @@
   - Status must be Active -> MountCannotDecommissionError
     (re-decommission rejected).
   - Mount.installed_asset_id must be None (slot must be vacant)
-    -> MountHasInstalledAssetError (operator must uninstall first;
+    -> MountHasAssetInstalledError (operator must uninstall first;
     no implicit eviction per the design anti-hook).
   - context.active_child_mount_ids must be empty
     -> MountHasActiveChildrenError (no cascade-decommission per the
@@ -20,7 +20,7 @@ from cora.equipment.aggregates.mount import (
     MountCannotDecommissionError,
     MountDecommissioned,
     MountHasActiveChildrenError,
-    MountHasInstalledAssetError,
+    MountHasAssetInstalledError,
     MountNotFoundError,
     MountStatus,
 )
@@ -45,7 +45,7 @@ def decide(
         )
         raise MountCannotDecommissionError(state.id, msg)
     if state.installed_asset_id is not None:
-        raise MountHasInstalledAssetError(state.id, state.installed_asset_id)
+        raise MountHasAssetInstalledError(state.id, state.installed_asset_id)
     if context.active_child_mount_ids:
         raise MountHasActiveChildrenError(state.id, context.active_child_mount_ids)
     return [

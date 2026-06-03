@@ -97,7 +97,7 @@ def _seed_policy_in_store(
     *,
     policy_id: UUID,
     conduit_id: UUID,
-    permitted_principals: frozenset[UUID],
+    permitted_principal_ids: frozenset[UUID],
     permitted_commands: frozenset[str],
 ) -> None:
     """Seed a PolicyDefined event directly into the running app's
@@ -109,7 +109,7 @@ def _seed_policy_in_store(
         policy_id=policy_id,
         name="Test-policy",
         conduit_id=conduit_id,
-        permitted_principals=tuple(permitted_principals),
+        permitted_principal_ids=tuple(permitted_principal_ids),
         permitted_commands=tuple(permitted_commands),
         occurred_at=datetime.now(tz=UTC),
     )
@@ -157,7 +157,7 @@ def trust_authorize_app(
         cast("FastAPI", client.app),
         policy_id=policy_id,
         conduit_id=conduit_id,
-        permitted_principals=frozenset({allowed_principal}),
+        permitted_principal_ids=frozenset({allowed_principal}),
         permitted_commands=frozenset(
             {"RegisterActor", "DefineZone", "DefineConduit", "DefinePolicy"}
         ),
@@ -188,7 +188,7 @@ def test_x_principal_id_not_in_policy_returns_403(
     trust_authorize_app: tuple[TestClient, UUID, UUID],
 ) -> None:
     """End-to-end Deny path: a different principal in the header
-    fails the policy's permitted_principals check → Deny → 403."""
+    fails the policy's permitted_principal_ids check → Deny → 403."""
     client, _, _ = trust_authorize_app
     other_principal = UUID("01900000-0000-7000-8000-000000000a02")
     response = client.post(
@@ -204,7 +204,7 @@ def test_missing_x_principal_id_falls_back_to_system_and_is_denied(
     trust_authorize_app: tuple[TestClient, UUID, UUID],
 ) -> None:
     """No header → SYSTEM_PRINCIPAL_ID fallback → SYSTEM is NOT in
-    the permitted_principals → Deny → 403. Important production
+    the permitted_principal_ids → Deny → 403. Important production
     guard: deployments without an auth proxy effectively run as
     SYSTEM, which (under a real policy) gets nothing."""
     client, _, _ = trust_authorize_app

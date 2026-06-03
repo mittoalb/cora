@@ -34,9 +34,9 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
     # statement itself — so the pragma lives here, not on individual cases.
     match event:  # pragma: no mutate
         case ActorRegistered(actor_id=actor_id, kind=kind):
-            # `is_active` defaults to True on `Actor` — omit the explicit
+            # `active` defaults to True on `Actor` — omit the explicit
             # kwarg so mutmut can't generate a redundancy mutation. The
-            # ActorDeactivated branch below passes `is_active=False`
+            # ActorDeactivated branch below passes `active=False`
             # explicitly (NOT the default).
             return Actor(id=actor_id, kind=kind)
         case ActorDeactivated():
@@ -47,7 +47,7 @@ def evolve(state: Actor | None, event: ActorEvent) -> Actor:
             if state is None:  # pragma: no cover  # pragma: no mutate
                 msg = "ActorDeactivated cannot be applied to empty state"  # pragma: no cover  # pragma: no mutate  # noqa: E501
                 raise ValueError(msg)  # pragma: no cover  # pragma: no mutate
-            return Actor(id=state.id, is_active=False, kind=state.kind)
+            return Actor(id=state.id, active=False, kind=state.kind)
         case ActorProfileForgotten():
             # PII erasure event: aggregate state is unchanged. The
             # event records the audit fact ("operator scrubbed this

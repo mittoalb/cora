@@ -3,8 +3,8 @@
 `Family` is the device-class abstraction: WHAT kind of equipment this is,
 device-agnostic. Examples: "RotaryStage", "LinearStage", "Camera",
 "Scintillator", "Hexapod", "Mirror", "TriggerFPGA". Referenced by
-`Asset.families` to declare what classes a Device belongs to, and by
-`Method.needs.families` to express a Method's hardware contract;
+`Asset.family_ids` to declare what classes a Device belongs to, and by
+`Method.needed_family_ids` to express a Method's hardware contract;
 resolved at `Plan` binding when the contract is matched against
 specific `Asset` instances.
 
@@ -32,14 +32,14 @@ appear in Equipment BC.
 as JSON-friendly strings IF carried in an event payload. Today they
 aren't: state holds the enum (typed) and the evolver derives the new
 status from the event TYPE — same precedent as `SubjectStatus` /
-`ActorDeactivated → is_active=False`.
+`ActorDeactivated → active=False`.
 
 ## Why Family lives in Equipment (not its own BC)
 
 Per the BC map, Family is one of two aggregates in the Equipment BC
 (the other is Asset). Family ships first because it's standalone (no
 cross-aggregate refs to other Equipment aggregates) and unblocks
-Method's `needs.families` contract.
+Method's `needed_family_ids` contract.
 
 ## Bounded-name VO
 

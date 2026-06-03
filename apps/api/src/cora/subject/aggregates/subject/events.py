@@ -21,7 +21,7 @@ mount/dismount workflow (Mounted | Measured -> Received cycle).
 Status is NOT carried in event payloads — the event type itself
 encodes the state change (for example, `SubjectMounted -> status=MOUNTED`).
 The evolver hardcodes the mapping per match arm. Same precedent as
-`ActorDeactivated -> is_active=False`. See state.py docstring for
+`ActorDeactivated -> active=False`. See state.py docstring for
 the rationale.
 """
 

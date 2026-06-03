@@ -32,7 +32,7 @@ directly. The Caution BC's own slice handlers are not invoked.
 ## Idempotency
 
 Fresh UUIDv7 per call + Brandur Idempotency-Key envelope wrapped at
-wire.py (same pattern as re_debrief_run). Same Idempotency-Key on
+wire.py (same pattern as regenerate_run_debrief). Same Idempotency-Key on
 retry returns the cached caution_id; fresh key creates a new
 Caution.
 
@@ -239,7 +239,7 @@ def bind(deps: Kernel) -> Handler:
 
             parent_event = CautionSuperseded(
                 caution_id=parent.id,
-                by_caution_id=new_caution_id,
+                superseded_by_caution_id=new_caution_id,
                 occurred_at=now,
             )
             child_event = CautionRegistered(

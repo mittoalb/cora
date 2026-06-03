@@ -67,7 +67,7 @@ class AssetIntegrationViewResponse(BaseModel):
     serialize in deterministic order (families/cautions/capabilities by
     their canonical sort; ports already sorted by name in the handler).
 
-    `incomplete` is TRUE if any Family in `asset.families` failed to load
+    `incomplete` is TRUE if any Family in `asset.family_ids` failed to load
     (eventual-consistency tolerance per
     [[project-dataset-lineage-design]]); consumers should treat the
     bundle as partial in that case.

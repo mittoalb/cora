@@ -180,7 +180,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             CautionCategoryFilter | None,
             Field(description="Optional category filter; omit to list all."),
         ] = None,
-        severity: Annotated[
+        severities: Annotated[
             list[CautionSeverityFilter] | None,
             Field(
                 description=(
@@ -199,7 +199,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 ),
             ),
         ] = None,
-        status: Annotated[
+        statuses: Annotated[
             list[_ToolStatusParam] | None,
             Field(
                 description=(
@@ -222,8 +222,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             Field(description="Optional author filter."),
         ] = None,
     ) -> CautionListOutput:
-        severities = _resolve_severities(severity, min_severity)
-        statuses = _resolve_statuses(status)
+        resolved_severities = _resolve_severities(severities, min_severity)
+        resolved_statuses = _resolve_statuses(statuses)
         handler = get_handler()
         page = await handler(
             ListCautions(
@@ -232,8 +232,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 target_kind=target_kind,
                 target_id=target_id,
                 category=category,
-                severities=severities,
-                statuses=statuses,
+                severities=resolved_severities,
+                statuses=resolved_statuses,
                 tag=tag,
                 author_actor_id=author_actor_id,
             ),

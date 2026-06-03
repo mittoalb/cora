@@ -3,7 +3,7 @@
 `Asset` is the physical equipment instance: a beamline, a detector,
 a sample changer, an HPC node. Hierarchical via `parent_id` (forms
 a tree, NOT a DAG — single-parent rule per BC map). Carries a
-`level` discriminator (Enterprise / Site / Area / Unit / Assembly /
+`level` discriminator (Enterprise / Site / Area / Unit / Component /
 Device, ISA-88-derived), a `lifecycle` FSM
 (Commissioned -> Active -> Maintenance -> Decommissioned), a
 `condition` enum (Nominal / Degraded / Faulted, 5g-b: orthogonal to
@@ -26,7 +26,7 @@ facets — `condition`, `settings`, `ports`, `owner`,
 
 Per the BC map:
   - `Enterprise` is the root level — `parent_id` MUST be null.
-  - All other levels (Site / Area / Unit / Assembly / Device) MUST
+  - All other levels (Site / Area / Unit / Component / Device) MUST
     have a `parent_id`.
 
 Eventual-consistency stance for the parent ref: the decider does
@@ -38,7 +38,7 @@ to projection-worker era. Single-parent tree is enforced
 structurally (one `parent_id` field, can't be a list).
 
 **Levels are conventional, not enforced** per the BC map: the
-decider does NOT check that a Device's parent is an Assembly.
+decider does NOT check that a Device's parent is a Component.
 `Device`-in-`Device` is allowed when reality demands it (smart
 instruments with addressable sub-modules).
 
@@ -73,6 +73,7 @@ from cora.equipment.aggregates._drawing import Drawing
 from cora.infrastructure.bounded_text import validate_bounded_text
 
 ASSET_NAME_MAX_LENGTH = 200
+ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH = 200
 
 
 class AssetLevel(StrEnum):
@@ -83,20 +84,20 @@ class AssetLevel(StrEnum):
       - `Site`: a facility (for example, APS)
       - `Area`: a section of a site (for example, the experimental hall)
       - `Unit`: an operational unit (for example, a beamline)
-      - `Assembly`: a composed component (ISA-88 "Equipment Module")
+      - `Component`: a composed sub-system (ISA-88 "Equipment Module" tier)
       - `Device`: an addressable control surface (ISA-88 "Control Module")
 
     Common pattern is the strict ordering above, but Device-in-Device
     is allowed when reality demands it (smart instruments). Levels
     are conventional, not enforced: the decider does not check that
-    a Device's parent is an Assembly.
+    a Device's parent is a Component.
     """
 
     ENTERPRISE = "Enterprise"
     SITE = "Site"
     AREA = "Area"
     UNIT = "Unit"
-    ASSEMBLY = "Assembly"
+    COMPONENT = "Component"
     DEVICE = "Device"
 
 
@@ -106,8 +107,8 @@ class AssetLifecycle(StrEnum):
     Transitions land per-slice:
       - 5c: Commissioned -> Active        (activate_asset)
       - 5c: (Commissioned | Active) -> Decommissioned   (decommission_asset)
-      - 5e: Active -> Maintenance         (enter_maintenance)
-      - 5e: Maintenance -> Active         (exit_maintenance)
+      - 5e: Active -> Maintenance         (enter_asset_maintenance)
+      - 5e: Maintenance -> Active         (exit_asset_maintenance)
       - 5e (extends 5c): decommission accepts Maintenance as third source
 
     `Commissioned` is the genesis state set by `register_asset`. The
@@ -199,6 +200,148 @@ class AssetPort:
         object.__setattr__(self, "signal_type", trimmed_signal)
 
 
+class AlternateIdentifierKind(StrEnum):
+    """Closed vocabulary for an Asset's alternate-identifier kind.
+
+    Values are verbatim from PIDINST v1.0 spec page 8 (Table 1)
+    Property 13 `alternateIdentifierType` controlled vocabulary:
+    SerialNumber, InventoryNumber, Other. Operationally:
+
+      - `SerialNumber` is the manufacturer's per-unit identifier
+        (the value engraved on the chassis or printed on the QR
+        sticker; for example, an Aerotech ANT130-L's `12345-ABC`).
+      - `InventoryNumber` is the facility-issued asset tag (for
+        example, an APS-issued `APS-2BM-CAM-001`).
+      - `Other` is the catch-all for vendor-specific or
+        unconventional identifier schemes that don't fit the prior
+        two; resolution is operator-supplied free text in the
+        `value` field.
+
+    Adding a fourth member is an additive enum change at a future
+    migration boundary. The closed-enum stance mirrors
+    `ManufacturerIdentifierType` (Model BC) and the broader
+    [[project-family-affordance-design]] closed-vocabulary
+    precedent. See [[project-asset-alternate-identifiers-design]]
+    Lock B for the design rationale.
+    """
+
+    SERIAL_NUMBER = "SerialNumber"
+    INVENTORY_NUMBER = "InventoryNumber"
+    OTHER = "Other"
+
+
+class InvalidAlternateIdentifierValueError(ValueError):
+    """The supplied alternate-identifier value is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Alternate identifier value must be 1-{ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH} "
+            f"chars after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class AlternateIdentifier:
+    """A flat (kind, value) tuple identifying an Asset under an alternate scheme.
+
+    PIDINST v1.0 Property 13: instance-tier alternate identifiers
+    distinct from the PID-tier persistent identifier. Examples:
+
+      - `(SerialNumber, "12345-ABC")` for a manufacturer's serial
+      - `(InventoryNumber, "APS-2BM-CAM-001")` for a facility asset tag
+      - `(Other, "RIC-99")` for a legacy or vendor-specific scheme
+
+    `value` is trimmed and length-bounded 1-200 chars via the shared
+    `validate_bounded_text` helper, matching the
+    `ManufacturerIdentifier` precedent in the Model BC. The VO is
+    FLAT (kind + value); no scheme URIs, namespaces, or labels per
+    [[project-asset-alternate-identifiers-design]] Lock C. Pairing
+    uniqueness across Assets is NOT enforced in v1 (Lock F).
+    """
+
+    kind: AlternateIdentifierKind
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
+            error_class=InvalidAlternateIdentifierValueError,
+        )
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+class AssetAlternateIdentifierAlreadyPresentError(Exception):
+    """Attempted to add an AlternateIdentifier already in the asset's set.
+
+    Strict-not-idempotent: same precedent as
+    `AssetCannotAddPortError` and `ModelFamilyAlreadyPresentError`.
+    The full `AlternateIdentifier` VO (kind + value) is carried for
+    diagnostics; uniqueness is keyed on the (kind, value) tuple at
+    the Asset scope ONLY (per
+    [[project-asset-alternate-identifiers-design]] Lock F, no
+    cross-Asset uniqueness in v1).
+    """
+
+    def __init__(self, asset_id: UUID, identifier: AlternateIdentifier) -> None:
+        super().__init__(
+            f"Asset {asset_id} already has alternate identifier "
+            f"{identifier.kind.value}={identifier.value!r}; "
+            "add_asset_alternate_identifier is strict-not-idempotent"
+        )
+        self.asset_id = asset_id
+        self.identifier = identifier
+
+
+class AssetAlternateIdentifierNotPresentError(Exception):
+    """Attempted to remove an AlternateIdentifier not in the asset's set.
+
+    Mirror of `AssetAlternateIdentifierAlreadyPresentError`.
+    Strict-not-idempotent: the decider rejects rather than no-ops on
+    a missing identifier. Same shape as `AssetCannotRemovePortError`
+    and `ModelFamilyNotPresentError`.
+    """
+
+    def __init__(self, asset_id: UUID, identifier: AlternateIdentifier) -> None:
+        super().__init__(
+            f"Asset {asset_id} does not have alternate identifier "
+            f"{identifier.kind.value}={identifier.value!r}; nothing to remove"
+        )
+        self.asset_id = asset_id
+        self.identifier = identifier
+
+
+class AssetCannotAddAlternateIdentifierError(Exception):
+    """Attempted to add / remove an AlternateIdentifier under a disqualifying lifecycle.
+
+    Used by BOTH `add_asset_alternate_identifier` and
+    `remove_asset_alternate_identifier` deciders: the lifecycle guard
+    (asset is `Decommissioned`) is symmetric across the add and
+    remove transitions; mirrors `AssetCannotAddPortError`'s
+    reason-bearing pattern. Operationally: a Decommissioned asset is
+    out of inventory and identifier changes are not permitted.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        kind: AlternateIdentifierKind,
+        value: str,
+        *,
+        reason: str,
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot mutate alternate identifier {kind.value}={value!r}: {reason}"
+        )
+        self.asset_id = asset_id
+        self.kind = kind
+        self.value = value
+        self.reason = reason
+
+
 class AssetCondition(StrEnum):
     """The Asset's real-time device-health state.
 
@@ -265,7 +408,7 @@ class InvalidAssetParentError(ValueError):
       - Enterprise-level Asset supplied a non-null `parent_id`
         (Enterprise is the root; cannot have a parent)
       - Non-Enterprise-level Asset supplied a null `parent_id`
-        (Site / Area / Unit / Assembly / Device must have a parent)
+        (Site / Area / Unit / Component / Device must have a parent)
 
     Eventual-consistency stance: this decider rule does NOT check
     that the referenced parent Asset exists. Cycle detection
@@ -350,7 +493,7 @@ class AssetCannotEnterMaintenanceError(Exception):
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
             f"Asset {asset_id} cannot enter maintenance: currently in lifecycle "
-            f"{current_lifecycle.value}, enter_maintenance requires "
+            f"{current_lifecycle.value}, enter_asset_maintenance requires "
             f"{AssetLifecycle.ACTIVE.value}"
         )
         self.asset_id = asset_id
@@ -368,7 +511,7 @@ class AssetCannotExitMaintenanceError(Exception):
     def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
         super().__init__(
             f"Asset {asset_id} cannot exit maintenance: currently in lifecycle "
-            f"{current_lifecycle.value}, exit_maintenance requires "
+            f"{current_lifecycle.value}, exit_asset_maintenance requires "
             f"{AssetLifecycle.MAINTENANCE.value}"
         )
         self.asset_id = asset_id
@@ -384,12 +527,12 @@ class AssetCannotAddFamilyError(Exception):
     `reason` string that surfaces in the route's 409 body:
 
       - asset is `Decommissioned` (retired; no further family changes)
-      - family already in `asset.families` (strict-not-idempotent;
+      - family already in `asset.family_ids` (strict-not-idempotent;
         same precedent as activate / mount-second-call-raises)
 
     Eventual-consistency: the decider does NOT verify the referenced
     Family id refers to a real Family stream. Same precedent
-    as Trust Conduit zone refs (3b) and Method.needed_families
+    as Trust Conduit zone refs (3b) and Method.needed_family_ids
     (6a).
     """
 
@@ -406,7 +549,7 @@ class AssetCannotRemoveFamilyError(Exception):
     Mirrors `AssetCannotAddFamilyError`. Disqualifying conditions:
 
       - asset is `Decommissioned` (retired)
-      - family not in `asset.families` (strict-not-idempotent)
+      - family not in `asset.family_ids` (strict-not-idempotent)
     """
 
     def __init__(self, asset_id: UUID, family_id: UUID, reason: str) -> None:
@@ -450,6 +593,45 @@ class AssetCannotRemovePortError(Exception):
         self.asset_id = asset_id
         self.port_name = port_name
         self.reason = reason
+
+
+class AssetModelMismatchError(Exception):
+    """The Asset's families set does not satisfy the bound Model's declared families.
+
+    Cross-BC subset invariant: when an Asset is bound to a Model via
+    `model_id`, the Asset's `family_ids` must be a superset of the
+    Model's `declared_family_ids`. The check fires at `add_asset_family`
+    against a freshly loaded Model snapshot; if the post-add families
+    set is not a superset of `declared_family_ids`, this error is raised
+    and no event is emitted.
+
+    The message lists both sets verbatim so operators reading the API
+    error response see immediately which Families are missing on the
+    Asset (or, in the cascade case, which Families the Model has added
+    since the binding). Mapped to HTTP 409 via the
+    `cannot_transition_cls` tuple in `routes.py`.
+
+    Per the model-binding design memo (Lock E), this class lives in
+    the Asset BC per the per-BC error-class convention; the Model-side
+    equivalent does not exist because the binding is one-directional.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        model_id: UUID,
+        declared_family_ids: frozenset[UUID],
+        asset_family_ids: frozenset[UUID],
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} bound to Model {model_id} which declares families "
+            f"{sorted(declared_family_ids)}, but Asset families would be "
+            f"{sorted(asset_family_ids)} after this transition"
+        )
+        self.asset_id = asset_id
+        self.model_id = model_id
+        self.declared_family_ids = declared_family_ids
+        self.asset_family_ids = asset_family_ids
 
 
 class AssetCannotRelocateError(Exception):
@@ -509,12 +691,12 @@ class Asset:
     `None` only when `level == Enterprise` (root). Mutable across
     `AssetRelocated` events.
 
-    `families` is the set of Family ids this asset belongs to.
+    `family_ids` is the set of Family ids this asset belongs to.
     Operationally curated: operators add via `add_asset_family` when
     commissioning a new device-class on the asset, remove via
     `remove_asset_family` when retiring one. Used at Plan binding
     time (6e) for the structural check
-    `asset.families ⊇ method.needed_families`. Eventual-
+    `asset.family_ids ⊇ method.needed_family_ids`. Eventual-
     consistency: each Family id is NOT verified against the
     Family stream at decide time. Defaults to empty so prior
     `AssetRegistered`-only streams fold cleanly without an upcaster
@@ -553,6 +735,28 @@ class Asset:
     AssetRegistered streams without the drawing field fold cleanly
     via the additive-state pattern.
 
+    `model_id`: optional reference to the Model catalog entry this
+    Asset is an instance of (Family -> Model -> Assembly -> Asset
+    ladder). Set ONCE at `register_asset` time per the model-binding
+    design memo (Lock A); rebind path is decommission + re-register.
+    Carries the cross-BC subset invariant
+    `Model.declared_family_ids ⊆ Asset.family_ids`, enforced at
+    `add_asset_family` against a freshly loaded Model snapshot.
+    Defaults to None; legacy AssetRegistered streams without the
+    model_id field fold cleanly via the additive-state pattern.
+
+    `alternate_identifiers`: frozenset of PIDINST v1.0 Property 13
+    alternate identifiers (serial numbers, inventory tags, vendor-
+    specific schemes). Each entry is a flat `AlternateIdentifier`
+    VO (kind + value). Updated incrementally via
+    `add_asset_alternate_identifier` /
+    `remove_asset_alternate_identifier` slices; the optional
+    `alternate_identifiers` parameter at `register_asset` time
+    seeds the initial set. Defaults to empty frozenset; legacy
+    AssetRegistered streams without the field fold cleanly via the
+    additive-state pattern. See
+    [[project-asset-alternate-identifiers-design]] Locks A, D, E.
+
     Future additive facets: `owner`, `persistent_id`. The state-
     level fields land with defaults for the same forward-
     compatibility reason.
@@ -568,14 +772,23 @@ class Asset:
     # `frozenset` as default_factory triggers reportUnknownVariableType
     # under pyright strict because the empty frozenset has no element
     # type to infer. The parametrized form gives pyright the type
-    # without runtime cost. Same trick used in Method.needed_families.
-    families: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # without runtime cost. Same trick used in Method.needed_family_ids.
+    family_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     # dict[str, Any] for runtime-typed operator-supplied settings.
-    # Same default_factory pattern as families — the empty dict
+    # Same default_factory pattern as family_ids — the empty dict
     # has no element types for pyright to infer, so the parametrized
     # `dict[str, Any]` callable is supplied as the factory.
     settings: dict[str, Any] = field(default_factory=dict[str, Any])
     # frozenset[AssetPort] for typed connection points (5h).
-    # Same parametrized-callable trick as families.
+    # Same parametrized-callable trick as family_ids.
     ports: frozenset[AssetPort] = field(default_factory=frozenset[AssetPort])
     drawing: Drawing | None = None
+    model_id: UUID | None = None
+    # frozenset[AlternateIdentifier] for PIDINST v1.0 Property 13
+    # alternate-identifier tuples. Same parametrized-callable trick
+    # as family_ids / ports — empty frozenset has no element type for
+    # pyright to infer under strict, so the parametrized callable is
+    # supplied as the factory.
+    alternate_identifiers: frozenset[AlternateIdentifier] = field(
+        default_factory=frozenset[AlternateIdentifier]
+    )

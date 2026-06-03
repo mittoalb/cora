@@ -24,7 +24,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Actor` | `id: UUID` | `id`, `name: ActorName`, `is_active: bool`, `kind: ActorKind` | yes (binary, terminal) |
+| `Actor` | `id: UUID` | `id`, `name: ActorName`, `active: bool`, `kind: ActorKind` | yes (binary, terminal) |
 
 ## Value Objects
 
@@ -49,7 +49,7 @@ stateDiagram-v2
 | `[*]` | `Active` | `register_actor` | `ActorRegistered` |
 | `Active` | `Deactivated` | `deactivate_actor` | `ActorDeactivated` |
 
-The state is carried by the `is_active` boolean on the aggregate; `Active` and `Deactivated` are read in the FSM sense from that flag plus the existence of the genesis event. `Deactivated` is terminal: there is no command that flips `is_active` back to True. References to a deactivated Actor remain valid for audit and read paths; downstream modules that need to gate new work on an Actor's active status check `is_active` at the Authorize port.
+The state is carried by the `active` boolean on the aggregate; `Active` and `Deactivated` are read in the FSM sense from that flag plus the existence of the genesis event. `Deactivated` is terminal: there is no command that flips `active` back to True. References to a deactivated Actor remain valid for audit and read paths; downstream modules that need to gate new work on an Actor's active status check `active` at the Authorize port.
 
 ## Events
 
@@ -162,7 +162,7 @@ The four examples below cover the canonical Actor lifecycle: register a human, d
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
     ```
 
-    Returns `200 OK`. The Actor's `is_active` flag flips to False and the row's `status` becomes `deactivated`. A second call returns `409 Conflict` with `ActorAlreadyDeactivated`.
+    Returns `200 OK`. The Actor's `active` flag flips to False and the row's `status` becomes `deactivated`. A second call returns `409 Conflict` with `ActorAlreadyDeactivated`.
 
 === "MCP"
 
@@ -179,7 +179,7 @@ The four examples below cover the canonical Actor lifecycle: register a human, d
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
     ```
 
-    Returns `200 OK` with `actor_id`, `name`, `kind`, and `is_active`. `404 Not Found` if the stream has no events.
+    Returns `200 OK` with `actor_id`, `name`, `kind`, and `active`. `404 Not Found` if the stream has no events.
 
 === "MCP"
 

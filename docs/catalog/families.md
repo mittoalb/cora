@@ -1,6 +1,6 @@
 # Families
 
-*Equipment BC Families. A Family names a kind of thing an Asset can do (device-class abstraction), and is the contract by which a Method declares the device types its realizations need (via `needed_families`). Each Family carries a set of [Affordances](../reference/affordances.md) — the primitive operations the device-class supports — which the cross-BC Plan-binding matching engine compares against the Method's bound [Capability](capabilities.md)'s `required_affordances`. Families are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
+*Equipment BC Families. A Family names a kind of thing an Asset can do (device-class abstraction), and is the contract by which a Method declares the device types its realizations need (via `needed_family_ids`). Each Family carries a set of [Affordances](../reference/affordances.md) — the primitive operations the device-class supports — which the cross-BC Plan-binding matching engine compares against the Method's bound [Capability](capabilities.md)'s `required_affordances`. Families are cross-facility vocabulary, not bound to any Site. See [Model](../architecture/model.md) for the aggregate shape.*
 
 | Family | Used by Methods |
 | --- | --- |

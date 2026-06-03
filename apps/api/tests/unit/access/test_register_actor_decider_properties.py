@@ -51,7 +51,7 @@ _ANY_DATETIME = st.datetimes()
 
 
 def _actor(actor_id: UUID, kind: ActorKind = ActorKind.HUMAN) -> Actor:
-    return Actor(id=actor_id, is_active=True, kind=kind)
+    return Actor(id=actor_id, active=True, kind=kind)
 
 
 @pytest.mark.unit

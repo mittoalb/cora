@@ -1,6 +1,6 @@
 """HTTP route for the `release_control_of_surface` slice.
 
-Action endpoint at `POST /visits/{visit_id}/release-control-of-surface`. JSON
+Action endpoint at `POST /visits/{visit_id}/surface-control/release`. JSON
 body carries `surface_id`. 204 on success.
 """
 
@@ -29,7 +29,7 @@ router = APIRouter(tags=["trust"])
 
 
 class ReleaseControlOfSurfaceBody(BaseModel):
-    """Body for POST /visits/{visit_id}/release-control-of-surface."""
+    """Body for POST /visits/{visit_id}/surface-control/release."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -42,7 +42,7 @@ class ReleaseControlOfSurfaceBody(BaseModel):
 
 
 @router.post(
-    "/visits/{visit_id}/release-control-of-surface",
+    "/visits/{visit_id}/surface-control/release",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {

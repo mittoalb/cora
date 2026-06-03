@@ -3,10 +3,10 @@
 Pinned response shape:
     {
       practice_id, method_id, capability_id,
-      method_needed_families[], capability_required_affordances[],
+      method_needed_family_ids[], capability_required_affordances[],
       wired_assets: [{asset_id, asset_name, condition, lifecycle,
                       family_ids[], contributed_affordances[]}],
-      missing_families[], missing_affordances[], binding_status
+      missing_family_ids[], missing_affordances[], binding_status
     }
 
 Lists are deterministically sorted (asset_id stringification for
@@ -37,7 +37,7 @@ def _seed_practice_with_capability(
         json={
             "name": "Test Method",
             "capability_id": cap_id,
-            "needed_families": [family_id],
+            "needed_family_ids": [family_id],
         },
     ).json()["method_id"]
     practice_id = client.post(
@@ -69,9 +69,9 @@ def test_endpoint_returns_satisfied_for_complete_binding() -> None:
     body = response.json()
     assert body["practice_id"] == practice_id
     assert body["binding_status"] == "Satisfied"
-    assert body["missing_families"] == []
+    assert body["missing_family_ids"] == []
     assert body["missing_affordances"] == []
-    assert body["method_needed_families"] == [family_id]
+    assert body["method_needed_family_ids"] == [family_id]
     assert body["capability_required_affordances"] == ["Marking", "Rotatable"]
     assert len(body["wired_assets"]) == 1
     wired = body["wired_assets"][0]
@@ -99,7 +99,7 @@ def test_endpoint_returns_missing_affordances_when_family_lacks_affordance() -> 
     assert response.status_code == 200
     body = response.json()
     assert body["binding_status"] == "MissingAffordances"
-    assert body["missing_families"] == []
+    assert body["missing_family_ids"] == []
     assert body["missing_affordances"] == ["Marking"]
     # In-memory contract harness has no pool -> candidate enumeration
     # skipped; the field is present but empty regardless of
@@ -110,7 +110,7 @@ def test_endpoint_returns_missing_affordances_when_family_lacks_affordance() -> 
 @pytest.mark.contract
 def test_endpoint_returns_missing_families_when_asset_lacks_required_family() -> None:
     """Asset bound but doesn't carry the Family the Method needs ->
-    wire-side `missing_families` populated with a UUID; pins serialization."""
+    wire-side `missing_family_ids` populated with a UUID; pins serialization."""
     with TestClient(create_app()) as client:
         cap_id = create_capability_via_api(client, required_affordances=["Rotatable"])
         family_id = client.post(
@@ -121,7 +121,7 @@ def test_endpoint_returns_missing_families_when_asset_lacks_required_family() ->
             json={
                 "name": "Test Method",
                 "capability_id": cap_id,
-                "needed_families": [family_id],
+                "needed_family_ids": [family_id],
             },
         ).json()["method_id"]
         practice_id = client.post(
@@ -146,7 +146,7 @@ def test_endpoint_returns_missing_families_when_asset_lacks_required_family() ->
     assert response.status_code == 200
     body = response.json()
     assert body["binding_status"] == "MissingFamilies"
-    assert body["missing_families"] == [family_id]
+    assert body["missing_family_ids"] == [family_id]
     # Affordances dimension is also unsatisfied because the missing
     # Family was the one that would have contributed Rotatable.
     assert body["missing_affordances"] == ["Rotatable"]
