@@ -79,6 +79,8 @@ _DOMAIN_NOUN_ALLOWLIST: frozenset[str] = frozenset(
         "reasoning",  # Decision: append_reasoning_entries
         "entry",  # Decision: append_reasoning_entries (plural-stripped)
         "permission",  # Trust: list_permissions
+        "event",  # Agent: dismiss_event_in_reaction
+        "reaction",  # Agent: dismiss_event_in_reaction (Reaction = subscriber class)
     }
 )
 
