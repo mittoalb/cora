@@ -26,19 +26,29 @@ async def _insert_event(
     *,
     signature: bytes | None,
     signature_kid: str | None,
+    signature_version: str | None = None,
 ) -> None:
-    """Insert one minimal event row with the given signature shape."""
+    """Insert one minimal event row with the given signature shape.
+
+    `signature_version` follows the matched-pair invariant on the
+    events table: it must be set iff `signature` is set. Defaults
+    to "cora/v1" when `signature` is non-None and no explicit version
+    was passed, so existing tests focused on the signature/kid pair
+    stay valid without per-call boilerplate.
+    """
+    if signature is not None and signature_version is None:
+        signature_version = "cora/v1"
     async with pool.acquire() as conn:
         await conn.execute(
             """
             INSERT INTO events (
                 event_id, stream_type, stream_id, version, event_type,
                 payload, correlation_id, occurred_at,
-                signature, signature_kid
+                signature, signature_kid, signature_version
             ) VALUES (
                 $1, 'TestStream', $2, 1, 'TestEvent',
                 '{}'::jsonb, $3, now(),
-                $4, $5
+                $4, $5, $6
             )
             """,
             uuid4(),
@@ -46,6 +56,7 @@ async def _insert_event(
             uuid4(),
             signature,
             signature_kid,
+            signature_version,
         )
 
 

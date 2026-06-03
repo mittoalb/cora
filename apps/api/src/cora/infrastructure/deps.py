@@ -39,10 +39,25 @@ in exactly two function bodies (the two primitives) instead of every
 test file individually.
 """
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import asyncpg
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from cora.infrastructure.ports.federation import (
+        PermitLookup,
+        PublishPort,
+        SignaturePort,
+    )
+
+from cora.infrastructure.adapters.canonicalization_registry import (
+    CanonicalizationRegistry,
+)
+from cora.infrastructure.adapters.default_canonicalization_adapter import (
+    DefaultCanonicalizationAdapter,
+)
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
@@ -50,6 +65,7 @@ from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfile
 from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.adapters.postgres_idempotency_store import PostgresIdempotencyStore
 from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
+from cora.infrastructure.adapters.signing_registry import SigningRegistry
 from cora.infrastructure.auth import build_idp_registry, build_static_subject_mapper
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel, Teardown
@@ -96,6 +112,21 @@ class AuthorizeFactory(Protocol):
     ) -> Authorize: ...
 
 
+def _build_default_canonicalization_registry() -> CanonicalizationRegistry:
+    """Return a CanonicalizationRegistry with the v1 default adapter registered.
+
+    The v1 adapter MUST be registered in every CORA deployment per
+    project_canonicalization_port_design.md; the default version is
+    set to "cora/v1" so write-side call sites resolve via the
+    deployment-wide default. Future v2+ adapters register alongside
+    via configuration without dislodging v1.
+    """
+    registry = CanonicalizationRegistry()
+    registry.register("cora/v1", DefaultCanonicalizationAdapter())
+    registry.set_default("cora/v1")
+    return registry
+
+
 def make_postgres_kernel(
     pool: asyncpg.Pool,
     *,
@@ -113,6 +144,9 @@ def make_postgres_kernel(
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
+    publish_port: "PublishPort | None" = None,
+    signature_port: "SignaturePort | None" = None,
+    permit_lookup: "PermitLookup | None" = None,
 ) -> Kernel:
     """Postgres-backed Kernel primitive.
 
@@ -191,6 +225,11 @@ def make_postgres_kernel(
             credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
         ),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
+        canonicalization_registry=_build_default_canonicalization_registry(),
+        signing_registry=SigningRegistry(),
+        publish_port=publish_port,
+        signature_port=signature_port,
+        permit_lookup=permit_lookup,
         pool=pool,
         llm=llm,
         logbook_mirror=logbook_mirror,
@@ -214,6 +253,9 @@ def make_inmemory_kernel(
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
     token_verifier: TokenVerifier | None = None,
+    publish_port: "PublishPort | None" = None,
+    signature_port: "SignaturePort | None" = None,
+    permit_lookup: "PermitLookup | None" = None,
     pool: object | None = None,
 ) -> Kernel:
     """In-memory Kernel primitive.
@@ -286,6 +328,11 @@ def make_inmemory_kernel(
             credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
         ),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
+        canonicalization_registry=_build_default_canonicalization_registry(),
+        signing_registry=SigningRegistry(),
+        publish_port=publish_port,
+        signature_port=signature_port,
+        permit_lookup=permit_lookup,
         # pool is intentionally typed `object | None` on this factory's
         # signature (per the docstring: idempotency-pruner tests pass a
         # non-None sentinel without standing up real asyncpg). Kernel.pool
@@ -411,6 +458,9 @@ async def build_kernel(
     caution_lookup_factory: CautionLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
     credential_lookup_factory: CredentialLookupFactory | None = None,
+    publish_port_factory: "Callable[[], PublishPort] | None" = None,
+    signature_port_factory: "Callable[[], SignaturePort] | None" = None,
+    permit_lookup_factory: "Callable[[], PermitLookup] | None" = None,
     llm_factory: LLMFactory | None = None,
     settings: Settings | None = None,
 ) -> tuple[Kernel, Teardown]:
@@ -466,6 +516,9 @@ async def build_kernel(
             event_store=event_store,
             idempotency_store=idempotency_store,
             token_verifier=token_verifier,
+            publish_port=publish_port_factory() if publish_port_factory is not None else None,
+            signature_port=signature_port_factory() if signature_port_factory is not None else None,
+            permit_lookup=permit_lookup_factory() if permit_lookup_factory is not None else None,
         )
         return kernel, _noop_teardown
 
@@ -518,6 +571,9 @@ async def build_kernel(
         credential_lookup=credential_lookup,
         llm=llm,
         token_verifier=token_verifier,
+        publish_port=publish_port_factory() if publish_port_factory is not None else None,
+        signature_port=signature_port_factory() if signature_port_factory is not None else None,
+        permit_lookup=permit_lookup_factory() if permit_lookup_factory is not None else None,
     )
     return kernel, _compose_teardowns([_maybe_llm_teardown(llm), _make_pool_teardown(pool)])
 
