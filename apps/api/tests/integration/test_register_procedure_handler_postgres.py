@@ -74,6 +74,7 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
         "parent_run_id": None,
         "capability_id": None,
+        "recipe_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
