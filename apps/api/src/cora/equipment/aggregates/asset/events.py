@@ -480,6 +480,21 @@ class AssetRelocated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class AssetAttachedToFixture:
+    """The Asset was bound into a Fixture (registered Assembly materialization).
+
+    Sets the Asset's `fixture_id` back-reference. The Fixture side
+    carries the slot_name in its `slot_asset_bindings`; this event
+    only records the back-pointer so the conformance projection can
+    answer "what Fixture is this Asset in?" in O(1).
+    """
+
+    asset_id: UUID
+    fixture_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Asset aggregate emits.
 # Add new event classes above and extend this alias when new
 # slices land.
@@ -502,6 +517,7 @@ AssetEvent = (
     | AssetAlternateIdentifierRemoved
     | AssetOwnerAdded
     | AssetOwnerRemoved
+    | AssetAttachedToFixture
 )
 
 
@@ -710,6 +726,16 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             return {
                 "asset_id": str(asset_id),
                 "owner_name": owner_name.value,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetAttachedToFixture(
+            asset_id=asset_id,
+            fixture_id=fixture_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "fixture_id": str(fixture_id),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -935,6 +961,15 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 ),
                 extra=(ValueError,),
             )
+        case "AssetAttachedToFixture":
+            return deserialize_or_raise(
+                "AssetAttachedToFixture",
+                lambda: AssetAttachedToFixture(
+                    asset_id=UUID(payload["asset_id"]),
+                    fixture_id=UUID(payload["fixture_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -944,6 +979,7 @@ __all__ = [
     "AssetActivated",
     "AssetAlternateIdentifierAdded",
     "AssetAlternateIdentifierRemoved",
+    "AssetAttachedToFixture",
     "AssetDecommissioned",
     "AssetDegraded",
     "AssetEvent",

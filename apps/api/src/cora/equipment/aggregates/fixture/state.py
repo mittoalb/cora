@@ -84,8 +84,23 @@ class FixtureAlreadyExistsError(Exception):
         self.fixture_id = fixture_id
 
 
+class FixtureNotFoundError(Exception):
+    """No Fixture exists for the given fixture_id.
+
+    Handler-side projection check; fired by `attach_asset_to_fixture`
+    (and future `detach_asset_from_fixture`, get_fixture, list_fixtures)
+    when the target Fixture stream has no `FixtureRegistered` event.
+    Maps to 404 at the REST + MCP boundary.
+    """
+
+    def __init__(self, fixture_id: UUID) -> None:
+        super().__init__(f"Fixture {fixture_id} not found")
+        self.fixture_id = fixture_id
+
+
 __all__ = [
     "Fixture",
     "FixtureAlreadyExistsError",
+    "FixtureNotFoundError",
     "SlotAssetBinding",
 ]

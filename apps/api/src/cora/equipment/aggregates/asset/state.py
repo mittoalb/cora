@@ -922,6 +922,57 @@ class AssetCannotRelocateError(Exception):
         self.reason = reason
 
 
+class AssetAlreadyAttachedToFixtureError(Exception):
+    """Attempted to attach an Asset that already carries a fixture_id.
+
+    Strict-not-idempotent: re-attaching requires explicit detach first
+    (B.6 `detach_asset_from_fixture`). Carries the current fixture_id
+    so the operator sees which Fixture the Asset is currently bound to.
+    """
+
+    def __init__(self, asset_id: UUID, current_fixture_id: UUID) -> None:
+        super().__init__(f"Asset {asset_id} is already attached to Fixture {current_fixture_id}")
+        self.asset_id = asset_id
+        self.current_fixture_id = current_fixture_id
+
+
+class AssetCannotAttachToFixtureError(Exception):
+    """Attempted to attach an Asset under a disqualifying lifecycle.
+
+    Currently fires for `Decommissioned` Assets only (terminal state;
+    no further wiring). Commissioned / Active / Maintenance are all
+    accepted (a Faulted/Degraded Asset can still be bound into a
+    Fixture for diagnostic purposes; lifecycle and condition are
+    orthogonal axes per project_asset_condition_design).
+    """
+
+    def __init__(self, asset_id: UUID, current_lifecycle: "AssetLifecycle") -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be attached to a Fixture: current "
+            f"lifecycle is {current_lifecycle.value}; expected one of "
+            f"{AssetLifecycle.COMMISSIONED.value}, {AssetLifecycle.ACTIVE.value}, "
+            f"{AssetLifecycle.MAINTENANCE.value}"
+        )
+        self.asset_id = asset_id
+        self.current_lifecycle = current_lifecycle
+
+
+class AssetNotBoundInFixtureError(Exception):
+    """The target Fixture's slot_asset_bindings does not include this Asset.
+
+    Prevents phantom back-references: a Fixture is registered with a
+    fixed binding set at register_fixture time, and only Assets in
+    that set can be attached. Mismatch usually means the operator
+    targeted the wrong Fixture or registered a Fixture with the wrong
+    binding set.
+    """
+
+    def __init__(self, asset_id: UUID, fixture_id: UUID) -> None:
+        super().__init__(f"Asset {asset_id} does not appear in Fixture {fixture_id}'s bindings")
+        self.asset_id = asset_id
+        self.fixture_id = fixture_id
+
+
 @dataclass(frozen=True)
 class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
@@ -1069,3 +1120,10 @@ class Asset:
     # alternate_identifiers; the empty frozenset has no element type
     # for pyright to infer under strict.
     owners: frozenset[AssetOwner] = field(default_factory=frozenset[AssetOwner])
+    # Optional back-reference to the Fixture (registered Assembly
+    # materialization) this Asset is bound into. None until
+    # `attach_asset_to_fixture` sets it; cleared by
+    # `detach_asset_from_fixture` (B.6). The Fixture side carries the
+    # slot_name; this back-ref answers "what Fixture is this Asset in?"
+    # in O(1) for the conformance projection.
+    fixture_id: UUID | None = None

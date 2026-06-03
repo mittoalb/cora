@@ -22,6 +22,7 @@ from cora.equipment.aggregates.fixture.read import load_fixture
 from cora.equipment.aggregates.fixture.state import (
     Fixture,
     FixtureAlreadyExistsError,
+    FixtureNotFoundError,
     SlotAssetBinding,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "Fixture",
     "FixtureAlreadyExistsError",
     "FixtureEvent",
+    "FixtureNotFoundError",
     "FixtureRegistered",
     "SlotAssetBinding",
     "event_type_name",

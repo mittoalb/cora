@@ -38,6 +38,7 @@ from cora.equipment.features import (
     add_asset_owner,
     add_asset_port,
     add_model_family,
+    attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
     decommission_mount,
@@ -161,6 +162,7 @@ class EquipmentHandlers:
     version_assembly: version_assembly.Handler
     deprecate_assembly: deprecate_assembly.Handler
     register_fixture: register_fixture.IdempotentHandler
+    attach_asset_to_fixture: attach_asset_to_fixture.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -451,6 +453,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterFixture",
+            bc=_BC,
+        ),
+        attach_asset_to_fixture=with_tracing(
+            attach_asset_to_fixture.bind(deps),
+            command_name="AttachAssetToFixture",
             bc=_BC,
         ),
     )

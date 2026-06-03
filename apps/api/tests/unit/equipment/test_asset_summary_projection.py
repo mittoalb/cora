@@ -60,6 +60,7 @@ def test_projection_metadata() -> None:
             "AssetAlternateIdentifierRemoved",
             "AssetOwnerAdded",
             "AssetOwnerRemoved",
+            "AssetAttachedToFixture",
         }
     )
 

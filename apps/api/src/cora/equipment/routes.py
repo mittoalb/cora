@@ -57,6 +57,7 @@ from cora.equipment.aggregates.assembly import (
     WireReferencesUnknownSlotError,
 )
 from cora.equipment.aggregates.asset import (
+    AssetAlreadyAttachedToFixtureError,
     AssetAlreadyExistsError,
     AssetAlternateIdentifierAlreadyPresentError,
     AssetAlternateIdentifierNotPresentError,
@@ -65,6 +66,7 @@ from cora.equipment.aggregates.asset import (
     AssetCannotAddFamilyError,
     AssetCannotAddOwnerError,
     AssetCannotAddPortError,
+    AssetCannotAttachToFixtureError,
     AssetCannotDecommissionError,
     AssetCannotEnterMaintenanceError,
     AssetCannotExitMaintenanceError,
@@ -72,6 +74,7 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
     AssetModelMismatchError,
+    AssetNotBoundInFixtureError,
     AssetNotFoundError,
     AssetOwnerAlreadyPresentError,
     AssetOwnerNotPresentError,
@@ -97,7 +100,7 @@ from cora.equipment.aggregates.family import (
     InvalidFamilySettingsSchemaError,
     InvalidFamilyVersionTagError,
 )
-from cora.equipment.aggregates.fixture import FixtureAlreadyExistsError
+from cora.equipment.aggregates.fixture import FixtureAlreadyExistsError, FixtureNotFoundError
 from cora.equipment.aggregates.frame import (
     FrameAlreadyExistsError,
     FrameCannotDecommissionError,
@@ -149,6 +152,7 @@ from cora.equipment.features import (
     add_asset_owner,
     add_asset_port,
     add_model_family,
+    attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
     decommission_mount,
@@ -305,6 +309,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(version_assembly.router)
     app.include_router(deprecate_assembly.router)
     app.include_router(register_fixture.router)
+    app.include_router(attach_asset_to_fixture.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -345,6 +350,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         FixtureMappingIncompleteError,
         FixtureAssetFamilyMismatchError,
         FixtureParameterOverridesInvalidError,
+        AssetNotBoundInFixtureError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -358,6 +364,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssemblyNotFoundError,
         FamilyNotFoundForAssemblyError,
         FixtureAssetNotFoundError,
+        FixtureNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
@@ -409,6 +416,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssemblyCannotVersionError,
         AssemblyCannotDeprecateError,
         AssemblyCannotInstantiateError,
+        AssetAlreadyAttachedToFixtureError,
+        AssetCannotAttachToFixtureError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

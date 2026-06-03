@@ -1371,6 +1371,22 @@
         "title": "AssetSummaryDTO",
         "type": "object"
       },
+      "AttachAssetToFixtureRequest": {
+        "description": "Body for `POST /assets/{asset_id}/attach-to-fixture`.",
+        "properties": {
+          "fixture_id": {
+            "description": "Fixture.id this Asset will be bound into. Must resolve to a registered Fixture whose slot_asset_bindings include this asset_id.",
+            "format": "uuid",
+            "title": "Fixture Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fixture_id"
+        ],
+        "title": "AttachAssetToFixtureRequest",
+        "type": "object"
+      },
       "BindingAssetDTO": {
         "properties": {
           "id": {
@@ -15431,6 +15447,106 @@
           }
         },
         "summary": "Add a typed port to an existing Asset's port set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/attach-to-fixture": {
+      "post": {
+        "operationId": "post_assets_attach_to_fixture_assets__asset_id__attach_to_fixture_post",
+        "parameters": [
+          {
+            "description": "Target Asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target Asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachAssetToFixtureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset does not appear in the Fixture's slot_asset_bindings (phantom back-reference rejected)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset or Fixture does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset is already attached to a Fixture (re-attach requires detach first), OR Asset is in a lifecycle that disallows attach (currently Decommissioned only), OR a concurrent write to the Asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Bind an existing Asset to a registered Fixture",
         "tags": [
           "equipment"
         ]

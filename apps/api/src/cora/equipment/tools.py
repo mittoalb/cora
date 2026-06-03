@@ -21,6 +21,7 @@ from cora.equipment.features.add_asset_family import (
 from cora.equipment.features.add_asset_owner import tool as add_asset_owner_tool
 from cora.equipment.features.add_asset_port import tool as add_asset_port_tool
 from cora.equipment.features.add_model_family import tool as add_model_family_tool
+from cora.equipment.features.attach_asset_to_fixture import tool as attach_asset_to_fixture_tool
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
 from cora.equipment.features.decommission_frame import tool as decommission_frame_tool
 from cora.equipment.features.decommission_mount import tool as decommission_mount_tool
@@ -267,4 +268,8 @@ def register_equipment_tools(
     register_fixture_tool.register(
         mcp,
         get_handler=lambda: get_handlers().register_fixture,
+    )
+    attach_asset_to_fixture_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().attach_asset_to_fixture,
     )

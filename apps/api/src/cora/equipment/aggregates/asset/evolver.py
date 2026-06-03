@@ -82,6 +82,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetActivated,
     AssetAlternateIdentifierAdded,
     AssetAlternateIdentifierRemoved,
+    AssetAttachedToFixture,
     AssetDecommissioned,
     AssetDegraded,
     AssetEvent,
@@ -135,14 +136,17 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=model_id,
                 alternate_identifiers=alternate_identifiers,
                 owners=owners,
+                fixture_id=None,
                 # family_ids defaults to empty frozenset; condition
-                # defaults to NOMINAL. Additive-state pattern: both
+                # defaults to NOMINAL. Additive-state pattern:
                 # default-via-state so legacy streams without these
                 # fields fold cleanly without an upcaster.
                 # alternate_identifiers / owners defaults are empty
                 # frozenset on the event side (additive-payload
                 # pattern), so legacy streams missing those keys fold
                 # to the empty frozenset without an upcaster.
+                # fixture_id is set later by AssetAttachedToFixture
+                # (B.5 slice); register_asset never sets it inline.
             )
         case AssetActivated():
             prior = require_state(state, "AssetActivated")
@@ -160,6 +164,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetDecommissioned():
             prior = require_state(state, "AssetDecommissioned")
@@ -177,6 +182,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
@@ -199,6 +205,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetMaintenanceEntered():
             prior = require_state(state, "AssetMaintenanceEntered")
@@ -216,6 +223,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetMaintenanceExited():
             prior = require_state(state, "AssetMaintenanceExited")
@@ -233,6 +241,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetFamilyAdded(family_id=family_id):
             # Family mutation: only `family_ids` changes; everything
@@ -255,6 +264,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetFamilyRemoved(family_id=family_id):
             # Mirror of AssetFamilyAdded. Frozenset difference is a
@@ -278,6 +288,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -300,6 +311,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetFaulted():
             prior = require_state(state, "AssetFaulted")
@@ -317,6 +329,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetRestored():
             prior = require_state(state, "AssetRestored")
@@ -334,6 +347,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
@@ -358,6 +372,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetPortAdded(
             port_name=port_name,
@@ -390,6 +405,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetPortRemoved(port_name=port_name):
             # Mirror of AssetPortAdded. Removes the port whose `name`
@@ -415,6 +431,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetAlternateIdentifierAdded(alternate_identifier=identifier):
             # Alternate-identifier mutation: only
@@ -439,6 +456,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers | {identifier},
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetAlternateIdentifierRemoved(alternate_identifier=identifier):
             # Mirror of AssetAlternateIdentifierAdded. Frozenset
@@ -506,6 +524,28 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=frozenset(o for o in prior.owners if o.name != owner_name),
+                fixture_id=prior.fixture_id,
+            )
+        case AssetAttachedToFixture(fixture_id=fixture_id):
+            # Sets the back-reference. The Fixture side carries the
+            # slot_name; this evolver only mutates the Asset's
+            # fixture_id field. Decider rejects double-attach so this
+            # always transitions None -> Some(fixture_id).
+            prior = require_state(state, "AssetAttachedToFixture")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                family_ids=prior.family_ids,
+                settings=prior.settings,
+                ports=prior.ports,
+                drawing=prior.drawing,
+                model_id=prior.model_id,
+                alternate_identifiers=prior.alternate_identifiers,
+                fixture_id=fixture_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
