@@ -462,6 +462,7 @@ import hashlib  # noqa: E402
 from cora.infrastructure.canonical_json import canonical_json_bytes  # noqa: E402
 from cora.operation._recipe_expansion import steps_to_wire  # noqa: E402
 from cora.operation.aggregates.procedure import (  # noqa: E402
+    ProcedureBoundCapabilityDeprecatedError,
     ProcedureNotFoundError,
     ProcedureStepsForbiddenForRecipeDrivenError,
     RecipeExpansionPortVersionMismatchError,
@@ -469,12 +470,81 @@ from cora.operation.aggregates.procedure import (  # noqa: E402
     RecipeExpansionRecordNotFoundError,
     RecipeExpansionReplayMismatchError,
 )
+from cora.recipe.aggregates.capability import (  # noqa: E402
+    CapabilityDefined,
+    CapabilityDeprecated,
+    ExecutorShape,
+)
+from cora.recipe.aggregates.capability import (  # noqa: E402
+    event_type_name as capability_event_type_name,
+)
+from cora.recipe.aggregates.capability import (  # noqa: E402
+    to_payload as capability_to_payload,
+)
 from cora.recipe.aggregates.recipe import (  # noqa: E402
     RecipeDefined,
     RecipeSetpointStep,
 )
 from cora.recipe.aggregates.recipe import event_type_name as recipe_event_type_name  # noqa: E402
 from cora.recipe.aggregates.recipe import to_payload as recipe_to_payload  # noqa: E402
+
+
+async def _seed_capability(
+    store: InMemoryEventStore,
+    capability_id: UUID,
+    *,
+    deprecated: bool = False,
+) -> None:
+    """Seed a Capability stream so the conduct_procedure gate's
+    `load_capability` call returns a real aggregate. When `deprecated`
+    is True, a second `CapabilityDeprecated` event follows so the gate
+    can verify it rejects."""
+    defined = CapabilityDefined(
+        capability_id=capability_id,
+        code="cora.capability.test",
+        name="Test",
+        description=None,
+        required_affordances=frozenset(),
+        executor_shapes=frozenset({ExecutorShape.PROCEDURE}),
+        parameters_schema=None,
+        occurred_at=_NOW,
+    )
+    events = [
+        to_new_event(
+            event_type=capability_event_type_name(defined),
+            payload=capability_to_payload(defined),
+            occurred_at=_NOW,
+            event_id=uuid4(),
+            command_name="seed",
+            correlation_id=uuid4(),
+            causation_id=None,
+            principal_id=uuid4(),
+        )
+    ]
+    if deprecated:
+        deprecated_event = CapabilityDeprecated(
+            capability_id=capability_id,
+            replaced_by_capability_id=None,
+            occurred_at=_NOW,
+        )
+        events.append(
+            to_new_event(
+                event_type=capability_event_type_name(deprecated_event),
+                payload=capability_to_payload(deprecated_event),
+                occurred_at=_NOW,
+                event_id=uuid4(),
+                command_name="seed",
+                correlation_id=uuid4(),
+                causation_id=None,
+                principal_id=uuid4(),
+            )
+        )
+    await store.append(
+        stream_type="Capability",
+        stream_id=capability_id,
+        expected_version=0,
+        events=events,
+    )
 
 
 async def _seed_recipe_driven_procedure(
@@ -488,9 +558,14 @@ async def _seed_recipe_driven_procedure(
     bindings_hash_override: str | None = None,
     steps_hash_override: str | None = None,
     omit_recipe_expansion_recorded: bool = False,
-) -> None:
+) -> UUID:
     """Seed both events of the 2-event genesis block emitted by
-    register_procedure_from_recipe, optionally drifting one of the pins."""
+    register_procedure_from_recipe, optionally drifting one of the pins.
+
+    Returns the `capability_id` so callers can additionally seed a
+    Capability stream with `_seed_capability(store, capability_id, ...)`
+    when the conduct-time Capability-deprecation gate must be exercised.
+    """
     capability_id = uuid4()
     binds = bindings if bindings is not None else {"angle": 30.0}
     rsteps = (
@@ -581,6 +656,7 @@ async def _seed_recipe_driven_procedure(
         expected_version=0,
         events=new_events,
     )
+    return capability_id
 
 
 def _bind_handler(
@@ -747,4 +823,51 @@ async def test_conduct_procedure_with_unregistered_procedure_raises_procedure_no
             principal_id=uuid4(),
             correlation_id=uuid4(),
         )
+    assert conductor.calls == []
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_active_capability_passes_replay_gate() -> None:
+    """Sanity: the new conduct-time Capability-deprecation gate does
+    NOT fire when the bound Capability is in `Defined` state. Procedure
+    replay completes and the Conductor receives the re-expanded steps."""
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    capability_id = await _seed_recipe_driven_procedure(store, procedure_id, recipe_id)
+    await _seed_capability(store, capability_id, deprecated=False)
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=1))
+    handler = _bind_handler(store, conductor)
+    await handler(
+        ConductProcedure(procedure_id=procedure_id, steps=()),
+        principal_id=uuid4(),
+        correlation_id=uuid4(),
+    )
+    assert len(conductor.calls) == 1
+
+
+@pytest.mark.unit
+async def test_recipe_driven_handler_with_deprecated_capability_raises_capability_deprecated() -> (
+    None
+):
+    """Symmetric to start_run's RunBoundPlanDeprecatedError: when the
+    Capability bound by the Recipe pinned on a recipe-driven Procedure
+    is Deprecated at conduct time, raise rather than re-expand against
+    a tombstoned contract. Mapped to HTTP 409. Closes the deprecation-
+    at-execution-time gap surfaced by the 2026-06-04 domain harmony audit."""
+    procedure_id = uuid4()
+    recipe_id = uuid4()
+    store = InMemoryEventStore()
+    capability_id = await _seed_recipe_driven_procedure(store, procedure_id, recipe_id)
+    await _seed_capability(store, capability_id, deprecated=True)
+    conductor = _FakeConductor(result=ConductorResult(procedure_id=procedure_id, completed_count=0))
+    handler = _bind_handler(store, conductor)
+    with pytest.raises(ProcedureBoundCapabilityDeprecatedError) as exc:
+        await handler(
+            ConductProcedure(procedure_id=procedure_id, steps=()),
+            principal_id=uuid4(),
+            correlation_id=uuid4(),
+        )
+    assert exc.value.procedure_id == procedure_id
+    assert exc.value.capability_id == capability_id
     assert conductor.calls == []

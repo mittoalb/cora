@@ -58,6 +58,7 @@ from cora.operation._recipe_replay import (
     verify_steps_hash,
 )
 from cora.operation.aggregates.procedure import (
+    ProcedureBoundCapabilityDeprecatedError,
     ProcedureNotFoundError,
     ProcedureStepsForbiddenForRecipeDrivenError,
     RecipeExpansionPortVersionMismatchError,
@@ -71,6 +72,7 @@ from cora.operation.features.conduct_procedure.command import (
     ConductProcedureResult,
 )
 from cora.operation.ports.recipe_expansion_port import RecipeExpansionPort
+from cora.recipe.aggregates.capability import CapabilityStatus, load_capability
 from cora.recipe.aggregates.recipe import load_recipe_at_version
 
 _COMMAND_NAME = "ConductProcedure"
@@ -201,13 +203,15 @@ async def _re_expand_steps(
 ) -> tuple[Step, ...]:
     """Run the recipe-replay gate per [[project-run-procedure-replay-design]].
 
-    Five steps: reject non-empty caller steps -> find_recipe_expansion_record
+    Six steps: reject non-empty caller steps -> find_recipe_expansion_record
     (raise RecipeExpansionRecordNotFoundError on None) -> pins_from_payload
     -> port-version strict-equals (raise RecipeExpansionPortVersionMismatchError
     on drift) -> load_recipe_at_version (raise RecipeExpansionRecordNotFoundError
     when None on a recipe-driven Procedure; RecipeVersionNotFoundError
-    propagates from helper) -> verify_bindings_hash -> expand -> verify_steps_hash
-    -> return the re-expanded tuple.
+    propagates from helper) -> load_capability + reject Deprecated
+    (raise ProcedureBoundCapabilityDeprecatedError, symmetric to
+    start_run's RunBoundPlanDeprecatedError) -> verify_bindings_hash ->
+    expand -> verify_steps_hash -> return the re-expanded tuple.
     """
     if list(caller_steps):
         raise ProcedureStepsForbiddenForRecipeDrivenError(procedure_id)
@@ -232,6 +236,16 @@ async def _re_expand_steps(
     )
     if recipe is None:
         raise RecipeExpansionRecordNotFoundError(procedure_id)
+
+    # Capability-deprecation gate: reject conduct against a tombstoned
+    # Capability before running the expansion port. Symmetric to
+    # start_run's RunBoundPlanDeprecatedError. Per the 2026-06-04 domain
+    # harmony audit: re-expanding a Recipe against a Deprecated
+    # Capability would silently execute against a contract operators
+    # have retired.
+    capability = await load_capability(event_store, recipe.capability_id)
+    if capability is not None and capability.status == CapabilityStatus.DEPRECATED:
+        raise ProcedureBoundCapabilityDeprecatedError(procedure_id, recipe.capability_id)
 
     verify_bindings_hash(procedure_id, pins)
     expanded = expansion_port.expand(recipe.steps, dict(pins.bindings))

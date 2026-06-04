@@ -302,6 +302,32 @@ class ProcedureCapabilityExecutorMismatchError(Exception):
         self.capability_id = capability_id
 
 
+class ProcedureBoundCapabilityDeprecatedError(Exception):
+    """Attempted to conduct a recipe-driven Procedure whose pinned
+    Capability is Deprecated.
+
+    Capability deprecation is advisory at the Capability-aggregate layer
+    (the Capability itself does not reject operations on Deprecated
+    state), but conduct_procedure on a recipe-driven Procedure rejects:
+    re-expanding a Recipe against a tombstoned Capability would silently
+    execute against a contract operators have retired. Fires at the
+    replay gate AFTER load_recipe_at_version succeeds and BEFORE the
+    expansion port runs.
+
+    Symmetric to start_run's RunBoundPlanDeprecatedError; the two
+    together close the deprecation-at-execution-time gap surfaced by
+    the 2026-06-04 domain harmony audit. Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, capability_id: UUID) -> None:
+        super().__init__(
+            f"Cannot conduct Procedure {procedure_id} against pinned "
+            f"Capability {capability_id}: Capability is Deprecated"
+        )
+        self.procedure_id = procedure_id
+        self.capability_id = capability_id
+
+
 # Cap on the expanded step list at register_procedure_from_recipe time.
 # Beyond this, the design memo's v2 lazy-walk reconsideration triggers
 # (4D-tomography helical 150k-step case). v1 keeps a hard cap to bound
