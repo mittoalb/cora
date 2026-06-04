@@ -43,6 +43,7 @@ from cora.operation.aggregates.procedure import (
     InvalidRecipeBindingsError,
     InvalidStepKindError,
     ProcedureAlreadyExistsError,
+    ProcedureBoundCapabilityDeprecatedError,
     ProcedureCannotAbortError,
     ProcedureCannotCompleteError,
     ProcedureCannotStartError,
@@ -221,6 +222,12 @@ def register_operation_routes(app: FastAPI) -> None:
         # cross-BC guard: Procedure binds to a Capability whose
         # executor_shapes does not include Procedure.
         ProcedureCapabilityExecutorMismatchError,
+        # cross-BC Capability-deprecation gate at conduct_procedure
+        # for recipe-driven Procedures. Symmetric to start_run's
+        # RunBoundPlanDeprecatedError; closes the deprecation-at-
+        # execution-time gap surfaced by the 2026-06-04 domain
+        # harmony audit.
+        ProcedureBoundCapabilityDeprecatedError,
         # cross-BC Supply pre-flight gate (Phase-of-Run only).
         ProcedureRequiresAvailableSupplyError,
         ProcedureSupplyCoverageMismatchError,

@@ -212,7 +212,6 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/operation/__init__.py",
         "src/cora/operation/features/register_procedure/command.py",
         "src/cora/operation/routes.py",
-        "src/cora/recipe/__init__.py",
         "src/cora/recipe/_method_update_handler.py",
         "src/cora/recipe/_plan_update_handler.py",
         "src/cora/recipe/_practice_update_handler.py",
