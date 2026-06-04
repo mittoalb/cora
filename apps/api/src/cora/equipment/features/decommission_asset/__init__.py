@@ -11,12 +11,14 @@ Module-as-namespace surface:
 
 from cora.equipment.features.decommission_asset import tool
 from cora.equipment.features.decommission_asset.command import DecommissionAsset
+from cora.equipment.features.decommission_asset.context import DecommissionAssetContext
 from cora.equipment.features.decommission_asset.decider import decide
 from cora.equipment.features.decommission_asset.handler import Handler, bind
 from cora.equipment.features.decommission_asset.route import router
 
 __all__ = [
     "DecommissionAsset",
+    "DecommissionAssetContext",
     "Handler",
     "bind",
     "decide",

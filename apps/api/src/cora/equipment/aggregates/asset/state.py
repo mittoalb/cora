@@ -741,6 +741,47 @@ class AssetCannotDecommissionError(Exception):
         self.current_lifecycle = current_lifecycle
 
 
+class AssetHasFixtureBindingError(Exception):
+    """Attempted to decommission an Asset that is still bound into a Fixture.
+
+    Decommission requires the Asset to carry no Fixture back-reference.
+    Operators must `detach_asset_from_fixture` first (no implicit
+    detach per the no-cascade anti-hook; mirrors
+    `MountHasAssetInstalledError` on the sibling Mount aggregate).
+    `fixture_id` carries the offending Fixture id so the operator
+    error response can deep-link to detach.
+    """
+
+    def __init__(self, asset_id: UUID, fixture_id: UUID) -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be decommissioned: still bound to "
+            f"Fixture {fixture_id}; detach first"
+        )
+        self.asset_id = asset_id
+        self.fixture_id = fixture_id
+
+
+class AssetIsInstalledError(Exception):
+    """Attempted to decommission an Asset that is still installed in a Mount.
+
+    Decommission requires the Asset to occupy no Mount slot. Operators
+    must `uninstall_asset` from the Mount first (no implicit eviction
+    per the design anti-hook; mirrors `MountHasAssetInstalledError`
+    on the inverse axis). `mount_id` is the Mount currently holding
+    the Asset, sourced from the `proj_equipment_asset_location`
+    projection (the Asset aggregate does NOT carry an `installed_at`
+    field per the anti-hook).
+    """
+
+    def __init__(self, asset_id: UUID, mount_id: UUID) -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be decommissioned: still installed "
+            f"in Mount {mount_id}; uninstall first"
+        )
+        self.asset_id = asset_id
+        self.mount_id = mount_id
+
+
 class AssetCannotEnterMaintenanceError(Exception):
     """Attempted to enter maintenance on an asset not in `Active`.
 

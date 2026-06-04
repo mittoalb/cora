@@ -97,3 +97,73 @@ def test_post_decommission_with_x_principal_id_header_succeeds() -> None:
             headers={"X-Principal-Id": pid},
         )
     assert response.status_code == 204
+
+
+def _define_family(client: TestClient, name: str = "Camera") -> str:
+    response = client.post("/families", json={"name": name, "affordances": []})
+    assert response.status_code == 201
+    family_id: str = response.json()["family_id"]
+    return family_id
+
+
+def _add_asset_family(client: TestClient, asset_id: str, family_id: str) -> None:
+    response = client.post(f"/assets/{asset_id}/add-family", json={"family_id": family_id})
+    assert response.status_code == 204
+
+
+def _define_assembly(client: TestClient, family_id: str, slot_name: str = "camera") -> str:
+    response = client.post(
+        "/assemblies",
+        json={
+            "name": "MCTOptics",
+            "presents_as_family_id": family_id,
+            "required_slots": [
+                {
+                    "slot_name": slot_name,
+                    "required_family_ids": [family_id],
+                    "cardinality": "Exactly1",
+                }
+            ],
+            "required_wires": [],
+        },
+    )
+    assert response.status_code == 201
+    assembly_id: str = response.json()["assembly_id"]
+    return assembly_id
+
+
+def _register_fixture(client: TestClient, assembly_id: str, slot_name: str, asset_id: str) -> str:
+    response = client.post(
+        f"/assemblies/{assembly_id}/fixtures",
+        json={
+            "slot_asset_bindings": [{"slot_name": slot_name, "asset_id": asset_id}],
+            "parameter_overrides": {},
+        },
+    )
+    assert response.status_code == 201
+    fixture_id: str = response.json()["fixture_id"]
+    return fixture_id
+
+
+@pytest.mark.contract
+def test_post_decommission_returns_409_when_still_bound_to_fixture() -> None:
+    """Cross-aggregate guard: an Asset still bound into a Fixture
+    cannot be decommissioned; the route returns 409 with a body that
+    names the offending Fixture so the operator can detach.
+    """
+    with TestClient(create_app()) as client:
+        family_id = _define_family(client)
+        asset_id = _register_asset(client)
+        _add_asset_family(client, asset_id, family_id)
+        assembly_id = _define_assembly(client, family_id)
+        fixture_id = _register_fixture(client, assembly_id, "camera", asset_id)
+        attach = client.post(
+            f"/assets/{asset_id}/attach-to-fixture",
+            json={"fixture_id": fixture_id},
+        )
+        assert attach.status_code == 204
+        response = client.post(f"/assets/{asset_id}/decommission")
+    assert response.status_code == 409
+    body = response.json()
+    assert fixture_id in body["detail"]
+    assert "detach" in body["detail"].lower()

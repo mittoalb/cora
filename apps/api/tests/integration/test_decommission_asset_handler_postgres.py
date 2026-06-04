@@ -6,25 +6,54 @@ Decommissioned, the third source widened by the Maintenance state); all three ar
 exercised against real Postgres so the load+fold+decide+append
 cycle is validated for every allowed source state with the real
 event store.
+
+Two additional scenarios cover the cross-aggregate guards added with
+the longhand-handler lift: `AssetHasFixtureBindingError` fires when
+the Asset still carries a Fixture back-reference, and
+`AssetIsInstalledError` fires when the
+`proj_equipment_asset_location` row points at a live Mount.
 """
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asyncpg
 import pytest
 
-from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.aggregates.assembly import SlotCardinality, SlotName, TemplateSlot
+from cora.equipment.aggregates.asset import (
+    AssetHasFixtureBindingError,
+    AssetIsInstalledError,
+    AssetLevel,
+)
+from cora.equipment.aggregates.fixture import SlotAssetBinding
 from cora.equipment.features import (
     activate_asset,
+    add_asset_family,
+    attach_asset_to_fixture,
     decommission_asset,
+    define_assembly,
+    define_family,
     enter_asset_maintenance,
+    install_asset,
     register_asset,
+    register_fixture,
+    register_frame,
+    register_mount,
 )
 from cora.equipment.features.activate_asset import ActivateAsset
+from cora.equipment.features.add_asset_family import AddAssetFamily
+from cora.equipment.features.attach_asset_to_fixture import AttachAssetToFixture
 from cora.equipment.features.decommission_asset import DecommissionAsset
+from cora.equipment.features.define_assembly import DefineAssembly
+from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.enter_asset_maintenance import EnterAssetMaintenance
+from cora.equipment.features.install_asset import InstallAsset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.equipment.features.register_fixture import RegisterFixture
+from cora.equipment.features.register_frame import RegisterFrame
+from cora.equipment.features.register_mount import RegisterMount
+from tests.integration._equipment_helpers import drain_equipment_projections, placement
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
@@ -169,3 +198,146 @@ async def test_decommission_asset_persists_event_from_maintenance_state(
     ]
     decommed = events[3]
     assert decommed.event_id == decommission_event_id
+
+
+@pytest.mark.integration
+async def test_decommission_asset_rejects_when_still_bound_to_fixture(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Cross-aggregate guard (state-based): an Asset that still
+    carries `fixture_id` cannot be decommissioned; operator must
+    `detach_asset_from_fixture` first. Verifies the guard fires
+    end-to-end against the real Asset stream fold.
+    """
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(10)])
+    family_id = await define_family.bind(deps)(
+        DefineFamily(name="Camera", affordances=frozenset()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    asset_id = await register_asset.bind(deps)(
+        RegisterAsset(name="Cam-1", level=AssetLevel.DEVICE, parent_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=asset_id, family_id=family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assembly_id = await define_assembly.bind(deps)(
+        DefineAssembly(
+            name="MCTOptics",
+            presents_as_family_id=family_id,
+            required_slots=frozenset(
+                {
+                    TemplateSlot(
+                        slot_name=SlotName("camera"),
+                        required_family_ids=frozenset({family_id}),
+                        cardinality=SlotCardinality.EXACTLY_1,
+                    )
+                }
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    fixture_id = await register_fixture.bind(deps)(
+        RegisterFixture(
+            assembly_id=assembly_id,
+            slot_asset_bindings=frozenset(
+                {SlotAssetBinding(slot_name="camera", asset_id=asset_id)}
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await attach_asset_to_fixture.bind(deps)(
+        AttachAssetToFixture(asset_id=asset_id, fixture_id=fixture_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    with pytest.raises(AssetHasFixtureBindingError) as exc_info:
+        await decommission_asset.bind(deps)(
+            DecommissionAsset(asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.asset_id == asset_id
+    assert exc_info.value.fixture_id == fixture_id
+
+    # The Asset stream is unchanged after the rejection.
+    events, _ = await deps.event_store.load("Asset", asset_id)
+    assert [e.event_type for e in events] == [
+        "AssetRegistered",
+        "AssetFamilyAdded",
+        "AssetAttachedToFixture",
+    ]
+
+
+@pytest.mark.integration
+async def test_decommission_asset_rejects_when_still_installed_in_mount(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Cross-aggregate guard (projection-based): an Asset whose
+    `proj_equipment_asset_location` row points at a live Mount cannot
+    be decommissioned; operator must `uninstall_asset` first. Exercises
+    the longhand handler's projection precondition end-to-end against
+    real Postgres.
+    """
+    frame_id, mount_id, asset_id = uuid4(), uuid4(), uuid4()
+
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[frame_id, uuid4()])
+    await register_frame.bind(deps)(
+        RegisterFrame(name="frame-for-decom-check", parent_frame_id=None, placement=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[mount_id, uuid4()])
+    await register_mount.bind(deps)(
+        RegisterMount(
+            slot_code="02-BM-A-K-decom",
+            parent_mount_id=None,
+            placement=placement(frame_id),
+            drawing=None,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[asset_id, uuid4()])
+    await register_asset.bind(deps)(
+        RegisterAsset(name="specimen-decom", level=AssetLevel.DEVICE, parent_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4()])
+    await activate_asset.bind(deps)(
+        ActivateAsset(asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4()])
+    await install_asset.bind(deps)(
+        InstallAsset(mount_id=mount_id, asset_id=asset_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await drain_equipment_projections(db_pool)
+
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4()])
+    with pytest.raises(AssetIsInstalledError) as exc_info:
+        await decommission_asset.bind(deps)(
+            DecommissionAsset(asset_id=asset_id),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.asset_id == asset_id
+    assert exc_info.value.mount_id == mount_id
+
+    events, _ = await deps.event_store.load("Asset", asset_id)
+    assert [e.event_type for e in events] == ["AssetRegistered", "AssetActivated"]

@@ -74,6 +74,8 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRelocateError,
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
+    AssetHasFixtureBindingError,
+    AssetIsInstalledError,
     AssetModelMismatchError,
     AssetNotAttachedToFixtureError,
     AssetNotBoundInFixtureError,
@@ -428,6 +430,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         AssetCannotActivateError,
         AssetCannotDecommissionError,
+        AssetHasFixtureBindingError,
+        AssetIsInstalledError,
         AssetCannotRelocateError,
         AssetCannotEnterMaintenanceError,
         AssetCannotExitMaintenanceError,

@@ -43,9 +43,12 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Asset is not in `Commissioned` or `Active` lifecycle "
-                "(decommission requires either), OR a concurrent write "
-                "to the same asset stream conflicted (optimistic concurrency)."
+                "Asset is not in `Commissioned`, `Active`, or `Maintenance` "
+                "lifecycle (decommission requires one of these), OR the Asset "
+                "is still bound into a Fixture (detach first), OR the Asset "
+                "is still installed in a Mount (uninstall first), OR a "
+                "concurrent write to the same asset stream conflicted "
+                "(optimistic concurrency)."
             ),
         },
     },
