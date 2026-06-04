@@ -495,6 +495,23 @@ class AssetAttachedToFixture:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class AssetDetachedFromFixture:
+    """The Asset was unbound from a Fixture (clears fixture_id back-reference).
+
+    Payload carries the prior fixture_id for audit trail. After this
+    event, Asset.fixture_id is None and the Asset is free to attach
+    to another Fixture (or stand alone). The Fixture's own
+    slot_asset_bindings stays unchanged (single-event-stream invariant);
+    the conformance projection notices the gap and reports the
+    Fixture as having a missing Asset binding.
+    """
+
+    asset_id: UUID
+    fixture_id: UUID
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Asset aggregate emits.
 # Add new event classes above and extend this alias when new
 # slices land.
@@ -518,6 +535,7 @@ AssetEvent = (
     | AssetOwnerAdded
     | AssetOwnerRemoved
     | AssetAttachedToFixture
+    | AssetDetachedFromFixture
 )
 
 
@@ -729,6 +747,16 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
             }
         case AssetAttachedToFixture(
+            asset_id=asset_id,
+            fixture_id=fixture_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "fixture_id": str(fixture_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetDetachedFromFixture(
             asset_id=asset_id,
             fixture_id=fixture_id,
             occurred_at=occurred_at,
@@ -970,6 +998,15 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "AssetDetachedFromFixture":
+            return deserialize_or_raise(
+                "AssetDetachedFromFixture",
+                lambda: AssetDetachedFromFixture(
+                    asset_id=UUID(payload["asset_id"]),
+                    fixture_id=UUID(payload["fixture_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -982,6 +1019,7 @@ __all__ = [
     "AssetAttachedToFixture",
     "AssetDecommissioned",
     "AssetDegraded",
+    "AssetDetachedFromFixture",
     "AssetEvent",
     "AssetFamilyAdded",
     "AssetFamilyRemoved",

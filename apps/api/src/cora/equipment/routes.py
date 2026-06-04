@@ -61,6 +61,7 @@ from cora.equipment.aggregates.asset import (
     AssetAlreadyExistsError,
     AssetAlternateIdentifierAlreadyPresentError,
     AssetAlternateIdentifierNotPresentError,
+    AssetAttachedToDifferentFixtureError,
     AssetCannotActivateError,
     AssetCannotAddAlternateIdentifierError,
     AssetCannotAddFamilyError,
@@ -74,6 +75,7 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
     AssetModelMismatchError,
+    AssetNotAttachedToFixtureError,
     AssetNotBoundInFixtureError,
     AssetNotFoundError,
     AssetOwnerAlreadyPresentError,
@@ -163,6 +165,7 @@ from cora.equipment.features import (
     deprecate_assembly,
     deprecate_family,
     deprecate_model,
+    detach_asset_from_fixture,
     enter_asset_maintenance,
     exit_asset_maintenance,
     fault_asset,
@@ -310,6 +313,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(deprecate_assembly.router)
     app.include_router(register_fixture.router)
     app.include_router(attach_asset_to_fixture.router)
+    app.include_router(detach_asset_from_fixture.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,
@@ -418,6 +422,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssemblyCannotInstantiateError,
         AssetAlreadyAttachedToFixtureError,
         AssetCannotAttachToFixtureError,
+        AssetNotAttachedToFixtureError,
+        AssetAttachedToDifferentFixtureError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

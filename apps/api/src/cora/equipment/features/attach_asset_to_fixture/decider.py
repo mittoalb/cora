@@ -42,7 +42,8 @@ def decide(
         carrying the target fixture_id.
       - asset.fixture_id must currently be None
         -> AssetAlreadyAttachedToFixtureError carrying the current
-        fixture_id (no double-attach; detach first via B.6).
+        fixture_id (no double-attach; detach first via
+        detach_asset_from_fixture).
       - asset.lifecycle must not be Decommissioned
         -> AssetCannotAttachToFixtureError carrying the current
         lifecycle.

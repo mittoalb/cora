@@ -49,6 +49,7 @@ from cora.equipment.features import (
     deprecate_assembly,
     deprecate_family,
     deprecate_model,
+    detach_asset_from_fixture,
     enter_asset_maintenance,
     exit_asset_maintenance,
     fault_asset,
@@ -163,6 +164,7 @@ class EquipmentHandlers:
     deprecate_assembly: deprecate_assembly.Handler
     register_fixture: register_fixture.IdempotentHandler
     attach_asset_to_fixture: attach_asset_to_fixture.Handler
+    detach_asset_from_fixture: detach_asset_from_fixture.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -458,6 +460,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         attach_asset_to_fixture=with_tracing(
             attach_asset_to_fixture.bind(deps),
             command_name="AttachAssetToFixture",
+            bc=_BC,
+        ),
+        detach_asset_from_fixture=with_tracing(
+            detach_asset_from_fixture.bind(deps),
+            command_name="DetachAssetFromFixture",
             bc=_BC,
         ),
     )

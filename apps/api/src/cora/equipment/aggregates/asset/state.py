@@ -926,7 +926,7 @@ class AssetAlreadyAttachedToFixtureError(Exception):
     """Attempted to attach an Asset that already carries a fixture_id.
 
     Strict-not-idempotent: re-attaching requires explicit detach first
-    (B.6 `detach_asset_from_fixture`). Carries the current fixture_id
+    (`detach_asset_from_fixture`). Carries the current fixture_id
     so the operator sees which Fixture the Asset is currently bound to.
     """
 
@@ -971,6 +971,44 @@ class AssetNotBoundInFixtureError(Exception):
         super().__init__(f"Asset {asset_id} does not appear in Fixture {fixture_id}'s bindings")
         self.asset_id = asset_id
         self.fixture_id = fixture_id
+
+
+class AssetNotAttachedToFixtureError(Exception):
+    """Attempted to detach an Asset that has no fixture_id back-reference.
+
+    Strict-not-idempotent: a second detach raises. The Asset is either
+    standalone (never attached) or already detached by a prior call.
+    """
+
+    def __init__(self, asset_id: UUID) -> None:
+        super().__init__(f"Asset {asset_id} is not attached to any Fixture")
+        self.asset_id = asset_id
+
+
+class AssetAttachedToDifferentFixtureError(Exception):
+    """Attempted to detach an Asset from a Fixture other than the one
+    it is currently attached to.
+
+    Defensive guard against the race where the operator targets the
+    wrong Fixture (or another operator detach + reattached the Asset
+    to a different Fixture between read and write). Carries both the
+    requested fixture_id and the Asset's current fixture_id so the
+    operator can compare.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        requested_fixture_id: UUID,
+        current_fixture_id: UUID,
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} is attached to Fixture {current_fixture_id}, "
+            f"not the requested Fixture {requested_fixture_id}"
+        )
+        self.asset_id = asset_id
+        self.requested_fixture_id = requested_fixture_id
+        self.current_fixture_id = current_fixture_id
 
 
 @dataclass(frozen=True)
@@ -1123,7 +1161,7 @@ class Asset:
     # Optional back-reference to the Fixture (registered Assembly
     # materialization) this Asset is bound into. None until
     # `attach_asset_to_fixture` sets it; cleared by
-    # `detach_asset_from_fixture` (B.6). The Fixture side carries the
+    # `detach_asset_from_fixture`. The Fixture side carries the
     # slot_name; this back-ref answers "what Fixture is this Asset in?"
     # in O(1) for the conformance projection.
     fixture_id: UUID | None = None

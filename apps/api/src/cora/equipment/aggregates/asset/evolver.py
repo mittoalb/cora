@@ -47,27 +47,31 @@ mutated incrementally by `AssetFamilyAdded` /
 **Critical invariant**: every transition arm MUST carry
 `family_ids` AND `condition` AND `settings` AND `ports` AND
 `drawing` AND `model_id` AND `alternate_identifiers` AND `owners`
-through from prior state. Constructing
+AND `fixture_id` through from prior state. Constructing
 `Asset(id=..., name=..., level=..., parent_id=..., lifecycle=...)`
 without explicitly passing them would silently WIPE the fields to
 their defaults (empty frozenset / NOMINAL / empty dict / empty
-frozenset / None / None / empty frozenset / empty frozenset).
-`family_ids` was added with a default solely for additive-state
-forward compatibility on genesis events; `condition`, `settings`,
-`ports`, `drawing`, `model_id`, `alternate_identifiers`, and
-`owners` followed the same additive pattern. Transition arms must
-explicitly carry all eight. `model_id` is set ONCE at registration
-per the model-binding design memo (Lock A) and never changes
-post-genesis, but transition arms still must carry it forward like
-any other Asset field. Pinned by
+frozenset / None / None / empty frozenset / empty frozenset /
+None). `family_ids` was added with a default solely for
+additive-state forward compatibility on genesis events;
+`condition`, `settings`, `ports`, `drawing`, `model_id`,
+`alternate_identifiers`, `owners`, and `fixture_id` followed the
+same additive pattern. Transition arms must explicitly carry all
+nine. `model_id` is set ONCE at registration per the
+model-binding design memo (Lock A) and never changes post-genesis,
+but transition arms still must carry it forward like any other
+Asset field. `fixture_id` toggles None <-> Some(fixture_id) via
+AssetAttachedToFixture / AssetDetachedFromFixture; every other
+transition arm preserves it. Pinned by
 `test_evolve_<transition>_preserves_capabilities`,
 `test_evolve_<transition>_preserves_condition`,
 `test_evolve_<transition>_preserves_settings`,
 `test_evolve_<transition>_preserves_ports`,
 `test_evolve_<transition>_preserves_drawing`,
 `test_evolve_<transition>_preserves_model_id`,
-`test_evolve_<transition>_preserves_alternate_identifiers`, and
-`test_evolve_<transition>_preserves_owners` for each transition.
+`test_evolve_<transition>_preserves_alternate_identifiers`,
+`test_evolve_<transition>_preserves_owners`, and
+`test_evolve_<transition>_preserves_fixture_id` for each transition.
 
 Transition events applied to empty state raise ValueError: they
 can never appear before `AssetRegistered` in a well-formed stream.
@@ -85,6 +89,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetAttachedToFixture,
     AssetDecommissioned,
     AssetDegraded,
+    AssetDetachedFromFixture,
     AssetEvent,
     AssetFamilyAdded,
     AssetFamilyRemoved,
@@ -146,7 +151,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 # pattern), so legacy streams missing those keys fold
                 # to the empty frozenset without an upcaster.
                 # fixture_id is set later by AssetAttachedToFixture
-                # (B.5 slice); register_asset never sets it inline.
+                # `attach_asset_to_fixture`; register_asset never sets it inline.
             )
         case AssetActivated():
             prior = require_state(state, "AssetActivated")
@@ -477,6 +482,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers - {identifier},
                 owners=prior.owners,
+                fixture_id=prior.fixture_id,
             )
         case AssetOwnerAdded(owner=owner):
             # Owner mutation: only `owners` changes; everything else
@@ -500,6 +506,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners | {owner},
+                fixture_id=prior.fixture_id,
             )
         case AssetOwnerRemoved(owner_name=owner_name):
             # Mirror of AssetOwnerAdded. Removes the owner whose `name`
@@ -545,7 +552,31 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 drawing=prior.drawing,
                 model_id=prior.model_id,
                 alternate_identifiers=prior.alternate_identifiers,
+                owners=prior.owners,
                 fixture_id=fixture_id,
+            )
+        case AssetDetachedFromFixture():
+            # Clears the back-reference. The Fixture's own
+            # slot_asset_bindings stays unchanged (single-event-stream
+            # invariant); the conformance projection notices the gap.
+            # Decider rejects detach when fixture_id is None so this
+            # always transitions Some(fixture_id) -> None.
+            prior = require_state(state, "AssetDetachedFromFixture")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                family_ids=prior.family_ids,
+                settings=prior.settings,
+                ports=prior.ports,
+                drawing=prior.drawing,
+                model_id=prior.model_id,
+                alternate_identifiers=prior.alternate_identifiers,
+                owners=prior.owners,
+                fixture_id=None,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

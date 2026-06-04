@@ -16,14 +16,15 @@ calling the decider):
 The N referenced Assets are NOT mutated by this slice; they pre-exist
 (registered via `register_asset`) and the registration event only
 records the mapping. Per-Asset `attach_asset_to_fixture` events land
-in B.5 as separate single-stream appends. The projection-side
-conformance computation treats a missing back-reference as
-`fixture_id=None`, so a partial failure between this slice and B.5's
-per-Asset appends is recoverable.
+as separate single-stream appends on each touched Asset stream. The
+projection-side conformance computation treats a missing back-
+reference as `fixture_id=None`, so a partial failure between this
+slice and per-Asset attach is recoverable.
 
-Idempotent variant: B.4 emits genesis events on a fresh fixture_id,
-which makes Idempotency-Key handling worthwhile; the route layer
-threads the header in and `with_idempotency` wraps the bare handler.
+Idempotent variant: register_fixture emits genesis events on a fresh
+fixture_id, which makes Idempotency-Key handling worthwhile; the
+route layer threads the header in and `with_idempotency` wraps the
+bare handler.
 """
 
 import asyncio

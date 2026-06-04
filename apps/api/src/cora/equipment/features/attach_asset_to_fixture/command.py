@@ -15,7 +15,7 @@ Cross-aggregate references checked by the handler before the decider:
 
 Cross-aggregate invariants checked by the decider:
   - Asset.fixture_id must currently be None (no double-attach;
-    detach first via B.6).
+    detach first via detach_asset_from_fixture).
   - Asset.lifecycle must not be Decommissioned.
   - Some binding in Fixture.slot_asset_bindings must carry this
     asset_id (prevents phantom back-references).

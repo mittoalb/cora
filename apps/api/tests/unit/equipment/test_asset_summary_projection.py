@@ -61,6 +61,7 @@ def test_projection_metadata() -> None:
             "AssetOwnerAdded",
             "AssetOwnerRemoved",
             "AssetAttachedToFixture",
+            "AssetDetachedFromFixture",
         }
     )
 

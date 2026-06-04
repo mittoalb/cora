@@ -26,7 +26,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "slot_asset_bindings (no phantom back-references). "
             "Strict-not-idempotent: re-attaching an Asset that already "
             "carries a fixture_id raises; detach first via "
-            "detach_asset_from_fixture (B.6)."
+            "detach_asset_from_fixture."
         ),
     )
     async def attach_asset_to_fixture_tool(  # pyright: ignore[reportUnusedFunction]

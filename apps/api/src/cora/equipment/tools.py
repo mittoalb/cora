@@ -34,6 +34,9 @@ from cora.equipment.features.deprecate_family import (
     tool as deprecate_family_tool,
 )
 from cora.equipment.features.deprecate_model import tool as deprecate_model_tool
+from cora.equipment.features.detach_asset_from_fixture import (
+    tool as detach_asset_from_fixture_tool,
+)
 from cora.equipment.features.enter_asset_maintenance import tool as enter_asset_maintenance_tool
 from cora.equipment.features.exit_asset_maintenance import (
     tool as exit_asset_maintenance_tool,
@@ -272,4 +275,8 @@ def register_equipment_tools(
     attach_asset_to_fixture_tool.register(
         mcp,
         get_handler=lambda: get_handlers().attach_asset_to_fixture,
+    )
+    detach_asset_from_fixture_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().detach_asset_from_fixture,
     )

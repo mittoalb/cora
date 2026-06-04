@@ -26,7 +26,9 @@ Subscribed events:
   - AssetOwnerRemoved                 -> UPDATE remove owner matching name
                                          from owners JSONB array
   - AssetAttachedToFixture            -> UPDATE fixture_id (Fixture back-ref
-                                         set by B.5 attach_asset_to_fixture)
+                                         set by attach_asset_to_fixture)
+  - AssetDetachedFromFixture          -> UPDATE fixture_id = NULL (cleared
+                                         by detach_asset_from_fixture)
 
 NOT subscribed:
   - AssetFamilyAdded / AssetFamilyRemoved: these describe
@@ -69,6 +71,12 @@ ON CONFLICT (asset_id) DO NOTHING
 _UPDATE_FIXTURE_ID_SQL = """
 UPDATE proj_equipment_asset_summary
 SET fixture_id = $2, updated_at = now()
+WHERE asset_id = $1
+"""
+
+_CLEAR_FIXTURE_ID_SQL = """
+UPDATE proj_equipment_asset_summary
+SET fixture_id = NULL, updated_at = now()
 WHERE asset_id = $1
 """
 
@@ -194,6 +202,7 @@ class AssetSummaryProjection:
             "AssetOwnerAdded",
             "AssetOwnerRemoved",
             "AssetAttachedToFixture",
+            "AssetDetachedFromFixture",
         }
     )
 
@@ -285,6 +294,11 @@ class AssetSummaryProjection:
                     _UPDATE_FIXTURE_ID_SQL,
                     UUID(event.payload["asset_id"]),
                     UUID(event.payload["fixture_id"]),
+                )
+            case "AssetDetachedFromFixture":
+                await conn.execute(
+                    _CLEAR_FIXTURE_ID_SQL,
+                    UUID(event.payload["asset_id"]),
                 )
             case _:
                 pass

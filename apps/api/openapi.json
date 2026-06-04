@@ -5025,6 +5025,22 @@
         "title": "DeregisterSupplyRequest",
         "type": "object"
       },
+      "DetachAssetFromFixtureRequest": {
+        "description": "Body for `POST /assets/{asset_id}/detach-from-fixture`.",
+        "properties": {
+          "fixture_id": {
+            "description": "Fixture.id the Asset is expected to be currently attached to. Defensive race-condition guard: if the Asset is actually attached to a different Fixture, the request is rejected.",
+            "format": "uuid",
+            "title": "Fixture Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fixture_id"
+        ],
+        "title": "DetachAssetFromFixtureRequest",
+        "type": "object"
+      },
       "Direction": {
         "description": "Query-convenience discriminator mirroring `type(state.terms)`.\n\nLives on the aggregate root so projections and read-side filters\ncan index by direction without crossing the polymorphic terms\nboundary. Decider enforces `direction == Outbound iff\nisinstance(terms, OutboundTerms)`.",
         "enum": [
@@ -15724,6 +15740,96 @@
           }
         },
         "summary": "Mark an existing asset as Degraded (works with reduced specs)",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/detach-from-fixture": {
+      "post": {
+        "operationId": "post_assets_detach_from_fixture_assets__asset_id__detach_from_fixture_post",
+        "parameters": [
+          {
+            "description": "Target Asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target Asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetachAssetFromFixtureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset does not exist."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset is not attached to any Fixture (strict-not-idempotent re-detach), OR Asset is attached to a different Fixture than the requested fixture_id (defensive race-condition guard), OR a concurrent write to the Asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Detach an Asset from the Fixture it is currently attached to",
         "tags": [
           "equipment"
         ]
