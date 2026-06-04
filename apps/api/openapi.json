@@ -27357,7 +27357,7 @@
                 }
               }
             },
-            "description": "Mount cannot uninstall: already Decommissioned OR slot is vacant (MountIsEmptyError)."
+            "description": "Mount cannot uninstall: already Decommissioned, OR slot is vacant (MountIsEmptyError), OR the installed Asset is still bound to a Fixture (detach first)."
           },
           "422": {
             "content": {

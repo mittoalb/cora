@@ -43,8 +43,9 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Mount cannot uninstall: already Decommissioned OR slot "
-                "is vacant (MountIsEmptyError)."
+                "Mount cannot uninstall: already Decommissioned, OR slot "
+                "is vacant (MountIsEmptyError), OR the installed Asset is "
+                "still bound to a Fixture (detach first)."
             ),
         },
     },

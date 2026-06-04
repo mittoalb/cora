@@ -153,6 +153,32 @@ class MountHasAssetInstalledError(Exception):
         self.installed_asset_id = installed_asset_id
 
 
+class MountHasFixtureBoundAssetError(Exception):
+    """Attempted to uninstall an Asset that is still bound into a Fixture.
+
+    Uninstall requires the installed Asset to carry no Fixture
+    back-reference; popping a fixture-bound Asset off its Mount would
+    silently strand the Fixture binding. Operators must
+    `detach_asset_from_fixture` first (no implicit detach per the
+    no-cascade anti-hook; mirrors `MountHasAssetInstalledError` on
+    the inverse axis where decommission_asset rejects fixture-bound
+    Assets).
+
+    Carries `asset_id` (the installed Asset) and `fixture_id` (the
+    Fixture currently binding it) so the operator error response can
+    deep-link to detach.
+    """
+
+    def __init__(self, mount_id: UUID, asset_id: UUID, fixture_id: UUID) -> None:
+        super().__init__(
+            f"Mount {mount_id} cannot uninstall: Asset {asset_id} is still "
+            f"bound to Fixture {fixture_id}; detach first"
+        )
+        self.mount_id = mount_id
+        self.asset_id = asset_id
+        self.fixture_id = fixture_id
+
+
 class MountHasActiveChildrenError(Exception):
     """Attempted to decommission a mount with active child Mounts.
 
