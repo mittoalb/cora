@@ -170,6 +170,7 @@ EXEMPT_FROM_HANDLER_UNIT: frozenset[str] = frozenset(
         # Each should grow `tests/unit/<bc>/test_<slice>_handler.py` so
         # filter/sort/pagination behavior is locked at the in-memory
         # tier. Remove from this allowlist when added.
+        "cora.equipment.features.list_fixtures",
         "cora.federation.features.list_credentials",
         "cora.federation.features.list_permits",
         "cora.federation.features.list_seals",

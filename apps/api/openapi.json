@@ -5566,6 +5566,139 @@
         "title": "FederationErrorDTO",
         "type": "object"
       },
+      "FixtureListResponse": {
+        "description": "Page of Fixtures plus opaque next-page cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FixtureSummaryDTO"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "FixtureListResponse",
+        "type": "object"
+      },
+      "FixtureResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. slot_asset_bindings serializes\nas a sorted list of binding objects (sorted by slot_name then\nasset_id for response determinism; frozenset semantics in domain\nstate, list at the JSON boundary).",
+        "properties": {
+          "assembly_content_hash": {
+            "title": "Assembly Content Hash",
+            "type": "string"
+          },
+          "assembly_id": {
+            "format": "uuid",
+            "title": "Assembly Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "parameter_overrides": {
+            "additionalProperties": true,
+            "title": "Parameter Overrides",
+            "type": "object"
+          },
+          "registered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registered At"
+          },
+          "slot_asset_bindings": {
+            "items": {
+              "$ref": "#/components/schemas/SlotAssetBindingResponse"
+            },
+            "title": "Slot Asset Bindings",
+            "type": "array"
+          },
+          "surface_id": {
+            "format": "uuid",
+            "title": "Surface Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "assembly_id",
+          "assembly_content_hash",
+          "surface_id",
+          "registered_at"
+        ],
+        "title": "FixtureResponse",
+        "type": "object"
+      },
+      "FixtureSummaryDTO": {
+        "description": "One Fixture in a paginated list (summary-only).",
+        "properties": {
+          "assembly_content_hash": {
+            "title": "Assembly Content Hash",
+            "type": "string"
+          },
+          "assembly_id": {
+            "format": "uuid",
+            "title": "Assembly Id",
+            "type": "string"
+          },
+          "binding_count": {
+            "title": "Binding Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "fixture_id": {
+            "format": "uuid",
+            "title": "Fixture Id",
+            "type": "string"
+          },
+          "override_count": {
+            "title": "Override Count",
+            "type": "integer"
+          },
+          "surface_id": {
+            "format": "uuid",
+            "title": "Surface Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fixture_id",
+          "assembly_id",
+          "assembly_content_hash",
+          "surface_id",
+          "binding_count",
+          "override_count",
+          "created_at"
+        ],
+        "title": "FixtureSummaryDTO",
+        "type": "object"
+      },
       "GhsDto": {
         "properties": {
           "code": {
@@ -10516,6 +10649,26 @@
           "asset_id"
         ],
         "title": "SlotAssetBindingBody",
+        "type": "object"
+      },
+      "SlotAssetBindingResponse": {
+        "description": "A single (slot_name, asset_id) binding within a Fixture.",
+        "properties": {
+          "asset_id": {
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "slot_name": {
+            "title": "Slot Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot_name",
+          "asset_id"
+        ],
+        "title": "SlotAssetBindingResponse",
         "type": "object"
       },
       "SlotCardinality": {
@@ -24735,6 +24888,226 @@
         "summary": "Start a republishing window on the Live Seal (Live -> Republishing)",
         "tags": [
           "federation"
+        ]
+      }
+    },
+    "/fixtures": {
+      "get": {
+        "operationId": "list_fixtures_fixtures_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `next_cursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's `next_cursor`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size; capped at 100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Page size; capped at 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only Fixtures of this Assembly blueprint.",
+            "in": "query",
+            "name": "assembly_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only Fixtures of this Assembly blueprint.",
+              "title": "Assembly Id"
+            }
+          },
+          {
+            "description": "Only Fixtures registered on this Trust Surface.",
+            "in": "query",
+            "name": "surface_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only Fixtures registered on this Trust Surface.",
+              "title": "Surface Id"
+            }
+          },
+          {
+            "description": "Only Fixtures whose snapshot matches this content_hash (cross-Surface federation queries).",
+            "in": "query",
+            "name": "assembly_content_hash",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only Fixtures whose snapshot matches this content_hash (cross-Surface federation queries).",
+              "title": "Assembly Content Hash"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixtureListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "422": {
+            "description": "Query parameters failed validation OR `cursor` was malformed (corrupt base64, missing separator, bad timestamp / UUID)."
+          }
+        },
+        "summary": "List Fixtures with cursor pagination + assembly/surface/content_hash filters",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/fixtures/{fixture_id}": {
+      "get": {
+        "operationId": "get_fixtures_fixtures__fixture_id__get",
+        "parameters": [
+          {
+            "description": "Target Fixture's id.",
+            "in": "path",
+            "name": "fixture_id",
+            "required": true,
+            "schema": {
+              "description": "Target Fixture's id.",
+              "format": "uuid",
+              "title": "Fixture Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixtureResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Fixture exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a Fixture by id",
+        "tags": [
+          "equipment"
         ]
       }
     },

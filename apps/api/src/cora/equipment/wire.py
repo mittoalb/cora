@@ -56,10 +56,12 @@ from cora.equipment.features import (
     get_asset,
     get_asset_integration_view,
     get_family,
+    get_fixture,
     get_model,
     install_asset,
     list_assets,
     list_families,
+    list_fixtures,
     register_asset,
     register_fixture,
     register_frame,
@@ -165,6 +167,8 @@ class EquipmentHandlers:
     register_fixture: register_fixture.IdempotentHandler
     attach_asset_to_fixture: attach_asset_to_fixture.Handler
     detach_asset_from_fixture: detach_asset_from_fixture.Handler
+    get_fixture: get_fixture.Handler
+    list_fixtures: list_fixtures.Handler
 
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
@@ -466,5 +470,17 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             detach_asset_from_fixture.bind(deps),
             command_name="DetachAssetFromFixture",
             bc=_BC,
+        ),
+        get_fixture=with_tracing(
+            get_fixture.bind(deps),
+            command_name="GetFixture",
+            bc=_BC,
+            kind="query",
+        ),
+        list_fixtures=with_tracing(
+            list_fixtures.bind(deps),
+            command_name="ListFixtures",
+            bc=_BC,
+            kind="query",
         ),
     )

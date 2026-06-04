@@ -172,10 +172,12 @@ from cora.equipment.features import (
     get_asset,
     get_asset_integration_view,
     get_family,
+    get_fixture,
     get_model,
     install_asset,
     list_assets,
     list_families,
+    list_fixtures,
     register_asset,
     register_fixture,
     register_frame,
@@ -314,6 +316,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(register_fixture.router)
     app.include_router(attach_asset_to_fixture.router)
     app.include_router(detach_asset_from_fixture.router)
+    app.include_router(get_fixture.router)
+    app.include_router(list_fixtures.router)
     for validation_cls in (
         InvalidAffordanceError,
         InvalidFamilyNameError,

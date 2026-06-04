@@ -47,10 +47,12 @@ from cora.equipment.features.get_asset_integration_view import (
     tool as get_asset_integration_view_tool,
 )
 from cora.equipment.features.get_family import tool as get_family_tool
+from cora.equipment.features.get_fixture import tool as get_fixture_tool
 from cora.equipment.features.get_model import tool as get_model_tool
 from cora.equipment.features.install_asset import tool as install_asset_tool
 from cora.equipment.features.list_assets import tool as list_assets_tool
 from cora.equipment.features.list_families import tool as list_families_tool
+from cora.equipment.features.list_fixtures import tool as list_fixtures_tool
 from cora.equipment.features.register_asset import tool as register_asset_tool
 from cora.equipment.features.register_fixture import tool as register_fixture_tool
 from cora.equipment.features.register_frame import tool as register_frame_tool
@@ -279,4 +281,12 @@ def register_equipment_tools(
     detach_asset_from_fixture_tool.register(
         mcp,
         get_handler=lambda: get_handlers().detach_asset_from_fixture,
+    )
+    get_fixture_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_fixture,
+    )
+    list_fixtures_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_fixtures,
     )
