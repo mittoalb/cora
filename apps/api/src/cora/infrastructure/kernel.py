@@ -41,6 +41,7 @@ from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     LLM,
     Authorize,
+    CapabilityLookup,
     CautionLookup,
     ClearanceLookup,
     Clock,
@@ -93,6 +94,21 @@ class Kernel:
     (see `cora.infrastructure.ports.caution_lookup` module
     docstring): the snapshot informs the payload but the decider
     never gates on it.
+
+    `capability_lookup`: cross-BC port consumed by Equipment BC's
+    `get_asset_integration_view` handler to fetch the set of
+    Recipe Capabilities whose `required_affordances` are covered
+    by an Asset's combined Family affordances. Recipe BC ships
+    `PostgresCapabilityLookup` as the production adapter (reads
+    `proj_recipe_capability_summary`). Test environments default
+    to `AlwaysEmptyCapabilityLookup` (returns `[]`) so existing
+    Equipment tests do not have to seed Capability projection
+    rows; surface-specific tests override with a fake that returns
+    seeded references or with the real adapter explicitly. The
+    port preserves Family's vocabulary discipline ("Capability"
+    stays a Recipe word) by isolating the Recipe reference type
+    behind a Protocol the handler maps onto the local
+    `CapabilityView` response shape.
 
     `supply_lookup`: cross-BC port consumed by Run BC's `start_run`
     handler and Operation BC's `start_procedure` handler to gate
@@ -175,6 +191,7 @@ class Kernel:
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup
     caution_lookup: CautionLookup
+    capability_lookup: CapabilityLookup
     supply_lookup: SupplyLookup
     credential_lookup: CredentialLookup
     profile_store: ProfileStore

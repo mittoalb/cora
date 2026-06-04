@@ -12,6 +12,11 @@ from cora.infrastructure.ports.authorize import (
     AuthzResult,
     Deny,
 )
+from cora.infrastructure.ports.capability_lookup import (
+    AlwaysEmptyCapabilityLookup,
+    CapabilityLookup,
+    CapabilityReference,
+)
 from cora.infrastructure.ports.caution_lookup import (
     AlwaysQuietCautionLookup,
     CautionLookup,
@@ -103,6 +108,7 @@ __all__ = [
     "Allow",
     "AllowAllAuthorize",
     "AlwaysCoveredClearanceLookup",
+    "AlwaysEmptyCapabilityLookup",
     "AlwaysQuietCautionLookup",
     "Authorize",
     "AuthzResult",
@@ -111,6 +117,8 @@ __all__ = [
     "CachedError",
     "CachedHandlerError",
     "CachedSuccess",
+    "CapabilityLookup",
+    "CapabilityReference",
     "CautionLookup",
     "CautionReference",
     "ClaimOutcome",

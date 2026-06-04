@@ -137,6 +137,7 @@ from cora.recipe import (
     register_recipe_tools,
     wire_recipe,
 )
+from cora.recipe.adapters import PostgresCapabilityLookup
 from cora.run import (
     RunHandlers,
     register_run_projections,
@@ -396,6 +397,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
                 caution_lookup_factory=PostgresCautionLookup,
+                capability_lookup_factory=PostgresCapabilityLookup,
                 supply_lookup_factory=PostgresSupplyLookup,
                 credential_lookup_factory=PostgresCredentialLookup,
                 # publish_revision slice deps: in-memory adapters

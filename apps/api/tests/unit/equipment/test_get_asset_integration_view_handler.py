@@ -5,10 +5,11 @@ bundle by loading the Asset stream + each referenced Family stream +
 querying the existing CautionLookup port + (with pool) the Capability
 projection.
 
-In-memory test mode: AlwaysQuietCautionLookup returns []; pool is None
-so applicable_capabilities falls back to empty list (no-pool path
-per [[project-asset-integration-view-design]] anti-hook + list_query
-no_pool convention).
+In-memory test mode: AlwaysQuietCautionLookup +
+AlwaysEmptyCapabilityLookup both return [] so existing tests don't
+need to seed Caution or Capability projection rows. A surface-
+specific test injects a fake CapabilityLookup returning seeded
+references to prove the port -> view mapping.
 
 This file pins:
   - returns None on unknown asset id (route maps to 404)
@@ -44,6 +45,7 @@ from cora.equipment.features.get_asset_integration_view import (
     GetAssetIntegrationView,
 )
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.ports import CapabilityReference
 from tests.unit._helpers import build_deps as _build_deps
 
 _NOW = datetime(2026, 5, 20, 12, 0, 0, tzinfo=UTC)
@@ -243,3 +245,87 @@ def test_wire_equipment_includes_get_asset_integration_view() -> None:
     handlers = wire_equipment(deps)
     assert isinstance(handlers, EquipmentHandlers)
     assert callable(handlers.get_asset_integration_view)
+
+
+class _FakeCapabilityLookup:
+    """Test stub returning seeded CapabilityReferences for the affordance
+    filter. The handler under test passes its combined-affordance
+    frozenset and gets back a fixed list; the test asserts the mapping
+    onto CapabilityView preserves all four fields plus order."""
+
+    def __init__(self, refs: list[CapabilityReference]) -> None:
+        self.refs = refs
+        self.calls: list[frozenset[str]] = []
+
+    async def find_applicable_by_affordances(
+        self,
+        affordances: frozenset[str],
+    ) -> list[CapabilityReference]:
+        self.calls.append(affordances)
+        return list(self.refs)
+
+
+@pytest.mark.unit
+async def test_handler_maps_capability_lookup_refs_into_view() -> None:
+    """The handler calls capability_lookup with the combined Family
+    affordances and maps each returned CapabilityReference onto a
+    public CapabilityView (capability_id, code, name, status)."""
+    import dataclasses
+
+    cap_a = UUID("01900000-0000-7000-8000-00000000ca01")
+    cap_b = UUID("01900000-0000-7000-8000-00000000ca02")
+    seeded = [
+        CapabilityReference(
+            capability_id=cap_a, code="cora.capability.alpha", name="Alpha", status="Defined"
+        ),
+        CapabilityReference(
+            capability_id=cap_b, code="cora.capability.bravo", name="Bravo", status="Versioned"
+        ),
+    ]
+    fake = _FakeCapabilityLookup(seeded)
+
+    deps = _build_deps(
+        ids=[
+            _ASSET_ID,
+            _ASSET_REGISTERED_EVENT_ID,
+            _FAMILY_A_ID,
+            _FAMILY_A_DEFINED_EVENT_ID,
+            _ADD_FAMILY_A_EVENT_ID,
+        ],
+        now=_NOW,
+    )
+    deps = dataclasses.replace(deps, capability_lookup=fake)  # type: ignore[arg-type]
+    await register_asset.bind(deps)(
+        RegisterAsset(name="APS-2BM", level=AssetLevel.UNIT, parent_id=_PARENT_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_family.bind(deps)(
+        DefineFamily(name="RotaryStage", affordances=frozenset({Affordance.POSABLE})),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=_ASSET_ID, family_id=_FAMILY_A_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    handler = get_asset_integration_view.bind(deps)
+    view = await handler(
+        GetAssetIntegrationView(asset_id=_ASSET_ID),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    assert view is not None
+    assert len(view.applicable_capabilities) == 2
+    assert view.applicable_capabilities[0].capability_id == cap_a
+    assert view.applicable_capabilities[0].code == "cora.capability.alpha"
+    assert view.applicable_capabilities[0].name == "Alpha"
+    assert view.applicable_capabilities[0].status == "Defined"
+    assert view.applicable_capabilities[1].capability_id == cap_b
+    assert view.applicable_capabilities[1].status == "Versioned"
+    # The port was called with the Asset's combined Family affordances
+    # (one Family with POSABLE in this scenario).
+    assert fake.calls == [frozenset({Affordance.POSABLE.value})]

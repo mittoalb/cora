@@ -74,8 +74,10 @@ from cora.infrastructure.ports import (
     LLM,
     AllSatisfiedSupplyLookup,
     AlwaysCoveredClearanceLookup,
+    AlwaysEmptyCapabilityLookup,
     AlwaysQuietCautionLookup,
     Authorize,
+    CapabilityLookup,
     CautionLookup,
     ClearanceLookup,
     Clock,
@@ -138,6 +140,7 @@ def make_postgres_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
     profile_store: ProfileStore | None = None,
@@ -176,6 +179,14 @@ def make_postgres_kernel(
     `PostgresCautionLookup` via the `caution_lookup_factory` argument;
     snapshot-specific tests override here explicitly. NON-BLOCKING by
     construction (see `cora.infrastructure.ports.caution_lookup`).
+
+    `capability_lookup` defaults to `AlwaysEmptyCapabilityLookup`
+    (returns `[]`) so existing Equipment integration tests don't
+    have to seed Capability projection rows. Production's
+    `build_kernel` injects the real `PostgresCapabilityLookup` via
+    the `capability_lookup_factory` argument; surface-specific
+    tests override here explicitly with a fake returning seeded
+    references or with the real adapter.
 
     `supply_lookup` defaults to `AllSatisfiedSupplyLookup` (synthetic
     Available per requested kind) so existing Run / Procedure tests
@@ -220,6 +231,9 @@ def make_postgres_kernel(
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
+        capability_lookup=(
+            capability_lookup if capability_lookup is not None else AlwaysEmptyCapabilityLookup()
+        ),
         supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
         credential_lookup=(
             credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
@@ -247,6 +261,7 @@ def make_inmemory_kernel(
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
     caution_lookup: CautionLookup | None = None,
+    capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
     profile_store: ProfileStore | None = None,
@@ -281,6 +296,12 @@ def make_inmemory_kernel(
     `[]`) for the same reason: no projection worker, no
     `proj_caution_summary` table. Snapshot-specific tests can override
     with a custom adapter or a fake that returns seeded references.
+
+    `capability_lookup` defaults to `AlwaysEmptyCapabilityLookup`
+    (returns `[]`) for the same reason: no projection worker, no
+    `proj_recipe_capability_summary` table. Surface-specific tests
+    override with a fake returning seeded references or with the
+    real adapter.
 
     `supply_lookup` defaults to `AllSatisfiedSupplyLookup` for the same
     reason: no projection worker, no `proj_supply_summary` table to
@@ -322,6 +343,9 @@ def make_inmemory_kernel(
         ),
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
+        ),
+        capability_lookup=(
+            capability_lookup if capability_lookup is not None else AlwaysEmptyCapabilityLookup()
         ),
         supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
         credential_lookup=(
@@ -384,6 +408,26 @@ class CautionLookupFactory(Protocol):
         self,
         pool: asyncpg.Pool,
     ) -> CautionLookup: ...
+
+
+class CapabilityLookupFactory(Protocol):
+    """Builds the production CapabilityLookup port for the Kernel.
+
+    Recipe BC's `cora.recipe.adapters.PostgresCapabilityLookup` is
+    the production factory; `cora.api.main` binds it. Same
+    factory-injection shape as the other lookup factories so
+    `cora.infrastructure.deps` doesn't import from any BC (tach
+    module rule: `cora.infrastructure depends_on = []`).
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to
+    `AlwaysEmptyCapabilityLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> CapabilityLookup: ...
 
 
 class SupplyLookupFactory(Protocol):
@@ -456,6 +500,7 @@ async def build_kernel(
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
+    capability_lookup_factory: CapabilityLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
     credential_lookup_factory: CredentialLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
@@ -546,6 +591,11 @@ async def build_kernel(
         if caution_lookup_factory is not None
         else AlwaysQuietCautionLookup()
     )
+    capability_lookup: CapabilityLookup = (
+        capability_lookup_factory(pool)
+        if capability_lookup_factory is not None
+        else AlwaysEmptyCapabilityLookup()
+    )
     supply_lookup: SupplyLookup = (
         supply_lookup_factory(pool)
         if supply_lookup_factory is not None
@@ -567,6 +617,7 @@ async def build_kernel(
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,
         caution_lookup=caution_lookup,
+        capability_lookup=capability_lookup,
         supply_lookup=supply_lookup,
         credential_lookup=credential_lookup,
         llm=llm,
@@ -641,6 +692,7 @@ def _compose_teardowns(teardowns: list[Teardown]) -> Teardown:
 
 __all__ = [
     "AuthorizeFactory",
+    "CapabilityLookupFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
     "CredentialLookupFactory",

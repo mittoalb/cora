@@ -1,25 +1,22 @@
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-
 """Application handler for the `get_asset_integration_view` query slice.
 
 Read-time composition handler. Assembles the integration-view bundle by:
 
     1. authorize(principal_id, query_name, conduit_id) -> Allow | Deny
     2. load_asset(...)                      -> Asset | None  (fold-on-read)
-       (returns None → caller maps to 404 / isError)
+       (returns None -> caller maps to 404 / isError)
     3. for each family in asset.family_ids:
            load_family(...)                 -> Family | None (fold-on-read)
-       (missing Family → skip with warning log; set incomplete=True; mirrors
+       (missing Family -> skip with warning log; set incomplete=True; mirrors
         promote_dataset derived_from peer-load tolerance per
         [[project-dataset-lineage-design]])
     4. caution_lookup.find_active_for_run(
            asset_ids={asset_id}, procedure_ids=frozenset(),
            min_severity="Notice")           -> list[CautionReference]
-       (port; existing infra; returns [] when pool is None / in test mode)
-    5. SELECT FROM proj_recipe_capability_summary WHERE
-           required_affordances <@ <combined Family affordances> AND
-           status IN ('Defined', 'Versioned')
-       (raw SQL via deps.pool; no-pool fallback returns [])
+       (port; returns [] in test mode via AlwaysQuietCautionLookup)
+    5. capability_lookup.find_applicable_by_affordances(
+           <combined Family affordances>)   -> list[CapabilityReference]
+       (port; returns [] in test mode via AlwaysEmptyCapabilityLookup)
     6. assemble AssetIntegrationView and return
 
 Returns the domain `AssetIntegrationView`, not a DTO. The route layer
@@ -28,16 +25,17 @@ structured output.
 
 NO new event subscribers, NO new projection table, NO migration. v2
 promotion to a denormalized projection (Option C from the Q1 memo)
-is the explicit upgrade path; trigger documented in the design memo.
+remains the explicit upgrade path; trigger documented in the design
+memo.
 
 Per [[project-asset-integration-view-design]] anti-hook #5: missing-
 Family-load tolerance returns `incomplete=True` rather than failing
 loud. The known-active Cautions / applicable Capabilities pieces are
-loaded from existing projections with the standard eventual-
-consistency lag.
+loaded through cross-BC ports that read existing projections with the
+standard eventual-consistency lag.
 """
 
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset, load_asset
@@ -59,20 +57,6 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 _QUERY_NAME = "GetAssetIntegrationView"
 
 _log = get_logger(__name__)
-
-
-# v1 applicable-Capabilities SQL: filter by required_affordances containment +
-# active status. The text[] `<@` operator returns rows whose
-# required_affordances is a subset of the given array (i.e., this Asset's
-# combined Family affordances cover the Capability's requirements).
-# Status filter excludes Deprecated per the design lock.
-_APPLICABLE_CAPABILITIES_SQL = """
-SELECT capability_id, code, name, status
-FROM proj_recipe_capability_summary
-WHERE required_affordances <@ $1::text[]
-  AND status IN ('Defined', 'Versioned')
-ORDER BY code ASC
-"""
 
 
 class Handler(Protocol):
@@ -196,32 +180,24 @@ def bind(deps: Kernel) -> Handler:
             for ref in caution_refs
         )
 
-        # Step 5: applicable Capabilities via SQL (no-pool fallback for
-        # in-memory test mode mirrors the list_query.no_pool convention
-        # at [[project-list-query]] line 402; returns empty list).
-        applicable_capability_views: tuple[CapabilityView, ...] = ()
-        if deps.pool is None:
-            _log.info(
-                "get_asset_integration_view.no_pool",
-                query_name=_QUERY_NAME,
-                asset_id=str(query.asset_id),
-                correlation_id=str(correlation_id),
+        # Step 5: applicable Capabilities via the cross-BC port. In-
+        # memory test mode: AlwaysEmptyCapabilityLookup returns [].
+        # The port keeps the word "Capability" out of Equipment's
+        # domain code: the handler maps the port's CapabilityReference
+        # onto the local CapabilityView response shape, and Family's
+        # docstring discipline (Capability is a Recipe word) holds.
+        capability_refs = await deps.capability_lookup.find_applicable_by_affordances(
+            frozenset(combined_affordance_values),
+        )
+        applicable_capability_views = tuple(
+            CapabilityView(
+                capability_id=ref.capability_id,
+                code=ref.code,
+                name=ref.name,
+                status=ref.status,
             )
-        else:
-            async with deps.pool.acquire() as conn:
-                rows: list[Any] = await conn.fetch(
-                    _APPLICABLE_CAPABILITIES_SQL,
-                    sorted(combined_affordance_values),
-                )
-            applicable_capability_views = tuple(
-                CapabilityView(
-                    capability_id=row["capability_id"],
-                    code=row["code"],
-                    name=row["name"],
-                    status=row["status"],
-                )
-                for row in rows
-            )
+            for ref in capability_refs
+        )
 
         # Step 6: assemble. Ports sorted by name for response determinism
         # (mirrors get_asset route convention).
