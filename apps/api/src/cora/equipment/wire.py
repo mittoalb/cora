@@ -81,6 +81,7 @@ from cora.equipment.features import (
     remove_model_family,
     restore_asset,
     uninstall_asset,
+    update_asset_partition_rule,
     update_asset_settings,
     update_family_settings_schema,
     update_frame_placement,
@@ -148,6 +149,7 @@ class EquipmentHandlers:
     fault_asset: fault_asset.Handler
     restore_asset: restore_asset.Handler
     update_asset_settings: update_asset_settings.Handler
+    update_asset_partition_rule: update_asset_partition_rule.Handler
     add_asset_port: add_asset_port.Handler
     remove_asset_port: remove_asset_port.Handler
     add_asset_alternate_identifier: add_asset_alternate_identifier.Handler
@@ -367,6 +369,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         update_asset_settings=with_tracing(
             update_asset_settings.bind(deps),
             command_name="UpdateAssetSettings",
+            bc=_BC,
+        ),
+        update_asset_partition_rule=with_tracing(
+            update_asset_partition_rule.bind(deps),
+            command_name="UpdateAssetPartitionRule",
             bc=_BC,
         ),
         add_asset_port=with_tracing(
