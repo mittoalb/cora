@@ -6,6 +6,10 @@ command the virtual output port; the runtime evaluator (in the Operation
 module) reads this rule and writes the resolved setpoints to the
 constituent motors via ControlPort.
 
+`expected_constituent_count` exposes the declared arity per rule shape;
+it is the single source of truth shared by the runtime evaluator (Operation
+BC) and the Plan-bind fan-out validator (Recipe BC).
+
 Closed discriminated union of 5 frozen-dataclass shapes, all carrying a
 `kind: PartitionRuleKind` discriminator:
 
@@ -637,6 +641,39 @@ def partition_rule_from_payload(payload: dict[str, object]) -> PartitionRule:
             )
 
 
+def expected_constituent_count(rule: PartitionRule) -> int | None:
+    """Return the constituent-input arity declared by `rule`, or None.
+
+    Centralizes the per-shape arity rule so the Operation-tier runtime
+    evaluator and the Recipe-tier Plan-bind fan-out validator agree on
+    the contract:
+
+      - `Affine`: 1 (single-input, single-output).
+      - `Aggregation`: `rule.constituent_count` (operator-declared on
+        the rule; `__post_init__` already guards aggregator-specific
+        minima such as Difference / MidRange = 2).
+      - `LookupTable`: 1 (single independent variable per table).
+      - `CompositePartition`: `rule.constituent_count`.
+      - `SolverReference`: None. The arity is not declared on the rule
+        (the external solver owns its own kinematics signature);
+        callers MUST treat None as "skip the arity check" rather than
+        substituting a default.
+
+    Pure helper. No I/O, no side effects.
+    """
+    match rule:
+        case Affine():
+            return 1
+        case Aggregation(constituent_count=count):
+            return count
+        case LookupTable():
+            return 1
+        case CompositePartition(constituent_count=count):
+            return count
+        case SolverReference():
+            return None
+
+
 __all__ = [
     "PARTITION_RULE_SOLVER_ID_MAX_LENGTH",
     "PARTITION_RULE_SOLVER_VERSION_MAX_LENGTH",
@@ -656,6 +693,7 @@ __all__ = [
     "ReadbackAggregatorKind",
     "SolverReference",
     "SolverTransportKind",
+    "expected_constituent_count",
     "partition_rule_from_payload",
     "partition_rule_to_payload",
 ]

@@ -27,6 +27,7 @@ from cora.equipment.aggregates._partition_rule import (
     ReadbackAggregatorKind,
     SolverReference,
     SolverTransportKind,
+    expected_constituent_count,
     partition_rule_from_payload,
     partition_rule_to_payload,
 )
@@ -1110,3 +1111,104 @@ def test_invalid_partition_rule_error_carries_sub_code_and_reason() -> None:
     assert err.reason == reason
     assert sub_code in str(err)
     assert reason in str(err)
+
+
+# =============================================================================
+# EXPECTED_CONSTITUENT_COUNT HELPER TESTS
+# =============================================================================
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_affine_returns_1() -> None:
+    rule = Affine(gain=2.0, offset=1.0)
+    assert expected_constituent_count(rule) == 1
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_affine_default_returns_1() -> None:
+    rule = Affine()
+    assert expected_constituent_count(rule) == 1
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_aggregation_sum_returns_constituent_count() -> None:
+    rule = Aggregation(aggregator_kind=AggregatorKind.SUM, constituent_count=4)
+    assert expected_constituent_count(rule) == 4
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_aggregation_difference_returns_2() -> None:
+    rule = Aggregation(aggregator_kind=AggregatorKind.DIFFERENCE, constituent_count=2)
+    assert expected_constituent_count(rule) == 2
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_aggregation_mid_range_returns_2() -> None:
+    rule = Aggregation(aggregator_kind=AggregatorKind.MID_RANGE, constituent_count=2)
+    assert expected_constituent_count(rule) == 2
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_aggregation_product_returns_constituent_count() -> None:
+    rule = Aggregation(aggregator_kind=AggregatorKind.PRODUCT, constituent_count=5)
+    assert expected_constituent_count(rule) == 5
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_aggregation_default_returns_1() -> None:
+    rule = Aggregation()
+    assert expected_constituent_count(rule) == 1
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_lookup_table_returns_1() -> None:
+    rule = LookupTable(calibration_revision_id=uuid4())
+    assert expected_constituent_count(rule) == 1
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_lookup_table_non_invertible_returns_1() -> None:
+    rule = LookupTable(
+        calibration_revision_id=uuid4(),
+        invertible=False,
+        readback_aggregator_kind=ReadbackAggregatorKind.MEAN,
+    )
+    assert expected_constituent_count(rule) == 1
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_composite_partition_returns_constituent_count() -> None:
+    rule = CompositePartition(
+        partition_kind=PartitionKind.PROPORTIONAL_FILL,
+        constituent_count=3,
+    )
+    assert expected_constituent_count(rule) == 3
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_composite_partition_minimum_returns_2() -> None:
+    rule = CompositePartition(constituent_count=2)
+    assert expected_constituent_count(rule) == 2
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_composite_partition_large_returns_constituent_count() -> None:
+    rule = CompositePartition(constituent_count=50)
+    assert expected_constituent_count(rule) == 50
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_solver_reference_returns_none() -> None:
+    rule = SolverReference(solver_id="hexapod", solver_version="1.0")
+    assert expected_constituent_count(rule) is None
+
+
+@pytest.mark.unit
+def test_expected_constituent_count_solver_reference_non_invertible_returns_none() -> None:
+    rule = SolverReference(
+        solver_id="hexapod",
+        solver_version="1.0",
+        invertible=False,
+        readback_aggregator_kind=ReadbackAggregatorKind.SELECT_INDEX_0,
+    )
+    assert expected_constituent_count(rule) is None
