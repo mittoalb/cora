@@ -24,7 +24,7 @@ The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset r
 | `MCTOptics_objective_2` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
 | `Oryx_5MP_camera` | `Device` | `Camera` | `2-BM` (bound into MCTOptics Fixture) |
 | `Scintillator_LuAG` | `Device` | `Scintillator` | `2-BM` (bound into MCTOptics Fixture) |
-| `MCTOptics_lens_select` | `Device` | `PseudoAxis` | `2-BM` (decomposes lens index to turret rotation) |
+| `MCTOptics_lens_select` | `Device` | `PseudoAxis` | `2-BM` (bound into MCTOptics Fixture; partition rule decomposes lens index to turret rotation) |
 
 ## Family affordances
 

@@ -151,8 +151,6 @@ Architecture tests pin the shape of every `cora/<bc>/aggregates/<agg>/events.py`
 - **`test_event_payload_immutability`** — collection-typed fields on event payloads use `tuple[X, ...]` / `frozenset[X]`, not `list[X]` / `set[X]`. Event payloads share references into folded state; mutable collections invite alias bugs.
 - **`test_projection_idempotency`** — every projection's `apply()` is safe to re-run on the same event.
 
-**Legacy-rename dispatch.** Renaming an event type-string keeps the old `case "OldName":` arm constructing the new dataclass — the case-string and the class name decouple. Marten / Axon precedent; `equipment/asset` and `equipment/family` both carry it for the Capability→Family rename. The case-coverage fitness accepts this: as long as the constructed class is in the union, extra case-string aliases are fine.
-
 ## Per-BC test helpers
 
 When a BC accumulates its own seeding / setup helpers (typically at rule-of-three), they live in `tests/unit/<bc>/_helpers.py`, the same name as the shared `tests/unit/_helpers.py` and `tests/integration/_helpers.py`. The architecture test `test_helper_naming_convention.py` rejects divergent names like `_iter2_seed.py` or `_seed_helpers.py`.

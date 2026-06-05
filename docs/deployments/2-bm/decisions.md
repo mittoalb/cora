@@ -9,7 +9,6 @@ A Decision is a structured-audit record of a consequential choice, attributed to
 | `RunDebriefer` agent | `RunDebrief` | `NominalCompletion` |
 | `RunDebriefer` agent | `RunDebrief` | `DegradedCompletion` |
 | `RunDebriefer` agent | `RunDebrief` | `EquipmentAbort` |
-| 2-BM Operator | `EnergyChange` | `switch_to_30_keV` |
 
 ## Pending
 
