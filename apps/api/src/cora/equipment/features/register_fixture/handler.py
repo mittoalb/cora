@@ -38,6 +38,7 @@ from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.register_fixture.command import RegisterFixture
 from cora.equipment.features.register_fixture.context import RegisterFixtureContext
 from cora.equipment.features.register_fixture.decider import decide
+from cora.equipment.projections.asset_location import load_asset_location
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -130,15 +131,36 @@ def bind(deps: Kernel) -> Handler:
         now = deps.clock.now()
 
         asset_ids = _referenced_asset_ids(command)
-        # Split gather across the two aggregate types so pyright keeps
-        # `assembly_state` narrowed to `Assembly | None` and each item
-        # in `assets` narrowed to `Asset | None`; a single gather across
-        # both would widen everything to the union.
-        assembly_state_task = asyncio.create_task(
-            load_assembly(deps.event_store, command.assembly_id)
+        # All three I/O streams run concurrently inside a TaskGroup so
+        # that a failure in any one of them cancels the siblings before
+        # the handler returns. Without this discipline, a load_asset
+        # raise would leak the assembly_state and mount_ids work as
+        # "task exception never retrieved" warnings and tie up pool
+        # connections after the request had already errored out.
+        # Per-asset tasks keep each result narrowed (Asset | None,
+        # Assembly | None) for pyright; the asset_location stream is
+        # only scheduled when deps.pool is set (pool=None short-circuit
+        # preserves the permissive default for the pool-less test path;
+        # matches install_asset / decommission_asset shape). In
+        # production deps.pool is always set, so every referenced
+        # asset_id gets an entry in mount_id_by_asset_id (mount_id when
+        # installed, None when orphan).
+        pool = deps.pool
+        async with asyncio.TaskGroup() as tg:
+            assembly_task = tg.create_task(load_assembly(deps.event_store, command.assembly_id))
+            asset_tasks = [tg.create_task(load_asset(deps.event_store, aid)) for aid in asset_ids]
+            mount_id_tasks: list[asyncio.Task[UUID | None]] | None = (
+                [tg.create_task(load_asset_location(pool, aid)) for aid in asset_ids]
+                if pool is not None
+                else None
+            )
+
+        assembly_state = assembly_task.result()
+        assets = [t.result() for t in asset_tasks]
+        mount_ids: list[UUID | None] | None = (
+            [t.result() for t in mount_id_tasks] if mount_id_tasks is not None else None
         )
-        assets = await asyncio.gather(*(load_asset(deps.event_store, aid) for aid in asset_ids))
-        assembly_state = await assembly_state_task
+
         family_ids_by_asset_id: dict[UUID, frozenset[UUID] | None] = {
             aid: (asset.family_ids if asset is not None else None)
             for aid, asset in zip(asset_ids, assets, strict=True)
@@ -147,10 +169,14 @@ def bind(deps: Kernel) -> Handler:
             aid: (asset.lifecycle if asset is not None else None)
             for aid, asset in zip(asset_ids, assets, strict=True)
         }
+        mount_id_by_asset_id: dict[UUID, UUID | None] | None = (
+            dict(zip(asset_ids, mount_ids, strict=True)) if mount_ids is not None else None
+        )
         context = RegisterFixtureContext(
             assembly_state=assembly_state,
             family_ids_by_asset_id=family_ids_by_asset_id,
             lifecycle_by_asset_id=lifecycle_by_asset_id,
+            mount_id_by_asset_id=mount_id_by_asset_id,
         )
 
         # Decider raises FixtureAlreadyExistsError defensively when
