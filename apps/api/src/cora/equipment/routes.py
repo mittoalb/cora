@@ -36,6 +36,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from cora.equipment.aggregates._drawing import InvalidDrawingError
+from cora.equipment.aggregates._partition_rule import InvalidPartitionRuleError
 from cora.equipment.aggregates._placement import InvalidPlacementError
 from cora.equipment.aggregates.assembly import (
     AssemblyAlreadyExistsError,
@@ -75,6 +76,7 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRelocateError,
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
+    AssetCannotUpdatePartitionRuleError,
     AssetHasFixtureBindingError,
     AssetIsInstalledError,
     AssetModelMismatchError,
@@ -218,6 +220,7 @@ from cora.equipment.features import (
     remove_model_family,
     restore_asset,
     uninstall_asset,
+    update_asset_partition_rule,
     update_asset_settings,
     update_family_settings_schema,
     update_frame_placement,
@@ -407,6 +410,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(fault_asset.router)
     app.include_router(restore_asset.router)
     app.include_router(update_asset_settings.router)
+    app.include_router(update_asset_partition_rule.router)
     app.include_router(add_asset_port.router)
     app.include_router(remove_asset_port.router)
     app.include_router(add_asset_alternate_identifier.router)
@@ -460,6 +464,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidFrameRootError,
         InvalidPlacementError,
         InvalidDrawingError,
+        InvalidPartitionRuleError,
         InvalidSlotCodeError,
         InvalidModelNameError,
         InvalidPartNumberError,
@@ -555,6 +560,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotAttachToFixtureError,
         AssetNotAttachedToFixtureError,
         AssetAttachedToDifferentFixtureError,
+        AssetCannotUpdatePartitionRuleError,
         FixtureAssetNotAttachableError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
