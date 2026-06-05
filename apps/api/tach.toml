@@ -67,6 +67,14 @@ path = "cora.equipment.aggregates"
 depends_on = ["cora.infrastructure"]
 
 [[modules]]
+path = "cora.equipment.ports"
+depends_on = ["cora.equipment.aggregates"]
+
+[[modules]]
+path = "cora.equipment.adapters"
+depends_on = ["cora.equipment.aggregates", "cora.equipment.ports"]
+
+[[modules]]
 path = "cora.federation.aggregates"
 depends_on = ["cora.infrastructure"]
 
@@ -132,7 +140,12 @@ depends_on = [
 
 [[modules]]
 path = "cora.equipment"
-depends_on = ["cora.infrastructure", "cora.equipment.aggregates"]
+depends_on = [
+    "cora.infrastructure",
+    "cora.equipment.aggregates",
+    "cora.equipment.ports",
+    "cora.equipment.adapters",
+]
 
 [[modules]]
 path = "cora.subject"

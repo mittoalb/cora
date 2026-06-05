@@ -47,6 +47,7 @@ from cora.equipment.aggregates.asset import (
     AlternateIdentifier,
     AlternateIdentifierKind,
     AssetLifecycle,
+    PersistentIdentifier,
 )
 from cora.equipment.aggregates.model import ManufacturerIdentifierType
 from cora.equipment.errors import PidinstRecordInvariantError
@@ -237,6 +238,7 @@ class AssetPidinstView:
     publisher: str
     publication_year: int | None
     owners: tuple[Owner, ...]
+    persistent_id: PersistentIdentifier | None = None
 
 
 @dataclass(frozen=True)

@@ -79,6 +79,7 @@ ASSET_OWNER_NAME_MAX_LENGTH = 255
 ASSET_OWNER_CONTACT_MAX_LENGTH = 255
 ASSET_OWNER_IDENTIFIER_MAX_LENGTH = 255
 ASSET_OWNER_IDENTIFIER_TYPE_MAX_LENGTH = 64
+PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH = 200
 
 
 class AssetLevel(StrEnum):
@@ -602,6 +603,144 @@ class AssetCannotAddOwnerError(Exception):
         self.asset_id = asset_id
         self.name = name
         self.reason = reason
+
+
+class PersistentIdentifierScheme(StrEnum):
+    """Closed PIDINST v1.0 Property 1 identifier-type vocabulary (subset).
+
+    Values match `PidinstIdentifierType.DOI.value` and
+    `PidinstIdentifierType.HANDLE.value` byte-for-byte so the
+    serializer swap (URN to DOI / Handle) does not need a translation
+    map. URN and URL members of `PidinstIdentifierType` are
+    intentionally NOT mirrored here: `Asset.persistent_id` is an
+    assigned-by-operator persistent identifier, not a runtime fallback
+    or a content URL.
+
+    Adding a fourth member (for example ARK or PURL) is an additive
+    enum change at a future migration boundary, gated on operator
+    demand. The closed-enum stance mirrors `AlternateIdentifierKind`
+    and `ManufacturerIdentifierType`.
+    """
+
+    DOI = "DOI"
+    HANDLE = "Handle"
+
+
+class InvalidPersistentIdentifierValueError(ValueError):
+    """The supplied persistent_id value is empty, whitespace-only, or too long."""
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Persistent identifier value must be "
+            f"1-{PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+@dataclass(frozen=True)
+class PersistentIdentifier:
+    """PIDINST v1.0 Property 1: the persistent identifier of the instrument.
+
+    Tuple `(scheme, value)` where `scheme` is a closed
+    `PersistentIdentifierScheme` member and `value` is the operator-
+    supplied opaque string identifying the Asset under that scheme.
+
+    Examples:
+      - `(DOI, "10.5281/zenodo.1234567")` for a Zenodo-minted DOI
+      - `(DOI, "10.13139/OLCF/1234")` for an OLCF-minted DOI
+      - `(HANDLE, "20.500.12613/12345")` for a Handle.net record
+
+    `value` is trimmed and length-bounded 1-200 chars via the shared
+    `validate_bounded_text` helper, matching the
+    `AlternateIdentifier.value` precedent. The VO is FLAT (scheme +
+    value); no resolver URLs, no prefix / suffix split. Pairing
+    enforcement is implicit: scheme is a non-None enum member by
+    construction, value is non-empty by `validate_bounded_text`.
+
+    Set-once invariant lives at the aggregate level (the decider), not
+    on the VO: a `PersistentIdentifier` instance is always valid
+    standalone; the Asset's state enforces that only one ever lands.
+    """
+
+    scheme: PersistentIdentifierScheme
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
+            error_class=InvalidPersistentIdentifierValueError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+class AssetPersistentIdAlreadyAssignedError(Exception):
+    """Attempted to assign a persistent_id to an Asset that already carries one.
+
+    Set-once at the aggregate level per PIDINST v1.0 F3.3 Findable
+    immutability: once `Asset.persistent_id` is set, no further
+    AssetPersistentIdAssigned event can land. Both the same-value and
+    different-value retry shapes collapse here; the diagnostic fields
+    carry the current and attempted PersistentIdentifier so operators
+    see which assign collided.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        *,
+        current: "PersistentIdentifier",
+        attempted: "PersistentIdentifier",
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} already has persistent identifier "
+            f"{current.scheme.value}={current.value!r}; "
+            f"attempted to assign {attempted.scheme.value}={attempted.value!r}; "
+            "persistent_id is set-once"
+        )
+        self.asset_id = asset_id
+        self.current = current
+        self.attempted = attempted
+
+
+class AssetPersistentIdAssignmentForbiddenError(Exception):
+    """Attempted to assign a persistent_id under a disqualifying lifecycle.
+
+    Fires for `Decommissioned` Assets: a DOI minted now would point at
+    an Asset that is already out of inventory, drifting unobserved.
+    Commissioned, Active, and Maintenance are all accepted (matches
+    the lifecycle posture of `add_asset_alternate_identifier` and
+    `add_asset_owner`). The `reason` string surfaces in the route's
+    409 body.
+    """
+
+    def __init__(
+        self,
+        asset_id: UUID,
+        attempted: "PersistentIdentifier",
+        *,
+        reason: str,
+    ) -> None:
+        super().__init__(
+            f"Asset {asset_id} cannot be assigned persistent identifier "
+            f"{attempted.scheme.value}={attempted.value!r}: {reason}"
+        )
+        self.asset_id = asset_id
+        self.attempted = attempted
+        self.reason = reason
+
+
+class MalformedPersistentIdentifierError(Exception):
+    """A stored AssetPersistentIdAssigned payload failed deserialization.
+
+    Wraps any underlying `ValueError` raised by
+    `PersistentIdentifierScheme(...)` or `PersistentIdentifier(...)` at
+    `from_stored` time, per the [[project-from-stored-wrap-convention]]
+    precedent (mirrors `Malformed*` siblings in other BCs). The
+    evolver itself never raises; it trusts that `from_stored` already
+    wrapped any malformed payload as this error class.
+    """
 
 
 class AssetCondition(StrEnum):
@@ -1216,3 +1355,10 @@ class Asset:
     # cleanly via the additive-state pattern.
     commissioned_at: datetime | None = None
     decommissioned_at: datetime | None = None
+    # PIDINST v1.0 Property 1 persistent identifier (DOI or Handle).
+    # Set-once at the aggregate level per F3.3 Findable immutability:
+    # once `assign_asset_persistent_id` lands, no further assign / clear /
+    # reassign event ships. Defaults to None so legacy AssetRegistered
+    # streams without the field fold cleanly via the additive-state
+    # pattern. See [[project-asset-persistent-id-write-design]].
+    persistent_id: PersistentIdentifier | None = None

@@ -90,6 +90,7 @@ async def assemble_pidinst_view(
             )
             for owner in sorted(asset.owners, key=lambda o: o.name.value)
         ),
+        persistent_id=asset.persistent_id,
     )
 
 
