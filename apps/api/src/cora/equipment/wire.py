@@ -42,6 +42,7 @@ from cora.equipment.features import (
     add_asset_port,
     add_model_family,
     assign_asset_persistent_id,
+    assign_fixture_persistent_id,
     attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
@@ -176,6 +177,7 @@ class EquipmentHandlers:
     register_fixture: register_fixture.IdempotentHandler
     attach_asset_to_fixture: attach_asset_to_fixture.Handler
     detach_asset_from_fixture: detach_asset_from_fixture.Handler
+    assign_fixture_persistent_id: assign_fixture_persistent_id.Handler
     get_fixture: get_fixture.Handler
     get_fixture_pidinst: get_fixture_pidinst.Handler
     list_fixtures: list_fixtures.Handler
@@ -524,6 +526,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         detach_asset_from_fixture=with_tracing(
             detach_asset_from_fixture.bind(deps),
             command_name="DetachAssetFromFixture",
+            bc=_BC,
+        ),
+        assign_fixture_persistent_id=with_tracing(
+            assign_fixture_persistent_id.bind(deps),
+            command_name="AssignFixturePersistentId",
             bc=_BC,
         ),
         get_fixture=with_tracing(
