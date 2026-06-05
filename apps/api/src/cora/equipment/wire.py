@@ -29,9 +29,11 @@ lifecycle slices.
 """
 
 from dataclasses import dataclass
+from types import SimpleNamespace
 from uuid import UUID
 
 from cora.equipment._bootstrap import check_pidinst_landing_page_template
+from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.features import (
     activate_asset,
     add_asset_alternate_identifier,
@@ -39,6 +41,7 @@ from cora.equipment.features import (
     add_asset_owner,
     add_asset_port,
     add_model_family,
+    assign_asset_persistent_id,
     attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
@@ -84,6 +87,7 @@ from cora.equipment.features import (
     version_family,
     version_model,
 )
+from cora.equipment.ports.doi_minter import DoiMinter
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
@@ -148,6 +152,7 @@ class EquipmentHandlers:
     remove_asset_alternate_identifier: remove_asset_alternate_identifier.Handler
     add_asset_owner: add_asset_owner.Handler
     remove_asset_owner: remove_asset_owner.Handler
+    assign_asset_persistent_id: assign_asset_persistent_id.Handler
     get_asset: get_asset.Handler
     get_asset_integration_view: get_asset_integration_view.Handler
     get_asset_pidinst: get_asset_pidinst.Handler
@@ -173,10 +178,43 @@ class EquipmentHandlers:
     get_fixture: get_fixture.Handler
     list_fixtures: list_fixtures.Handler
 
+    doi_minter: DoiMinter
+    """The `DoiMinter` adapter the `assign_asset_persistent_id` handler talks
+    to. Surfaced on the bundle so the FastAPI lifespan stashes it on
+    `app.state.equipment.doi_minter` for test-override per
+    [[project-asset-persistent-id-write-design]] Lock 10. F.1 wires
+    `StubDoiMinter` when `Settings.datacite_repository_id` is None;
+    F.2 swaps in `DataCiteDoiMinter` behind the same field."""
+
 
 def wire_equipment(deps: Kernel) -> EquipmentHandlers:
-    """Build the Equipment BC handlers from shared dependencies."""
+    """Build the Equipment BC handlers from shared dependencies.
+
+    Per [[project-asset-persistent-id-write-design]] Lock 10 the
+    `DoiMinter` is a BC-tier port: wired here from Equipment-local
+    settings, never promoted to `Kernel`. When
+    `Settings.datacite_repository_id` is None (the dev / test default)
+    the inert `StubDoiMinter` is wired so the assign_asset_persistent_id
+    slice ships and is testable without DataCite credentials; the
+    production `DataCiteDoiMinter` swap is F.2. The minter is
+    attached to a BC-local `deps.equipment` namespace BEFORE the
+    `assign_asset_persistent_id` handler binds, so the handler closure
+    reads `deps.equipment.doi_minter` per the BC-tier port-wiring
+    convention. It is also surfaced on `EquipmentHandlers.doi_minter`
+    so the FastAPI lifespan stashes it on `app.state.equipment.doi_minter`
+    for test override (integration tests injecting a `RaisingDoiMinter`
+    to exercise the 502 mint-failure path).
+    """
     check_pidinst_landing_page_template(deps.settings)
+    # F.2 swaps in `DataCiteDoiMinter` here when
+    # `Settings.datacite_repository_id` is set; F.1 ships the Stub
+    # branch unconditionally because the production adapter is gated
+    # on facility credentials.
+    if getattr(deps.settings, "datacite_repository_id", None) is None:
+        doi_minter: DoiMinter = StubDoiMinter()
+    else:
+        doi_minter = StubDoiMinter()
+    object.__setattr__(deps, "equipment", SimpleNamespace(doi_minter=doi_minter))
     return EquipmentHandlers(
         # Family aggregate
         define_family=with_tracing(
@@ -357,6 +395,11 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="RemoveAssetOwner",
             bc=_BC,
         ),
+        assign_asset_persistent_id=with_tracing(
+            assign_asset_persistent_id.bind(deps),
+            command_name="AssignAssetPersistentId",
+            bc=_BC,
+        ),
         get_asset=with_tracing(
             get_asset.bind(deps),
             command_name="GetAsset",
@@ -493,4 +536,5 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             bc=_BC,
             kind="query",
         ),
+        doi_minter=doi_minter,
     )

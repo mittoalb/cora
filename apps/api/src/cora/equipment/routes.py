@@ -82,6 +82,8 @@ from cora.equipment.aggregates.asset import (
     AssetNotFoundError,
     AssetOwnerAlreadyPresentError,
     AssetOwnerNotPresentError,
+    AssetPersistentIdAlreadyAssignedError,
+    AssetPersistentIdAssignmentForbiddenError,
     InvalidAlternateIdentifierValueError,
     InvalidAssetNameError,
     InvalidAssetOwnerContactError,
@@ -93,6 +95,8 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetPortNameError,
     InvalidAssetPortSignalTypeError,
     InvalidAssetSettingsError,
+    InvalidPersistentIdentifierValueError,
+    MalformedPersistentIdentifierError,
 )
 from cora.equipment.aggregates.family import (
     FamilyAlreadyExistsError,
@@ -163,6 +167,7 @@ from cora.equipment.features import (
     add_asset_owner,
     add_asset_port,
     add_model_family,
+    assign_asset_persistent_id,
     attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
@@ -208,6 +213,7 @@ from cora.equipment.features import (
     version_family,
     version_model,
 )
+from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -289,6 +295,42 @@ async def _handle_pidinst_state_not_available(request: Request, exc: Exception) 
     )
 
 
+async def _handle_persistent_identifier_mint_error(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Shared 502 handler for upstream mint-authority failures.
+
+    Maps `PersistentIdentifierMintError`: the external DataCite or
+    Handle.net authority failed to assign a persistent identifier
+    (HTTP 4xx / 5xx after retry, network failure, credential
+    misconfiguration). 502 not 409 because this is upstream-port
+    failure, not a domain-state conflict.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_malformed_stored_event(request: Request, exc: Exception) -> JSONResponse:
+    """500 handler for malformed-stored-event deserialization escapes.
+
+    Maps `MalformedPersistentIdentifierError`: a stored
+    `AssetPersistentIdAssigned` payload could not be reconstructed
+    because the `persistent_id_value` is empty or non-string. The
+    `from_stored` wrap convention normally re-raises as `ValueError`
+    via `deserialize_or_raise`, so this handler is defense-in-depth
+    for the unwrapped path. 500 because this signals a data-integrity
+    bug in the event store, not a client error.
+    """
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
 async def _handle_pidinst_view_preparation_error(request: Request, exc: Exception) -> JSONResponse:
     """Shared 422 handler for PIDINST view-preparation deficiencies.
 
@@ -339,6 +381,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(remove_asset_alternate_identifier.router)
     app.include_router(add_asset_owner.router)
     app.include_router(remove_asset_owner.router)
+    app.include_router(assign_asset_persistent_id.router)
     app.include_router(get_asset.router)
     app.include_router(get_asset_integration_view.router)
     app.include_router(get_asset_pidinst.router)
@@ -377,6 +420,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidAssetOwnerIdentifierError,
         InvalidAssetOwnerIdentifierTypeError,
         InvalidAssetOwnerIdentifierPairingError,
+        InvalidPersistentIdentifierValueError,
         InvalidFrameNameError,
         InvalidFrameRevisionError,
         InvalidFrameRootError,
@@ -445,6 +489,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotAddAlternateIdentifierError,
         AssetOwnerAlreadyPresentError,
         AssetCannotAddOwnerError,
+        AssetPersistentIdAlreadyAssignedError,
+        AssetPersistentIdAssignmentForbiddenError,
         AssetModelMismatchError,
         FamilyCannotVersionError,
         FamilyCannotDeprecateError,
@@ -486,4 +532,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetNameMissingError,
     ):
         app.add_exception_handler(pidinst_view_cls, _handle_pidinst_view_preparation_error)
+    app.add_exception_handler(
+        PersistentIdentifierMintError, _handle_persistent_identifier_mint_error
+    )
+    app.add_exception_handler(MalformedPersistentIdentifierError, _handle_malformed_stored_event)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

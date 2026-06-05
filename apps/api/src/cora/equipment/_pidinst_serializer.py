@@ -74,6 +74,7 @@ from cora.equipment._pidinst_types import (
     RelatedIdentifier,
     SchemaVersion,
 )
+from cora.equipment.aggregates.asset import PersistentIdentifierScheme
 from cora.equipment.errors import (
     AssetNameMissingError,
     LandingPageMissingError,
@@ -151,10 +152,17 @@ def _validate_manufacturer_state_available(view: AssetPidinstView) -> None:
 
 
 def _build_identifier(view: AssetPidinstView) -> PidinstIdentifier:
-    return PidinstIdentifier(
-        value=f"{_URN_UUID_PREFIX}{view.asset_id}",
-        scheme=PidinstIdentifierType.URN,
-    )
+    if view.persistent_id is None:
+        return PidinstIdentifier(
+            value=f"{_URN_UUID_PREFIX}{view.asset_id}",
+            scheme=PidinstIdentifierType.URN,
+        )
+    match view.persistent_id.scheme:
+        case PersistentIdentifierScheme.DOI:
+            wire_scheme = PidinstIdentifierType.DOI
+        case PersistentIdentifierScheme.HANDLE:
+            wire_scheme = PidinstIdentifierType.HANDLE
+    return PidinstIdentifier(value=view.persistent_id.value, scheme=wire_scheme)
 
 
 def _build_landing_page(view: AssetPidinstView) -> str:

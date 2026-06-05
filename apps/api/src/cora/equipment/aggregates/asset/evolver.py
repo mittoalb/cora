@@ -99,6 +99,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetMaintenanceExited,
     AssetOwnerAdded,
     AssetOwnerRemoved,
+    AssetPersistentIdAssigned,
     AssetPortAdded,
     AssetPortRemoved,
     AssetRegistered,
@@ -113,6 +114,8 @@ from cora.equipment.aggregates.asset.state import (
     AssetLifecycle,
     AssetName,
     AssetPort,
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
     PortDirection,
 )
 from cora.infrastructure.evolver import require_state
@@ -180,6 +183,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetDecommissioned(occurred_at=occurred_at):
             prior = require_state(state, "AssetDecommissioned")
@@ -200,6 +204,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=occurred_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
@@ -225,6 +230,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetMaintenanceEntered():
             prior = require_state(state, "AssetMaintenanceEntered")
@@ -245,6 +251,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetMaintenanceExited():
             prior = require_state(state, "AssetMaintenanceExited")
@@ -265,6 +272,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetFamilyAdded(family_id=family_id):
             # Family mutation: only `family_ids` changes; everything
@@ -290,6 +298,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetFamilyRemoved(family_id=family_id):
             # Mirror of AssetFamilyAdded. Frozenset difference is a
@@ -316,6 +325,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -341,6 +351,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetFaulted():
             prior = require_state(state, "AssetFaulted")
@@ -361,6 +372,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetRestored():
             prior = require_state(state, "AssetRestored")
@@ -381,6 +393,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
@@ -408,6 +421,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetPortAdded(
             port_name=port_name,
@@ -443,6 +457,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetPortRemoved(port_name=port_name):
             # Mirror of AssetPortAdded. Removes the port whose `name`
@@ -471,6 +486,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetAlternateIdentifierAdded(alternate_identifier=identifier):
             # Alternate-identifier mutation: only
@@ -498,6 +514,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetAlternateIdentifierRemoved(alternate_identifier=identifier):
             # Mirror of AssetAlternateIdentifierAdded. Frozenset
@@ -521,6 +538,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case AssetOwnerAdded(owner=owner):
             # Owner mutation: only `owners` changes; everything else
@@ -547,6 +565,43 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
+            )
+        case AssetPersistentIdAssigned(
+            persistent_id_scheme=scheme,
+            persistent_id_value=value,
+        ):
+            # Persistent-id mutation: only `persistent_id` changes;
+            # everything else carries over. Set-once at the aggregate
+            # level: the decider's
+            # AssetPersistentIdAlreadyAssignedError rejects any second
+            # assign at command time, so the evolver can trust that
+            # prior.persistent_id is None whenever this arm fires. The
+            # arm is forgiving if it ever sees a second assign at
+            # replay time (would overwrite, but by-design the only
+            # producer is the decider that already validated).
+            prior = require_state(state, "AssetPersistentIdAssigned")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                family_ids=prior.family_ids,
+                settings=prior.settings,
+                ports=prior.ports,
+                drawing=prior.drawing,
+                model_id=prior.model_id,
+                alternate_identifiers=prior.alternate_identifiers,
+                owners=prior.owners,
+                fixture_id=prior.fixture_id,
+                commissioned_at=prior.commissioned_at,
+                decommissioned_at=prior.decommissioned_at,
+                persistent_id=PersistentIdentifier(
+                    scheme=PersistentIdentifierScheme(scheme),
+                    value=value,
+                ),
             )
         case AssetOwnerRemoved(owner_name=owner_name):
             # Mirror of AssetOwnerAdded. Removes the owner whose `name`
@@ -572,6 +627,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=frozenset(o for o in prior.owners if o.name != owner_name),
                 fixture_id=prior.fixture_id,
+                persistent_id=prior.persistent_id,
             )
         case AssetAttachedToFixture(fixture_id=fixture_id):
             # Sets the back-reference. The Fixture side carries the
@@ -594,6 +650,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 alternate_identifiers=prior.alternate_identifiers,
                 owners=prior.owners,
                 fixture_id=fixture_id,
+                persistent_id=prior.persistent_id,
             )
         case AssetDetachedFromFixture():
             # Clears the back-reference. The Fixture's own
@@ -619,6 +676,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=None,
                 commissioned_at=prior.commissioned_at,
                 decommissioned_at=prior.decommissioned_at,
+                persistent_id=prior.persistent_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

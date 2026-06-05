@@ -1371,6 +1371,55 @@
         "title": "AssetSummaryDTO",
         "type": "object"
       },
+      "AssignAssetPersistentIdRequest": {
+        "description": "Body for `POST /assets/{asset_id}/assign-persistent-identifier`.\n\n`scheme` selects the PID scheme; v1 supports DOI and HANDLE.\n`suffix` is the optional operator-supplied local part; when absent\nthe configured `DoiMinter` adapter auto-generates one. No `value`\nfield per the server-mint posture (Lock 12).",
+        "properties": {
+          "scheme": {
+            "$ref": "#/components/schemas/PersistentIdentifierScheme",
+            "description": "Closed PIDINST Property 1 scheme: DOI or HANDLE."
+          },
+          "suffix": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied local part. When absent, the configured DoiMinter adapter auto-generates the suffix; the bare-request flow is the common case for retrospective bulk-mint per F1.4.",
+            "title": "Suffix"
+          }
+        },
+        "required": [
+          "scheme"
+        ],
+        "title": "AssignAssetPersistentIdRequest",
+        "type": "object"
+      },
+      "AssignAssetPersistentIdResponse": {
+        "description": "Response body for `POST /assets/{asset_id}/assign-persistent-identifier`.\n\nEchoes the server-minted `(scheme, value)` pair so the operator\nlearns the assigned identifier without a follow-up GET. Per Lock\n17, this is the only Asset POST that returns a structured body;\nthe deviation is justified because the value is server-minted and\nnot derivable from the request alone.",
+        "properties": {
+          "scheme": {
+            "description": "Assigned PIDINST Property 1 scheme value (DOI or Handle).",
+            "title": "Scheme",
+            "type": "string"
+          },
+          "value": {
+            "description": "Authority-assigned persistent identifier string.",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "value"
+        ],
+        "title": "AssignAssetPersistentIdResponse",
+        "type": "object"
+      },
       "AttachAssetToFixtureRequest": {
         "description": "Body for `POST /assets/{asset_id}/attach-to-fixture`.",
         "properties": {
@@ -7107,6 +7156,15 @@
         ],
         "title": "PermitSummaryDTO",
         "type": "object"
+      },
+      "PersistentIdentifierScheme": {
+        "description": "Closed PIDINST v1.0 Property 1 identifier-type vocabulary (subset).\n\nValues match `PidinstIdentifierType.DOI.value` and\n`PidinstIdentifierType.HANDLE.value` byte-for-byte so the\nserializer swap (URN to DOI / Handle) does not need a translation\nmap. URN and URL members of `PidinstIdentifierType` are\nintentionally NOT mirrored here: `Asset.persistent_id` is an\nassigned-by-operator persistent identifier, not a runtime fallback\nor a content URL.\n\nAdding a fourth member (for example ARK or PURL) is an additive\nenum change at a future migration boundary, gated on operator\ndemand. The closed-enum stance mirrors `AlternateIdentifierKind`\nand `ManufacturerIdentifierType`.",
+        "enum": [
+          "DOI",
+          "Handle"
+        ],
+        "title": "PersistentIdentifierScheme",
+        "type": "string"
       },
       "PidinstAlternateIdentifierDTO": {
         "description": "PIDINST v1.0 Property 13: an alternate identifier under a known scheme.",
@@ -16019,6 +16077,123 @@
           }
         },
         "summary": "Add a typed port to an existing Asset's port set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/assign-persistent-identifier": {
+      "post": {
+        "operationId": "post_assets_assign_persistent_identifier_assets__asset_id__assign_persistent_identifier_post",
+        "parameters": [
+          {
+            "description": "Target asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignAssetPersistentIdRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignAssetPersistentIdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "PersistentIdentifier VO validation failed: empty or whitespace-only value, or value over the max-length bound (InvalidPersistentIdentifierValueError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No asset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset cannot accept the persistent identifier under current conditions: the asset is Decommissioned (AssetPersistentIdAssignmentForbiddenError), OR the asset already carries a persistent_id (set-once: AssetPersistentIdAlreadyAssignedError), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation (missing field, malformed UUID, scheme outside the closed enum, suffix length out of bounds at the wire layer)."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The external mint authority (DataCite or Handle.net) failed to assign a persistent identifier (PersistentIdentifierMintError)."
+          }
+        },
+        "summary": "Assign a PIDINST persistent identifier to an existing Asset",
         "tags": [
           "equipment"
         ]

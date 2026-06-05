@@ -69,6 +69,8 @@ from cora.equipment.aggregates.asset.state import (
     AssetOwnerIdentifier,
     AssetOwnerIdentifierType,
     AssetOwnerName,
+    MalformedPersistentIdentifierError,
+    PersistentIdentifierScheme,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
@@ -432,6 +434,32 @@ class AssetOwnerRemoved:
 
 
 @dataclass(frozen=True)
+class AssetPersistentIdAssigned:
+    """A persistent identifier (PIDINST v1.0 Property 1) was assigned to an Asset.
+
+    Single-assign event. Set-once at the aggregate level: the
+    decider's `AssetPersistentIdAlreadyAssignedError` enforces "must
+    currently be absent" at command time, so the stream can contain
+    AT MOST ONE `AssetPersistentIdAssigned` event per Asset.
+
+    The full `PersistentIdentifier` VO (scheme + value) travels in the
+    payload as two primitives, mirroring `AssetPortAdded`'s
+    (port_name, direction, signal_type) primitive carry: scheme is the
+    StrEnum value, value is the trimmed string. This lets `from_stored`
+    rebuild the VO without reading prior state.
+
+    No `withdrawn_at` / `withdrawal_reason` on this event: F.1 does not
+    model withdrawal. A future slice G adds a sibling
+    `AssetPersistentIdWithdrawn` event when operator demand fires.
+    """
+
+    asset_id: UUID
+    persistent_id_scheme: str
+    persistent_id_value: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
 class AssetSettingsUpdated:
     """An asset's settings dict was set / replaced via the
     update_asset_settings slice (5g-c).
@@ -534,6 +562,7 @@ AssetEvent = (
     | AssetAlternateIdentifierRemoved
     | AssetOwnerAdded
     | AssetOwnerRemoved
+    | AssetPersistentIdAssigned
     | AssetAttachedToFixture
     | AssetDetachedFromFixture
 )
@@ -744,6 +773,18 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             return {
                 "asset_id": str(asset_id),
                 "owner_name": owner_name.value,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetPersistentIdAssigned(
+            asset_id=asset_id,
+            persistent_id_scheme=scheme,
+            persistent_id_value=value,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "persistent_id_scheme": scheme,
+                "persistent_id_value": value,
                 "occurred_at": occurred_at.isoformat(),
             }
         case AssetAttachedToFixture(
@@ -989,6 +1030,27 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 ),
                 extra=(ValueError,),
             )
+        case "AssetPersistentIdAssigned":
+
+            def _build_persistent_id_assigned() -> AssetPersistentIdAssigned:
+                scheme = PersistentIdentifierScheme(payload["persistent_id_scheme"])
+                value = payload["persistent_id_value"]
+                if not isinstance(value, str) or not value.strip():
+                    raise MalformedPersistentIdentifierError(
+                        f"persistent_id_value must be a non-empty string (got: {value!r})"
+                    )
+                return AssetPersistentIdAssigned(
+                    asset_id=UUID(payload["asset_id"]),
+                    persistent_id_scheme=scheme.value,
+                    persistent_id_value=value,
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                )
+
+            return deserialize_or_raise(
+                "AssetPersistentIdAssigned",
+                _build_persistent_id_assigned,
+                extra=(ValueError, MalformedPersistentIdentifierError),
+            )
         case "AssetAttachedToFixture":
             return deserialize_or_raise(
                 "AssetAttachedToFixture",
@@ -1028,6 +1090,7 @@ __all__ = [
     "AssetMaintenanceExited",
     "AssetOwnerAdded",
     "AssetOwnerRemoved",
+    "AssetPersistentIdAssigned",
     "AssetPortAdded",
     "AssetPortRemoved",
     "AssetRegistered",

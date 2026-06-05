@@ -26,6 +26,8 @@ Subscribed events:
                                          array, re-sorted by name ASC
   - AssetOwnerRemoved                 -> UPDATE remove owner matching name
                                          from owners JSONB array
+  - AssetPersistentIdAssigned         -> UPDATE persistent_id JSONB with
+                                         {scheme, value} from event payload
   - AssetAttachedToFixture            -> UPDATE fixture_id (Fixture back-ref
                                          set by attach_asset_to_fixture)
   - AssetDetachedFromFixture          -> UPDATE fixture_id = NULL (cleared
@@ -194,6 +196,16 @@ SET owners = COALESCE(
 WHERE asset_id = $1
 """
 
+_UPDATE_PERSISTENT_ID_ASSIGNED_SQL = """
+UPDATE proj_equipment_asset_summary
+SET persistent_id = jsonb_build_object(
+        'scheme', $2::text,
+        'value', $3::text
+    ),
+    updated_at = now()
+WHERE asset_id = $1
+"""
+
 
 class AssetSummaryProjection:
     """Maintains the `proj_equipment_asset_summary` read model."""
@@ -214,6 +226,7 @@ class AssetSummaryProjection:
             "AssetAlternateIdentifierRemoved",
             "AssetOwnerAdded",
             "AssetOwnerRemoved",
+            "AssetPersistentIdAssigned",
             "AssetAttachedToFixture",
             "AssetDetachedFromFixture",
         }
@@ -305,6 +318,13 @@ class AssetSummaryProjection:
                     _UPDATE_OWNER_REMOVED_SQL,
                     UUID(event.payload["asset_id"]),
                     event.payload["owner_name"],
+                )
+            case "AssetPersistentIdAssigned":
+                await conn.execute(
+                    _UPDATE_PERSISTENT_ID_ASSIGNED_SQL,
+                    UUID(event.payload["asset_id"]),
+                    event.payload["persistent_id_scheme"],
+                    event.payload["persistent_id_value"],
                 )
             case "AssetAttachedToFixture":
                 await conn.execute(
