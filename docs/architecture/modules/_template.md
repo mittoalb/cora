@@ -188,7 +188,7 @@ The <N> examples below follow the canonical path for one <Aggregate>: <describe 
 -->
 
 
-<!-- extracted from tests/contract/<bc>/test_<slice>.py -->
+<!-- extracted from apps/api/tests/contract/test_<feature>.py -->
 
 ### <Short example title>
 

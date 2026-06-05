@@ -26,7 +26,7 @@ def test_decide_emits_supply_registered_when_stream_is_empty() -> None:
     new_id = uuid4()
     events = register_supply.decide(
         state=None,
-        command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         now=_NOW,
         new_id=new_id,
     )
@@ -35,7 +35,7 @@ def test_decide_emits_supply_registered_when_stream_is_empty() -> None:
             supply_id=new_id,
             scope="Beamline",
             kind="LiquidNitrogen",
-            name="35-BM LN2",
+            name="2-BM LN2",
             occurred_at=_NOW,
         )
     ]
@@ -64,7 +64,7 @@ def test_decide_rejects_existing_state() -> None:
         id=uuid4(),
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
-        name=SupplyName("35-BM LN2"),
+        name=SupplyName("2-BM LN2"),
         status=SupplyStatus.UNKNOWN,
     )
     with pytest.raises(SupplyAlreadyExistsError) as exc_info:
@@ -82,7 +82,7 @@ def test_decide_rejects_empty_kind() -> None:
     with pytest.raises(InvalidSupplyKindError):
         register_supply.decide(
             state=None,
-            command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="   ", name="35-BM"),
+            command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="   ", name="2-BM"),
             now=_NOW,
             new_id=uuid4(),
         )
@@ -93,7 +93,7 @@ def test_decide_rejects_too_long_kind() -> None:
     with pytest.raises(InvalidSupplyKindError):
         register_supply.decide(
             state=None,
-            command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="a" * 51, name="35-BM"),
+            command=RegisterSupply(scope=SupplyScope.BEAMLINE, kind="a" * 51, name="2-BM"),
             now=_NOW,
             new_id=uuid4(),
         )
@@ -113,7 +113,7 @@ def test_decide_rejects_empty_name() -> None:
 @pytest.mark.unit
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     new_id = uuid4()
-    command = RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2")
+    command = RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2")
     first = register_supply.decide(state=None, command=command, now=_NOW, new_id=new_id)
     second = register_supply.decide(state=None, command=command, now=_NOW, new_id=new_id)
     assert first == second

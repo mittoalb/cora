@@ -32,8 +32,8 @@ from cora.safety.aggregates.clearance.hazard_classification import NFPA704Rating
 
 @pytest.mark.unit
 def test_clearance_title_accepts_normal_string() -> None:
-    title = ClearanceTitle("Pilot ESAF for 35-BM tomography")
-    assert title.value == "Pilot ESAF for 35-BM tomography"
+    title = ClearanceTitle("Pilot ESAF for 2-BM tomography")
+    assert title.value == "Pilot ESAF for 2-BM tomography"
 
 
 @pytest.mark.unit

@@ -11,7 +11,7 @@ CORA is one person's bet on what facility-operations software could look like. E
 
 ## Asking for
 
-- **Beamline collaborators.** If your beamline could be the next pilot after 35-BM, let's talk. The recipe ladder needs a real second use case to validate against. Your input on what your operations actually look like, not a guess. Your time, not your code.
+- **Beamline collaborators.** If your beamline could be the next deployment after 2-BM, let's talk. The recipe ladder needs a real second use case to validate against. Your input on what your operations actually look like, not a guess. Your time, not your code.
 - **Domain expertise.** X-ray imaging, scan orchestration, sample handling, decision strategies, instrument calibration, trust topology in shared facilities. Tell me when something is modeled in a way that won't survive contact with reality.
 - **Intellectual collaboration.** Facility-operations design, recipe portability, AI-as-principal, event-sourced audit, governance for shared infrastructure. Let's compare notes.
 - **Researchers with a pattern to try on a real facility.** Dynamic consistency boundaries (Pellegrini, "killing the aggregate"), functional event sourcing, ReBAC at scale, A2A trust topology, agent-as-principal authz, novel decision-strategy ports. CORA can be a substrate.

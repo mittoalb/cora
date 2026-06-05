@@ -366,7 +366,7 @@ async def install_aps_unit(
     Unit's parent is the Sector, not APS directly.
 
     `unit_name` defaults to "2-BM" and `sector_name` to "Sector 2";
-    both parameterize for future beamline scenarios (35-BM under
+    both parameterize for future beamline scenarios (2-BM under
     Sector 35, 7-BM under Sector 7, etc.).
     """
     principal_id = OPERATOR_1_ID

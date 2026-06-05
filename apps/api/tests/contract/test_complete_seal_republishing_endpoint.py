@@ -251,10 +251,10 @@ def test_post_complete_seal_republishing_passes_facility_id_to_handler() -> None
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            "/federation/seals/aps-35bm/republishing/complete",
+            "/federation/seals/aps-2bm/republishing/complete",
         )
     assert response.status_code == 204
     cmd = captured["command"]
-    assert cmd.facility_id == "aps-35bm"  # type: ignore[attr-defined]
+    assert cmd.facility_id == "aps-2bm"  # type: ignore[attr-defined]
     assert cmd.new_head_hash is None  # type: ignore[attr-defined]
     assert cmd.new_sequence_number is None  # type: ignore[attr-defined]

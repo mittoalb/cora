@@ -261,7 +261,7 @@ def test_clearance_registered_to_payload_round_trip() -> None:
         clearance_id=_CLEARANCE_ID,
         kind="ESAF",
         facility_asset_id=uuid4(),
-        title="Pilot ESAF for 35-BM",
+        title="Pilot ESAF for 2-BM",
         bindings=(
             {"kind": "Run", "id": str(rid)},
             {"kind": "Subject", "id": str(sid)},

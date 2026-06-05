@@ -12,7 +12,7 @@ An Agent carries five roles:
 - **A four-state lifecycle.** An Agent moves through `Defined` (registered but not yet invocable), `Versioned` (promoted to ready-for-invocation; subscribers filter on this), `Suspended` (operator pause from `Versioned`; non-terminal, returns via `resume_agent`), and `Deprecated` (terminal). Versioning is per-Agent-id rainbow-style: multiple `Versioned` agents may share `kind` concurrently with different `id`s.
 - **A typed configuration record.** Required: `kind`, `name`, `version`, `model_ref` (provider plus model plus optional snapshot pin). Optional: `description`, `canonical_uri` (https-only, A2A-forward-compat), `prompt_template_id`, `capabilities` (free-form, cardinality-capped). All bounded-text fields trim and validate at the value-object boundary.
 - **Tool grants and budget declarations.** `tools` is a frozenset of MCP tool names the agent is authorised to invoke; grants and revocations are idempotent and stay editable in `Defined`, `Versioned`, and `Suspended` (only `Deprecated` blocks them). `budget` carries optional `monthly_usd_cap` and `daily_token_cap`; declaration only today, with enforcement deferred to the Budget BC.
-- **Cross-BC action slices.** Two slices today drive cross-BC writes: `re_debrief_run` invokes the RunDebriefer agent on demand and writes a Decision on the named Run; `promote_caution_proposal` reads a CautionDrafter agent's `CautionProposal` Decision and writes the proposed Caution into the Caution module after operator review.
+- **Cross-BC action slices.** Two slices today drive cross-BC writes: `regenerate_run_debrief` invokes the RunDebriefer agent on demand and writes a Decision on the named Run; `promote_caution_proposal` reads a CautionDrafter agent's `CautionProposal` Decision and writes the proposed Caution into the Caution module after operator review.
 
 <div class="cora-aside cora-aside--deferred" markdown>
 
@@ -110,7 +110,7 @@ stateDiagram-v2
 | `AgentToolRevoked` | `agent_id`, `tool_name`, `occurred_at` | `revoke_tool_from_agent` succeeds (no event on a no-op re-revoke) |
 | `AgentBudgetRevised` | `agent_id`, `monthly_usd_cap?`, `daily_token_cap?`, `occurred_at` | `revise_agent_budget` succeeds |
 
-`define_agent` is the only Agent-BC slice that writes across streams. The other lifecycle events are single-stream. The cross-BC action slices (`re_debrief_run`, `promote_caution_proposal`) do not write to the Agent stream at all: they write a `DecisionRegistered` on the Decision stream and (for the promotion path) a `CautionRegistered` on the Caution stream.
+`define_agent` is the only Agent-BC slice that writes across streams. The other lifecycle events are single-stream. The cross-BC action slices (`regenerate_run_debrief`, `promote_caution_proposal`) do not write to the Agent stream at all: they write a `DecisionRegistered` on the Decision stream and (for the promotion path) a `CautionRegistered` on the Caution stream.
 
 ## Slices
 
@@ -125,7 +125,7 @@ stateDiagram-v2
 | `RevokeToolFromAgent` | MODIFIED | `POST /agents/{agent_id}/tools/revoke` | `revoke_tool_from_agent` | none |
 | `ReviseAgentBudget` | MODIFIED | `POST /agents/{agent_id}/budget` | `revise_agent_budget` | none |
 | `GetAgent` | QUERY | `GET /agents/{agent_id}` | `get_agent` | none |
-| `ReDebriefRun` | CROSS-BC | `POST /agents/run-debriefer/invoke` | `re_debrief_run` | required |
+| `RegenerateRunDebrief` | CROSS-BC | `POST /agents/run-debriefer/runs/{run_id}/regenerate-debrief` | `regenerate_run_debrief` | required |
 | `PromoteCautionProposal` | CROSS-BC | `POST /agents/caution-drafter/decisions/{decision_id}/promote` | `promote_caution_proposal` | required |
 
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
@@ -145,13 +145,13 @@ stateDiagram-v2
 `GetAgent`
 : `AgentNotFound`
 
-`ReDebriefRun`
+`RegenerateRunDebrief`
 : `Unauthorized`, `AgentNotSeeded` / `AgentDeactivated` (RunDebriefer agent missing or its Actor inactive), Run cross-aggregate-load failures, parent Decision mismatch, `503` if the LLM adapter is not wired
 
 `PromoteCautionProposal`
 : `Unauthorized` (including provenance gate: Decision was not emitted by a registered CautionDrafter agent), `DecisionNotFound`, malformed `proposed_caution` payload, `CautionNotFound` / `CautionCannotSupersede` (for the supersede arm)
 
-`DefineAgent`, `ReDebriefRun`, and `PromoteCautionProposal` are wrapped by the `Idempotency-Key` header pattern. The other lifecycle slices return `204 No Content` and are not idempotency-wrapped: a second `version_agent` against an already-`Versioned` agent raises `AgentCannotVersion` rather than no-oping.
+`DefineAgent`, `RegenerateRunDebrief`, and `PromoteCautionProposal` are wrapped by the `Idempotency-Key` header pattern. The other lifecycle slices return `204 No Content` and are not idempotency-wrapped: a second `version_agent` against an already-`Versioned` agent raises `AgentCannotVersion` rather than no-oping.
 
 ## Storage & Projections
 
@@ -185,11 +185,11 @@ The `CHECK` constraint encodes the closed `AgentStatus` enum at the row level. `
 |---|---|---|
 | Trust | gated-by | Every write-side Agent slice (lifecycle, grants, budget) is gated by the Authorize port resolving a `Policy` for the `(principal, command, conduit, surface)` tuple; deny outcomes refuse before the decider runs |
 | Access | shared-id-with | `Agent.id` is the same UUID as `Actor.id` for this agent; `define_agent` co-writes `ActorRegistered(kind="agent")` on the Access stream via `append_streams` |
-| Decision | writes-to (via subscriber and slice) | The RunDebriefer subscriber writes `DecisionRegistered` when a Run reaches a terminal state; `re_debrief_run` writes a new `DecisionRegistered` on operator demand; agent-authored Decisions carry the agent's id in `actor_id` |
+| Decision | writes-to (via subscriber and slice) | The RunDebriefer subscriber writes `DecisionRegistered` when a Run reaches a terminal state; `regenerate_run_debrief` writes a new `DecisionRegistered` on operator demand; agent-authored Decisions carry the agent's id in `actor_id` |
 | Run | reads-from (via subscriber) | The RunDebriefer subscriber filters on terminal-state Run events and loads the Run aggregate plus its `pinned_calibration_ids` to build the debrief context |
 | Caution | writes-to via `append_streams` | `promote_caution_proposal` reads a CautionDrafter Decision's `proposed_caution` payload and writes `CautionRegistered` (plus, for the supersede arm, `CautionSuperseded` on the parent stream) atomically |
 
-The two cross-BC action slices both gate on operator authorisation before any cross-BC write happens: `re_debrief_run` requires the caller to be authorised to invoke the named agent; `promote_caution_proposal` requires the caller to be authorised to author Cautions, plus a provenance check that the named Decision was emitted by a registered CautionDrafter agent. Promotion is operator-initiated by design; the CautionDrafter never writes a Caution itself.
+The two cross-BC action slices both gate on operator authorisation before any cross-BC write happens: `regenerate_run_debrief` requires the caller to be authorised to invoke the named agent; `promote_caution_proposal` requires the caller to be authorised to author Cautions, plus a provenance check that the named Decision was emitted by a registered CautionDrafter agent. Promotion is operator-initiated by design; the CautionDrafter never writes a Caution itself.
 
 ## Examples
 
@@ -270,13 +270,12 @@ The four examples below follow the canonical path for one Agent: define it (atom
 === "REST"
 
     ```http
-    POST /agents/run-debriefer/invoke
+    POST /agents/run-debriefer/runs/aaaa1111-2222-3333-4444-555555555555/regenerate-debrief
     Content-Type: application/json
     Idempotency-Key: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
     X-Principal-Id: 22222222-3333-4444-5555-666666666666
 
     {
-      "run_id": "aaaa1111-2222-3333-4444-555555555555",
       "parent_decision_id": "bbbb1111-2222-3333-4444-555555555555"
     }
     ```
@@ -287,7 +286,7 @@ The four examples below follow the canonical path for one Agent: define it (atom
 
     ```python
     mcp.call_tool(
-        "re_debrief_run",
+        "regenerate_run_debrief",
         {
             "run_id": "aaaa1111-2222-3333-4444-555555555555",
             "parent_decision_id": "bbbb1111-2222-3333-4444-555555555555",

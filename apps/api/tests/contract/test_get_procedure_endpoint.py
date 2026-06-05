@@ -39,7 +39,7 @@ def test_get_procedure_returns_200_with_defined_status_for_new_procedure() -> No
     with TestClient(create_app()) as client:
         procedure_id = _register_procedure(
             client,
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=[asset1, asset2],
         )
@@ -48,7 +48,7 @@ def test_get_procedure_returns_200_with_defined_status_for_new_procedure() -> No
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == str(procedure_id)
-    assert body["name"] == "35-BM rotation-axis alignment"
+    assert body["name"] == "2-BM rotation-axis alignment"
     assert body["kind"] == "alignment"
     assert body["status"] == "Defined"
     # Sorted by UUID string form (deterministic).

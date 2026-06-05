@@ -30,7 +30,7 @@ async def _seed(store: InMemoryEventStore) -> None:
         supply_id=_SUPPLY_ID,
         scope="Beamline",
         kind="LiquidNitrogen",
-        name="35-BM LN2",
+        name="2-BM LN2",
         occurred_at=_NOW,
     )
     new_event = to_new_event(

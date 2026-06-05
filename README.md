@@ -6,7 +6,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 
-An agent-native operations platform for large-scale research facilities. Pilot: APS beamline 35-BM, a new dedicated micro-CT instrument at Argonne National Laboratory; rollout to APS's other imaging beamlines (2-BM, 7-BM, 32-ID), then cross-facility validation at MAX IV in Sweden. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
+An agent-native operations platform for large-scale research facilities. Pilot: APS beamline 2-BM, a micro-CT instrument at Argonne National Laboratory; rollout to APS's other imaging beamlines (7-BM, 32-ID), then cross-facility validation at MAX IV in Sweden. Long-horizon goal: facility-neutral across photon sources, neutron sources, free-electron lasers, and HPC centres.
 
 The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**. Most facility software lives forever as a slide-deck capability. CORA is the version that ships.
 
@@ -25,7 +25,7 @@ The full docs render as a static site at **[xmap.github.io/cora](https://xmap.gi
 | Stack | Concrete picks (backend, data, auth, frontend, observability, operations) and what is deliberately deferred | [docs/stack/](docs/stack/index.md) |
 | Reference | Rules for writing CORA code: layout, modeling, patterns, runtime, workflow | [docs/reference/](docs/reference/index.md) |
 | Glossary | Terminology used across architecture, code, commits, and prose | [docs/glossary/](docs/glossary/index.md) |
-| Deployments | Pilots driving the model. Today: 35-BM micro-CT at APS | [docs/deployments/](docs/deployments/index.md) |
+| Deployments | Pilots driving the model. Today: 2-BM micro-CT at APS | [docs/deployments/](docs/deployments/index.md) |
 | Contributing | What kinds of collaboration are wanted | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 Exact pinned versions live in `apps/api/pyproject.toml`, `Makefile`, and `infra/atlas/migrations/`, not in the docs.

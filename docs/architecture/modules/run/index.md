@@ -98,15 +98,15 @@ stateDiagram-v2
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `RunStarted` | `run_id`, `name`, `plan_id`, `subject_id?`, `raid?`, `override_parameters`, `effective_parameters`, `trigger_source?`, `external_refs`, `campaign_id?`, `pinned_calibration_ids`, `occurred_at` | `start_run` succeeds |
+| `RunStarted` | `run_id`, `name`, `plan_id`, `subject_id?`, `raid?`, `override_parameters`, `effective_parameters`, `trigger_source?`, `external_refs`, `acknowledged_cautions`, `campaign_id?`, `decided_by_decision_id?`, `pinned_calibration_ids`, `occurred_at` | `start_run` succeeds |
 | `RunHeld` | `run_id`, `occurred_at` | `hold_run` succeeds |
 | `RunResumed` | `run_id`, `occurred_at` | `resume_run` succeeds |
 | `RunCompleted` | `run_id`, `occurred_at` | `complete_run` succeeds |
-| `RunAborted` | `run_id`, `reason`, `occurred_at` | `abort_run` succeeds |
+| `RunAborted` | `run_id`, `reason`, `decided_by_decision_id?`, `occurred_at` | `abort_run` succeeds |
 | `RunStopped` | `run_id`, `reason`, `occurred_at` | `stop_run` succeeds |
 | `RunTruncated` | `run_id`, `reason`, `interrupted_at?`, `occurred_at` | `truncate_run` succeeds |
 | `RunAdjusted` | `run_id`, `parameter_patch`, `effective_parameters`, `reason`, `decided_by_decision_id?`, `occurred_at` | `adjust_run` succeeds; carries both the RFC 7396 patch and the post-merge snapshot |
-| `RunReadingLogbookOpened` | `run_id`, `logbook_id`, `schema`, `occurred_at` | `append_run_reading` first write per Run (lazy open) |
+| `RunReadingLogbookOpened` | `run_id`, `logbook_id`, `schema`, `occurred_at` | `append_run_readings` first write per Run (lazy open) |
 | `RunAddedToCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership write (see Campaign module) |
 | `RunRemovedFromCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership removal |
 | `DecisionDebriefRequested` | `run_id`, `debriefer_agent_id`, `terminal_event_id`, `occurred_at` | appended by an Agent BC subscriber (RunDebriefer / CautionDrafter) BEFORE invoking its LLM as a per-(run, terminal-event, agent) lease marker; first writer wins via the existing `UNIQUE(stream_type, stream_id, version)` constraint; audit-only with a no-op evolver fold |
@@ -125,7 +125,7 @@ Individual reading rows do not emit per-row events on the Run stream; they are w
 | `StopRun` | MODIFIED | `POST /runs/{run_id}/stop` | `stop_run` | none |
 | `TruncateRun` | MODIFIED | `POST /runs/{run_id}/truncate` | `truncate_run` | none |
 | `AdjustRun` | MODIFIED | `POST /runs/{run_id}/adjust` | `adjust_run` | required |
-| `AppendRunReading` | MODIFIED | `POST /runs/{run_id}/readings` | `append_run_reading` | none |
+| `AppendRunReadings` | MODIFIED | `POST /runs/{run_id}/readings` | `append_run_readings` | none |
 | `GetRun` | QUERY | `GET /runs/{run_id}` | `get_run` | none |
 | `ListRuns` | QUERY | `GET /runs` | `list_runs` | none |
 
@@ -146,7 +146,7 @@ Individual reading rows do not emit per-row events on the Run stream; they are w
 `AdjustRun`
 : `RunNotFound`, `RunCannotAdjust`, `InvalidRunAdjustPatch`, `InvalidRunAdjustSchema`, `InvalidRunAdjustReason`, `Unauthorized`
 
-`AppendRunReading`
+`AppendRunReadings`
 : `RunNotFound`, `RunReadingLogbookClosed`, `InvalidChannelName`, `InvalidReadingValue`, `InvalidSamplingProcedure`, `Unauthorized`
 
 `GetRun`
@@ -349,7 +349,7 @@ The response carries the post-merge `effective_parameters` so the caller can con
 
     ```python
     mcp.call_tool(
-        "append_run_reading",
+        "append_run_readings",
         {
             "run_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c",
             "channel_name": "ring_current",

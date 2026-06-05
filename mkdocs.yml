@@ -111,8 +111,6 @@ nav:
       - Datasets: deployments/2-bm/datasets.md
       - Decisions: deployments/2-bm/decisions.md
       - Policies: deployments/2-bm/policies.md
-    - 35-BM:
-      - deployments/35-bm/index.md
   - Catalog:
     - catalog/index.md
     - Capabilities: catalog/capabilities.md

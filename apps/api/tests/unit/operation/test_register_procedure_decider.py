@@ -46,7 +46,7 @@ def test_decide_emits_procedure_registered_when_stream_is_empty() -> None:
     events = register_procedure.decide(
         state=None,
         command=RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({asset}),
             parent_run_id=None,
@@ -56,7 +56,7 @@ def test_decide_emits_procedure_registered_when_stream_is_empty() -> None:
     )
     assert len(events) == 1
     assert events[0].procedure_id == new_id
-    assert events[0].name == "35-BM rotation-axis alignment"
+    assert events[0].name == "2-BM rotation-axis alignment"
     assert events[0].kind == "alignment"
     assert set(events[0].target_asset_ids) == {asset}
     assert events[0].parent_run_id is None

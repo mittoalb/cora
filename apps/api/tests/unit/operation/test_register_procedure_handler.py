@@ -82,7 +82,7 @@ async def test_handler_appends_procedure_registered_event_to_store() -> None:
     handler = register_procedure.bind(deps)
     await handler(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({_ASSET_ID}),
         ),
@@ -96,7 +96,7 @@ async def test_handler_appends_procedure_registered_event_to_store() -> None:
     assert stored.event_type == "ProcedureRegistered"
     assert stored.payload == {
         "procedure_id": str(_NEW_ID),
-        "name": "35-BM rotation-axis alignment",
+        "name": "2-BM rotation-axis alignment",
         "kind": "alignment",
         "target_asset_ids": [str(_ASSET_ID)],
         "parent_run_id": None,
@@ -238,7 +238,7 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
     deps_a = _build_deps(event_store=store_a)
     await register_procedure.bind(deps_a)(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({_ASSET_ID}),
             capability_id=capability_id,
@@ -254,7 +254,7 @@ async def test_handler_emits_byte_identical_payload_for_same_capability_id() -> 
     deps_b = _build_deps(event_store=store_b)
     await register_procedure.bind(deps_b)(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({_ASSET_ID}),
             capability_id=capability_id,

@@ -10058,7 +10058,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Operator-readable display name for the procedure (for example '35-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout').",
+            "description": "Operator-readable display name for the procedure (for example '2-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout').",
             "maxLength": 200,
             "minLength": 1,
             "title": "Name",
@@ -10152,7 +10152,7 @@
             "type": "string"
           },
           "name": {
-            "description": "Operator-readable display name for this Supply instance (for example '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply').",
+            "description": "Operator-readable display name for this Supply instance (for example '2-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply').",
             "maxLength": 200,
             "minLength": 1,
             "title": "Name",

@@ -30,7 +30,7 @@ def test_post_supplies_returns_201_with_supply_id_for_beamline_scope() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "35-BM LN2"},
+            json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
         )
     assert response.status_code == 201
     body = response.json()
@@ -57,7 +57,7 @@ def test_post_supplies_trims_whitespace_in_kind_and_name() -> None:
             json={
                 "scope": "Beamline",
                 "kind": "LiquidNitrogen",
-                "name": "  35-BM LN2  ",
+                "name": "  2-BM LN2  ",
             },
         )
     assert response.status_code == 201
@@ -170,7 +170,7 @@ def test_post_supplies_returns_403_when_authorize_denies() -> None:
     with TestClient(app) as client:
         response = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "35-BM LN2"},
+            json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"

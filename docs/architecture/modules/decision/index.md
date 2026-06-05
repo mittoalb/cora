@@ -12,9 +12,9 @@ Out of scope
 
 - **Typed-sum Decision per decider kind.** The aggregate is intentionally a single shape for both human and AI deciders. Type-narrowing at query time via an `Actor.role` discriminator is deferred until an audit-policy demands role-based filtering.
 - **PROV-O export at the API boundary.** The in-domain payload uses PROV-aligned field names (`actor_id`, `parent_id`, `occurred_at`), but a PROV-O serialization endpoint lands when the first consumer asks.
-- **Context-strict decision-rule enforcement.** `decision_rule` is optional on every Decision. Whether a given context (Recipe approval, dataset discard, run abort) requires a rule citation is a projection-time audit-policy concern. The deferred-with-trigger is the first audit demand for context-strict enforcement.
+- **Context-strict decision-rule enforcement.** `rule` is optional on every Decision. Whether a given context (Recipe approval, dataset discard, run abort) requires a rule citation is a projection-time audit-policy concern. The deferred-with-trigger is the first audit demand for context-strict enforcement.
 - **Cross-policy combining and policy-grant decomposition.** Decisions in the `PolicyGrant` context carry determining-policy ids in `alternatives` per the standard policy-decision-log convention. A separate policy-evaluation log table is deferred until per-call policy decomposition is needed at audit time.
-- **Confidence calibration consumer.** The `DecisionRated` event accrues `(rating, context, confidence_at_emit_time)` tuples specifically for a future confidence-calibration consumer (Platt scaling, isotonic regression, or a learned uncertainty estimator). The consumer itself is deferred until a baseline rating corpus exists.
+- **Confidence calibration consumer.** The `DecisionRated` event accrues `(rating, context, confidence_at_rating)` tuples specifically for a future confidence-calibration consumer (Platt scaling, isotonic regression, or a learned uncertainty estimator). The consumer itself is deferred until a baseline rating corpus exists.
 - **Reasoning-entry partitioning.** `entries_decision_reasonings` is a single table with a BRIN index on `recorded_at`. Range partitioning is deferred until the table crosses ~50GB or until time-window reads degrade p95 read latency.
 
 </div>
@@ -23,9 +23,9 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Decision` | `id: UUID` | `id`, `actor_id`, `context: DecisionContext`, `choice: DecisionChoice`, `parent_id?`, `override_kind?`, `decision_rule?: DecisionRule`, `reasoning?`, `confidence?`, `confidence_source?: DecisionConfidenceSource`, `alternatives: tuple[str, ...]`, `decision_inputs?: dict[str, Any]`, `reasoning_signature?`, `logbooks: dict[str, UUID]`, `ratings: dict[UUID, DecisionRatingRecord]` | atomic-immutable for decision facts; logbook + rating sub-lifecycles |
+| `Decision` | `id: UUID` | `id`, `actor_id`, `context: DecisionContext`, `choice: DecisionChoice`, `parent_id?`, `override_kind?`, `rule?: DecisionRule`, `reasoning?`, `confidence?`, `confidence_source?: DecisionConfidenceSource`, `alternatives: tuple[str, ...]`, `inputs?: dict[str, Any]`, `reasoning_signature?`, `logbooks: dict[str, UUID]`, `ratings: dict[UUID, DecisionRatingRecord]` | atomic-immutable for decision facts; logbook + rating sub-lifecycles |
 
-A `Decision` is the entire record of a single choice. The decision facts (`choice`, `reasoning`, `confidence`, `decision_inputs`, `decision_rule`, `alternatives`, `confidence_source`, `reasoning_signature`) are written once at registration and never updated in place. Two orthogonal annotation channels accrue alongside without changing those facts: `logbooks` carry attached observation logbooks for AI-decider trace data, and `ratings` carry operator acceptance-signal ratings folded latest-per-actor-wins.
+A `Decision` is the entire record of a single choice. The decision facts (`choice`, `reasoning`, `confidence`, `inputs`, `rule`, `alternatives`, `confidence_source`, `reasoning_signature`) are written once at registration and never updated in place. Two orthogonal annotation channels accrue alongside without changing those facts: `logbooks` carry attached observation logbooks for AI-decider trace data, and `ratings` carry operator acceptance-signal ratings folded latest-per-actor-wins.
 
 `actor_id` is the **who** of the decision (the human or AI that made the choice). The `principal_id` on the persistence envelope is the **who** of the command that triggered the register. The two are normally the same UUID but will diverge when a saga records a Decision on behalf of an originating principal, or when an administrator records a decision made by another actor.
 
@@ -37,23 +37,23 @@ A `Decision` is the entire record of a single choice. The decision facts (`choic
 |---|---|---|
 | `DecisionContext` | trimmed string, 1-100 chars; well-known constants documented (RecipeApproval, RunAbort, RunStop, RunTruncate, ResourceAllocation, PolicyGrant, ProcedureExecution, DatasetDiscard, RunDebrief, CautionProposal) | `Decision.context` |
 | `DecisionChoice` | trimmed string, 1-500 chars; closed sub-vocabularies validated at projection time per context | `Decision.choice` |
-| `DecisionRule` | trimmed string, 1-500 chars; convention encourages prefixed identifiers like `iso17025:7.1.3:simple_acceptance` or `cora:policy:recipe_approval:v1` | `Decision.decision_rule` |
+| `DecisionRule` | trimmed string, 1-500 chars; convention encourages prefixed identifiers like `iso17025:7.1.3:simple_acceptance` or `cora:policy:recipe_approval:v1` | `Decision.rule` |
 | `DecisionConfidenceSource` | closed StrEnum: `self_reported` \| `logprob` \| `ensemble` \| `human` | `Decision.confidence_source` |
 | `ConfidenceBand` | closed StrEnum: `Low` \| `Medium` \| `High` \| `Certain`; derived from the stored `confidence` float at read time | denormalized into `proj_decision_summary.confidence_band` |
 | `DecisionOverrideKind` | closed Literal: `correction` \| `exception` \| `appeal` \| `supersession` \| `invalidation` | `Decision.override_kind` |
 | `DecisionRating` | closed StrEnum: `useful` \| `misleading` \| `ignored` | `DecisionRated.rating` |
 | `DecisionRatingRecord` | `(rating, comment?, rated_at)`; one per `(decision, actor)` pair after fold | values of `Decision.ratings` |
-| `decision_inputs` | `dict[str, Any]`; ≤ 64 keys, each 1-100 chars; every value must round-trip through `json.dumps` | `Decision.decision_inputs` |
+| `inputs` | `dict[str, Any]`; ≤ 64 keys, each 1-100 chars; every value must round-trip through `json.dumps` | `Decision.inputs` |
 | `alternatives` | `tuple[str, ...]`; ≤ 32 entries, each 1-500 chars; caller order preserved | `Decision.alternatives` |
 | `reasoning_signature` | trimmed string, 1-4096 chars; typically a sha256 of the full reasoning trace or a vendor-supplied encrypted summary | `Decision.reasoning_signature` |
 
 `DecisionContext` is intentionally an open string with documented well-known constants. New contexts arrive without a schema migration. The well-known set is validated at projection time, not at write time.
 
-`DecisionChoice` is similarly open at the BC boundary, with per-context closed sub-vocabularies enforced at the projection layer. Two such sub-vocabularies exist today: the five-value `RunDebrief` choice (NominalCompletion, DegradedCompletion, OperatorAbort, EquipmentAbort, DataSuspect, DebriefDeferred) and the five-value `CautionProposal` choice (NoAction, ProposeNotice, ProposeCaution, ProposeWarning, ProposeSupersede).
+`DecisionChoice` is similarly open at the BC boundary, with per-context closed sub-vocabularies enforced at the projection layer. Two such sub-vocabularies exist today: the seven-value `RunDebrief` choice (NominalCompletion, DegradedCompletion, OperatorAbort, EquipmentAbort, DataSuspect, DebriefDeferred, DebriefConflicted) and the six-value `CautionProposal` choice (NoAction, ProposeNotice, ProposeCaution, ProposeWarning, ProposeSupersede, CautionDraftConflicted).
 
 `ConfidenceBand` is never stored on the aggregate. The stored confidence is a single float in `[0, 1]`, and the band is computed at read time via `confidence_band()`: `Low` is below `0.3`, `Medium` is `[0.3, 0.7)`, `High` is `[0.7, 0.95)`, `Certain` is `[0.95, 1.0]`. The projection precomputes the band for fast categorical filtering, but the float is the source of truth. A `None` confidence yields a `None` band: the not-set distinction is preserved rather than silently mapped to `Low`. A `NaN` confidence also yields `None`.
 
-`decision_inputs` values must round-trip through `json.dumps` at the BC boundary. A `datetime`, `set`, or other non-JSON-native value raises here rather than failing deep at jsonb serialization time.
+`inputs` values must round-trip through `json.dumps` at the BC boundary. A `datetime`, `set`, or other non-JSON-native value raises here rather than failing deep at jsonb serialization time.
 
 ## FSM
 
@@ -92,16 +92,16 @@ The `append_reasoning_entry` slice does not open or close a logbook; it appends 
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `DecisionRegistered` | `decision_id`, `actor_id`, `context`, `choice`, `parent_id?`, `override_kind?`, `decision_rule?`, `reasoning?`, `confidence?`, `confidence_source?`, `alternatives`, `decision_inputs?`, `reasoning_signature?`, `occurred_at` | `register_decision` succeeds (genesis) |
+| `DecisionRegistered` | `decision_id`, `actor_id`, `context`, `choice`, `parent_id?`, `override_kind?`, `rule?`, `reasoning?`, `confidence?`, `confidence_source?`, `alternatives`, `inputs?`, `reasoning_signature?`, `occurred_at` | `register_decision` succeeds (genesis) |
 | `DecisionLogbookOpened` | `decision_id`, `logbook_id`, `kind`, `schema`, `occurred_at` | a logbook of `kind` is attached to the Decision; carries the per-entry schema for audit |
 | `DecisionLogbookClosed` | `decision_id`, `logbook_id`, `occurred_at` | a previously-opened logbook is terminated |
-| `DecisionRated` | `decision_id`, `rating`, `comment?`, `rated_by_actor_id`, `rated_at`, `occurred_at`, `confidence_at_emit_time?` | `rate_decision` succeeds; one event per submission, even when the same actor re-rates the same Decision |
+| `DecisionRated` | `decision_id`, `rating`, `comment?`, `rated_by_actor_id`, `rated_at`, `occurred_at`, `confidence_at_rating?` | `rate_decision` succeeds; one event per submission, even when the same actor re-rates the same Decision |
 
 `DecisionRegistered.alternatives` serializes as a list preserving caller order. Top-k ordering matters for AI deciders, and the canonical convention for determining-policy ids on `PolicyGrant` Decisions preserves it too.
 
 `DecisionLogbookOpened.schema` declares the per-row column shape of the entries that will land in `entries_decision_reasonings` for this logbook session. Carrying the schema on the open event means the Decision lifecycle audit captures the schema as of the moment the logbook was opened, which supports per-logbook schema evolution by opening a new logbook with an updated schema.
 
-`DecisionRated.confidence_at_emit_time` is captured from `Decision.state.confidence` at write time, not recomputed at read time or denormed by the projection. Capture-don't-recompute keeps the rated `(rating, confidence)` pair stable across aggregate rebuilds and projection rewrites.
+`DecisionRated.confidence_at_rating` is captured from `Decision.state.confidence` at write time, not recomputed at read time or denormed by the projection. Capture-don't-recompute keeps the rated `(rating, confidence)` pair stable across aggregate rebuilds and projection rewrites.
 
 `DecisionRated.rated_at` is the domain timestamp (when the operator submitted the rating per their wall-clock); `occurred_at` is the envelope timestamp on the persistence envelope. At write time the two are equal by construction. Downstream consumers prefer `rated_at` for domain-aware queries and `occurred_at` for envelope-bound audit ordering.
 
@@ -121,12 +121,12 @@ The `append_reasoning_entry` slice does not open or close a logbook; it appends 
 
 `append_reasoning_entry` writes one row into `entries_decision_reasonings`. The handler validates that a logbook of the requested kind is currently open on the Decision; mismatches raise `DecisionLogbookNotOpen`. The slice does not open a logbook itself: opening is done by the agent subscriber that captures the trace.
 
-`rate_decision` reads the rated Decision's current `confidence` value and writes it onto the `DecisionRated` payload as `confidence_at_emit_time`, then appends the event. Latest-per-actor wins in the projection; every event still lands in the audit log.
+`rate_decision` reads the rated Decision's current `confidence` value and writes it onto the `DecisionRated` payload as `confidence_at_rating`, then appends the event. Latest-per-actor wins in the projection; every event still lands in the audit log.
 
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `RegisterDecision`
-: `InvalidDecisionChoice`, `InvalidDecisionContext`, `InvalidDecisionReasoning`, `InvalidDecisionRule`, `InvalidDecisionConfidence`, `InvalidDecisionAlternatives`, `InvalidDecisionInputs`, `InvalidReasoningSignature`, `OverrideKindRequiresParent` (set `override_kind` without a `parent_id` and the boundary refuses), `DecisionAlreadyExists` (defensive on the genesis stream), `DeciderActorMissing` (the Actor referenced by `actor_id` has no stream), `InvalidActorKindForDecision` (the slice refuses `actor.kind == AGENT`; agent-emitted Decisions go through the signed subscriber path), `ParentDecisionMissing` (the Decision referenced by `parent_id` has no stream), `ParentDecisionRunMismatch` and `ParentDecisionAgentMismatch` (operator-triggered re-debrief whose parent chain references a different Run or a non-RunDebrief context), `Unauthorized`
+: `InvalidDecisionChoice`, `InvalidDecisionContext`, `InvalidDecisionReasoning`, `InvalidDecisionRule`, `InvalidDecisionConfidence`, `InvalidDecisionAlternatives`, `InvalidDecisionInputs`, `InvalidReasoningSignature`, `OverrideKindRequiresParent` (set `override_kind` without a `parent_id` and the boundary refuses), `DecisionAlreadyExists` (defensive on the genesis stream), `DeciderActorNotFoundError` (the Actor referenced by `actor_id` has no stream), `InvalidActorKindForDecision` (the slice refuses `actor.kind == AGENT`; agent-emitted Decisions go through the signed subscriber path), `DecisionParentNotFoundError` (the Decision referenced by `parent_id` has no stream), `ParentDecisionRunMismatch` and `ParentDecisionAgentMismatch` (operator-triggered re-debrief whose parent chain references a different Run or a non-RunDebrief context), `Unauthorized`
 
 `GetDecision`
 : `DecisionNotFound`
@@ -182,7 +182,7 @@ CREATE TABLE proj_decision_ratings (
                                          CHECK (rating IN ('useful', 'misleading', 'ignored')),
     comment                  TEXT,
     rated_at                 TIMESTAMPTZ NOT NULL,
-    confidence_at_emit_time  DOUBLE PRECISION,
+    confidence_at_rating     DOUBLE PRECISION,
     PRIMARY KEY (decision_id, rated_by_actor_id)
 );
 
@@ -253,10 +253,10 @@ There is no foreign key from `entries_decision_reasonings` to the Decision aggre
 | Access | reads-from | `Decision.actor_id` is an `Actor.id`; the handler pre-loads the Actor at registration to confirm existence |
 | Trust | shared-vocabulary-with | `Decision.context = "PolicyGrant"` Decisions are written by the Authorize port path when a policy decision is consequential enough to record; `alternatives` carries the determining-policy ids in those Decisions |
 | Agent | writes-into | the agent subscribers for `RunDebriefer` and `CautionDrafter` write one Decision per terminal Run event; the subscriber composes `DecisionRegistered` inline so the decision_id is deterministic from the run_id |
-| Run | reads-from | `RunAbort`, `RunStop`, `RunTruncate`, and `RunDebrief` Decisions reference a Run id either in `decision_inputs` or in the context vocabulary; the link is by value, not stored on Run |
-| Recipe | reads-from | `RecipeApproval` Decisions cite a Recipe id in `decision_inputs`; the link is by value |
+| Run | reads-from | `RunAbort`, `RunStop`, `RunTruncate`, and `RunDebrief` Decisions reference a Run id either in `inputs` or in the context vocabulary; the link is by value, not stored on Run |
+| Recipe | reads-from | `RecipeApproval` Decisions cite a Recipe id in `inputs`; the link is by value |
 | Data | reads-from | `DatasetDiscard` Decisions cite a Dataset id, and `invalidation`-kind chains pair with the `demote_dataset` slice on the Data module so an authorized retract has a citable rule |
-| Caution | reads-from | `CautionProposal` Decisions reference a target via `decision_inputs`; promotion of a proposal into a Caution copies the Decision id onto the resulting Caution as provenance |
+| Caution | reads-from | `CautionProposal` Decisions reference a target via `inputs`; promotion of a proposal into a Caution copies the Decision id onto the resulting Caution as provenance |
 | Equipment, Operation, Subject, Supply | reads-from | every consequential operator action on these modules records one Decision with the relevant context, and the link is by value |
 
 The `actor_id` reference is pre-loaded at the registration handler, but no status check is run. A Decision made by an Actor who is later deactivated is still a valid historical fact, and its audit value does not diminish. The `parent_id` reference is also pre-loaded; the cross-Run and cross-context guards on operator re-invocations of agent debriefs are the only structural checks beyond existence.
@@ -281,9 +281,9 @@ The five examples below cover the canonical Decision authoring and read flow: re
       "actor_id": "11111111-2222-3333-4444-555555555555",
       "context": "RecipeApproval",
       "choice": "Approve",
-      "decision_rule": "cora:policy:recipe_approval:v1",
+      "rule": "cora:policy:recipe_approval:v1",
       "reasoning": "Beam time aligned with proposal scope; method parameters within commissioned envelope.",
-      "decision_inputs": {
+      "inputs": {
         "recipe_id": "9c2a8e4f-3b5d-6c7e-8f9a-0b1c2d3e4f5a",
         "proposal_id": "PROP-2026-035",
         "estimated_beam_minutes": 240
@@ -292,7 +292,7 @@ The five examples below cover the canonical Decision authoring and read flow: re
     }
     ```
 
-    Returns `201 Created` with the newly-assigned `decision_id`. A second call with the same idempotency key returns the same id. The handler pre-loads the referenced Actor and raises `409 Conflict` with `DeciderActorMissing` if it does not exist.
+    Returns `201 Created` with the newly-assigned `decision_id`. A second call with the same idempotency key returns the same id. The handler pre-loads the referenced Actor and raises `409 Conflict` with `DeciderActorNotFoundError` if it does not exist.
 
 === "MCP"
 
@@ -303,12 +303,12 @@ The five examples below cover the canonical Decision authoring and read flow: re
             "actor_id": "11111111-2222-3333-4444-555555555555",
             "context": "RecipeApproval",
             "choice": "Approve",
-            "decision_rule": "cora:policy:recipe_approval:v1",
+            "rule": "cora:policy:recipe_approval:v1",
             "reasoning": (
                 "Beam time aligned with proposal scope; method parameters "
                 "within commissioned envelope."
             ),
-            "decision_inputs": {
+            "inputs": {
                 "recipe_id": "9c2a8e4f-3b5d-6c7e-8f9a-0b1c2d3e4f5a",
                 "proposal_id": "PROP-2026-035",
                 "estimated_beam_minutes": 240,
@@ -378,7 +378,7 @@ The five examples below cover the canonical Decision authoring and read flow: re
     }
     ```
 
-    Returns `204 No Content` (no new resource is created at a stable URL; the rating folds into the rater's slot on the Decision). The rated Decision's current `confidence` is captured onto the `DecisionRated` payload as `confidence_at_emit_time` at write time. A second rating from the same actor against the same Decision is allowed and folds latest-wins; both events remain in the audit log.
+    Returns `204 No Content` (no new resource is created at a stable URL; the rating folds into the rater's slot on the Decision). The rated Decision's current `confidence` is captured onto the `DecisionRated` payload as `confidence_at_rating` at write time. A second rating from the same actor against the same Decision is allowed and folds latest-wins; both events remain in the audit log.
 
 === "MCP"
 

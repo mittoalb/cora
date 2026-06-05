@@ -36,7 +36,7 @@ async def test_deregister_supply_appends_transition_event_to_same_stream(
         db_pool, now=_REGISTER_NOW, ids=[_SUPPLY_ID, _GENESIS_EVENT_ID]
     )
     supply_id = await register_supply.bind(register_deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

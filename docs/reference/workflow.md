@@ -10,7 +10,7 @@ Stop at any step and you have a working mental model of the layer above.
 
 1. **One vertical slice end-to-end:** [features/register_actor/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/access/features/register_actor). Five files, ~430 lines. `command.py` (input), `decider.py` (pure rule), `handler.py` (shell), `route.py` + `tool.py` (REST + MCP). Every slice follows this shape.
 2. **The aggregate:** [aggregates/actor/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/access/aggregates/actor). State, events, evolver. Pure.
-3. **The ports:** [infrastructure/ports/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/infrastructure/ports). Six `Protocol`s (clock, id_generator, event_store, idempotency, authorize, event_publisher).
+3. **The ports:** [infrastructure/ports/](https://github.com/xmap/cora/tree/main/apps/api/src/cora/infrastructure/ports). Nineteen `Protocol`s (clock, id_generator, event_store, idempotency_store, authorize, event_publisher, canonicalization, signer, signing, token_verifier, secret_store, profile_store, logbook_mirror, llm, capability_lookup, caution_lookup, clearance_lookup, credential_lookup, supply_lookup).
 4. **One fitness test:** [test_slice_contract.py](https://github.com/xmap/cora/blob/main/apps/api/tests/architecture/test_slice_contract.py). What's enforced mechanically.
 5. **Vocabulary:** [Glossary](glossary.md).
 
@@ -35,7 +35,7 @@ Conventional Commits with scope: `type(scope): subject`. Imperative, lowercase, 
 **Scopes:**
 
 - *Cross-cutting*: `infra`, `api`, `db`, `obs`, `auth`, `arch`
-- *BCs*: `equipment`, `access`, `recipe`, `run`, `campaign`, `supply`, `operation`, `trust`, `data`, `subject`, `decision`, `strategy`, `budget`
+- *BCs*: `access`, `agent`, `calibration`, `campaign`, `caution`, `data`, `decision`, `equipment`, `federation`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`
 - *Repo*: `repo`, `deps`
 
 Multiple scopes: pick the dominant or omit.
@@ -65,7 +65,7 @@ Schema changes in `infra/atlas/migrations/<timestamp>_<short_name>.sql`.
 ```bash
 make migrate-new name=add_foo   # new empty migration
 # edit the .sql file
-make migrate-hash               # update infra/atlas/atlas.sum
+make migrate-hash               # update infra/atlas/migrations/atlas.sum
 make migrate-apply              # apply locally
 ```
 
@@ -105,8 +105,10 @@ test_register_subject_works                                 # outcome too vague
 **Markers:**
 
 - `@pytest.mark.unit`: pure / in-process
+- `@pytest.mark.architecture`: structural fitness functions (AST / filesystem / SQL-text); no I/O
 - `@pytest.mark.integration`: real Postgres via `db_pool`
-- `@pytest.mark.contract`: `TestClient(create_app())`
+- `@pytest.mark.contract`: REST / MCP schema verification (`TestClient(create_app())`)
+- `@pytest.mark.e2e`: full end-to-end
 
 Marker is the category; name is the property. Don't repeat the category in the name. Long names are fine.
 

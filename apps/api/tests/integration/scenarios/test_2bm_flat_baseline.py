@@ -447,7 +447,7 @@ async def test_flat_baseline_plays_out_end_to_end(
     await bind_register_dataset(deps)(
         RegisterDataset(
             name="2BM_flat_baseline_2026-04-17",
-            uri="file:///data/35bm/2026-04/flat_baseline.h5",
+            uri="file:///data/2bm/2026-04/flat_baseline.h5",
             checksum_algorithm="sha256",
             checksum_value="f" * 64,
             byte_size=2448 * 2048 * 2 * 50,

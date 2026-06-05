@@ -20,7 +20,7 @@ Wired in `cora/api/main.py:create_app()`.
 Two patterns:
 
 - **Handlers**: `<verb>.<event>` (`register_actor.start`, `register_actor.denied`, `register_actor.success`). Every handler emits `start` plus `denied` or `success`. Decider failures propagate as exceptions.
-- **Cross-cutting**: `<concern>.<event>` (`idempotency.cache_hit`, `body_size_limit.rejected`).
+- **Cross-cutting**: `<concern>.<event>` (`idempotency.hit_success`, `body_size_limit.rejected`).
 
 **Field names:**
 

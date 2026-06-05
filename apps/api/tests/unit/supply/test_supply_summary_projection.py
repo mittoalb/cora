@@ -96,7 +96,7 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
             "supply_id": str(_SUPPLY_ID),
             "scope": "Beamline",
             "kind": "LiquidNitrogen",
-            "name": "35-BM LN2",
+            "name": "2-BM LN2",
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -115,7 +115,7 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
     assert args.args[1] == _SUPPLY_ID
     assert args.args[2] == "Beamline"
     assert args.args[3] == "LiquidNitrogen"
-    assert args.args[4] == "35-BM LN2"
+    assert args.args[4] == "2-BM LN2"
     assert args.args[5] == _NOW
 
 
@@ -191,7 +191,7 @@ async def test_supply_registered_swallows_unique_violation_and_logs_warn() -> No
             "supply_id": str(_SUPPLY_ID),
             "scope": "Beamline",
             "kind": "LiquidNitrogen",
-            "name": "35-BM LN2",
+            "name": "2-BM LN2",
             "occurred_at": _NOW.isoformat(),
         },
     )

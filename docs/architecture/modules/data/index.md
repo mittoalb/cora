@@ -89,7 +89,7 @@ Strict re-entry semantics apply across both axes: re-discarding a `Discarded` Da
 **Guards.** Beyond the source-state check, the following slices enforce cross-aggregate or cross-field state:
 
 `register_dataset`
-: When `producing_run_id` is set, the handler pre-loads the Run and confirms its stream is non-empty (`ProducingRunMissing` otherwise; no status check, so Datasets may be registered against `Running` or any terminal Run, since in-situ measurements register Datasets while the Run is still actively running). When `subject_id` is set, the handler confirms the Subject stream is non-empty. When `derived_from` is non-empty, the handler confirms each referenced Dataset stream is non-empty, and the decider rejects any that are currently `Discarded`. `used_calibration_ids` is bounded in cardinality but not existence-checked against the Calibration BC, matching the revision-cited atomic-id model.
+: When `producing_run_id` is set, the handler pre-loads the Run and confirms its stream is non-empty (`ProducingRunNotFound` otherwise; no status check, so Datasets may be registered against `Running` or any terminal Run, since in-situ measurements register Datasets while the Run is still actively running). When `subject_id` is set, the handler confirms the Subject stream is non-empty. When `derived_from` is non-empty, the handler confirms each referenced Dataset stream is non-empty, and the decider rejects any that are currently `Discarded`. `used_calibration_ids` is bounded in cardinality but not existence-checked against the Calibration BC, matching the revision-cited atomic-id model.
 
 `promote_dataset`
 : The current status is not `Discarded`. The producing Run (if any) ended in the `Completed` terminal state. Every Dataset in `derived_from` is currently in `Production` intent. The three branches raise through the single `DatasetCannotPromote` error class with a branch-specific reason string.
@@ -129,7 +129,7 @@ The Dataset aggregate emits four event types.
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `RegisterDataset`
-: `InvalidDatasetName`, `InvalidDatasetUri`, `InvalidDatasetChecksum`, `InvalidDatasetByteSize`, `InvalidDatasetEncoding`, `InvalidDerivedFrom`, `InvalidUsedCalibrations`, `DatasetAlreadyExists`, `ProducingRunMissing`, `LinkedSubjectMissing`, `DerivedFromDatasetsMissing`, `DerivedFromDatasetsDiscarded`, `Unauthorized`
+: `InvalidDatasetName`, `InvalidDatasetUri`, `InvalidDatasetChecksum`, `InvalidDatasetByteSize`, `InvalidDatasetEncoding`, `InvalidDerivedFrom`, `InvalidUsedCalibrations`, `DatasetAlreadyExists`, `ProducingRunNotFound`, `LinkedSubjectNotFound`, `DerivedFromDatasetsNotFound`, `DerivedFromDatasetsDiscarded`, `Unauthorized`
 
 `PromoteDataset`
 : `DatasetNotFound`, `InvalidPromotionReason`, `DatasetAlreadyPromoted` (already in `Production`), `DatasetCannotPromote` (Discarded, producing Run not Completed, or derived_from still in Trial), `Unauthorized`
@@ -215,7 +215,7 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
 
     {
       "name": "Catalyst pellet B-12, run 2026-05-19-007, raw projections",
-      "uri": "s3://aps-35bm-raw/2026-05-19/run-007/projections.h5",
+      "uri": "s3://aps-2bm-raw/2026-05-19/run-007/projections.h5",
       "checksum": {
         "algorithm": "sha256",
         "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -241,7 +241,7 @@ The five examples below cover the canonical Dataset flow: register a Dataset aga
         "register_dataset",
         {
             "name": "Catalyst pellet B-12, run 2026-05-19-007, raw projections",
-            "uri": "s3://aps-35bm-raw/2026-05-19/run-007/projections.h5",
+            "uri": "s3://aps-2bm-raw/2026-05-19/run-007/projections.h5",
             "checksum": {
                 "algorithm": "sha256",
                 "value": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",

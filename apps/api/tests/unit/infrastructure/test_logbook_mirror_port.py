@@ -56,9 +56,9 @@ async def test_mirror_decision_called_with_keyword_args() -> None:
     await mirror.mirror_decision(
         decision_id=did,
         narrative="Run completed nominally.",
-        target_logbook="35-BM-operations",
+        target_logbook="2-BM-operations",
     )
-    assert mirror.calls == [(str(did), "Run completed nominally.", "35-BM-operations")]
+    assert mirror.calls == [(str(did), "Run completed nominally.", "2-BM-operations")]
 
 
 @pytest.mark.unit

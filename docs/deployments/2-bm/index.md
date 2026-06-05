@@ -2,7 +2,7 @@
 
 *Operational bending-magnet micro-CT at APS.*
 
-The mechanically-similar analog that grounds CORA's scenario corpus. The actual [pilot](../35-bm/index.md) target is 35-BM, a greenfield instrument still in design.
+CORA's pilot deployment. The scenario corpus that grounds the domain model runs against real 2-BM operations.
 
 | Property | Value |
 | --- | --- |
@@ -13,7 +13,7 @@ The mechanically-similar analog that grounds CORA's scenario corpus. The actual 
 
 ## Inventories
 
-- [Assets](assets.md) (includes MCTOptics Assembly + children + wiring)
+- [Assets](assets.md) (flat inventory of all 2-BM Devices)
 - [Calibrations](calibrations.md)
 - [Actors](actors.md)
 - [Procedures](procedures.md)
@@ -25,5 +25,9 @@ The mechanically-similar analog that grounds CORA's scenario corpus. The actual 
 - [Cautions](cautions.md)
 - [Supplies](supplies.md)
 - [Policies](policies.md)
+
+## Equipment deployments
+
+- [MCTOptics](equipment/mctoptics.md) (Optique Peter detector: Assembly + Fixture + 7 bound Assets + PseudoAxis lens selector)
 
 Methods are cross-facility vocabulary in the [Catalog](../../catalog/methods.md); the Practices 2-BM consumes are APS Site Recipes in [APS](../aps/practices.md).

@@ -55,7 +55,7 @@ The state is carried by the `active` boolean on the aggregate; `Active` and `Dea
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `ActorRegistered` | `actor_id`, `name`, `kind`, `occurred_at` | `register_actor` succeeds (genesis); also emitted atomically by Agent module's `define_agent` with `kind="agent"` |
+| `ActorRegistered` | `actor_id`, `kind`, `occurred_at` | `register_actor` succeeds (genesis); also emitted atomically by Agent module's `define_agent` with `kind="agent"`. Display name lives in the `actor_profile` table per the PII vault pattern; legacy V1 writes carried `name` in the payload and are dropped on replay. |
 | `ActorDeactivated` | `actor_id`, `occurred_at` | `deactivate_actor` succeeds on an Actor that was active |
 
 ## Slices
@@ -64,6 +64,7 @@ The state is carried by the `active` boolean on the aggregate; `Active` and `Dea
 |---|---|---|---|---|
 | `RegisterActor` | NEW | `POST /actors` | `register_actor` | required |
 | `DeactivateActor` | MODIFIED | `POST /actors/{actor_id}/deactivate` | `deactivate_actor` | none |
+| `ForgetActor` | MODIFIED | `DELETE /actors/{actor_id}/profile` | `forget_actor` | optional |
 | `GetActor` | QUERY | `GET /actors/{actor_id}` | `get_actor` | none |
 | `ListActors` | QUERY | `GET /actors` | `list_actors` | none |
 
@@ -74,6 +75,9 @@ The state is carried by the `active` boolean on the aggregate; `Active` and `Dea
 
 `DeactivateActor`
 : `ActorNotFound`, `ActorAlreadyDeactivated`, `Unauthorized`
+
+`ForgetActor`
+: `ActorNotFound`, `Unauthorized`
 
 `GetActor`
 : `ActorNotFound`

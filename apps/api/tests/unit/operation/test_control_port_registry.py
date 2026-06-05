@@ -37,10 +37,10 @@ def test_registry_satisfies_control_port_protocol() -> None:
 @pytest.mark.unit
 def test_route_raises_no_adapter_when_no_prefix_matches() -> None:
     registry = ControlPortRegistry()
-    registry.register("2bma:", InMemoryControlPort())
+    registry.register("7bma:", InMemoryControlPort())
     with pytest.raises(NoAdapterForAddressError) as exc_info:
-        registry.route("35bma:rot:rbv")
-    assert exc_info.value.address == "35bma:rot:rbv"
+        registry.route("2bma:rot:rbv")
+    assert exc_info.value.address == "2bma:rot:rbv"
 
 
 @pytest.mark.unit
@@ -117,7 +117,7 @@ async def test_aclose_closes_every_registered_adapter() -> None:
     registry = ControlPortRegistry()
     a, b = InMemoryControlPort(), InMemoryControlPort()
     registry.register("2bma:", a)
-    registry.register("35bma:", b)
+    registry.register("7bma:", b)
     await registry.aclose()
     assert a._closed is True  # pyright: ignore[reportPrivateUsage]
     assert b._closed is True  # pyright: ignore[reportPrivateUsage]

@@ -1,6 +1,6 @@
 # Deployment
 
-For operators bringing CORA up at a new facility (pilot target: APS 35-BM). Covers env-var posture, the bootstrap authz workflow, the first-boot Actor + Policy registration, and the recovery path when the seed gets corrupted.
+For operators bringing CORA up at a new facility (pilot: APS 2-BM). Covers env-var posture, the bootstrap authz workflow, the first-boot Actor + Policy registration, and the recovery path when the seed gets corrupted.
 
 ## Env vars
 

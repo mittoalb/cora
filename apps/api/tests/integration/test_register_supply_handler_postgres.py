@@ -25,7 +25,7 @@ async def test_register_supply_persists_event_to_postgres(
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
 
     supply_id = await register_supply.bind(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -41,7 +41,7 @@ async def test_register_supply_persists_event_to_postgres(
         "supply_id": str(_NEW_ID),
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
-        "name": "35-BM LN2",
+        "name": "2-BM LN2",
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

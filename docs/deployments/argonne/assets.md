@@ -6,12 +6,12 @@ The Sites that hang off it. The Argonne Asset itself sits at the top of the hier
 
 | Asset | Level | Parent |
 | --- | --- | --- |
-| `APS` | `Site` | `Argonne` |
 
 ## Pending
 
 | Asset | Level | Parent |
 | --- | --- | --- |
+| `APS` | `Site` | `Argonne` |
 | `ATLAS` | `Site` | `Argonne` |
 | `CNM` | `Site` | `Argonne` |
 | `ALCF` | `Site` | `Argonne` |

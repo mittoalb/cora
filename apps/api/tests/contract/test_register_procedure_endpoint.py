@@ -35,7 +35,7 @@ def test_post_procedures_accepts_target_asset_ids() -> None:
         response = client.post(
             "/procedures",
             json={
-                "name": "35-BM rotation-axis alignment",
+                "name": "2-BM rotation-axis alignment",
                 "kind": "alignment",
                 "target_asset_ids": [asset],
             },

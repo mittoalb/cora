@@ -42,7 +42,7 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2 drop",
+                name="2-BM LN2 drop",
                 occurred_at=_NOW,
             )
         ]
@@ -51,7 +51,7 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
         id=_SUPPLY_ID,
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
-        name=SupplyName("35-BM LN2 drop"),
+        name=SupplyName("2-BM LN2 drop"),
         status=SupplyStatus.UNKNOWN,
     )
 
@@ -118,7 +118,7 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
                 occurred_at=_NOW,
             )
         ]
@@ -151,7 +151,7 @@ def _genesis_state() -> Supply:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
                 occurred_at=_NOW,
             )
         ]
@@ -277,7 +277,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
                 occurred_at=_NOW,
             ),
             SupplyMarkedAvailable(
@@ -321,7 +321,7 @@ def test_full_fsm_cycle_via_fold() -> None:
     assert state.status == SupplyStatus.AVAILABLE
     assert state.id == _SUPPLY_ID
     assert state.kind == "LiquidNitrogen"
-    assert state.name.value == "35-BM LN2"
+    assert state.name.value == "2-BM LN2"
 
 
 @pytest.mark.unit
@@ -337,7 +337,7 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
                 occurred_at=_NOW,
             ),
             SupplyMarkedAvailable(
@@ -360,4 +360,4 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
     assert state.status == SupplyStatus.DECOMMISSIONED
     assert state.id == _SUPPLY_ID
     assert state.kind == "LiquidNitrogen"
-    assert state.name.value == "35-BM LN2"
+    assert state.name.value == "2-BM LN2"

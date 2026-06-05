@@ -50,7 +50,7 @@ def build_protected_resource_metadata(
 
     `resource` is the resource server's stable identifier — for
     CORA, the deployment's base URL (for example,
-    `https://aps-35bm.cora.example`). Surfaces are exposed as
+    `https://aps-2bm.cora.example`). Surfaces are exposed as
     distinct sub-resources via `resource_documentation` /
     `signed_metadata` extensions; the per-Surface audience strings
     live in `aud_values_supported` so clients know which to request

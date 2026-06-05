@@ -19,7 +19,7 @@ from cora.supply.features.mark_supply_available.route import (
 def _register_supply(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
-        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "35-BM LN2"},
+        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
     )
     assert response.status_code == 201
     return UUID(response.json()["supply_id"])

@@ -66,7 +66,7 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
     """Register -> deregister -> register at same (scope, kind, name) -> new id."""
     scope = SupplyScope.BEAMLINE
     kind = "LiquidNitrogen"
-    name = f"35-BM LN2 reregister-test-{uuid4()}"
+    name = f"2-BM LN2 reregister-test-{uuid4()}"
 
     first_supply_id = uuid4()
     first_genesis_event_id = uuid4()
@@ -129,7 +129,7 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     excludes Decommissioned rows from uniqueness, not active ones."""
     scope = SupplyScope.BEAMLINE
     kind = "CompressedAir"
-    name = f"35-BM CA active-dup-test-{uuid4()}"
+    name = f"2-BM CA active-dup-test-{uuid4()}"
 
     first_supply_id = uuid4()
     deps_first = _build_deps(db_pool, ids=[first_supply_id, uuid4()], now=_T0)

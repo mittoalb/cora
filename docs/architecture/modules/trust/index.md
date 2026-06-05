@@ -2,7 +2,7 @@
 
 ## Purpose & Scope
 
-The Trust module owns CORA's authorization topology. Every command that crosses the system is evaluated against this topology before it reaches a decider, and the evaluator that performs that check is a pure function on Policy state. Four aggregates carry the responsibility: `Zone` groups principals and assets that share a trust posture, `Conduit` is a governed communications path between two Zones, `Surface` is the process-level arrival point through which a request entered CORA, and `Policy` is an authorization rule attached to a specific Conduit and Surface.
+The Trust module owns CORA's authorization topology. Every command that crosses the system is evaluated against this topology before it reaches a decider, and the evaluator that performs that check is a pure function on Policy state. Five aggregates carry the responsibility: `Zone` groups principals and assets that share a trust posture, `Conduit` is a governed communications path between two Zones, `Surface` is the process-level arrival point through which a request entered CORA, `Policy` is an authorization rule attached to a specific Conduit and Surface, and `Visit` tracks a principal's session-scoped presence on a Surface (rewrite was needed; minimal patch applied — review desired).
 
 Trust is the **what you may do** layer. Identity (who you are) lives in [Access](../access/index.md); agent-specific configuration (tool allowlists, budgets, suspended state) lives in [Agent](../agent/index.md). The cross-module Authorize port carries an Actor id resolved by Access, a Conduit id resolved by the entry adapter, and a Surface id resolved by the transport adapter, and answers Allow or Deny by consulting Policy state.
 
@@ -42,7 +42,7 @@ A `Zone` is a trust-requirement-homogeneous grouping of principals and assets, d
 | `ConduitName` | trimmed string, 1-200 chars | `Conduit.name` |
 | `SurfaceName` | trimmed string, 1-200 chars | `Surface.name` |
 | `SurfaceKind` | closed StrEnum: `http` \| `mcp_stdio` \| `mcp_streamable_http` | `Surface.kind` |
-| `SurfaceStatus` | closed StrEnum: `defined` \| `versioned` \| `deprecated` | `Surface.status` |
+| `SurfaceStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Surface.status` |
 | `PolicyName` | trimmed string, 1-200 chars | `Policy.name` |
 | `LogbookKind` | snake_case string discriminator; today only `"traversals"` | keys of `Conduit.logbooks` |
 | `AuthzResult` | tagged union `Allow()` \| `Deny(reason: str)` | return shape of `evaluate(policy, ...)` |
@@ -250,7 +250,7 @@ The five examples below cover the canonical Trust authoring and evaluation flow:
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "name": "Beamline 35-BM Operators"
+      "name": "Beamline 2-BM Operators"
     }
     ```
 
@@ -261,7 +261,7 @@ The five examples below cover the canonical Trust authoring and evaluation flow:
     ```python
     mcp.call_tool(
         "define_zone",
-        {"name": "Beamline 35-BM Operators"},
+        {"name": "Beamline 2-BM Operators"},
     )
     ```
 

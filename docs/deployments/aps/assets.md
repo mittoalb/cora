@@ -12,6 +12,5 @@ The Sectors at the Area level. The APS Asset itself sits at the Site level and i
 
 | Asset | Level | Parent | Hosts |
 | --- | --- | --- | --- |
-| `Sector 35` | `Area` | `APS` | [35-BM](../35-bm/index.md) |
 | Other Sectors | `Area` | `APS` | |
 | Storage ring, beam transport, front-end optics | | `APS` | |

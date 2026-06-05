@@ -29,7 +29,7 @@ def _minimal_body() -> dict[str, object]:
     return {
         "kind": "ESAF",
         "facility_asset_id": str(uuid4()),
-        "title": "Pilot ESAF for 35-BM",
+        "title": "Pilot ESAF for 2-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
 

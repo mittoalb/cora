@@ -24,7 +24,7 @@ Out of scope
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
 | `Capability` | `id: UUID` | `id`, `code`, `name`, `status`, `version`, `description`, `required_affordances`, `executor_shapes`, `parameters_schema`, `replaced_by_capability_id` | yes (3-state) |
-| `Method` | `id: UUID` | `id`, `name`, `capability_id`, `needed_family_ids`, `needed_supplies`, `parameters_schema`, `status`, `version` | yes (3-state) |
+| `Method` | `id: UUID` | `id`, `name`, `capability_id`, `needed_family_ids`, `needed_assembly_ids`, `needed_supplies`, `parameters_schema`, `status`, `version`, `content_hash` | yes (3-state) |
 | `Practice` | `id: UUID` | `id`, `name`, `method_id`, `site_id`, `status`, `version` | yes (3-state) |
 | `Plan` | `id: UUID` | `id`, `name`, `practice_id`, `method_id`, `asset_ids`, `default_parameters`, `wires`, `status`, `version` | yes (3-state) |
 
@@ -191,7 +191,7 @@ The `PlanDefined` audit snapshots pin what was checked at bind time (`method_nee
 : `PracticeNotFoundError` (Get only); boundary 422 only otherwise
 
 `DefinePlan`
-: `InvalidPlanNameError`, `PlanAssetsRequiredError` (empty `asset_ids`), `PlanAlreadyExistsError`, `PracticeNotFoundError`, `MethodNotFoundError`, `AssetNotFoundError`, `PlanBoundPracticeDeprecatedError`, `PlanBoundMethodDeprecatedError`, `PlanAssetDecommissionedError`, `PlanCapabilitiesNotSatisfiedError`, `PlanAffordancesNotSatisfiedError`, `Unauthorized`
+: `InvalidPlanNameError`, `PlanAssetsRequiredError` (empty `asset_ids`), `PlanAlreadyExistsError`, `PracticeNotFoundError`, `MethodNotFoundError`, `AssetNotFoundError`, `PlanBoundPracticeDeprecatedError`, `PlanBoundMethodDeprecatedError`, `PlanAssetDecommissionedError`, `PlanFamiliesNotSatisfiedError`, `PlanAffordancesNotSatisfiedError`, `Unauthorized`
 
 `VersionPlan`
 : `PlanNotFoundError`, `PlanCannotVersionError`, `InvalidPlanVersionTagError`, `Unauthorized`
@@ -440,7 +440,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "name": "35-BM fly-scan tomography, 2026 spring run",
+      "name": "2-BM fly-scan tomography, 2026 spring run",
       "practice_id": "<practice-id>",
       "asset_ids": [
         "<aerotech-rotary-stage-id>",
@@ -449,7 +449,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     }
     ```
 
-    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `family_ids`; if that union does not cover the Method's `needed_family_ids` the response is `409 Conflict` with `PlanCapabilitiesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
+    Returns `201 Created` with the assigned `plan_id`. The decider pre-loads the Practice and Method (rejects if either is `Deprecated`), every bound Asset (rejects if any is `Decommissioned`), and computes the union of each Asset's `family_ids`; if that union does not cover the Method's `needed_family_ids` the response is `409 Conflict` with `PlanFamiliesNotSatisfiedError` and the missing family ids. The same check runs for `Capability.required_affordances` against the union of bound Assets' Family.affordances.
 
 === "MCP"
 
@@ -457,7 +457,7 @@ The four examples below cover a typical declaration walk: a universal Capability
     mcp.call_tool(
         "define_plan",
         {
-            "name": "35-BM fly-scan tomography, 2026 spring run",
+            "name": "2-BM fly-scan tomography, 2026 spring run",
             "practice_id": "<practice-id>",
             "asset_ids": ["<aerotech-rotary-stage-id>", "<flir-camera-id>"],
         },

@@ -31,7 +31,7 @@ Out of scope
 | `Frame` | `id: UUID` | `id`, `name`, `parent_frame_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
 | `Mount` | `id: UUID` | `id`, `slot_code`, `parent_mount_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
-| `Fixture` | `id: UUID` | `id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings: frozenset[SlotAssetBinding]`, `parameter_overrides: dict`, `registered_at` | no (single-event genesis) |
+| `Fixture` | `id: UUID` | `id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings: frozenset[SlotAssetBinding]`, `parameter_overrides: dict`, `persistent_id?`, `registered_at` | no (genesis + set-once persistent-id assign) |
 
 `Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", "Mirror", "TriggerFPGA". It carries the affordance set (what device-level primitives this class supports) and the JSON Schema that constrains the operational settings any Asset of that class may carry. `Model` is the vendor catalog entry that names a specific manufacturer plus part number and declares which Families that catalog row belongs to. `Asset` is one physical instance: a Site, a beamline, a detector, a sample changer. Assets form a single-parent tree through `parent_id`; an Asset may belong to multiple Families simultaneously, and each membership widens what the Asset's settings dict may contain. An Asset may optionally bind to a Model, in which case the Asset's family set must be a subset of the Model's declared families.
 
@@ -62,7 +62,7 @@ Out of scope
 | `MountStatus` | closed StrEnum: `Active` \| `Decommissioned` | `Mount.status` |
 | `AssemblyStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Assembly.status` |
 | `SlotName` | trimmed string, 1-50 chars, lowercase alphanumeric plus underscore | `TemplateSlot.slot_name`, `SlotAssetBinding.slot_name`, both endpoints of `TemplateWire` |
-| `SlotCardinality` | closed StrEnum: `Exactly1` \| `AtLeast1` \| `ZeroOrMore` | `TemplateSlot.cardinality` |
+| `SlotCardinality` | closed StrEnum: `Exactly1` \| `ZeroOrOne` \| `OneOrMore` \| `ZeroOrMore` | `TemplateSlot.cardinality` |
 | `TemplateSlot` | `(slot_name, required_family_ids, cardinality)` per-slot Family requirement | members of `Assembly.required_slots` |
 | `TemplateWire` | `(source_slot, source_port, target_slot, target_port)` intra-Assembly wiring | members of `Assembly.required_wires` |
 | `SlotAssetBinding` | `(slot_name, asset_id)` materialization pair | members of `Fixture.slot_asset_bindings` |
@@ -89,7 +89,7 @@ Addressability wins ties: if any other module references the sub-component by id
 
 ## FSM
 
-The Family, Model, and Assembly aggregates run a shared three-state lifecycle (Defined / Versioned / Deprecated). Asset runs a four-state lifecycle plus an orthogonal three-state condition. Frame and Mount each run a two-state lifecycle (Active / Decommissioned). Fixture has no FSM: a Fixture is registered in a single genesis event and is never updated; if a materialization needs to change, a new Fixture is registered against the same Assembly.
+The Family, Model, and Assembly aggregates run a shared three-state lifecycle (Defined / Versioned / Deprecated). Asset runs a four-state lifecycle plus an orthogonal three-state condition. Frame and Mount each run a two-state lifecycle (Active / Decommissioned). Fixture has no FSM: a Fixture is registered in a genesis event and can later have a persistent identifier assigned once; otherwise it is never updated, and if a materialization needs to change, a new Fixture is registered against the same Assembly.
 
 ### Family
 
@@ -233,7 +233,7 @@ stateDiagram-v2
 
 ## Events
 
-The seven aggregates emit forty-one distinct event types, grouped by aggregate.
+The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 
 ### Family events
 
@@ -309,13 +309,14 @@ The seven aggregates emit forty-one distinct event types, grouped by aggregate.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `FixtureRegistered` | `fixture_id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings`, `parameter_overrides`, `occurred_at` | `register_fixture` succeeds; the Fixture's only event (single-event genesis) |
+| `FixtureRegistered` | `fixture_id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings`, `parameter_overrides`, `occurred_at` | `register_fixture` succeeds (genesis) |
+| `FixturePersistentIdAssigned` | `fixture_id`, `persistent_id_scheme`, `persistent_id_value`, `occurred_at` | `assign_fixture_persistent_id` succeeds; set-once at the aggregate level |
 
 `AssetRelocated` is the only event in the Equipment module that carries source state in its payload, because `parent_id` is a mutable value across many possible prior states rather than a discrete enum. `AssetDetachedFromFixture` and `MountAssetUninstalled` follow the same pattern for their respective back-references. `Assembly` versioning events carry the full replacement structural content so a downstream consumer can fold to the post-version state without loading the prior version.
 
 ## Slices
 
-The seven aggregates expose fifty slices end to end.
+The seven aggregates expose fifty-four slices end to end.
 
 ### Family slices
 
@@ -465,14 +466,14 @@ The seven aggregates expose fifty slices end to end.
 : `<X>NotFound`
 
 `GetAssetPidinst`
-: `AssetNotFound`, `PidinstSerializationError` (and its subclasses: `ModelStateNotAvailable`, `FamilyStateNotAvailable`, `OwnerStateNotAvailable`, `PidinstRecordInvariant`)
+: `AssetNotFound`, `PidinstSerializationError` (and its subclasses: `AssetNameMissing`, `LandingPageMissing`, `OwnerStateNotAvailable`, `ManufacturerStateNotAvailable`, `PidinstRecordInvariant`)
 
 `ListFamilies` / `ListAssets` / `ListFixtures`
 : (boundary 422 only)
 
 `GetAssetIntegrationView` is a read-time composition slice that joins the Asset's current state with the schema declarations of its assigned Families, the Capabilities those Families' affordances satisfy, and the active Cautions targeting the Asset. The composition runs at query time; there is no integration-view projection today. The view is the read-side primitive that integration code (a control-system adapter, a measurement broker) uses to discover "what can this Asset actually do". The response carries `asset_id`, `name`, `level`, `lifecycle`, `condition`, `parent_id`, `families` (each with its settings schema), `ports`, `settings`, `active_cautions`, `applicable_capabilities`, and an `incomplete` boolean that flags partial composition when a referenced Family failed to load (eventual-consistency tolerance).
 
-`GetAssetPidinst` is a read-time serializer slice at `GET /assets/{asset_id}/pidinst`. A feature-local view assembler loads the Asset, its bound `Model`, the Families behind the Model, the Asset's owners, and its alternate identifiers, then hands the assembled view to the `to_pidinst_record` pure function at the module root (`_pidinst_serializer.py` plus `_pidinst_types.py`). The response body is the PIDINST record shape used by external persistent-identifier registries, returned directly so a downstream caller can post it to DataCite or another mint surface without further transformation. Errors map: `AssetNotFound` to 404, `PidinstRecordInvariant` to 422 (the assembled view violated a PIDINST schema invariant), the three `*StateNotAvailable` subclasses to 409 (cross-aggregate state was loaded but failed serializer preconditions), and any unexpected failure to 500.
+`GetAssetPidinst` is a read-time serializer slice at `GET /assets/{asset_id}/pidinst`. A feature-local view assembler loads the Asset, its bound `Model`, the Families behind the Model, the Asset's owners, and its alternate identifiers, then hands the assembled view to the `to_pidinst_record` pure function at the module root (`_pidinst_serializer.py` plus `_pidinst_types.py`). The response body is the PIDINST record shape used by external persistent-identifier registries, returned directly so a downstream caller can post it to DataCite or another mint surface without further transformation. Errors map: `AssetNotFound` to 404, `PidinstRecordInvariant` to 422 (the assembled view violated a PIDINST schema invariant), the four pre-construction subclasses (`AssetNameMissing`, `LandingPageMissing`, `OwnerStateNotAvailable`, `ManufacturerStateNotAvailable`) to 409 (the input view was loaded but failed serializer preconditions), and any unexpected failure to 500.
 
 ## Cross-aggregate invariants
 

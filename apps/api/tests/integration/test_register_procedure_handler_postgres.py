@@ -52,7 +52,7 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
 
     returned_id = await bind_register_procedure(deps)(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({asset2, asset1}),  # unsorted input
         ),
@@ -68,7 +68,7 @@ async def test_register_procedure_persists_event_to_postgres_with_target_assets(
     assert stored.event_type == "ProcedureRegistered"
     assert stored.payload == {
         "procedure_id": str(procedure_id),
-        "name": "35-BM rotation-axis alignment",
+        "name": "2-BM rotation-axis alignment",
         "kind": "alignment",
         # Sorted by UUID string form (deterministic).
         "target_asset_ids": sorted([str(asset1), str(asset2)]),

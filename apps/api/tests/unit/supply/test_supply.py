@@ -31,8 +31,8 @@ from cora.supply.aggregates.supply import (
 
 @pytest.mark.unit
 def test_supply_name_accepts_normal_string() -> None:
-    name = SupplyName("35-BM LN2 drop")
-    assert name.value == "35-BM LN2 drop"
+    name = SupplyName("2-BM LN2 drop")
+    assert name.value == "2-BM LN2 drop"
 
 
 @pytest.mark.unit
@@ -123,7 +123,7 @@ def test_supply_aggregate_is_frozen() -> None:
         id=uuid4(),
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
-        name=SupplyName("35-BM LN2"),
+        name=SupplyName("2-BM LN2"),
         status=SupplyStatus.UNKNOWN,
     )
     with pytest.raises(AttributeError):
@@ -137,7 +137,7 @@ def test_supply_status_defaults_to_unknown_at_construction() -> None:
         id=uuid4(),
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
-        name=SupplyName("35-BM LN2"),
+        name=SupplyName("2-BM LN2"),
     )
     assert supply.status == SupplyStatus.UNKNOWN
 

@@ -44,15 +44,15 @@ flowchart LR
 
 A *method* names how a class of measurement works. A *practice* binds it to one facility's instruments. A *plan* schedules it. A *run* executes it, captured as events.
 
-For 35-BM micro-CT this reads: **Method** tomography, **Practice** 35-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
+For 2-BM micro-CT this reads: **Method** tomography, **Practice** 2-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
 
 A decision can attach at any stage: to propose a method, choose a practice, schedule a plan, or steer a run mid-flight. Each one carries who decided, what they chose, why, and the evidence they saw. Humans and agents register decisions the same way.
 
 ## Pilot
 
-Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new dedicated greenfield instrument. CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it. 35-BM is planned and under construction; CORA's scenario corpus is grounded today on the mechanically similar operational analog at **APS beamline 2-BM**.
+Built for micro-CT at **APS beamline 2-BM** (Argonne). CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it. The scenario corpus that grounds CORA's domain model runs against real 2-BM operations.
 
-[See the 35-BM pilot target →](deployments/35-bm/index.md) | [See the 2-BM operational analog →](deployments/2-bm/index.md)
+[See the 2-BM pilot →](deployments/2-bm/index.md)
 
 ## Start here
 
@@ -60,7 +60,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new d
 
 -   __Beamline scientist__
 
-    Could CORA run your experiments? Start with the operational analog at 2-BM (the pilot at 35-BM is still under construction).
+    Could CORA run your experiments? Start with the 2-BM pilot.
 
     [See 2-BM →](deployments/2-bm/index.md)
 
@@ -72,7 +72,7 @@ Built first for white-beam micro-CT at **APS beamline 35-BM** (Argonne), a new d
 
 -   __Future pilot host__
 
-    Your beamline could be the next deployment after 35-BM.
+    Your beamline could be the next deployment after 2-BM.
 
     [Read the contribution call →](reference/contributing.md)
 

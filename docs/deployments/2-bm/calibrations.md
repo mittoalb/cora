@@ -2,7 +2,7 @@
 
 *Calibration BC revisions for 2-BM Assets.*
 
-Each Calibration is keyed by `(asset_id, quantity, operating_point)` and carries an append-only revision history. See the [Calibration module](../../architecture/modules/calibration/index.md) for the aggregate shape.
+Each Calibration is keyed by `(target_id, quantity, operating_point)` and carries an append-only revision history. See the [Calibration module](../../architecture/modules/calibration/index.md) for the aggregate shape.
 
 All initial revisions below are `AssertedSource` (operator-attested from vendor datasheets and Optique Peter documentation) with status `Provisional`. Subsequent revisions land as `MeasuredSource` once a calibration Procedure runs.
 

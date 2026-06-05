@@ -71,7 +71,7 @@ async def test_start_procedure_persists_event_to_postgres_with_active_target_ass
     # Register Procedure targeting that Asset.
     await register_procedure.bind(deps)(
         RegisterProcedure(
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=frozenset({asset_id}),
         ),

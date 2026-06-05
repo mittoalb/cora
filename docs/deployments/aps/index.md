@@ -8,8 +8,8 @@ Aggregates that hang at the facility level: Assets, Practices (ISA-88 Site Recip
 | --- | --- |
 | Asset | `APS` |
 | Enterprise | [Argonne](../argonne/index.md) |
-| Sectors under this Site | `Sector 2`, `Sector 35` |
-| Beamlines under this Site | [2-BM](../2-bm/index.md), [35-BM](../35-bm/index.md) |
+| Sectors under this Site | `Sector 2` |
+| Beamlines under this Site | [2-BM](../2-bm/index.md) |
 
 ## Inventories
 

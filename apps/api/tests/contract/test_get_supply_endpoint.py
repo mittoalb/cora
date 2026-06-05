@@ -21,7 +21,7 @@ from cora.supply.features.get_supply.route import (
 def _register_supply(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
-        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "35-BM LN2"},
+        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
     )
     assert response.status_code == 201
     return UUID(response.json()["supply_id"])
@@ -39,7 +39,7 @@ def test_get_supply_returns_200_with_unknown_status_for_new_supply() -> None:
         "id": str(supply_id),
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
-        "name": "35-BM LN2",
+        "name": "2-BM LN2",
         "status": "Unknown",
     }
 

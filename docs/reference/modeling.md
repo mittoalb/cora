@@ -32,7 +32,7 @@ Live at the smallest scope owning the invariants:
 | --- | --- | --- |
 | One aggregate | `aggregates/<aggregate>/state.py` (split when >~200 lines) | `ActorName` |
 | Across aggregates in one BC | `<bc>/value_objects.py` or `<bc>/_shared/` | `ConduitName` |
-| Across multiple BCs | `cora/shared/value_objects.py` | `Money`, `EmailAddress` |
+| Across multiple BCs | `cora/infrastructure/` (e.g. `bounded_text.py`) | shared validation helpers |
 
 Promote up only after ≥3 real usages with identical, stable invariants.
 
@@ -64,20 +64,20 @@ Default to **flat fields** until ≥3 members of a group exist. Then hoist into 
 # 1 member: flat
 @dataclass(frozen=True)
 class Method:
-    needed_capabilities: frozenset[UUID]
+    needed_family_ids: frozenset[UUID]
 
 # 2 members: still flat
 @dataclass(frozen=True)
 class Method:
-    needed_capabilities: frozenset[UUID]
-    needs_safety_quals: frozenset[UUID]
+    needed_family_ids: frozenset[UUID]
+    needed_supplies: frozenset[str]
 
 # 3+ members: hoist
 @dataclass(frozen=True)
 class Needs:
-    capabilities: frozenset[UUID]
-    safety_quals: frozenset[UUID]
-    operator_role: UUID | None
+    family_ids: frozenset[UUID]
+    supplies: frozenset[str]
+    assembly_ids: frozenset[UUID]
 
 @dataclass(frozen=True)
 class Method:

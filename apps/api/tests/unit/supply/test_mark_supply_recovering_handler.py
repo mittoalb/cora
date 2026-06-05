@@ -44,7 +44,7 @@ async def _seed_unavailable_supply(store: InMemoryEventStore) -> None:
                 supply_id=_SUPPLY_ID,
                 scope="Beamline",
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
                 occurred_at=_PRIOR,
             ),
             "RegisterSupply",

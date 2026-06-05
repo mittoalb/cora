@@ -6,7 +6,7 @@ Each Agent's id is shared with an Access BC Actor (`kind=agent`) via a cross-BC 
 
 | Agent | Kind | Version | Model |
 | --- | --- | --- | --- |
-| `Run Debrief` | `RunDebriefer` | `v1` | `anthropic / claude-sonnet-4-6 @ 20251001` |
+| `RunDebriefer` | `RunDebriefer` | `1.0.0` | `anthropic / claude-haiku-4-5` |
 
 ## Pending
 

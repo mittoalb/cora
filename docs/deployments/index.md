@@ -6,13 +6,12 @@ Vertical before horizontal. CORA's domain model only contains what at least one 
 
 ## Active
 
-Deployments mirror CORA's Asset hierarchy (Enterprise → Site → Area → Unit):
+Deployments mirror CORA's Asset hierarchy (Enterprise → Site → Area → Unit → Component → Device):
 
 | Deployment | Level | Parent |
 | --- | --- | --- |
 | [Argonne](argonne/index.md) | Enterprise | (root) |
 | [APS](aps/index.md) | Site | Argonne |
 | [2-BM](2-bm/index.md) | Unit | Sector 2 |
-| [35-BM](35-bm/index.md) | Unit | Sector 35 |
 
 Cross-facility vocabulary (Capabilities, Methods) lives in the [Catalog](../catalog/index.md), since it is not bound to any single Site.

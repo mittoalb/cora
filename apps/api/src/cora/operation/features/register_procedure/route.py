@@ -41,7 +41,7 @@ class RegisterProcedureRequest(BaseModel):
         max_length=PROCEDURE_NAME_MAX_LENGTH,
         description=(
             "Operator-readable display name for the procedure (for example "
-            "'35-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout')."
+            "'2-BM rotation-axis alignment 2026-05-15', 'Vessel-A bakeout')."
         ),
     )
     kind: str = Field(

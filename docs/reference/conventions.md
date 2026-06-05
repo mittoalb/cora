@@ -190,7 +190,7 @@ Carve-out: when the aggregate has only ONE such verb (and no foreseeable second)
 
 ### Supply uses `Marked<Status>` for operator-driven transitions
 
-Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's operator-observation events: `SupplyMarkedAvailable`, `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`. The `Marked` prefix encodes the audit distinction "operator observation, not monitor measurement" that motivates Supply's 5-state FSM. A future automated monitor would emit bare past-participle events (`SupplyObservedAvailable`, `SupplyObservedRecovering`); the prefix is the discriminator. See [`project_supply_design`](../projects/supply.md) for the operator-vs-monitor split.
+Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's operator-observation events: `SupplyMarkedAvailable`, `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`. The `Marked` prefix encodes the audit distinction "operator observation, not monitor measurement" that motivates Supply's 5-state FSM. A future automated monitor would emit bare past-participle events (`SupplyObservedAvailable`, `SupplyObservedRecovering`); the prefix is the discriminator.
 
 ### Run cross-aggregate edits use `*To*` / `*From*`
 

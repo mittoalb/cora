@@ -18,7 +18,7 @@ this scenario fits into.
   - **Equipment BC**: Argonne (Enterprise) + APS (Site, parent=Argonne)
     + Sector 2 (Area, parent=APS). APS organizes beamlines into
     sectors; Sector 2 hosts the operational 2-BM beamline. Sector 35
-    (the planned 35-BM pilot) is intentionally absent until its Unit
+    (the planned 2-BM pilot) is intentionally absent until its Unit
     lands.
   - **Access BC**: one Actor (kind=human) for use as principal
   - **Agent BC**: one Agent (RunDebriefer), cross-BC-co-registers a

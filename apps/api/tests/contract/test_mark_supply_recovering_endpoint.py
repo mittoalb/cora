@@ -18,7 +18,7 @@ def _register_and_mark_unavailable(client: TestClient) -> UUID:
     """Get a Supply into the Unavailable state (single-source for mark_recovering)."""
     response = client.post(
         "/supplies",
-        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "35-BM LN2"},
+        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
     )
     assert response.status_code == 201
     supply_id = UUID(response.json()["supply_id"])

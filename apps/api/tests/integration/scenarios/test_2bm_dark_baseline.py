@@ -20,7 +20,7 @@ taxonomy this scenario fits into.
 Three firsts in CORA's 2-BM doc tree:
 
   1. First exercise of the Data BC (`register_dataset`) in any
-     scenario. Unlocks `35-bm/datasets.md`.
+     scenario. Unlocks `2-bm/datasets.md`.
   2. First scenario where a Procedure produces a downstream artifact
      captured as a Dataset, validating the "Procedure logs the
      operator actions; Dataset registers the artifact" pattern.
@@ -428,7 +428,7 @@ async def test_dark_baseline_plays_out_end_to_end(
     await bind_register_dataset(deps)(
         RegisterDataset(
             name="2BM_dark_baseline_2026-04-17",
-            uri="file:///data/35bm/2026-04/dark_baseline.h5",
+            uri="file:///data/2bm/2026-04/dark_baseline.h5",
             checksum_algorithm="sha256",
             checksum_value="d" * 64,
             byte_size=2448 * 2048 * 2 * 50,

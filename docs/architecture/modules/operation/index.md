@@ -1,4 +1,4 @@
-# Operation module <span class="md-maturity md-maturity--stable" title="Aggregate, FSM, six events, eight slices, projection, and per-step entry table all locked.">stable</span>
+# Operation module <span class="md-maturity md-maturity--stable" title="Aggregate, FSM, six events, ten slices, projection, and per-step entry table all locked.">stable</span>
 
 ## Purpose & Scope
 
@@ -22,7 +22,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Procedure` | `id: UUID` (opaque) | name, kind, target asset ids, status, optional `parent_run_id`, optional `steps_logbook_id`, optional `capability_id` | yes |
+| `Procedure` | `id: UUID` (opaque) | name, kind, target asset ids, status, optional `parent_run_id`, optional `steps_logbook_id`, optional `capability_id`, optional `recipe_id` | yes |
 
 ## Value Objects
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 `abort_procedure` / `truncate_procedure`
 : `reason` is REQUIRED, trimmed, 1-500 chars. `truncate_procedure` accepts an optional `interrupted_at` (operator's best guess at the actual interruption time); validated to be not later than `now`.
 
-`append_procedure_step`
+`append_procedure_steps`
 : Status must be `Running`. Appending to a `Defined`, `Completed`, `Aborted`, or `Truncated` Procedure raises `ProcedureStepsLogbookClosedError` (the steps logbook is implicitly closed on every terminal). `step_kind` must be one of `setpoint`, `action`, `check`. Producer-supplied `event_id` deduplicates retries silently via `ON CONFLICT (event_id) DO NOTHING`.
 
 ## Events
@@ -75,7 +75,7 @@ stateDiagram-v2
 |---|---|---|
 | `ProcedureRegistered` | `procedure_id, name, kind, target_asset_ids, parent_run_id?, capability_id?, occurred_at` | `register_procedure` accepted; status implicitly `Defined`. |
 | `ProcedureStarted` | `procedure_id, occurred_at` | `start_procedure` accepted (Defined → Running). |
-| `ProcedureStepsLogbookOpened` | `procedure_id, logbook_id, kind="steps", schema, occurred_at` | First `append_procedure_step` call for the Procedure (lazy open). |
+| `ProcedureStepsLogbookOpened` | `procedure_id, logbook_id, kind="steps", schema, occurred_at` | First `append_procedure_steps` call for the Procedure (lazy open). |
 | `ProcedureCompleted` | `procedure_id, occurred_at` | `complete_procedure` accepted (Running → Completed). |
 | `ProcedureAborted` | `procedure_id, reason, occurred_at` | `abort_procedure` accepted (Running → Aborted). |
 | `ProcedureTruncated` | `procedure_id, reason, interrupted_at?, occurred_at` | `truncate_procedure` accepted (Running → Truncated). |
@@ -87,8 +87,10 @@ Per-step records (one row per setpoint, action, or check) write directly to the 
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
 | `RegisterProcedure` | NEW | `POST /procedures` | `register_procedure` | required |
+| `RegisterProcedureFromRecipe` | NEW | `POST /procedures/from-recipe` | `register_procedure_from_recipe` | required |
 | `StartProcedure` | MODIFIED | `POST /procedures/{procedure_id}/start` | `start_procedure` | none |
-| `AppendProcedureStep` | MODIFIED | `POST /procedures/{procedure_id}/steps` | `append_procedure_step` | producer-supplied `event_id` per entry |
+| `AppendProcedureSteps` | MODIFIED | `POST /procedures/{procedure_id}/steps` | `append_procedure_steps` | producer-supplied `event_id` per entry |
+| `ConductProcedure` | MODIFIED | `POST /procedures/{procedure_id}/conduct` | `conduct_procedure` | none |
 | `CompleteProcedure` | MODIFIED | `POST /procedures/{procedure_id}/complete` | `complete_procedure` | none |
 | `AbortProcedure` | MODIFIED | `POST /procedures/{procedure_id}/abort` | `abort_procedure` | none |
 | `TruncateProcedure` | MODIFIED | `POST /procedures/{procedure_id}/truncate` | `truncate_procedure` | none |
@@ -103,7 +105,7 @@ Per-step records (one row per setpoint, action, or check) write directly to the 
 `StartProcedure`
 : `ProcedureNotFoundError`, `ProcedureCannotStartError`, `ProcedurePlanAssetDecommissionedError`, `ProcedureCapabilityExecutorMismatchError`, `ProcedureRequiresAvailableSupplyError` (no Supply registered for a kind in the parent Run's `Method.needed_supplies`), `ProcedureSupplyCoverageMismatchError` (Supplies exist but none Available), and (for Phase-of-Run Procedures only) `RunNotFoundError` / `PlanNotFoundError` / `PracticeNotFoundError` / `MethodNotFoundError` if the parent-resolution chain has a broken link, `Unauthorized`. The Supply gate fires only when `parent_run_id` is set; standalone Procedures pass trivially today (Capability-level `needed_supplies` is a watch item).
 
-`AppendProcedureStep`
+`AppendProcedureSteps`
 : `ProcedureNotFoundError`, `ProcedureStepsLogbookClosedError`, `InvalidStepKindError`, `Unauthorized`
 
 `CompleteProcedure` / `AbortProcedure` / `TruncateProcedure`
@@ -192,7 +194,7 @@ Polymorphic-with-discriminator: one row per step, with `step_kind` discriminatin
 
 ## Examples
 
-The four examples below follow the canonical Procedure path: register a calibration sweep targeting one Asset, start it, append one setpoint step + one check step, then complete it. The `append_procedure_step` slice carries producer-supplied `event_id` per entry for safe retries (Idempotency-Key is not used at this slice). For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
+The four examples below follow the canonical Procedure path: register a calibration sweep targeting one Asset, start it, append one setpoint step + one check step, then complete it. The `append_procedure_steps` slice carries producer-supplied `event_id` per entry for safe retries (Idempotency-Key is not used at this slice). For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
 
 <!-- extracted from tests/contract/operation/test_*.py -->
 
@@ -207,7 +209,7 @@ The four examples below follow the canonical Procedure path: register a calibrat
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
 
     {
-      "name": "Beamline 35-BM rotary stage calibration sweep",
+      "name": "Beamline 2-BM rotary stage calibration sweep",
       "kind": "calibration",
       "target_asset_ids": ["c1f2d3c4-b5a6-4978-8869-7a6b5c4d3e2f"]
     }
@@ -221,7 +223,7 @@ The four examples below follow the canonical Procedure path: register a calibrat
     mcp.call_tool(
         "register_procedure",
         {
-            "name": "Beamline 35-BM rotary stage calibration sweep",
+            "name": "Beamline 2-BM rotary stage calibration sweep",
             "kind": "calibration",
             "target_asset_ids": ["c1f2d3c4-b5a6-4978-8869-7a6b5c4d3e2f"],
         },
@@ -293,7 +295,7 @@ The four examples below follow the canonical Procedure path: register a calibrat
 
     ```python
     mcp.call_tool(
-        "append_procedure_step",
+        "append_procedure_steps",
         {
             "procedure_id": "<uuid>",
             "entries": [
@@ -336,7 +338,7 @@ The four examples below follow the canonical Procedure path: register a calibrat
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
     ```
 
-    A successful call returns `204 No Content`. Status moves to `Completed`; the steps logbook is implicitly closed (subsequent `append_procedure_step` calls return `409 Conflict`).
+    A successful call returns `204 No Content`. Status moves to `Completed`; the steps logbook is implicitly closed (subsequent `append_procedure_steps` calls return `409 Conflict`).
 
 === "MCP"
 

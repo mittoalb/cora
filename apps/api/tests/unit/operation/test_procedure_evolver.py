@@ -59,7 +59,7 @@ def test_evolve_procedure_registered_sets_status_to_defined() -> None:
         None,
         ProcedureRegistered(
             procedure_id=procedure_id,
-            name="35-BM rotation-axis alignment",
+            name="2-BM rotation-axis alignment",
             kind="alignment",
             target_asset_ids=(asset1, asset2),
             parent_run_id=None,
@@ -68,7 +68,7 @@ def test_evolve_procedure_registered_sets_status_to_defined() -> None:
     )
     assert state == Procedure(
         id=procedure_id,
-        name=ProcedureName("35-BM rotation-axis alignment"),
+        name=ProcedureName("2-BM rotation-axis alignment"),
         kind="alignment",
         target_asset_ids=frozenset({asset1, asset2}),
         status=ProcedureStatus.DEFINED,
@@ -192,7 +192,7 @@ def test_evolve_procedure_started_preserves_all_fields() -> None:
     asset = uuid4()
     parent_run = uuid4()
     prior = _defined(
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset,),
         parent_run_id=parent_run,
@@ -210,7 +210,7 @@ def test_evolve_procedure_completed_preserves_all_fields() -> None:
     asset = uuid4()
     parent_run = uuid4()
     prior = _defined(
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset,),
         parent_run_id=parent_run,
@@ -346,7 +346,7 @@ def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
     asset = uuid4()
     parent_run = uuid4()
     prior = _defined(
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset,),
         parent_run_id=parent_run,
@@ -467,7 +467,7 @@ def test_evolve_procedure_truncated_preserves_all_fields() -> None:
     asset = uuid4()
     parent_run = uuid4()
     prior = _defined(
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset,),
         parent_run_id=parent_run,

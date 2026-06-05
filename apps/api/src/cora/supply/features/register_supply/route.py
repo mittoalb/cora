@@ -55,7 +55,7 @@ class RegisterSupplyRequest(BaseModel):
         max_length=SUPPLY_NAME_MAX_LENGTH,
         description=(
             "Operator-readable display name for this Supply instance "
-            "(for example '35-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply')."
+            "(for example '2-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply')."
         ),
     )
 

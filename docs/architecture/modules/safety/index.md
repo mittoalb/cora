@@ -241,16 +241,16 @@ The four examples below follow the canonical path for one Clearance: register it
       "facility_asset_id": "aaaa1111-2222-3333-4444-555555555555",
       "title": "Cycle 2026-2 in-situ tomography of Pt/CeO2 catalyst (2-BM)",
       "bindings": [
-        {"binding_type": "subject", "subject_id": "subject-1111-2222-3333-4444-555555555555"},
-        {"binding_type": "asset", "asset_id": "aaaa1111-2222-3333-4444-666666666666"},
-        {"binding_type": "external", "scheme": "proposal", "id": "GUP-79431"}
+        {"kind": "Subject", "id": "subject-1111-2222-3333-4444-555555555555"},
+        {"kind": "Asset", "id": "aaaa1111-2222-3333-4444-666666666666"},
+        {"kind": "External", "scheme": "proposal", "id": "GUP-79431"}
       ],
       "declarations": [
         {
-          "target": {"binding_type": "subject", "subject_id": "subject-1111-2222-3333-4444-555555555555"},
+          "target": {"kind": "Subject", "id": "subject-1111-2222-3333-4444-555555555555"},
           "classifications": [
-            {"class_type": "nfpa704", "health": 2, "flammability": 0, "instability": 0},
-            {"class_type": "risk_band", "value": "Yellow"}
+            {"kind": "NFPA704", "health": 2, "flammability": 0, "instability": 0},
+            {"kind": "RiskBand", "band": "Yellow"}
           ],
           "mitigations": ["PPE:lab_coat", "PPE:safety_glasses", "TRAIN:ESH-101"],
           "notes": "Subject contains 50 mg of nano-Pt; nominal toxicity, standard handling."
@@ -274,16 +274,16 @@ The four examples below follow the canonical path for one Clearance: register it
             "facility_asset_id": "aaaa1111-2222-3333-4444-555555555555",
             "title": "Cycle 2026-2 in-situ tomography of Pt/CeO2 catalyst (2-BM)",
             "bindings": [
-                {"binding_type": "subject", "subject_id": "subject-1111-2222-3333-4444-555555555555"},
-                {"binding_type": "asset", "asset_id": "aaaa1111-2222-3333-4444-666666666666"},
-                {"binding_type": "external", "scheme": "proposal", "id": "GUP-79431"},
+                {"kind": "Subject", "id": "subject-1111-2222-3333-4444-555555555555"},
+                {"kind": "Asset", "id": "aaaa1111-2222-3333-4444-666666666666"},
+                {"kind": "External", "scheme": "proposal", "id": "GUP-79431"},
             ],
             "declarations": [
                 {
-                    "target": {"binding_type": "subject", "subject_id": "subject-1111-2222-3333-4444-555555555555"},
+                    "target": {"kind": "Subject", "id": "subject-1111-2222-3333-4444-555555555555"},
                     "classifications": [
-                        {"class_type": "nfpa704", "health": 2, "flammability": 0, "instability": 0},
-                        {"class_type": "risk_band", "value": "Yellow"},
+                        {"kind": "NFPA704", "health": 2, "flammability": 0, "instability": 0},
+                        {"kind": "RiskBand", "band": "Yellow"},
                     ],
                     "mitigations": ["PPE:lab_coat", "PPE:safety_glasses", "TRAIN:ESH-101"],
                     "notes": "Subject contains 50 mg of nano-Pt; nominal toxicity, standard handling.",

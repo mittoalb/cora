@@ -183,7 +183,7 @@ async def test_list_filters_by_kind(db_pool: asyncpg.Pool) -> None:
         correlation_id=_CORRELATION_ID,
     )
     await bind_register(deps)(
-        RegisterProcedure(name="35-BM alignment", kind="alignment"),
+        RegisterProcedure(name="2-BM alignment", kind="alignment"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

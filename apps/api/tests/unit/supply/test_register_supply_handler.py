@@ -43,7 +43,7 @@ async def test_handler_returns_generated_supply_id() -> None:
     deps = _build_deps()
     handler = register_supply.bind(deps)
     result = await handler(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -56,7 +56,7 @@ async def test_handler_appends_supply_registered_event_to_store() -> None:
     deps = _build_deps(event_store=store)
     handler = register_supply.bind(deps)
     await handler(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -69,7 +69,7 @@ async def test_handler_appends_supply_registered_event_to_store() -> None:
         "supply_id": str(_NEW_ID),
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
-        "name": "35-BM LN2",
+        "name": "2-BM LN2",
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID
@@ -102,7 +102,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     handler = register_supply.bind(deps)
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
-            RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM"),
+            RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -116,7 +116,7 @@ async def test_handler_does_not_append_when_denied() -> None:
     handler = register_supply.bind(deps)
     with pytest.raises(UnauthorizedError):
         await handler(
-            RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM"),
+            RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )

@@ -37,7 +37,7 @@ async def test_register_clearance_persists_event_to_postgres(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
             facility_asset_id=uuid4(),
-            title="Pilot ESAF for 35-BM",
+            title="Pilot ESAF for 2-BM",
             bindings=frozenset({RunBinding(run_id=rid)}),
             risk_band=RiskBand.YELLOW,
             external_id="ESAF-12345",
@@ -55,7 +55,7 @@ async def test_register_clearance_persists_event_to_postgres(
     assert stored.schema_version == 1
     assert stored.payload["clearance_id"] == str(_NEW_ID)
     assert stored.payload["kind"] == "ESAF"
-    assert stored.payload["title"] == "Pilot ESAF for 35-BM"
+    assert stored.payload["title"] == "Pilot ESAF for 2-BM"
     assert stored.payload["bindings"] == [{"kind": "Run", "id": str(rid)}]
     assert stored.payload["risk_band"] == "Yellow"
     assert stored.payload["external_id"] == "ESAF-12345"

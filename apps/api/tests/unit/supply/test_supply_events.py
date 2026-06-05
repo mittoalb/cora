@@ -50,7 +50,7 @@ def test_supply_registered_event_type_name() -> None:
         supply_id=_SUPPLY_ID,
         scope="Beamline",
         kind="LiquidNitrogen",
-        name="35-BM LN2 drop",
+        name="2-BM LN2 drop",
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "SupplyRegistered"
@@ -62,14 +62,14 @@ def test_supply_registered_to_payload() -> None:
         supply_id=_SUPPLY_ID,
         scope="Beamline",
         kind="LiquidNitrogen",
-        name="35-BM LN2 drop",
+        name="2-BM LN2 drop",
         occurred_at=_NOW,
     )
     assert to_payload(event) == {
         "supply_id": str(_SUPPLY_ID),
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
-        "name": "35-BM LN2 drop",
+        "name": "2-BM LN2 drop",
         "occurred_at": _NOW.isoformat(),
     }
 

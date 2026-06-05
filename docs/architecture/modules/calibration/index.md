@@ -12,7 +12,7 @@ A Calibration carries five roles:
 - **A closed catalog of quantities.** `CalibrationQuantity` is a closed StrEnum. The current set covers `rotation_center`, `detector_pixel_size`, `magnification`, and `effective_thickness`; growth happens by PR, with each quantity declaring its `operating_point_schema` and `value_schema` at import time.
 - **Append-only revisions.** New revisions append to the aggregate's ordered list; prior revisions are immutable. Status (Provisional or Verified) is per-revision; the aggregate has no overarching state machine.
 - **Polymorphic source provenance.** Each revision tags its origin: `MeasuredSource` cites the Procedure that measured the value, `ComputedSource` cites the Dataset the value was extracted from, and `AssertedSource` cites the Actor who typed it directly. The same Calibration can mix sources across revisions.
-- **Anchoring into Run and Dataset.** A Run pins the exact `(calibration_id, revision_id)` it consumed at start, so AsShot reproducibility holds even when later revisions supersede the pinned one. Datasets in turn record which calibration revisions their reconstruction consumed.
+- **Anchoring into Run and Dataset.** A Run pins the exact `calibration_id` set it consumed at start, so AsShot reproducibility holds even when later revisions supersede the pinned ones. Datasets in turn record which calibration revisions their reconstruction consumed.
 
 <div class="cora-aside cora-aside--deferred" markdown>
 
@@ -21,7 +21,7 @@ Out of scope
 
 - **Refined / three-tier status.** The status ladder ships with two tiers (Provisional, Verified). A `Refined` middle tier is deferred until pilot use surfaces a distinct statistical-maturity window between the two existing tiers.
 - **Time-keyed lookup port.** `CalibrationLookup.find_for(asset, quantity, operating_point, as_of)` is deferred. Today's consumers fetch the calibration by id from the Run or Dataset that pinned it.
-- **Calibration sets / bundles.** Grouping several calibrations into a named bundle that gets pinned together is deferred. Today's pin is per `(calibration_id, revision_id)`.
+- **Calibration sets / bundles.** Grouping several calibrations into a named bundle that gets pinned together is deferred. Today's pin is per `calibration_id`.
 - **Cross-aggregate supersession.** A revision may only supersede a prior revision on the same calibration. Re-baselining an operating point starts a new Calibration.
 - **Cross-BC existence checks on source ids.** `MeasuredSource.procedure_id`, `ComputedSource.dataset_id`, and `AssertedSource.actor_id` are bare references; the write path does not verify the target exists at the time the revision is appended.
 - **Per-revision projection.** A `proj_calibration_revisions` read model is deferred. Single-aggregate revision reads go through `GET /calibrations/{id}`, which folds the aggregate's event stream.
@@ -135,9 +135,9 @@ The `UNIQUE (target_id, quantity, operating_point)` constraint is the enforcemen
 | Data | shared-id-with | `ComputedSource.dataset_id` references the Dataset the value was extracted from (`tomopy.find_center_vo` and similar numerical analyses); `Dataset.used_calibration_ids` records the reverse direction |
 | Access | shared-id-with | `AssertedSource.actor_id`, `Calibration.defined_by_actor_id`, and each revision's `established_by_actor_id` reference Actors |
 | Decision | shared-id-with | `CalibrationRevision.decided_by_decision_id` references the Decision that justified appending the revision (operator pivot, agent advisory); not verified at the write path |
-| Run | reads-from | `Run.pinned_calibration_ids` carries an AsShot `(calibration_id, revision_id)` tuple set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle |
+| Run | reads-from | `Run.pinned_calibration_ids` carries an AsShot `frozenset[calibration_id]` set at Run.start that is IMMUTABLE through the rest of the Run's lifecycle; each pinned calibration's latest revision at pin time is the AsShot anchor |
 
-Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `(calibration_id, revision_id)` pin on `Run.pinned_calibration_ids` is the AsShot anchor that makes a reconstruction reproducible: even if a later revision supersedes the pinned one, the Run still cites the exact value it consumed.
+Source-id targets are validated for UUID shape at the API boundary but not for existence at write time, in line with the cross-BC eventual-consistency stance. The `calibration_id` pin on `Run.pinned_calibration_ids` is the AsShot anchor that makes a reconstruction reproducible: the Run's lifecycle freezes the pin set at start, so the calibration set the Run consumed stays citable even as new revisions land.
 
 ## Examples
 

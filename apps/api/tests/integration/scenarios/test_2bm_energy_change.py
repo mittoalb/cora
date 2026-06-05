@@ -87,7 +87,7 @@ operator's forward-looking acquisition authorship.
     is needed for the start_run path is a watch item.
   - **Plan-defaults divergence audit.** Two Plans with identical
     Methods and Practices but distinct defaults have no
-    higher-order grouping today; if a 35-BM scan-plan family
+    higher-order grouping today; if a 2-BM scan-plan family
     grows to N>5 energy variants, a Plan-family projection
     (group by `(practice_id, asset_ids)` -> list of `(plan_id,
     default_parameters)`) becomes useful.

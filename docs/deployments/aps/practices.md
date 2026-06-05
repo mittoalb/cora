@@ -18,11 +18,11 @@ A Practice is ISA-88's Site Recipe, the facility-adapted form of a Method. See [
 | `2BM_flat_baseline_practice` | [`flat_baseline`](../../catalog/methods.md) |
 | `2BM_alignment_calibration_practice` | [`alignment_calibration`](../../catalog/methods.md) |
 | `2BM_hexapod_reboot_practice` | [`hexapod_reboot`](../../catalog/methods.md) |
-| `2BM_tomography_practice` | [`tomography_scan`](../../catalog/methods.md) |
+| `2BM_tomography_practice` | [`tomography`](../../catalog/methods.md) |
 | `2BM_streaming_tomography_practice` | [`streaming_tomography`](../../catalog/methods.md) |
-| `2BM_mosaic_practice` | [`tomography_scan`](../../catalog/methods.md) |
+| `2BM_mosaic_practice` | [`mosaic_tomography`](../../catalog/methods.md) |
 | `2BM_continuous_rotation_practice` | [`continuous_rotation_tomography`](../../catalog/methods.md) |
-| `2BM_multi_energy_practice` | [`tomography_scan`](../../catalog/methods.md) |
+| `2BM_multi_energy_practice` | [`tomography`](../../catalog/methods.md) |
 
 ## Pending
 

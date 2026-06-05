@@ -12,7 +12,7 @@ def _seed_clearance(client: TestClient, **overrides: object) -> str:
     body: dict[str, object] = {
         "kind": "ESAF",
         "facility_asset_id": str(uuid4()),
-        "title": "Pilot ESAF for 35-BM",
+        "title": "Pilot ESAF for 2-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
     body.update(overrides)
@@ -34,7 +34,7 @@ def test_get_clearances_returns_200_with_full_state() -> None:
     body = response.json()
     assert body["id"] == cid
     assert body["kind"] == "ESAF"
-    assert body["title"] == "Pilot ESAF for 35-BM"
+    assert body["title"] == "Pilot ESAF for 2-BM"
     assert body["risk_band"] == "Yellow"
     assert body["external_id"] == "ESAF-12345"
     assert body["status"] == "Defined"

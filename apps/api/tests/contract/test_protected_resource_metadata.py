@@ -159,11 +159,11 @@ def test_metadata_resource_honors_x_forwarded_headers() -> None:
             "/.well-known/oauth-protected-resource",
             headers={
                 "X-Forwarded-Proto": "https",
-                "X-Forwarded-Host": "aps-35bm.cora.example",
+                "X-Forwarded-Host": "aps-2bm.cora.example",
             },
         )
     body = response.json()
-    assert body["resource"] == "https://aps-35bm.cora.example"
+    assert body["resource"] == "https://aps-2bm.cora.example"
 
 
 @pytest.mark.contract

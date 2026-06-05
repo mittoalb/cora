@@ -41,7 +41,7 @@ features/list_<aggregates>/
 
 Reads `proj_<bc>_<name>` via `deps.pool`. Cursor is opaque base64 of `(created_at, UUID)` via `encode_cursor`/`decode_cursor`. Default page 50, max 100. Empty: `200 {"items": [], "next_cursor": null}`. Malformed cursor: 422 via `InvalidCursorError`.
 
-Query handlers DO call `kernel.authz.authorize(...)` with the query name as `command_name`. Per-row scoping needs ReBAC (deferred). The port method is `authorize(subject, command_name, conduit_id, surface_id)`; the kernel attribute name is `authz` (short, less collision-prone than `authorize`).
+Query handlers DO call `kernel.authz.authorize(...)` with the query name as `command_name`. Per-row scoping needs ReBAC (deferred). The port method is `authorize(principal_id, command_name, conduit_id, surface_id)`; the kernel attribute name is `authz` (short, less collision-prone than `authorize`).
 
 ## Projections
 
@@ -87,7 +87,7 @@ register_actor=with_idempotency(
 
 Slice exposes `Handler` (bare) and `IdempotentHandler` (wrapped, optional `idempotency_key`). Tests use bare; production wires wrapped. Routes extract via `Header(alias="Idempotency-Key")`.
 
-The cache key is the composite `(surface_id, idempotency_key, command_name, body_hash)` per IETF draft-07 §5, so the same `Idempotency-Key` cannot collide across HTTP and MCP surfaces.
+The cache namespace is the composite `(principal_id, key, surface_id)` per IETF draft-07 §5, so the same `Idempotency-Key` cannot collide across HTTP and MCP surfaces; `command_hash` and `command_name` are conflict-detection parameters on `claim()`, not part of the namespace tuple.
 
 `IdempotencyConflictError` (same key + different body) returns 422. Key max 255 chars. Single-phase MVP; concurrent-retry race documented in the port docstring. MCP tools pass `idempotency_key=None` (no MCP standard yet).
 

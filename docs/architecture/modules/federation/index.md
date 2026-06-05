@@ -385,11 +385,11 @@ The four examples below cover the canonical Federation flow: register two Creden
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "facility_id": "aps-35bm",
+      "facility_id": "aps-2bm",
       "audience": "federation-peers",
       "purpose": "SealOnlineSigning",
-      "secret_ref": "vault://kv/federation/aps-35bm/seal-online#v1",
-      "public_material_ref": "vault://kv/federation/aps-35bm/seal-online-pub#v1",
+      "secret_ref": "vault://kv/federation/aps-2bm/seal-online#v1",
+      "public_material_ref": "vault://kv/federation/aps-2bm/seal-online-pub#v1",
       "expires_at": "2027-05-31T00:00:00Z"
     }
     ```
@@ -402,11 +402,11 @@ The four examples below cover the canonical Federation flow: register two Creden
     mcp.call_tool(
         "register_credential",
         {
-            "facility_id": "aps-35bm",
+            "facility_id": "aps-2bm",
             "audience": "federation-peers",
             "purpose": "SealOnlineSigning",
-            "secret_ref": "vault://kv/federation/aps-35bm/seal-online#v1",
-            "public_material_ref": "vault://kv/federation/aps-35bm/seal-online-pub#v1",
+            "secret_ref": "vault://kv/federation/aps-2bm/seal-online#v1",
+            "public_material_ref": "vault://kv/federation/aps-2bm/seal-online-pub#v1",
             "expires_at": "2027-05-31T00:00:00Z",
         },
     )
@@ -423,7 +423,7 @@ The four examples below cover the canonical Federation flow: register two Creden
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
 
     {
-      "facility_id": "aps-35bm",
+      "facility_id": "aps-2bm",
       "online_credential_id": "<online-credential-id>",
       "offline_credential_id": "<offline-credential-id>"
     }
@@ -437,7 +437,7 @@ The four examples below cover the canonical Federation flow: register two Creden
     mcp.call_tool(
         "initialize_seal",
         {
-            "facility_id": "aps-35bm",
+            "facility_id": "aps-2bm",
             "online_credential_id": "<online-credential-id>",
             "offline_credential_id": "<offline-credential-id>",
         },
@@ -449,7 +449,7 @@ The four examples below cover the canonical Federation flow: register two Creden
 === "REST"
 
     ```http
-    POST /federation/seals/aps-35bm/pointer/sign
+    POST /federation/seals/aps-2bm/pointer/sign
     Content-Type: application/json
     Idempotency-Key: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
     X-Principal-Id: 11111111-2222-3333-4444-555555555555
@@ -469,7 +469,7 @@ The four examples below cover the canonical Federation flow: register two Creden
     mcp.call_tool(
         "sign_seal_pointer",
         {
-            "facility_id": "aps-35bm",
+            "facility_id": "aps-2bm",
             "new_head_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
             "new_sequence_number": 1,
             "signed_at": "2026-06-01T14:30:00Z",
@@ -498,7 +498,7 @@ The four examples below cover the canonical Federation flow: register two Creden
       "terms": {
         "kind": "Outbound",
         "scope_set": [
-          {"kind": "beamline", "name": "aps-35bm", "qualifier": "public"}
+          {"kind": "beamline", "name": "aps-2bm", "qualifier": "public"}
         ],
         "read_scope": "ReadAllArtifacts",
         "onward_action_scope": "MayCacheLocally"
@@ -524,7 +524,7 @@ The four examples below cover the canonical Federation flow: register two Creden
             "terms": {
                 "kind": "Outbound",
                 "scope_set": [
-                    {"kind": "beamline", "name": "aps-35bm", "qualifier": "public"}
+                    {"kind": "beamline", "name": "aps-2bm", "qualifier": "public"}
                 ],
                 "read_scope": "ReadAllArtifacts",
                 "onward_action_scope": "MayCacheLocally",

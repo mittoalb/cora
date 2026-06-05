@@ -39,7 +39,7 @@ def test_mcp_register_supply_tool_returns_structured_supply_id() -> None:
                     "arguments": {
                         "scope": "Beamline",
                         "kind": "LiquidNitrogen",
-                        "name": "35-BM LN2",
+                        "name": "2-BM LN2",
                     },
                 },
             },

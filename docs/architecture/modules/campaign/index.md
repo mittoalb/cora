@@ -31,7 +31,7 @@ Out of scope
 | `CampaignName` | trimmed bounded text, 1-200 chars | `Campaign.name` |
 | `CampaignDescription` | trimmed bounded text, 1-2000 chars; optional | `Campaign.description` |
 | `CampaignTag` | trimmed bounded text, 1-50 chars per tag | `Campaign.tags` (frozenset) |
-| `CampaignIntent` | closed StrEnum `{Series, Sweep, Coordinated, Block}` | `Campaign.intent` |
+| `CampaignIntent` | closed StrEnum `{Series, Sweep, Coordination, Block}` | `Campaign.intent` |
 | `CampaignStatus` | closed StrEnum `{Planned, Active, Held, Closed, Abandoned}` | `Campaign.status` |
 | `ExternalRef` | `(scheme: str, id: str)` shared cross-BC VO; day-1 schemes `proposal`, `btr`, `visit`, `cycle` | `Campaign.external_refs` (frozenset) |
 
@@ -93,7 +93,7 @@ Transitioning-actor identity lives only on `StoredEvent.principal_id`; the genes
 
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
-| `RegisterCampaign` | NEW | `POST /campaigns` | `register_campaign` | required |
+| `RegisterCampaign` | NEW | `POST /campaigns` | `register_campaign` | optional |
 | `StartCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/start` | `start_campaign` | none |
 | `HoldCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/hold` | `hold_campaign` | none |
 | `ResumeCampaign` | MODIFIED | `POST /campaigns/{campaign_id}/resume` | `resume_campaign` | none |
@@ -135,7 +135,7 @@ CREATE TABLE proj_campaign_summary (
     campaign_id              UUID        PRIMARY KEY,
     name                     TEXT        NOT NULL,
     intent                   TEXT        NOT NULL CHECK (
-        intent IN ('Series', 'Sweep', 'Coordinated', 'Block')
+        intent IN ('Series', 'Sweep', 'Coordination', 'Block')
     ),
     status                   TEXT        NOT NULL CHECK (
         status IN ('Planned', 'Active', 'Held', 'Closed', 'Abandoned')

@@ -62,7 +62,7 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
     parent_run = UUID("01900000-0000-7000-8000-00000000a004")
     event = ProcedureRegistered(
         procedure_id=procedure_id,
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset2, asset1),  # unsorted input
         parent_run_id=parent_run,
@@ -70,7 +70,7 @@ def test_to_payload_serializes_procedure_registered_to_primitives() -> None:
     )
     assert to_payload(event) == {
         "procedure_id": str(procedure_id),
-        "name": "35-BM rotation-axis alignment",
+        "name": "2-BM rotation-axis alignment",
         "kind": "alignment",
         # Sorted by string form for deterministic payload bytes.
         "target_asset_ids": sorted([str(asset1), str(asset2)]),
@@ -206,7 +206,7 @@ def test_procedure_registered_round_trips() -> None:
     parent_run = uuid4()
     original = ProcedureRegistered(
         procedure_id=uuid4(),
-        name="35-BM rotation-axis alignment",
+        name="2-BM rotation-axis alignment",
         kind="alignment",
         target_asset_ids=(asset1, asset2),
         parent_run_id=parent_run,

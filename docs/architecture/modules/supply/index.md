@@ -204,7 +204,7 @@ The four examples below follow the canonical Supply path: register a beamline-lo
     {
       "scope": "Beamline",
       "kind": "LiquidNitrogen",
-      "name": "35-BM LN2 drop"
+      "name": "2-BM LN2 drop"
     }
     ```
 
@@ -218,7 +218,7 @@ The four examples below follow the canonical Supply path: register a beamline-lo
         {
             "scope": "Beamline",
             "kind": "LiquidNitrogen",
-            "name": "35-BM LN2 drop",
+            "name": "2-BM LN2 drop",
         },
     )
     ```

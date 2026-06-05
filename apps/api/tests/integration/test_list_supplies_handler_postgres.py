@@ -57,7 +57,7 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
     sup_id = uuid4()
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -73,7 +73,7 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
     assert row is not None
     assert row["scope"] == "Beamline"
     assert row["kind"] == "LiquidNitrogen"
-    assert row["name"] == "35-BM LN2"
+    assert row["name"] == "2-BM LN2"
     assert row["status"] == "Unknown"
     assert row["last_status_changed_at"] is None
     assert row["last_status_reason"] is None
@@ -88,7 +88,7 @@ async def test_mark_available_updates_status_and_audit_triple(
     sup_id = uuid4()
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -117,7 +117,7 @@ async def test_mark_available_updates_status_and_audit_triple(
 async def test_list_returns_registered_supplies(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -129,7 +129,7 @@ async def test_list_returns_registered_supplies(db_pool: asyncpg.Pool) -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert len(page.items) == 1
-    assert page.items[0].name == "35-BM LN2"
+    assert page.items[0].name == "2-BM LN2"
     assert page.items[0].status == "Unknown"
     assert page.next_cursor is None
 
@@ -143,9 +143,9 @@ async def test_list_filters_by_scope_kind_status(db_pool: asyncpg.Pool) -> None:
     bm_air_id = uuid4()
 
     for sup_id, scope, kind, name in (
-        (bm_ln2_id, SupplyScope.BEAMLINE, "LiquidNitrogen", "35-BM LN2"),
+        (bm_ln2_id, SupplyScope.BEAMLINE, "LiquidNitrogen", "2-BM LN2"),
         (fac_beam_id, SupplyScope.FACILITY, "PhotonBeam", "APS storage-ring beam"),
-        (bm_air_id, SupplyScope.BEAMLINE, "CompressedAir", "35-BM CompAir"),
+        (bm_air_id, SupplyScope.BEAMLINE, "CompressedAir", "2-BM CompAir"),
     ):
         deps = _build_deps(db_pool, [sup_id, uuid4()])
         await bind_register(deps)(
@@ -242,7 +242,7 @@ async def test_list_returns_audit_triple_after_mark_available(
     sup_id = uuid4()
     register_deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(register_deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="35-BM LN2"),
+        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -352,7 +352,7 @@ async def test_list_unique_address_swallows_second_active_insert_and_keeps_worke
             RegisterSupply(
                 scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
-                name="35-BM LN2",
+                name="2-BM LN2",
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

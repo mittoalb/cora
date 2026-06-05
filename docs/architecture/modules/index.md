@@ -106,7 +106,7 @@ The **Cross-Module boundaries** table on each module page uses a fixed set of ve
 
     ---
 
-    Two aggregates (`Family`, `Asset`), six-level hierarchy, four-state lifecycle, three-state condition orthogonal to lifecycle, settings-schema validation against the Family-declared Capability, and typed ports for wiring devices into Plans.
+    Seven aggregates (`Family`, `Model`, `Assembly`, `Fixture`, `Asset`, `Frame`, `Mount`), six-level Asset hierarchy, four-state Asset lifecycle, three-state condition orthogonal to lifecycle, settings-schema validation against the Family-declared Capability, and typed ports for wiring devices into Plans.
 
     [Read →](equipment/index.md)
 
@@ -122,7 +122,7 @@ The **Cross-Module boundaries** table on each module page uses a fixed set of ve
 
     ---
 
-    ISA-99/IEC-62443 topology of `Zone`, `Conduit`, `Surface`, `Policy`. Pure Policy Decision Point; Authorize port gates every write-side decider in CORA; first concrete entries-table observation logbook for per-decision audit.
+    ISA-99/IEC-62443 topology of `Zone`, `Conduit`, `Surface`, `Policy`, `Visit`. Pure Policy Decision Point; Authorize port gates every write-side decider in CORA; first concrete entries-table observation logbook for per-decision audit.
 
     [Read →](trust/index.md)
 

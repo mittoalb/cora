@@ -33,7 +33,7 @@ def _supply(status: SupplyStatus) -> Supply:
         id=_SUPPLY_ID,
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
-        name=SupplyName("35-BM LN2"),
+        name=SupplyName("2-BM LN2"),
         status=status,
     )
 

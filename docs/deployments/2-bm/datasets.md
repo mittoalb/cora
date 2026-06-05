@@ -2,7 +2,7 @@
 
 *Data BC Datasets registered at 2-BM.*
 
-A Dataset records an already-existing artifact (URI, checksum, byte size, encoding) plus optional cross-aggregate refs to producing Run, Subject, and parent Dataset. See [Model](../../architecture/model.md) for the aggregate shape.
+A Dataset records an already-existing artifact (URI, checksum, byte size, encoding) plus optional cross-aggregate refs to producing Run, Subject, and a set of upstream Datasets it was derived from. See [Model](../../architecture/model.md) for the aggregate shape.
 
 | Dataset | Producing Run | Subject |
 | --- | --- | --- |

@@ -6,12 +6,12 @@ A Supply is a continuously-available resource whose availability the facility tr
 
 | Supply | Scope | Kind |
 | --- | --- | --- |
-| `APS liquid helium` | `Facility` | `cryogen` |
+| `APS liquid helium` | `Facility` | `LiquidHelium` |
 
 ## Pending
 
 | Supply | Scope | Kind |
 | --- | --- | --- |
-| Storage-ring beam current | `Facility` | `beam` |
-| Liquid nitrogen | `Facility` | `cryogen` |
-| Gas mixtures (sample environments) | `Facility` | `gas` |
+| Storage-ring beam current | `Facility` | `PhotonBeam` |
+| Liquid nitrogen | `Facility` | `LiquidNitrogen` |
+| Gas mixtures (sample environments) | `Facility` | `ProcessGas` |
