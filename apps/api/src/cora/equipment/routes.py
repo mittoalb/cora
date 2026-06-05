@@ -109,7 +109,12 @@ from cora.equipment.aggregates.family import (
     InvalidFamilySettingsSchemaError,
     InvalidFamilyVersionTagError,
 )
-from cora.equipment.aggregates.fixture import FixtureAlreadyExistsError, FixtureNotFoundError
+from cora.equipment.aggregates.fixture import (
+    FixtureAlreadyExistsError,
+    FixtureNotFoundError,
+    FixturePersistentIdAlreadyAssignedError,
+    MalformedFixturePersistentIdentifierError,
+)
 from cora.equipment.aggregates.frame import (
     FrameAlreadyExistsError,
     FrameCannotDecommissionError,
@@ -174,6 +179,7 @@ from cora.equipment.features import (
     add_asset_port,
     add_model_family,
     assign_asset_persistent_id,
+    assign_fixture_persistent_id,
     attach_asset_to_fixture,
     decommission_asset,
     decommission_frame,
@@ -323,13 +329,15 @@ async def _handle_persistent_identifier_mint_error(
 async def _handle_malformed_stored_event(request: Request, exc: Exception) -> JSONResponse:
     """500 handler for malformed-stored-event deserialization escapes.
 
-    Maps `MalformedPersistentIdentifierError`: a stored
-    `AssetPersistentIdAssigned` payload could not be reconstructed
-    because the `persistent_id_value` is empty or non-string. The
-    `from_stored` wrap convention normally re-raises as `ValueError`
-    via `deserialize_or_raise`, so this handler is defense-in-depth
-    for the unwrapped path. 500 because this signals a data-integrity
-    bug in the event store, not a client error.
+    Maps `MalformedPersistentIdentifierError` (Asset tier) and
+    `MalformedFixturePersistentIdentifierError` (Fixture tier): a
+    stored `AssetPersistentIdAssigned` or `FixturePersistentIdAssigned`
+    payload could not be reconstructed because the
+    `persistent_id_value` is empty or non-string. The `from_stored`
+    wrap convention normally re-raises as `ValueError` via
+    `deserialize_or_raise`, so this handler is defense-in-depth for
+    the unwrapped path. 500 because this signals a data-integrity bug
+    in the event store, not a client error.
     """
     _ = request
     return JSONResponse(
@@ -426,6 +434,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(register_fixture.router)
     app.include_router(attach_asset_to_fixture.router)
     app.include_router(detach_asset_from_fixture.router)
+    app.include_router(assign_fixture_persistent_id.router)
     app.include_router(get_fixture.router)
     app.include_router(get_fixture_pidinst.router)
     app.include_router(list_fixtures.router)
@@ -516,6 +525,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotAddOwnerError,
         AssetPersistentIdAlreadyAssignedError,
         AssetPersistentIdAssignmentForbiddenError,
+        FixturePersistentIdAlreadyAssignedError,
         AssetModelMismatchError,
         FamilyCannotVersionError,
         FamilyCannotDeprecateError,
@@ -567,4 +577,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         PersistentIdentifierMintError, _handle_persistent_identifier_mint_error
     )
     app.add_exception_handler(MalformedPersistentIdentifierError, _handle_malformed_stored_event)
+    app.add_exception_handler(
+        MalformedFixturePersistentIdentifierError, _handle_malformed_stored_event
+    )
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

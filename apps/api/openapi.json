@@ -1420,6 +1420,55 @@
         "title": "AssignAssetPersistentIdResponse",
         "type": "object"
       },
+      "AssignFixturePersistentIdRequest": {
+        "description": "Body for `POST /fixtures/{fixture_id}/assign-persistent-identifier`.\n\n`scheme` selects the PID scheme; v1 supports DOI and HANDLE.\n`suffix` is the optional operator-supplied local part; when absent\nthe configured `DoiMinter` adapter auto-generates one. No `value`\nfield per the server-mint posture.",
+        "properties": {
+          "scheme": {
+            "$ref": "#/components/schemas/PersistentIdentifierScheme",
+            "description": "Closed PIDINST Property 1 scheme: DOI or HANDLE."
+          },
+          "suffix": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied local part. When absent, the configured DoiMinter adapter auto-generates the suffix.",
+            "title": "Suffix"
+          }
+        },
+        "required": [
+          "scheme"
+        ],
+        "title": "AssignFixturePersistentIdRequest",
+        "type": "object"
+      },
+      "AssignFixturePersistentIdResponse": {
+        "description": "Response body for `POST /fixtures/{fixture_id}/assign-persistent-identifier`.\n\nEchoes the server-minted `(scheme, value)` pair so the operator\nlearns the assigned identifier without a follow-up GET. Mirrors the\nAsset-tier sibling exactly; the value is server-minted and not\nderivable from the request alone.",
+        "properties": {
+          "scheme": {
+            "description": "Assigned PIDINST Property 1 scheme value (DOI or Handle).",
+            "title": "Scheme",
+            "type": "string"
+          },
+          "value": {
+            "description": "Authority-assigned persistent identifier string.",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "value"
+        ],
+        "title": "AssignFixturePersistentIdResponse",
+        "type": "object"
+      },
       "AttachAssetToFixtureRequest": {
         "description": "Body for `POST /assets/{asset_id}/attach-to-fixture`.",
         "properties": {
@@ -25810,6 +25859,123 @@
           }
         },
         "summary": "Get a Fixture by id",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/fixtures/{fixture_id}/assign-persistent-identifier": {
+      "post": {
+        "operationId": "post_fixtures_assign_persistent_identifier_fixtures__fixture_id__assign_persistent_identifier_post",
+        "parameters": [
+          {
+            "description": "Target fixture's id.",
+            "in": "path",
+            "name": "fixture_id",
+            "required": true,
+            "schema": {
+              "description": "Target fixture's id.",
+              "format": "uuid",
+              "title": "Fixture Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignFixturePersistentIdRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignFixturePersistentIdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "PersistentIdentifier VO validation failed: empty or whitespace-only value, or value over the max-length bound (InvalidPersistentIdentifierValueError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No fixture exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Fixture cannot accept the persistent identifier: the fixture already carries a persistent_id (set-once: FixturePersistentIdAlreadyAssignedError), OR a concurrent write to the same fixture stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation (missing field, malformed UUID, scheme outside the closed enum, suffix length out of bounds at the wire layer)."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The external mint authority (DataCite or Handle.net) failed to assign a persistent identifier (PersistentIdentifierMintError)."
+          }
+        },
+        "summary": "Assign a PIDINST persistent identifier to an existing Fixture",
         "tags": [
           "equipment"
         ]
