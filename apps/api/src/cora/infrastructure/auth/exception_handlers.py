@@ -53,6 +53,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.infrastructure.auth._routed_path import _routed_path
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import IntrospectionUnavailableError, InvalidTokenError
 
@@ -150,7 +151,7 @@ async def _handle_invalid_token(request: Request, exc: Exception) -> JSONRespons
     assert isinstance(exc, InvalidTokenError)  # type-narrow for pyright
     _log.info(
         "auth.invalid_token",
-        path=request.url.path,
+        path=_routed_path(request),
         method=request.method,
         reason=exc.reason,
         # `detail` may carry IdP-controlled values; logs are operator-
@@ -181,7 +182,7 @@ async def _handle_introspection_unavailable(request: Request, exc: Exception) ->
     assert isinstance(exc, IntrospectionUnavailableError)
     _log.warning(
         "auth.introspection_unavailable",
-        path=request.url.path,
+        path=_routed_path(request),
         method=request.method,
         # Issuer + detail stay in logs only (operator forensics).
         issuer=exc.issuer,

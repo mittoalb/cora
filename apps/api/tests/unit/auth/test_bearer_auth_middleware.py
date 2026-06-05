@@ -159,6 +159,76 @@ def test_unauthenticated_paths_skip_verification_even_with_bearer(path: str) -> 
     assert verifier.last_call is None
 
 
+# ---------- CVE-2026-48710 "badhost" regression ----------
+#
+# Starlette <= 1.0.0 reconstructs `request.url` by concatenating
+# `http://{Host header}{path}` and re-parsing. A malformed Host
+# containing `/`, `?`, or `#` shifts the path/query/fragment boundaries
+# during re-parsing, so `request.url.path` no longer matches the path
+# the router dispatched on. Any middleware that reads `request.url.path`
+# for a security decision can be bypassed; the request still lands at
+# the originally-requested endpoint because routing uses the raw ASGI
+# scope path. Mitigation in this codebase: every security-sensitive
+# read in `cora.infrastructure.auth` goes through `_routed_path(request)`
+# which reads `request.scope["path"]` directly. These two tests pin
+# the mitigation: a reversion to `request.url.path` would re-introduce
+# the bypass and trip them.
+
+
+@pytest.mark.unit
+def test_malformed_host_header_cannot_bypass_unauthenticated_path_skip() -> None:
+    """A crafted `Host: <host>/health?x=` header would make Starlette's
+    reconstructed `request.url.path` parse as `/health` even though the
+    request actually targets `/`. If the middleware decided the skip
+    off the reconstructed path, it would short-circuit auth for any
+    authenticated endpoint. The fix reads the routed path from the
+    ASGI scope, which is the unaffected request-line path."""
+    verifier = _FakeTokenVerifier(verify_call=_always_invalid)
+    client = _client(verifier=verifier)
+
+    response = client.get(
+        "/",
+        headers={
+            "Authorization": "Bearer would-be-rejected",
+            "Host": "evil.example.com/health?x=",
+        },
+    )
+
+    # Bypass attempt fails: middleware reads the routed path "/" from
+    # the ASGI scope, decides "/" is NOT on the skip list, calls the
+    # verifier, gets back an invalid-token rejection, returns 401.
+    assert response.status_code == 401
+    assert verifier.last_call is not None
+    assert verifier.last_call[1] == SYSTEM_HTTP_SURFACE_ID
+
+
+@pytest.mark.unit
+def test_malformed_host_header_cannot_poison_expected_audience_to_mcp() -> None:
+    """A crafted `Host: <host>/mcp?x=` header would make Starlette's
+    reconstructed `request.url.path` parse as `/mcp`, leading the
+    middleware to ask the verifier for the MCP Surface audience even
+    though the request targets an HTTP path. A valid-for-HTTP token
+    would then be rejected (wrong audience), and any policy that
+    different-audiences in different ways would be confused.
+    The fix reads the routed path from the ASGI scope."""
+    verifier = _FakeTokenVerifier(verify_call=_always_succeed)
+    client = _client(verifier=verifier)
+
+    response = client.get(
+        "/",
+        headers={
+            "Authorization": "Bearer good-http-token",
+            "Host": "evil.example.com/mcp?x=",
+        },
+    )
+
+    # Audience-poisoning attempt fails: middleware reads "/" from the
+    # ASGI scope, picks SYSTEM_HTTP_SURFACE_ID (not the MCP one), and
+    # the verifier is called with the HTTP audience.
+    assert response.status_code == 200
+    assert verifier.last_call == ("good-http-token", SYSTEM_HTTP_SURFACE_ID)
+
+
 # ---------- MCP path audience dispatch ----------
 
 

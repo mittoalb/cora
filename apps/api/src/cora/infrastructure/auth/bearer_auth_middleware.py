@@ -71,6 +71,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from cora.infrastructure.auth._routed_path import _routed_path
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.observability.surface_context import (
     bind_surface_context,
@@ -168,14 +169,20 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        if _is_unauthenticated_path(request.url.path):
+        # Per `_routed_path` module docstring: read the routed path from
+        # the ASGI scope, never from `request.url.path`. The two desync
+        # under a crafted Host header on vulnerable Starlette versions
+        # (CVE-2026-48710); skipping auth or picking the wrong audience
+        # off the reconstructed path is a bypass.
+        routed_path = _routed_path(request)
+        if _is_unauthenticated_path(routed_path):
             # Unauthenticated paths (health / metrics / OAuth metadata) are
             # deployment-plumbing endpoints with no arrival-Surface semantics;
             # do NOT bind the observability dimension or it pollutes the log
             # with a Surface those probes never actually invoked.
             return await call_next(request)
 
-        expected_audience = _resolve_expected_audience(request.url.path)
+        expected_audience = _resolve_expected_audience(routed_path)
         bind_surface_context(expected_audience, surface_kind_for(expected_audience))
         try:
             return await self._dispatch_authenticated(
@@ -214,7 +221,8 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             # unauthenticated. REST gets per-route `Depends(get_principal_id)`
             # for free; MCP has no equivalent layer below the tool
             # handler.
-            if request.url.path == "/mcp" or request.url.path.startswith("/mcp/"):
+            routed_path = _routed_path(request)
+            if routed_path == "/mcp" or routed_path.startswith("/mcp/"):
                 # Lazy import: see module-level cycle-break note.
                 from cora.infrastructure.auth.exception_handlers import (
                     missing_bearer_challenge,
@@ -268,7 +276,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             # the same envelope as every other error response.
             _log.exception(
                 "bearer_auth.verifier_unexpected_error",
-                path=request.url.path,
+                path=_routed_path(request),
                 method=request.method,
                 error_type=type(exc).__name__,
             )
@@ -285,7 +293,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
         request.state.principal = principal
         _log.debug(
             "bearer_auth.verified",
-            path=request.url.path,
+            path=_routed_path(request),
             principal_id=str(principal.principal_id),
             issuer=principal.issuer,
             kind=principal.kind,
