@@ -89,7 +89,8 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
+from cora.recipe.aggregates.method import RoleName
 
 PLAN_NAME_MAX_LENGTH = 200
 PLAN_VERSION_TAG_MAX_LENGTH = 50
@@ -328,29 +329,20 @@ class PlanAffordancesNotSatisfiedError(Exception):
         self.missing_affordances = missing_affordances
 
 
+@bounded_name(max_length=PLAN_NAME_MAX_LENGTH, error_class=InvalidPlanNameError)
 @dataclass(frozen=True)
 class PlanName:
     """Display name for a plan. Trimmed; 1-200 chars.
 
     Tenth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper (see
-    `cora.infrastructure.bounded_text`). The helper preserves per-VO
+    the shared `bounded_name` decorator (see
+    `cora.infrastructure.bounded_text`). The decorator preserves per-VO
     distinctness (separate frozen dataclass type, separate error
     class) while removing the trim+length-check duplication that
     had accumulated across 10 aggregates.
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=PLAN_NAME_MAX_LENGTH,
-            error_class=InvalidPlanNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)
@@ -449,6 +441,18 @@ class Plan:
     default_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     wires: frozenset["Wire"] = field(default_factory=frozenset["Wire"])
     content_hash: str | None = None
+    # role_bindings declares which Asset fills each of the bound
+    # Method's required_roles (slice 2 of positional role-tagging;
+    # IEC 81346 Function aspect). Each `RoleBinding` is a (role_name,
+    # asset_id) pair; uniqueness within the set is keyed on role_name
+    # (enforced by the bind_plan_role decider, not the VO). The
+    # role_name links to a `RoleRequirement` declared on the Plan's
+    # Method (state.method_id). Empty by default; legacy PlanDefined-
+    # only streams fold cleanly via the additive-state pattern. See
+    # [[project-plan-role-bindings-design]] for the full design lock
+    # and [[project-method-required-roles-design]] for the upstream
+    # vocabulary.
+    role_bindings: frozenset["RoleBinding"] = field(default_factory=frozenset["RoleBinding"])
 
     def content_subset(self) -> dict[str, object]:
         """Canonical content subset hashed into PlanVersioned.content_hash.
@@ -484,6 +488,13 @@ class Plan:
                     w.target_port_name,
                 )
                 for w in self.wires
+            ),
+            # role_bindings joined the content subset when slice 2 of
+            # positional role-tagging landed. Rendered as a sorted list
+            # of (role_name, asset_id) tuples for byte-stable
+            # serialization (matches the wires sort convention).
+            "role_bindings": sorted(
+                (b.role_name.value, str(b.asset_id)) for b in self.role_bindings
             ),
         }
 
@@ -830,6 +841,246 @@ class PlanWireSelfLoopError(Exception):
 def _wire_diagnostic(wire: Wire) -> str:
     """Compact human-readable Wire renderer for error messages."""
     return (
-        f"({wire.source_asset_id}:{wire.source_port_name!r} → "
+        f"({wire.source_asset_id}:{wire.source_port_name!r} -> "
         f"{wire.target_asset_id}:{wire.target_port_name!r})"
     )
+
+
+# ---------- role_bindings (slice 2 of positional role-tagging) ----------
+
+
+@dataclass(frozen=True)
+class RoleBinding:
+    """A binding from a Method.required_role's name to a specific Asset.
+
+    Tuple `(role_name, asset_id)`. The role_name references a
+    `RoleRequirement` declared on the Plan's Method (state.method_id);
+    the asset_id MUST be one of the Plan's bound asset_ids. The
+    `bind_plan_role` decider enforces both invariants plus port-coverage
+    against the role's required_ports. See
+    [[project-plan-role-bindings-design]] for the lock.
+
+    Identity within `Plan.role_bindings` is structural via tuple
+    equality; uniqueness of `role_name` is enforced at the decider
+    (not the VO), so two RoleBindings with the same role_name pointing
+    at different assets would collide structurally only if their
+    asset_ids matched too. The decider's strict-not-idempotent guard
+    catches the role_name-collision case before that ambiguity matters.
+    """
+
+    role_name: RoleName
+    asset_id: UUID
+
+
+class PlanRoleAlreadyBoundError(Exception):
+    """Attempted to bind a role_name that's already in the Plan's role_bindings.
+
+    Strict-not-idempotent: same precedent as
+    `PlanWireAlreadyExistsError` and slice-1's
+    `MethodRoleNameAlreadyDeclaredError`. The diagnostic carries the
+    Plan id and the offending role_name.
+    """
+
+    def __init__(self, plan_id: UUID, role_name: "RoleName") -> None:
+        super().__init__(
+            f"Plan {plan_id} already binds role {role_name.value!r}; "
+            "bind_plan_role is strict-not-idempotent (unbind first if "
+            "you mean to rebind)"
+        )
+        self.plan_id = plan_id
+        self.role_name = role_name
+
+
+class PlanRoleNotBoundError(Exception):
+    """Attempted to unbind a role_name that isn't in the Plan's role_bindings,
+    or to add a wire against an Asset port required by a role the Plan has
+    not yet bound.
+
+    Strict-not-idempotent for the unbind side: a second unbind raises
+    rather than silently no-opping. Also fires from
+    `add_plan_wire` when the candidate wire's endpoint port matches a
+    `RoleRequirement.required_ports` entry but no `RoleBinding` for
+    that role exists on the Plan yet (operators must bind the role
+    before wiring against its ports).
+    """
+
+    def __init__(self, plan_id: UUID, role_name: "RoleName") -> None:
+        super().__init__(
+            f"Plan {plan_id} does not bind role {role_name.value!r}; "
+            "nothing to unbind, or wire references the role's port "
+            "before the role has been bound"
+        )
+        self.plan_id = plan_id
+        self.role_name = role_name
+
+
+class PlanRoleNameNotDeclaredError(Exception):
+    """Attempted to bind a role_name that isn't declared on the Plan's
+    Method's required_roles.
+
+    Plan.role_bindings entries MUST correspond to a `RoleRequirement`
+    declared on `Method.required_roles`. Operator typos or stale role
+    names surface here at the bind boundary. Mapped to HTTP 409.
+    """
+
+    def __init__(self, plan_id: UUID, method_id: UUID, role_name: "RoleName") -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot bind role {role_name.value!r}: that role "
+            f"is not declared on Method {method_id}'s required_roles "
+            "(declare the role on the Method first via "
+            "add_method_required_role, OR bind a role that exists)"
+        )
+        self.plan_id = plan_id
+        self.method_id = method_id
+        self.role_name = role_name
+
+
+class PlanRoleAssetNotBoundError(Exception):
+    """Attempted to bind a role to an Asset that isn't in the Plan's asset_ids.
+
+    Mirror of `PlanWireAssetNotBoundError` for the role-binding side:
+    every RoleBinding's asset_id MUST be in Plan.asset_ids. Carries
+    both the role_name and the offending asset_id.
+    """
+
+    def __init__(self, plan_id: UUID, role_name: "RoleName", asset_id: UUID) -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot bind role {role_name.value!r} to "
+            f"Asset {asset_id}: that Asset is not in the Plan's asset_ids "
+            "(bind the Asset first via Plan re-definition, OR pick an "
+            "Asset already bound)"
+        )
+        self.plan_id = plan_id
+        self.role_name = role_name
+        self.asset_id = asset_id
+
+
+class PlanRoleFamilyMismatchError(Exception):
+    """The Asset bound to a role does not carry the role's required Family.
+
+    The `RoleRequirement` on Method.required_roles declares which
+    Family the bound Asset must satisfy. At bind time the decider
+    loads the Asset and checks that `role.family_id in asset.family_ids`.
+    Mapped to HTTP 409. Diagnostic carries the Plan, role, asset, and
+    both Family sets for operator clarity.
+    """
+
+    def __init__(
+        self,
+        plan_id: UUID,
+        role_name: "RoleName",
+        asset_id: UUID,
+        required_family_id: UUID,
+        asset_family_ids: frozenset[UUID],
+    ) -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot bind role {role_name.value!r} to "
+            f"Asset {asset_id}: role requires Family {required_family_id} "
+            f"but Asset.family_ids = {sorted(str(f) for f in asset_family_ids)} "
+            "(pick an Asset that carries the required Family, OR update "
+            "the role's required Family on the Method)"
+        )
+        self.plan_id = plan_id
+        self.role_name = role_name
+        self.asset_id = asset_id
+        self.required_family_id = required_family_id
+        self.asset_family_ids = asset_family_ids
+
+
+class PlanRolePortCoverageNotSatisfiedError(Exception):
+    """The Asset bound to a role does not expose all of the role's
+    required_ports.
+
+    For each `PortRequirement` in `RoleRequirement.required_ports`,
+    the bound Asset's `ports` set MUST contain a matching
+    `(port_name, direction, signal_type)` triple. Strict exact match.
+    Mapped to HTTP 409. Diagnostic carries the missing port triples
+    so the operator can either add ports to the Asset or pick a
+    different Asset.
+    """
+
+    def __init__(
+        self,
+        plan_id: UUID,
+        role_name: "RoleName",
+        asset_id: UUID,
+        missing_ports: list[tuple[str, str, str]],
+    ) -> None:
+        details = ", ".join(
+            f"({pname!r}, {direction}, {stype!r})" for pname, direction, stype in missing_ports
+        )
+        super().__init__(
+            f"Plan {plan_id} cannot bind role {role_name.value!r} to "
+            f"Asset {asset_id}: Asset does not expose the following "
+            f"required port triples: {details} (add the missing ports "
+            "via add_asset_port, OR pick an Asset that already exposes "
+            "them)"
+        )
+        self.plan_id = plan_id
+        self.role_name = role_name
+        self.asset_id = asset_id
+        self.missing_ports = missing_ports
+
+
+class PlanWireRoleEndpointMismatchError(Exception):
+    """A candidate Wire references a port that is named in a
+    `RoleRequirement.required_ports` entry, but the wire's endpoint
+    Asset does not match the Asset bound to that role.
+
+    This is the structural closure that prevents the role-table and
+    the wire-graph from diverging silently. Without it, an operator
+    could bind role=DETECTOR to Camera-A while wiring Camera-B's
+    image_out port into the primary-detector sink; both would pass
+    validation, and the executor (which reads from the wire graph)
+    would silently use Camera-B as the detector while role_bindings
+    claims Camera-A. See [[project-plan-role-bindings-design]] for
+    the rationale.
+
+    Mapped to HTTP 409. Diagnostic carries the offending wire endpoint
+    (source or target), the role whose port it claims, and the
+    expected vs actual asset_ids.
+    """
+
+    def __init__(
+        self,
+        plan_id: UUID,
+        wire: Wire,
+        role_name: "RoleName",
+        endpoint_role: str,
+        expected_asset_id: UUID,
+        actual_asset_id: UUID,
+    ) -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot add wire {_wire_diagnostic(wire)}: "
+            f"the {endpoint_role} port matches role "
+            f"{role_name.value!r}'s required_ports, but that role is "
+            f"bound to Asset {expected_asset_id}, not the wire's "
+            f"{endpoint_role} Asset {actual_asset_id} "
+            "(rebind the role to match the wire, OR pick a wire that "
+            "terminates at the role's bound Asset)"
+        )
+        self.plan_id = plan_id
+        self.wire = wire
+        self.role_name = role_name
+        self.endpoint_role = endpoint_role
+        self.expected_asset_id = expected_asset_id
+        self.actual_asset_id = actual_asset_id
+
+
+class PlanCannotMutateRoleBindingsError(Exception):
+    """Attempted to bind / unbind a role on a Plan not in `Defined` status.
+
+    Mirrors `MethodCannotMutateRequiredRolesError` from slice 1.
+    Versioned Plans have an attested content_hash that covers
+    role_bindings; Deprecated Plans are out of use entirely. Mapped to
+    HTTP 409. Symmetric across `bind_plan_role` and `unbind_plan_role`.
+    """
+
+    def __init__(self, plan_id: UUID, current_status: "PlanStatus") -> None:
+        super().__init__(
+            f"Plan {plan_id} cannot mutate role bindings: currently in "
+            f"status {current_status.value}, role-binding mutations require "
+            f"{PlanStatus.DEFINED.value}"
+        )
+        self.plan_id = plan_id
+        self.current_status = current_status

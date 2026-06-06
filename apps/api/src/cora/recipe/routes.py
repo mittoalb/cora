@@ -71,17 +71,25 @@ from cora.recipe.aggregates.plan import (
     PlanBoundMethodDeprecatedError,
     PlanBoundPracticeDeprecatedError,
     PlanCannotDeprecateError,
+    PlanCannotMutateRoleBindingsError,
     PlanCannotVersionError,
     PlanFamiliesNotSatisfiedError,
     PlanNotFoundError,
     PlanPseudoAxisArityMismatchError,
     PlanPseudoAxisFanoutSignalTypeMismatchError,
     PlanPseudoAxisOutputCardinalityError,
+    PlanRoleAlreadyBoundError,
+    PlanRoleAssetNotBoundError,
+    PlanRoleFamilyMismatchError,
+    PlanRoleNameNotDeclaredError,
+    PlanRoleNotBoundError,
+    PlanRolePortCoverageNotSatisfiedError,
     PlanWireAlreadyExistsError,
     PlanWireAssetNotBoundError,
     PlanWireDirectionMismatchError,
     PlanWireNotFoundError,
     PlanWirePortNotFoundError,
+    PlanWireRoleEndpointMismatchError,
     PlanWireSelfLoopError,
     PlanWireSignalTypeMismatchError,
     PlanWireTargetAlreadyConnectedError,
@@ -112,6 +120,7 @@ from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
     add_method_required_role,
     add_plan_wire,
+    bind_plan_role,
     define_capability,
     define_method,
     define_plan,
@@ -133,6 +142,7 @@ from cora.recipe.features import (
     list_practices,
     remove_method_required_role,
     remove_plan_wire,
+    unbind_plan_role,
     update_method_parameters_schema,
     update_plan_default_parameters,
     version_capability,
@@ -236,6 +246,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(update_plan_default_parameters.router)
     app.include_router(add_plan_wire.router)
     app.include_router(remove_plan_wire.router)
+    app.include_router(bind_plan_role.router)
+    app.include_router(unbind_plan_role.router)
     app.include_router(list_methods.router)
     app.include_router(list_practices.router)
     app.include_router(list_plans.router)
@@ -291,6 +303,10 @@ def register_recipe_routes(app: FastAPI) -> None:
         # 6h: removing a Wire that's not currently in the Plan's wire
         # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
         PlanWireNotFoundError,
+        # slice 2 of positional role-tagging: unbinding a role whose
+        # role_name is not currently bound on the Plan (strict-not-
+        # idempotent symmetry with PlanRoleAlreadyBoundError).
+        PlanRoleNotBoundError,
         RecipeNotFoundError,
         RecipeVersionNotFoundError,
     ):
@@ -355,6 +371,18 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanPseudoAxisOutputCardinalityError,
         PlanPseudoAxisArityMismatchError,
         PlanPseudoAxisFanoutSignalTypeMismatchError,
+        # slice 2 of positional role-tagging: Plan-side bind/unbind
+        # lifecycle + structural guards. All 409.
+        PlanCannotMutateRoleBindingsError,
+        PlanRoleAlreadyBoundError,
+        PlanRoleAssetNotBoundError,
+        PlanRoleFamilyMismatchError,
+        PlanRoleNameNotDeclaredError,
+        PlanRolePortCoverageNotSatisfiedError,
+        # slice 2 structural closure: a Wire endpoint port matches a
+        # role's required_ports but terminates at a different Asset
+        # than the one bound to that role.
+        PlanWireRoleEndpointMismatchError,
         # Recipe transition guards.
         RecipeCannotVersionError,
         RecipeCannotDeprecateError,

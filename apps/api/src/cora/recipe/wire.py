@@ -33,6 +33,7 @@ from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
     add_method_required_role,
     add_plan_wire,
+    bind_plan_role,
     define_capability,
     define_method,
     define_plan,
@@ -54,6 +55,7 @@ from cora.recipe.features import (
     list_practices,
     remove_method_required_role,
     remove_plan_wire,
+    unbind_plan_role,
     update_method_parameters_schema,
     update_plan_default_parameters,
     version_capability,
@@ -88,6 +90,8 @@ class RecipeHandlers:
     update_plan_default_parameters: update_plan_default_parameters.Handler
     add_plan_wire: add_plan_wire.Handler
     remove_plan_wire: remove_plan_wire.Handler
+    bind_plan_role: bind_plan_role.Handler
+    unbind_plan_role: unbind_plan_role.Handler
     list_methods: list_methods.Handler
     list_practices: list_practices.Handler
     list_plans: list_plans.Handler
@@ -219,6 +223,16 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         remove_plan_wire=with_tracing(
             remove_plan_wire.bind(deps),
             command_name="RemovePlanWire",
+            bc=_BC,
+        ),
+        bind_plan_role=with_tracing(
+            bind_plan_role.bind(deps),
+            command_name="BindPlanRole",
+            bc=_BC,
+        ),
+        unbind_plan_role=with_tracing(
+            unbind_plan_role.bind(deps),
+            command_name="UnbindPlanRole",
             bc=_BC,
         ),
         list_methods=with_tracing(

@@ -15,6 +15,7 @@ from cora.recipe.features.add_method_required_role import (
     tool as add_method_required_role_tool,
 )
 from cora.recipe.features.add_plan_wire import tool as add_plan_wire_tool
+from cora.recipe.features.bind_plan_role import tool as bind_plan_role_tool
 from cora.recipe.features.define_capability import tool as define_capability_tool
 from cora.recipe.features.define_method import tool as define_method_tool
 from cora.recipe.features.define_plan import tool as define_plan_tool
@@ -38,6 +39,7 @@ from cora.recipe.features.remove_method_required_role import (
     tool as remove_method_required_role_tool,
 )
 from cora.recipe.features.remove_plan_wire import tool as remove_plan_wire_tool
+from cora.recipe.features.unbind_plan_role import tool as unbind_plan_role_tool
 from cora.recipe.features.update_method_parameters_schema import (
     tool as update_method_parameters_schema_tool,
 )
@@ -129,6 +131,14 @@ def register_recipe_tools(
     remove_plan_wire_tool.register(
         mcp,
         get_handler=lambda: get_handlers().remove_plan_wire,
+    )
+    bind_plan_role_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().bind_plan_role,
+    )
+    unbind_plan_role_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().unbind_plan_role,
     )
     list_methods_tool.register(
         mcp,

@@ -58,6 +58,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
+from cora.recipe.aggregates.method.read import load_method
 from cora.recipe.aggregates.plan import (
     PlanEvent,
     event_type_name,
@@ -188,7 +189,20 @@ def bind(deps: Kernel) -> Handler:
                 f.id for f in loaded if f is not None and f.name == _PSEUDOAXIS_FAMILY_NAME
             )
 
-        context = PlanWireContext(assets=assets_by_id)
+        # Slice-2: also load the Plan's bound Method so the decider
+        # can run the role-endpoint check (structural closure between
+        # role_bindings and wires). When state.method_id is None
+        # (legacy Plan) OR the Method stream is missing (eventual-
+        # consistency reference; PlanDefined doesn't verify Method
+        # existence at write time), the role check no-ops. This is
+        # conservative: the role check is purely additive enforcement
+        # of the wire-vs-role agreement; absence of Method state
+        # means the agreement is vacuous (no roles can be declared).
+        method = None
+        if state is not None and state.method_id is not None:
+            method = await load_method(deps.event_store, state.method_id)
+
+        context = PlanWireContext(assets=assets_by_id, method=method)
 
         domain_events = decide(
             state=state,

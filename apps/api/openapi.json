@@ -1565,6 +1565,30 @@
         "title": "AttachAssetToFixtureRequest",
         "type": "object"
       },
+      "BindPlanRoleRequest": {
+        "description": "Body for `POST /plans/{plan_id}/bind-role`.",
+        "properties": {
+          "asset_id": {
+            "description": "Asset filling the role. Must be in Plan.asset_ids; must carry the role's required Family; must expose the role's required_ports.",
+            "format": "uuid",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "role_name": {
+            "description": "Method-local role label matching a RoleRequirement on Method.required_roles. Strict-not-idempotent within the Plan: a duplicate binding returns 409.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Role Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_name",
+          "asset_id"
+        ],
+        "title": "BindPlanRoleRequest",
+        "type": "object"
+      },
       "BindingAssetDTO": {
         "properties": {
           "id": {
@@ -12506,6 +12530,23 @@
           "reason"
         ],
         "title": "TruncateRunRequest",
+        "type": "object"
+      },
+      "UnbindPlanRoleRequest": {
+        "description": "Body for `POST /plans/{plan_id}/unbind-role`.",
+        "properties": {
+          "role_name": {
+            "description": "The role_name whose binding to remove. Strict-not-idempotent: an unknown role_name returns 404.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Role Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_name"
+        ],
+        "title": "UnbindPlanRoleRequest",
         "type": "object"
       },
       "UninstallAssetRequest": {
@@ -29213,6 +29254,111 @@
         ]
       }
     },
+    "/plans/{plan_id}/bind-role": {
+      "post": {
+        "operationId": "post_plans_bind_role_plans__plan_id__bind_role_post",
+        "parameters": [
+          {
+            "description": "Target plan's id.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "description": "Target plan's id.",
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindPlanRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Role name VO validation failed (empty / whitespace-only or too-long string)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No plan, method, or asset exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Plan cannot bind the role under current conditions: Plan is Versioned/Deprecated, role_name already bound, role_name not declared on the bound Method, asset_id not in Plan.asset_ids, Asset missing the role's required Family, OR Asset missing one or more of the role's required port triples."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Bind a Method.required_role to a specific Asset on an existing Plan",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
     "/plans/{plan_id}/default-parameters": {
       "patch": {
         "operationId": "patch_plan_default_parameters_plans__plan_id__default_parameters_patch",
@@ -29495,6 +29641,106 @@
           }
         },
         "summary": "Remove a typed port-to-port Wire from an existing Plan's wire set",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/plans/{plan_id}/unbind-role": {
+      "post": {
+        "operationId": "post_plans_unbind_role_plans__plan_id__unbind_role_post",
+        "parameters": [
+          {
+            "description": "Target plan's id.",
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "description": "Target plan's id.",
+              "format": "uuid",
+              "title": "Plan Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnbindPlanRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "role_name VO validation failed (empty / whitespace-only or too-long string)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No plan exists with the given id, OR no binding with the given role_name is present on the plan."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Plan cannot unbind the role under current conditions: Plan is Versioned/Deprecated, OR a concurrent write to the same Plan stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Remove a role binding from an existing Plan",
         "tags": [
           "recipe"
         ]

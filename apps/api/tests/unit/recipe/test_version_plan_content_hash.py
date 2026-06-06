@@ -49,8 +49,8 @@ _FIXED_ASSET_Z = UUID("44444444-4444-4444-4444-444444444444")
 #     event_type_to_payload_type("PlanVersioned"), <content_subset>)`.
 # Pinned here so future Pydantic / canonicalization / payloadType-scheme
 # drift trips a single fixture rather than every consumer test.
-_GOLDEN_EMPTY = "6d2767293480913395dea620c7d7d04e91638198c956cb147f4b0887343427c7"
-_GOLDEN_POPULATED = "73da87387c9c38429899895b9667c5e55032356b7fe8aefd3397c57299d28577"
+_GOLDEN_EMPTY = "52d000aecd28a4180121ea8e9c64e18b41419e6a185b7fca35417328842c520d"
+_GOLDEN_POPULATED = "72856a444564c736119999e3160ad7724f303c0d2630269cb3ba480a0d47ffce"
 
 
 def _plan(
@@ -165,6 +165,10 @@ def test_decide_content_hash_matches_helper_output_directly() -> None:
             "asset_ids": [str(_FIXED_ASSET_X)],
             "default_parameters": {"energy": 12.0},
             "wires": [],
+            # role_bindings joined the content subset when slice 2 of
+            # positional role-tagging landed; empty list for a Plan
+            # with no bindings.
+            "role_bindings": [],
         },
     )
     assert event.content_hash == expected

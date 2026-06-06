@@ -50,6 +50,8 @@ def test_projection_metadata() -> None:
             "PlanVersioned",
             "PlanDeprecated",
             "PlanDefaultParametersUpdated",
+            "PlanRoleBound",
+            "PlanRoleUnbound",
         }
     )
 

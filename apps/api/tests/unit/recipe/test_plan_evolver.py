@@ -114,6 +114,10 @@ def test_evolve_plan_defined_does_not_fold_other_audit_snapshots() -> None:
         "default_parameters",
         "wires",
         "content_hash",
+        # role_bindings joined the slim aggregate when slice 2 of
+        # positional role-tagging landed (Plan-side closure of the
+        # IEC 81346 Function-aspect workstream).
+        "role_bindings",
     }
 
 

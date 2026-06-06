@@ -202,6 +202,43 @@ class PlanDefaultParametersUpdated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class PlanRoleBound:
+    """A positional role slot was bound to a specific Asset on a Plan.
+
+    Slice 2 of the positional role-tagging workstream. Strict-not-
+    idempotent: a duplicate role_name surfaces as
+    `PlanRoleAlreadyBoundError`. Restricted to Plans in `Defined`
+    status; mirrors `PlanWireAdded`'s shape with the role identity
+    carried as a primitive string so `from_stored` can rebuild the
+    RoleBinding VO without importing state.
+
+    Status is NOT carried because the lifecycle restriction is enforced
+    at the decider, not derived from this event type.
+    """
+
+    plan_id: UUID
+    role_name: str
+    asset_id: UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class PlanRoleUnbound:
+    """A positional role slot was unbound from a Plan.
+
+    Mirror of `PlanRoleBound`. Strict-not-idempotent. The payload
+    carries only `role_name` (the structural identity of the binding
+    within the Plan); the asset_id is reconstructable from prior
+    state at fold time but not strictly needed for the unbind
+    semantics.
+    """
+
+    plan_id: UUID
+    role_name: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Plan aggregate emits.
 PlanEvent = (
     PlanDefined
@@ -210,6 +247,8 @@ PlanEvent = (
     | PlanDefaultParametersUpdated
     | PlanWireAdded
     | PlanWireRemoved
+    | PlanRoleBound
+    | PlanRoleUnbound
 )
 
 
@@ -331,6 +370,28 @@ def to_payload(event: PlanEvent) -> dict[str, Any]:
                 "target_port_name": target_port_name,
                 "occurred_at": occurred_at.isoformat(),
             }
+        case PlanRoleBound(
+            plan_id=plan_id,
+            role_name=role_name,
+            asset_id=asset_id,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "role_name": role_name,
+                "asset_id": str(asset_id),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case PlanRoleUnbound(
+            plan_id=plan_id,
+            role_name=role_name,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "plan_id": str(plan_id),
+                "role_name": role_name,
+                "occurred_at": occurred_at.isoformat(),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -428,6 +489,25 @@ def from_stored(stored: StoredEvent) -> PlanEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "PlanRoleBound":
+            return deserialize_or_raise(
+                "PlanRoleBound",
+                lambda: PlanRoleBound(
+                    plan_id=UUID(payload["plan_id"]),
+                    role_name=payload["role_name"],
+                    asset_id=UUID(payload["asset_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
+        case "PlanRoleUnbound":
+            return deserialize_or_raise(
+                "PlanRoleUnbound",
+                lambda: PlanRoleUnbound(
+                    plan_id=UUID(payload["plan_id"]),
+                    role_name=payload["role_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
         case _:
             msg = f"Unknown PlanEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -438,6 +518,8 @@ __all__ = [
     "PlanDefined",
     "PlanDeprecated",
     "PlanEvent",
+    "PlanRoleBound",
+    "PlanRoleUnbound",
     "PlanVersioned",
     "PlanWireAdded",
     "PlanWireRemoved",

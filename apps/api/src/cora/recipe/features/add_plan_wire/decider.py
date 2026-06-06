@@ -45,11 +45,13 @@ for the locked design memos.
 from datetime import datetime
 from uuid import UUID
 
+from cora.equipment.aggregates.asset import PortDirection
 from cora.recipe.aggregates.plan import (
     Plan,
     PlanNotFoundError,
     PlanWireAdded,
     PlanWireAlreadyExistsError,
+    PlanWireRoleEndpointMismatchError,
     PlanWireTargetAlreadyConnectedError,
     Wire,
     validate_pseudoaxis_fanout,
@@ -92,6 +94,11 @@ def decide(
             -> PlanPseudoAxisArityMismatchError
           - all source-side signal_types match
             -> PlanPseudoAxisFanoutSignalTypeMismatchError
+      - When `context.method` is loaded and Plan.role_bindings has an
+        entry whose role's required_ports include the candidate
+        wire's endpoint port_name on the matching direction, the
+        wire's endpoint Asset MUST equal the role's bound Asset ->
+        PlanWireRoleEndpointMismatchError (slice 2 structural closure)
 
     `pseudoaxis_family_ids` defaults to the empty set so callers that
     have no PseudoAxis Assets in play skip the fan-out check entirely.
@@ -146,6 +153,50 @@ def decide(
             incoming_wires=incoming_wires,
             assets_by_id=context.assets,
         )
+
+    # Slice-2 role-endpoint check: structural closure between
+    # Plan.role_bindings and Plan.wires. For each RoleRequirement on
+    # the Plan's bound Method, look at its required_ports. If the
+    # proposed wire's endpoint port (source side for OUTPUT
+    # required_ports, target side for INPUT required_ports) matches
+    # a required_port's name, the wire's endpoint Asset MUST equal
+    # the Asset bound to that role on the Plan. Skipped when the
+    # Method is not loaded (legacy Plans) or when the role is not
+    # yet bound on the Plan (partial Plan, no conflict to enforce).
+    # See [[project-plan-role-bindings-design]] for the rationale.
+    if context.method is not None:
+        binding_by_role_name = {b.role_name: b.asset_id for b in state.role_bindings}
+        for role in context.method.required_roles:
+            bound_asset_id = binding_by_role_name.get(role.role_name)
+            if bound_asset_id is None:
+                continue
+            for required_port in role.required_ports:
+                if (
+                    required_port.direction is PortDirection.OUTPUT
+                    and proposed.source_port_name == required_port.port_name
+                    and proposed.source_asset_id != bound_asset_id
+                ):
+                    raise PlanWireRoleEndpointMismatchError(
+                        state.id,
+                        proposed,
+                        role.role_name,
+                        "source",
+                        bound_asset_id,
+                        proposed.source_asset_id,
+                    )
+                if (
+                    required_port.direction is PortDirection.INPUT
+                    and proposed.target_port_name == required_port.port_name
+                    and proposed.target_asset_id != bound_asset_id
+                ):
+                    raise PlanWireRoleEndpointMismatchError(
+                        state.id,
+                        proposed,
+                        role.role_name,
+                        "target",
+                        bound_asset_id,
+                        proposed.target_asset_id,
+                    )
 
     return [
         PlanWireAdded(

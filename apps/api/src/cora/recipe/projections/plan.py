@@ -65,8 +65,8 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_PLAN_SQL = """
 INSERT INTO proj_recipe_plan_summary
     (plan_id, name, practice_id, method_id, status, version_tag, created_at,
-     default_parameters_present)
-VALUES ($1, $2, $3, $4, 'Defined', NULL, $5, FALSE)
+     default_parameters_present, role_bindings)
+VALUES ($1, $2, $3, $4, 'Defined', NULL, $5, FALSE, '[]'::jsonb)
 ON CONFLICT (plan_id) DO NOTHING
 """
 
@@ -94,6 +94,43 @@ SET default_parameters_present = $2, updated_at = now()
 WHERE plan_id = $1
 """
 
+# Slice-2: role_bindings is a sorted JSONB array of
+# {"role_name", "asset_id"} objects, sorted by role_name for byte-
+# stable replay. Mirrors the slice-1 Method.required_roles writers
+# pattern + proj_equipment_asset_summary.owners pattern.
+_UPDATE_ROLE_BOUND_SQL = """
+UPDATE proj_recipe_plan_summary
+SET role_bindings = COALESCE(
+        (
+            SELECT jsonb_agg(elem ORDER BY elem->>'role_name')
+            FROM (
+                SELECT DISTINCT ON (elem->>'role_name') elem
+                FROM jsonb_array_elements(
+                    role_bindings || jsonb_build_array($2::jsonb)
+                ) AS elem
+                ORDER BY elem->>'role_name'
+            ) AS dedup
+        ),
+        '[]'::jsonb
+    ),
+    updated_at = now()
+WHERE plan_id = $1
+"""
+
+_UPDATE_ROLE_UNBOUND_SQL = """
+UPDATE proj_recipe_plan_summary
+SET role_bindings = COALESCE(
+        (
+            SELECT jsonb_agg(elem ORDER BY elem->>'role_name')
+            FROM jsonb_array_elements(role_bindings) AS elem
+            WHERE elem->>'role_name' <> $2::text
+        ),
+        '[]'::jsonb
+    ),
+    updated_at = now()
+WHERE plan_id = $1
+"""
+
 
 class PlanSummaryProjection:
     """Maintains the `proj_recipe_plan_summary` read model."""
@@ -105,6 +142,8 @@ class PlanSummaryProjection:
             "PlanVersioned",
             "PlanDeprecated",
             "PlanDefaultParametersUpdated",
+            "PlanRoleBound",
+            "PlanRoleUnbound",
         }
     )
 
@@ -148,6 +187,26 @@ class PlanSummaryProjection:
                     _UPDATE_PARAMETER_DEFAULTS_PRESENT_SQL,
                     UUID(event.payload["plan_id"]),
                     bool(event.payload.get("default_parameters")),
+                )
+            case "PlanRoleBound":
+                # Bind payload (role_name + asset_id as dict) flows to
+                # the SQL via the pool's jsonb codec (encoder=json.dumps);
+                # the SQL cast wraps it back as JSONB for jsonb_build_array.
+                # Mirrors the slice-1 method projection pattern.
+                binding_jsonb: dict[str, object] = {
+                    "role_name": event.payload["role_name"],
+                    "asset_id": event.payload["asset_id"],
+                }
+                await conn.execute(
+                    _UPDATE_ROLE_BOUND_SQL,
+                    UUID(event.payload["plan_id"]),
+                    binding_jsonb,
+                )
+            case "PlanRoleUnbound":
+                await conn.execute(
+                    _UPDATE_ROLE_UNBOUND_SQL,
+                    UUID(event.payload["plan_id"]),
+                    event.payload["role_name"],
                 )
             case _:
                 pass

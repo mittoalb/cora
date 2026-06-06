@@ -20,10 +20,11 @@ membership check uses `state.asset_ids` directly (no Asset load
 needed for that branch).
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import Asset
+from cora.recipe.aggregates.method import Method
 
 
 @dataclass(frozen=True)
@@ -34,9 +35,18 @@ class PlanWireContext:
     references, keyed by `asset_id`. Always contains entries for
     BOTH endpoint asset_ids (deduplicated when source == target).
     May be empty if the proposed wire's asset_ids aren't bound by
-    the Plan — the decider rejects with `PlanWireAssetNotBoundError`
+    the Plan: the decider rejects with `PlanWireAssetNotBoundError`
     before consulting the context, so the validators never see
     missing keys.
+
+    `method` is the Plan's bound Method (loaded by the handler via
+    state.method_id) when present. The slice-2 role-endpoint check
+    walks `method.required_roles` to enforce the structural closure
+    between Plan.role_bindings and Plan.wires (see
+    `PlanWireRoleEndpointMismatchError`). None when state.method_id
+    is None (legacy Plans) OR when the test passes a context without
+    a method (legacy add_plan_wire tests that predate slice 2).
     """
 
     assets: dict[UUID, Asset]
+    method: Method | None = field(default=None)

@@ -60,21 +60,19 @@ def test_plan_name_is_frozen() -> None:
 
 
 @pytest.mark.unit
-def test_plan_name_uses_shared_validate_bounded_text_helper() -> None:
-    """Pin: PlanName is the 10th VO; it routes through the shared
-    `cora.infrastructure.bounded_text.validate_bounded_text` helper
-    (originally hoisted as `validate_name`, renamed when the
-    helper picked up non-name callers). A direct import test ensures
-    we don't accidentally re-add the duplicated trim logic later."""
+def test_plan_name_uses_shared_bounded_name_decorator() -> None:
+    """Pin: PlanName routes through the shared
+    `cora.infrastructure.bounded_text.bounded_name` decorator. A direct
+    source inspection ensures we don't accidentally re-add the
+    duplicated trim+length-check `__post_init__` ritual later."""
     import inspect
 
     from cora.recipe.aggregates.plan import state as plan_state
 
-    src = inspect.getsource(PlanName.__post_init__)
-    assert "validate_bounded_text" in src
-    assert "validate_bounded_text" in plan_state.__dict__ or any(
-        "validate_bounded_text" in str(v) for v in plan_state.__dict__.values()
-    )
+    src = inspect.getsource(plan_state)
+    assert "@bounded_name(" in src
+    assert "from cora.infrastructure.bounded_text import bounded_name" in src
+    assert not hasattr(PlanName, "__post_init__")
 
 
 # ---------- PlanStatus enum ----------

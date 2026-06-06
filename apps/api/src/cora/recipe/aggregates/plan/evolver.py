@@ -75,16 +75,25 @@ from collections.abc import Sequence
 from typing import assert_never
 
 from cora.infrastructure.evolver import require_state
+from cora.recipe.aggregates.method import RoleName
 from cora.recipe.aggregates.plan.events import (
     PlanDefaultParametersUpdated,
     PlanDefined,
     PlanDeprecated,
     PlanEvent,
+    PlanRoleBound,
+    PlanRoleUnbound,
     PlanVersioned,
     PlanWireAdded,
     PlanWireRemoved,
 )
-from cora.recipe.aggregates.plan.state import Plan, PlanName, PlanStatus, Wire
+from cora.recipe.aggregates.plan.state import (
+    Plan,
+    PlanName,
+    PlanStatus,
+    RoleBinding,
+    Wire,
+)
 
 
 def evolve(state: Plan | None, event: PlanEvent) -> Plan:
@@ -128,6 +137,9 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 # decider per non-determinism principle). None for
                 # pre-rollout legacy events.
                 content_hash=content_hash,
+                # role_bindings PRESERVED across versioning; role
+                # declarations are part of the attested content.
+                role_bindings=prior.role_bindings,
             )
         case PlanDeprecated():
             prior = require_state(state, "PlanDeprecated")
@@ -146,6 +158,9 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 # the LAST ATTESTED revision and stays a valid
                 # equivalence anchor for the deprecated binding.
                 content_hash=prior.content_hash,
+                # role_bindings PRESERVED across deprecation; remain
+                # part of the historical record.
+                role_bindings=prior.role_bindings,
             )
         case PlanDefaultParametersUpdated(default_parameters=default_parameters):
             prior = require_state(state, "PlanDefaultParametersUpdated")
@@ -168,6 +183,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 # (Bazel input/output split semantics, see
                 # [[project_content_addressed_identity_design]]).
                 content_hash=prior.content_hash,
+                role_bindings=prior.role_bindings,
             )
         case PlanWireAdded(
             source_asset_id=source_asset_id,
@@ -197,6 +213,7 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 # prior attested revision (same Bazel input/output split
                 # rationale as default_parameters).
                 content_hash=prior.content_hash,
+                role_bindings=prior.role_bindings,
             )
         case PlanWireRemoved(
             source_asset_id=source_asset_id,
@@ -223,6 +240,46 @@ def evolve(state: Plan | None, event: PlanEvent) -> Plan:
                 wires=prior.wires - {removed_wire},
                 # content_hash preserved (mirror of PlanWireAdded).
                 content_hash=prior.content_hash,
+                role_bindings=prior.role_bindings,
+            )
+        case PlanRoleBound(role_name=role_name, asset_id=asset_id):
+            prior = require_state(state, "PlanRoleBound")
+            new_binding = RoleBinding(
+                role_name=RoleName(role_name),
+                asset_id=asset_id,
+            )
+            return Plan(
+                id=prior.id,
+                name=prior.name,
+                practice_id=prior.practice_id,
+                asset_ids=prior.asset_ids,
+                status=prior.status,
+                version=prior.version,
+                method_id=prior.method_id,
+                default_parameters=prior.default_parameters,
+                wires=prior.wires,
+                content_hash=prior.content_hash,
+                role_bindings=prior.role_bindings | {new_binding},
+            )
+        case PlanRoleUnbound(role_name=role_name):
+            prior = require_state(state, "PlanRoleUnbound")
+            # Identity-by-role_name: drop the unique entry whose
+            # role_name matches. Decider rejects unknown role_names so
+            # the filtered set is always strictly smaller by one.
+            target = RoleName(role_name)
+            remaining = frozenset(b for b in prior.role_bindings if b.role_name != target)
+            return Plan(
+                id=prior.id,
+                name=prior.name,
+                practice_id=prior.practice_id,
+                asset_ids=prior.asset_ids,
+                status=prior.status,
+                version=prior.version,
+                method_id=prior.method_id,
+                default_parameters=prior.default_parameters,
+                wires=prior.wires,
+                content_hash=prior.content_hash,
+                role_bindings=remaining,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

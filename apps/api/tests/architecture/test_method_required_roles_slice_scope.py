@@ -97,23 +97,23 @@ def test_method_state_reuses_port_direction_from_equipment_bc() -> None:
 
 
 @pytest.mark.architecture
-def test_plan_decider_does_not_yet_reference_required_roles() -> None:
-    """Slice 1 ships Method-side declaration only. Slice 2 will add
-    Plan-side `role_bindings` + `PlanRolePortCoverageNotSatisfiedError`
-    + `PlanWireRoleEndpointMismatchError` and is the natural home for
-    Plan-decider awareness of required_roles. Until then, the Plan
-    decider MUST NOT silently start enforcing role coverage, or the
-    slice-1 vs slice-2 separation collapses.
+def test_add_plan_wire_decider_enforces_role_endpoint_check() -> None:
+    """Slice 2 closure: the add_plan_wire decider MUST reference
+    PlanWireRoleEndpointMismatchError and walk Method.required_roles
+    against Plan.role_bindings to prevent role-table-vs-wire-graph
+    divergence. Pin so a future refactor that drops the role check
+    trips a clearly-named test (the bug the 2026-06-06 critique
+    surfaced)."""
+    from cora.recipe.features.add_plan_wire import decider as add_plan_wire_decider
 
-    Pin so adding role-aware Plan validation requires a deliberate
-    edit that also updates this test (which forces the test author to
-    notice the slice-boundary shift)."""
-    from cora.recipe.features.define_plan import decider as define_plan_decider
-
-    source = inspect.getsource(define_plan_decider)
-    # required_roles is a Method-state field; if the Plan decider
-    # starts reading it, the slice-2 work has bled into slice 1.
-    assert "required_roles" not in source, (
-        "Plan define decider must not reference Method.required_roles "
-        "until slice 2 ships role-aware Plan validation"
+    source = inspect.getsource(add_plan_wire_decider)
+    assert "PlanWireRoleEndpointMismatchError" in source, (
+        "add_plan_wire decider must enforce the role-endpoint check (slice 2 structural closure)"
+    )
+    assert "required_roles" in source, (
+        "add_plan_wire decider must walk Method.required_roles to validate role-port consistency"
+    )
+    assert "role_bindings" in source, (
+        "add_plan_wire decider must compare against Plan.role_bindings "
+        "to identify the role's bound Asset"
     )
