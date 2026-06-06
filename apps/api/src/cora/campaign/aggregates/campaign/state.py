@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 from cora.infrastructure.external_ref import ExternalRef
 
 CAMPAIGN_NAME_MAX_LENGTH = 200
@@ -412,19 +412,12 @@ class InvalidCampaignRunRemoveReasonError(ValueError):
 # ---------------------------------------------------------------------------
 
 
+@bounded_name(max_length=CAMPAIGN_NAME_MAX_LENGTH, error_class=InvalidCampaignNameError)
 @dataclass(frozen=True)
 class CampaignName:
     """Operator-meaningful Campaign name. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=CAMPAIGN_NAME_MAX_LENGTH,
-            error_class=InvalidCampaignNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

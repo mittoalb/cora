@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 from cora.trust.aggregates.surface.surface_kind import SurfaceKind
 
 SURFACE_NAME_MAX_LENGTH = 200
@@ -58,19 +58,12 @@ class SurfaceAlreadyExistsError(Exception):
         self.surface_id = surface_id
 
 
+@bounded_name(max_length=SURFACE_NAME_MAX_LENGTH, error_class=InvalidSurfaceNameError)
 @dataclass(frozen=True)
 class SurfaceName:
     """Display name for a surface. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=SURFACE_NAME_MAX_LENGTH,
-            error_class=InvalidSurfaceNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 class SurfaceStatus(StrEnum):

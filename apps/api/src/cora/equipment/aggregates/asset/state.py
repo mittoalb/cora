@@ -87,7 +87,7 @@ from uuid import UUID
 
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._partition_rule import PartitionRule
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 ASSET_NAME_MAX_LENGTH = 200
 ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH = 200
@@ -435,19 +435,12 @@ class InvalidAssetOwnerIdentifierTypeError(ValueError):
         self.value = value
 
 
+@bounded_name(max_length=ASSET_OWNER_NAME_MAX_LENGTH, error_class=InvalidAssetOwnerNameError)
 @dataclass(frozen=True)
 class AssetOwnerName:
     """Owner display name. Trimmed; 1-255 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ASSET_OWNER_NAME_MAX_LENGTH,
-            error_class=InvalidAssetOwnerNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)
@@ -1225,6 +1218,7 @@ class AssetCannotUpdatePartitionRuleError(Exception):
         self.reason = reason
 
 
+@bounded_name(max_length=ASSET_NAME_MAX_LENGTH, error_class=InvalidAssetNameError)
 @dataclass(frozen=True)
 class AssetName:
     """Display name for an asset. Trimmed; 1-200 chars.
@@ -1235,16 +1229,6 @@ class AssetName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ASSET_NAME_MAX_LENGTH,
-            error_class=InvalidAssetNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

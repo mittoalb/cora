@@ -19,7 +19,7 @@ new event types).
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 ZONE_NAME_MAX_LENGTH = 200
 
@@ -42,21 +42,12 @@ class ZoneAlreadyExistsError(Exception):
         self.zone_id = zone_id
 
 
+@bounded_name(max_length=ZONE_NAME_MAX_LENGTH, error_class=InvalidZoneNameError)
 @dataclass(frozen=True)
 class ZoneName:
     """Display name for a zone. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ZONE_NAME_MAX_LENGTH,
-            error_class=InvalidZoneNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

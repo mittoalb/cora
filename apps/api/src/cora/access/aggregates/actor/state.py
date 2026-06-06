@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 ACTOR_NAME_MAX_LENGTH = 200
 
@@ -114,21 +114,12 @@ class ActorCannotDeactivateError(Exception):
         self.actor_id = actor_id
 
 
+@bounded_name(max_length=ACTOR_NAME_MAX_LENGTH, error_class=InvalidActorNameError)
 @dataclass(frozen=True)
 class ActorName:
     """Display name for an actor. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ACTOR_NAME_MAX_LENGTH,
-            error_class=InvalidActorNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

@@ -64,7 +64,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.equipment.aggregates._placement import Placement
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 FRAME_NAME_MAX_LENGTH = 200
 
@@ -238,6 +238,7 @@ class FrameCannotSupersedeError(Exception):
         self.reason = reason
 
 
+@bounded_name(max_length=FRAME_NAME_MAX_LENGTH, error_class=InvalidFrameNameError)
 @dataclass(frozen=True)
 class FrameName:
     """Display name for a frame. Trimmed; 1-200 chars.
@@ -249,14 +250,6 @@ class FrameName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=FRAME_NAME_MAX_LENGTH,
-            error_class=InvalidFrameNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

@@ -96,7 +96,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
 if TYPE_CHECKING:
@@ -751,26 +751,15 @@ class InvalidProcedureAbortReasonError(ValueError):
         self.value = value
 
 
+@bounded_name(
+    max_length=PROCEDURE_NAME_MAX_LENGTH,
+    error_class=InvalidProcedureNameError,
+)
 @dataclass(frozen=True)
 class ProcedureName:
-    """Display name for a procedure. Trimmed; 1-200 chars.
-
-    Twelfth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper hoisted at the
-    rule-of-three trigger (see `cora.infrastructure.bounded_text`).
-    """
+    """Display name for a procedure. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=PROCEDURE_NAME_MAX_LENGTH,
-            error_class=InvalidProcedureNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

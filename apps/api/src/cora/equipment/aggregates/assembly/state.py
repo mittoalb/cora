@@ -71,7 +71,7 @@ from uuid import UUID
 
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._placement import Placement
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 ASSEMBLY_NAME_MAX_LENGTH = 200
 SLOT_NAME_MAX_LENGTH = 100
@@ -378,6 +378,7 @@ class FixtureParameterOverridesInvalidError(ValueError):
         self.reason = reason
 
 
+@bounded_name(max_length=ASSEMBLY_NAME_MAX_LENGTH, error_class=InvalidAssemblyNameError)
 @dataclass(frozen=True)
 class AssemblyName:
     """A trimmed-bounded-text VO for the Assembly's display name.
@@ -388,15 +389,8 @@ class AssemblyName:
 
     value: str
 
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ASSEMBLY_NAME_MAX_LENGTH,
-            error_class=InvalidAssemblyNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
-
+@bounded_name(max_length=SLOT_NAME_MAX_LENGTH, error_class=InvalidSlotNameError)
 @dataclass(frozen=True)
 class SlotName:
     """A trimmed-bounded-text VO for a TemplateSlot's slot_name.
@@ -406,14 +400,6 @@ class SlotName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=SLOT_NAME_MAX_LENGTH,
-            error_class=InvalidSlotNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

@@ -103,7 +103,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 from cora.infrastructure.external_ref import (
     EXTERNAL_REF_ID_MAX_LENGTH,
     EXTERNAL_REF_SCHEME_MAX_LENGTH,
@@ -945,6 +945,10 @@ class RunReadingLogbookClosedError(Exception):
         self.current_status = current_status
 
 
+@bounded_name(
+    max_length=READING_CHANNEL_NAME_MAX_LENGTH,
+    error_class=InvalidChannelNameError,
+)
 @dataclass(frozen=True)
 class ChannelName:
     """Sensor or motor identifier on a RunReading entry. Trimmed; 1-255 chars.
@@ -958,15 +962,11 @@ class ChannelName:
 
     value: str
 
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=READING_CHANNEL_NAME_MAX_LENGTH,
-            error_class=InvalidChannelNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
-
+@bounded_name(
+    max_length=RUN_NAME_MAX_LENGTH,
+    error_class=InvalidRunNameError,
+)
 @dataclass(frozen=True)
 class RunName:
     """Display name for a run. Trimmed; 1-200 chars.
@@ -977,16 +977,6 @@ class RunName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=RUN_NAME_MAX_LENGTH,
-            error_class=InvalidRunNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 # hoist: `ExternalRef` lives at `cora.infrastructure.external_ref`.

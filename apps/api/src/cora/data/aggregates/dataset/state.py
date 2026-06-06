@@ -122,7 +122,7 @@ from enum import StrEnum
 from urllib.parse import urlparse
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 DATASET_NAME_MAX_LENGTH = 200
 DATASET_URI_MAX_LENGTH = 2048
@@ -656,6 +656,7 @@ class DatasetDiscardReason:
         object.__setattr__(self, "value", trimmed)
 
 
+@bounded_name(max_length=DATASET_NAME_MAX_LENGTH, error_class=InvalidDatasetNameError)
 @dataclass(frozen=True)
 class DatasetName:
     """Display name for a Dataset. Trimmed; 1-200 chars.
@@ -666,16 +667,6 @@ class DatasetName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=DATASET_NAME_MAX_LENGTH,
-            error_class=InvalidDatasetNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

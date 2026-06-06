@@ -122,7 +122,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 SUPPLY_NAME_MAX_LENGTH = 200
 SUPPLY_KIND_MAX_LENGTH = 50
@@ -416,6 +416,7 @@ class SupplyCannotRestoreError(Exception):
         self.current_status = current_status
 
 
+@bounded_name(max_length=SUPPLY_NAME_MAX_LENGTH, error_class=InvalidSupplyNameError)
 @dataclass(frozen=True)
 class SupplyName:
     """Display name for a supply. Trimmed; 1-200 chars.
@@ -426,16 +427,6 @@ class SupplyName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=SUPPLY_NAME_MAX_LENGTH,
-            error_class=InvalidSupplyNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

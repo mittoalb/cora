@@ -64,7 +64,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 MODEL_NAME_MAX_LENGTH = 200
 MODEL_PART_NUMBER_MAX_LENGTH = 100
@@ -304,19 +304,12 @@ class ModelFamilyNotPresentError(Exception):
         self.family_id = family_id
 
 
+@bounded_name(max_length=MODEL_NAME_MAX_LENGTH, error_class=InvalidModelNameError)
 @dataclass(frozen=True)
 class ModelName:
     """Display name for a model. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=MODEL_NAME_MAX_LENGTH,
-            error_class=InvalidModelNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)
@@ -339,19 +332,12 @@ class PartNumber:
         object.__setattr__(self, "value", trimmed)
 
 
+@bounded_name(max_length=MANUFACTURER_NAME_MAX_LENGTH, error_class=InvalidManufacturerNameError)
 @dataclass(frozen=True)
 class ManufacturerName:
     """Manufacturer display name. Trimmed; 1-200 chars."""
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=MANUFACTURER_NAME_MAX_LENGTH,
-            error_class=InvalidManufacturerNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

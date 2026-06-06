@@ -64,7 +64,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 SUBJECT_NAME_MAX_LENGTH = 200
 SUBJECT_DISCARD_REASON_MAX_LENGTH = 500
@@ -341,6 +341,7 @@ class SubjectDiscardReason:
         object.__setattr__(self, "value", trimmed)
 
 
+@bounded_name(max_length=SUBJECT_NAME_MAX_LENGTH, error_class=InvalidSubjectNameError)
 @dataclass(frozen=True)
 class SubjectName:
     """Display name for a subject. Trimmed; 1-200 chars.
@@ -351,16 +352,6 @@ class SubjectName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=SUBJECT_NAME_MAX_LENGTH,
-            error_class=InvalidSubjectNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

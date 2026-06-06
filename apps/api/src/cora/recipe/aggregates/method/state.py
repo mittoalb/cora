@@ -95,7 +95,7 @@ from cora.equipment.aggregates.asset import (
     PORT_SIGNAL_TYPE_MAX_LENGTH,
     PortDirection,
 )
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
@@ -267,26 +267,17 @@ class InvalidMethodVersionTagError(ValueError):
         self.value = value
 
 
+@bounded_name(max_length=METHOD_NAME_MAX_LENGTH, error_class=InvalidMethodNameError)
 @dataclass(frozen=True)
 class MethodName:
     """Display name for a method. Trimmed; 1-200 chars.
 
     Eighth occurrence of the trimmed-bounded-name VO pattern. Uses
-    the shared `validate_bounded_text` helper (see
+    the shared `bounded_name` decorator (see
     `cora.infrastructure.bounded_text`).
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=METHOD_NAME_MAX_LENGTH,
-            error_class=InvalidMethodNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 class InvalidRoleNameError(ValueError):
@@ -325,6 +316,7 @@ class InvalidPortRequirementError(ValueError):
         self.reason = reason
 
 
+@bounded_name(max_length=ROLE_NAME_MAX_LENGTH, error_class=InvalidRoleNameError)
 @dataclass(frozen=True)
 class RoleName:
     """A Method-local positional role label. Trimmed; 1-50 chars.
@@ -337,16 +329,6 @@ class RoleName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ROLE_NAME_MAX_LENGTH,
-            error_class=InvalidRoleNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,7 @@ temporarily revoking access without deleting the policy.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 from cora.infrastructure.ports import Allow, AuthzResult, Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 
@@ -65,27 +65,16 @@ class PolicyAlreadyExistsError(Exception):
         self.policy_id = policy_id
 
 
+@bounded_name(max_length=POLICY_NAME_MAX_LENGTH, error_class=InvalidPolicyNameError)
 @dataclass(frozen=True)
 class PolicyName:
     """Display name for a policy. Trimmed; 1-200 chars.
 
-    Fourth occurrence of the trimmed-bounded-name VO pattern (after
-    `ActorName`, `ZoneName`, `ConduitName`). When the fifth lands and
-    the bodies are still byte-identical, hoist a `BoundedName`
-    factory to a cross-BC value-objects module.
+    Uses the shared `@bounded_name` decorator from
+    `cora.infrastructure.bounded_text`.
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=POLICY_NAME_MAX_LENGTH,
-            error_class=InvalidPolicyNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

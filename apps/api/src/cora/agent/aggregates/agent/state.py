@@ -45,7 +45,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 
 AGENT_KIND_MAX_LENGTH = 100
 AGENT_NAME_MAX_LENGTH = 100
@@ -481,6 +481,7 @@ class AgentKind:
         object.__setattr__(self, "value", trimmed)
 
 
+@bounded_name(max_length=AGENT_NAME_MAX_LENGTH, error_class=InvalidAgentNameError)
 @dataclass(frozen=True)
 class AgentName:
     """Human-readable display name. Trimmed; 1-100 chars.
@@ -490,14 +491,6 @@ class AgentName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=AGENT_NAME_MAX_LENGTH,
-            error_class=InvalidAgentNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)
@@ -623,6 +616,7 @@ class AgentSuspensionReason:
         object.__setattr__(self, "value", trimmed)
 
 
+@bounded_name(max_length=AGENT_TOOL_NAME_MAX_LENGTH, error_class=InvalidToolNameError)
 @dataclass(frozen=True)
 class ToolName:
     """One MCP tool name the agent is authorized to invoke.
@@ -634,14 +628,6 @@ class ToolName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=AGENT_TOOL_NAME_MAX_LENGTH,
-            error_class=InvalidToolNameError,
-        )
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)

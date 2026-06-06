@@ -51,7 +51,7 @@ from dataclasses import dataclass, field
 from typing import Final
 from uuid import UUID
 
-from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.bounded_text import bounded_name
 
 CONDUIT_NAME_MAX_LENGTH = 200
 
@@ -116,6 +116,7 @@ class ConduitLogbookNotOpenError(Exception):
         self.logbook_id = logbook_id
 
 
+@bounded_name(max_length=CONDUIT_NAME_MAX_LENGTH, error_class=InvalidConduitNameError)
 @dataclass(frozen=True)
 class ConduitName:
     """Display name for a conduit. Trimmed; 1-200 chars.
@@ -128,16 +129,6 @@ class ConduitName:
     """
 
     value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=CONDUIT_NAME_MAX_LENGTH,
-            error_class=InvalidConduitNameError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 @dataclass(frozen=True)
