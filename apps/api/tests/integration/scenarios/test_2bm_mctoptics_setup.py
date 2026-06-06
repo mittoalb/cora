@@ -6,15 +6,30 @@ bc_primary: Equipment
 bc_touches: Equipment, Calibration, Recipe
 
 Scenario test for the MCTOptics (Optique Peter detector) composition
-deployment at 2-BM micro-CT. Materializes the 6-Asset composition
+deployment at 2-BM micro-CT. Materializes the 7-Asset composition
 locked in [[mctoptics-2bm-assets-design]] against the actual 2-BM
-facility: 4 NEW Asset registrations (MCTOptics Assembly + 3
-Objective children) plus 1 NEW motor (the lens turret RotaryStage,
-sibling under 2-BM), 2 RelocateAsset commands to re-parent the
-existing `Oryx_5MP_camera` and `Scintillator_LuAG` under MCTOptics,
-4 Calibration revisions (3 lens magnification + 1 scintillator
-effective_thickness), 11 typed ports, and 5 Plan wires connecting
-the Assembly to its motor siblings and camera child.
+facility: 4 NEW Asset registrations (MCTOptics presenter + 3
+Objective children) plus 2 NEW sibling Devices under 2-BM (the lens
+turret RotaryStage + the lens_select PseudoAxis), 2 RelocateAsset
+commands to re-parent the existing `Oryx_5MP_camera` and
+`Scintillator_LuAG` under MCTOptics, 4 Calibration revisions (3 lens
+magnification + 1 scintillator effective_thickness), 1 LookupTable
+partition rule on the lens_select PseudoAxis, 13 typed ports, and 6
+Plan wires connecting the presenter to its motor siblings, camera
+child, and PseudoAxis constituent feedback.
+
+Aligned with the current Family catalog at docs/catalog/families.md:
+MCTOptics presents as `ImagingDetector` (not the older `Microscope`
+inline-Family the prior revision of this test used) and the
+lens_select PseudoAxis carries a LookupTable partition rule that the
+runtime evaluator decomposes into a turret rotation setpoint.
+
+The deployment doc at docs/deployments/2-bm/equipment/mctoptics.md
+prescribes MCTOptics as an Assembly + Fixture pair (not an Asset row
+in its own right); the Assembly + Fixture conversion is the next
+follow-on for this test and requires the Frame + Mount + install_asset
+choreography for every constituent Asset, which is deferred to a
+dedicated PR.
 
 The whole ceremony, end-to-end, against Postgres.
 
@@ -62,13 +77,14 @@ and represent placeholder assumptions until 2-BM staff verify:
 
 ```
 2-BM (Unit)
-+-- MCTOptics (Assembly, NEW)                      Family: Microscope
++-- MCTOptics (Component, NEW)                     Family: ImagingDetector
 |   +-- MCTOptics_objective_0 (Device, NEW)        Family: Objective    10x
 |   +-- MCTOptics_objective_1 (Device, NEW)        Family: Objective     5x
 |   +-- MCTOptics_objective_2 (Device, NEW)        Family: Objective    1.1x
 |   +-- Oryx_5MP_camera (Device, RE-PARENTED)      Family: Camera
 |   +-- Scintillator_LuAG (Device, RE-PARENTED)    Family: Scintillator
 +-- MCTOptics_lens_turret (Device, NEW sibling)    Family: RotaryStage (pending)
++-- MCTOptics_lens_select (Device, NEW sibling)    Family: PseudoAxis
 +-- Optique_Peter_focus_Z (Device, pre-existing)   Family: LinearStage
 ```
 
@@ -110,6 +126,7 @@ from cora.calibration.features.append_calibration_revision import (
 from cora.calibration.features.define_calibration import DefineCalibration
 from cora.calibration.features.define_calibration import bind as bind_define_calibration
 from cora.calibration.quantities import CalibrationQuantity
+from cora.equipment.aggregates._partition_rule import LookupTable, ReadbackAggregatorKind
 from cora.equipment.aggregates.asset import AssetLevel, PortDirection
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
@@ -123,6 +140,10 @@ from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.equipment.features.relocate_asset import bind as bind_relocate_asset
+from cora.equipment.features.update_asset_partition_rule import UpdateAssetPartitionRule
+from cora.equipment.features.update_asset_partition_rule import (
+    bind as bind_update_asset_partition_rule,
+)
 from cora.equipment.features.update_asset_settings import UpdateAssetSettings
 from cora.equipment.features.update_asset_settings import bind as bind_update_asset_settings
 from cora.equipment.features.update_family_settings_schema import UpdateFamilySettingsSchema
@@ -167,12 +188,18 @@ _CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000420c11")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000420c21")
 
 # Family ids (NEW for MCTOptics composition)
-_CAP_MICROSCOPE_ID = UUID("01900000-0000-7000-8000-000000420c31")
+_CAP_IMAGING_DETECTOR_ID = UUID("01900000-0000-7000-8000-000000420c31")
 _CAP_OBJECTIVE_ID = UUID("01900000-0000-7000-8000-000000420c41")
 # Pending(2-BM operator confirmation): confirm lens turret Family (RotaryStage vs LinearStage).
 # Assumed RotaryStage based on Optique Peter doc motor positions reading
 # as degrees. Reuses _CAP_LINEAR_STAGE_ID slot if turret is linear.
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000420c51")
+# PseudoAxis Family for the lens_select virtual axis. A LookupTable
+# partition rule decomposes the operator-issued lens index (0/1/2)
+# into the corresponding turret-rotation setpoint at runtime; the
+# mctoptics_image_acquisition Method declares this Family in
+# needed_family_ids alongside ImagingDetector + Camera.
+_CAP_PSEUDO_AXIS_ID = UUID("01900000-0000-7000-8000-000000420c61")
 
 # Asset ids (facility-install Devices, sibling under 2-BM)
 _ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000420a11")
@@ -185,6 +212,7 @@ _ASSET_MCTOPTICS_OBJECTIVE_0_ID = UUID("01900000-0000-7000-8000-000000420a51")
 _ASSET_MCTOPTICS_OBJECTIVE_1_ID = UUID("01900000-0000-7000-8000-000000420a52")
 _ASSET_MCTOPTICS_OBJECTIVE_2_ID = UUID("01900000-0000-7000-8000-000000420a53")
 _ASSET_MCTOPTICS_LENS_TURRET_ID = UUID("01900000-0000-7000-8000-000000420a61")
+_ASSET_MCTOPTICS_LENS_SELECT_ID = UUID("01900000-0000-7000-8000-000000420a62")
 
 # Calibration ids (3 magnification + 1 effective_thickness)
 _CAL_MAG_OBJ_0_ID = UUID("01900000-0000-7000-8000-000000420b01")
@@ -280,13 +308,18 @@ _SCHEMA_LINEAR_STAGE: dict[str, Any] = {
     "required": ["min_position", "max_position", "max_speed", "encoder_resolution"],
 }
 
-# NEW Family schemas: Microscope (parent Assembly) + Objective (child Device).
-# Match the [[mctoptics-2bm-assets-design]] locked shapes, adapted for
-# the Family settings_schema validator subset (exclusiveMinimum is not
-# in the allow-list; using minimum: 0 instead. Watch item: loosen the
-# subset to support exclusiveMinimum so Family schemas can match the
-# design lock verbatim).
-_SCHEMA_MICROSCOPE: dict[str, Any] = {
+# NEW Family schemas: ImagingDetector (presenter Family for the
+# MCTOptics presenter Asset) + Objective (per-lens identity inside
+# MCTOptics). Match the [[mctoptics-2bm-assets-design]] locked shapes,
+# adapted for the Family settings_schema validator subset (exclusiveMinimum
+# is not in the allow-list; using minimum: 0 instead. Watch item: loosen
+# the subset to support exclusiveMinimum so Family schemas can match the
+# design lock verbatim). The detector-shaped settings (camera_objective,
+# camera_tube_length) survive here as the operational-knob carrier while
+# MCTOptics remains an Asset; the eventual Assembly + Fixture migration
+# will move these onto the Assembly's parameter_overrides_schema and the
+# constituent Asset settings respectively.
+_SCHEMA_IMAGING_DETECTOR: dict[str, Any] = {
     "$schema": _DRAFT,
     "type": "object",
     "properties": {
@@ -358,6 +391,17 @@ _SCHEMA_ROTARY_STAGE: dict[str, Any] = {
     "required": ["min_position", "max_position", "max_speed", "encoder_resolution"],
 }
 
+# PseudoAxis carries no operator-tunable settings. The behaviour lives
+# in the partition_rule (set out-of-band via update_asset_partition_rule)
+# and in the Asset.ports topology, not in settings. The empty schema
+# accepts the empty settings dict the test supplies.
+_SCHEMA_PSEUDO_AXIS: dict[str, Any] = {
+    "$schema": _DRAFT,
+    "type": "object",
+    "properties": {},
+    "required": [],
+}
+
 # Per-Asset settings (vendor datasheet + Optique Peter doc figures)
 
 _SETTINGS_ORYX_5MP: dict[str, Any] = {
@@ -421,6 +465,11 @@ _SIG_POS_SET_LIN = "position_setpoint_linear_mm"
 _SIG_POS_FB_LIN = "position_feedback_linear_mm"
 _SIG_TRIGGER = "trigger_pulse"
 _SIG_IMAGE = "image_frame_uri"
+# Discrete-index signal carried on the lens_select OUTPUT port (the
+# operator-addressable virtual axis). Pseudoaxis runtime evaluation
+# reads this address and writes the resolved turret rotation; no Plan
+# wire carries this signal_type today (no other Asset consumes it).
+_SIG_DISCRETE_INDEX = "discrete_index_count"
 
 _DEVICES = (
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
@@ -455,18 +504,23 @@ def _id_queue() -> list[UUID]:
         e(),
         e(),
         e(),
-        # define_family x 3 (Microscope + Objective + RotaryStage): family_id, event_id
-        _CAP_MICROSCOPE_ID,
+        # define_family x 4 (ImagingDetector + Objective + RotaryStage + PseudoAxis):
+        # family_id, event_id
+        _CAP_IMAGING_DETECTOR_ID,
         e(),
         _CAP_OBJECTIVE_ID,
         e(),
         _CAP_ROTARY_STAGE_ID,
         e(),
-        # update_family_settings_schema x 3 (NEW Families): event_id
+        _CAP_PSEUDO_AXIS_ID,
+        e(),
+        # update_family_settings_schema x 4 (NEW Families): event_id
         e(),
         e(),
         e(),
-        # register_asset x 5 (MCTOptics + 3 objectives + lens_turret): asset_id, event_id
+        e(),
+        # register_asset x 6 (MCTOptics + 3 objectives + lens_turret + lens_select):
+        # asset_id, event_id
         _ASSET_MCTOPTICS_ID,
         e(),
         _ASSET_MCTOPTICS_OBJECTIVE_0_ID,
@@ -477,28 +531,37 @@ def _id_queue() -> list[UUID]:
         e(),
         _ASSET_MCTOPTICS_LENS_TURRET_ID,
         e(),
+        _ASSET_MCTOPTICS_LENS_SELECT_ID,
+        e(),
         # relocate_asset x 2 (Oryx + Scintillator -> MCTOptics): event_id
         e(),
         e(),
-        # add_asset_family x 5 (NEW Assets only): event_id
+        # add_asset_family x 6 (NEW Assets only): event_id
         e(),
         e(),
         e(),
         e(),
         e(),
-        # update_asset_settings x 5 (NEW Assets only): event_id
+        e(),
+        # update_asset_settings x 5 (NEW Assets only; lens_select has no
+        # operator-tunable settings and is skipped, see _NEW_ASSET_SETTINGS):
+        # event_id
         e(),
         e(),
         e(),
         e(),
         e(),
-        # activate_asset x 5 (NEW Assets only): event_id
+        # activate_asset x 6 (NEW Assets only): event_id
         e(),
         e(),
         e(),
         e(),
         e(),
-        # add_asset_port x 11: event_id each
+        e(),
+        # add_asset_port x 13: event_id each (11 on the 4 prior wire-endpoint
+        # Assets + 2 on lens_select)
+        e(),
+        e(),
         e(),
         e(),
         e(),
@@ -528,6 +591,8 @@ def _id_queue() -> list[UUID]:
         e(),
         _REV_SCINT_EFF_THICK_ID,
         e(),
+        # update_asset_partition_rule x 1 (lens_select LookupTable): event_id
+        e(),
         # define_method: method_id, event_id
         _METHOD_ID,
         e(),
@@ -537,7 +602,9 @@ def _id_queue() -> list[UUID]:
         # define_plan: plan_id, event_id
         _PLAN_ID,
         e(),
-        # add_plan_wire x 5: event_id each
+        # add_plan_wire x 6: event_id each (5 motor/camera wires + 1
+        # lens_turret feedback -> lens_select constituent)
+        e(),
         e(),
         e(),
         e(),
@@ -559,15 +626,17 @@ _FACILITY_SETTINGS_SPECS: tuple[tuple[UUID, dict[str, Any]], ...] = (
 )
 
 _NEW_FAMILY_DEFS: tuple[tuple[UUID, str], ...] = (
-    (_CAP_MICROSCOPE_ID, "Microscope"),
+    (_CAP_IMAGING_DETECTOR_ID, "ImagingDetector"),
     (_CAP_OBJECTIVE_ID, "Objective"),
     (_CAP_ROTARY_STAGE_ID, "RotaryStage"),
+    (_CAP_PSEUDO_AXIS_ID, "PseudoAxis"),
 )
 
 _NEW_FAMILY_SCHEMAS: tuple[tuple[UUID, dict[str, Any]], ...] = (
-    (_CAP_MICROSCOPE_ID, _SCHEMA_MICROSCOPE),
+    (_CAP_IMAGING_DETECTOR_ID, _SCHEMA_IMAGING_DETECTOR),
     (_CAP_OBJECTIVE_ID, _SCHEMA_OBJECTIVE),
     (_CAP_ROTARY_STAGE_ID, _SCHEMA_ROTARY_STAGE),
+    (_CAP_PSEUDO_AXIS_ID, _SCHEMA_PSEUDO_AXIS),
 )
 
 # (asset_id, parent_id, asset_name, level)
@@ -592,16 +661,23 @@ _NEW_ASSET_REGISTRATIONS: tuple[tuple[UUID, UUID, str, AssetLevel], ...] = (
         AssetLevel.DEVICE,
     ),
     (_ASSET_MCTOPTICS_LENS_TURRET_ID, _2BM_UNIT_ID, "MCTOptics_lens_turret", AssetLevel.DEVICE),
+    (_ASSET_MCTOPTICS_LENS_SELECT_ID, _2BM_UNIT_ID, "MCTOptics_lens_select", AssetLevel.DEVICE),
 )
 
 _NEW_ASSET_FAMILY_LINKS: tuple[tuple[UUID, UUID], ...] = (
-    (_ASSET_MCTOPTICS_ID, _CAP_MICROSCOPE_ID),
+    (_ASSET_MCTOPTICS_ID, _CAP_IMAGING_DETECTOR_ID),
     (_ASSET_MCTOPTICS_OBJECTIVE_0_ID, _CAP_OBJECTIVE_ID),
     (_ASSET_MCTOPTICS_OBJECTIVE_1_ID, _CAP_OBJECTIVE_ID),
     (_ASSET_MCTOPTICS_OBJECTIVE_2_ID, _CAP_OBJECTIVE_ID),
     (_ASSET_MCTOPTICS_LENS_TURRET_ID, _CAP_ROTARY_STAGE_ID),
+    (_ASSET_MCTOPTICS_LENS_SELECT_ID, _CAP_PSEUDO_AXIS_ID),
 )
 
+# lens_select is intentionally absent: PseudoAxis Assets carry no
+# operator-tunable settings (the partition_rule + ports are the
+# behaviour surface). update_asset_settings with an empty patch is a
+# no-op at the decider tier (no AssetSettingsUpdated event emitted),
+# so skipping the call keeps the id-queue budget honest.
 _NEW_ASSET_SETTINGS: tuple[tuple[UUID, dict[str, Any]], ...] = (
     (_ASSET_MCTOPTICS_ID, _SETTINGS_MCTOPTICS),
     (_ASSET_MCTOPTICS_OBJECTIVE_0_ID, _SETTINGS_OBJECTIVE_0),
@@ -610,8 +686,9 @@ _NEW_ASSET_SETTINGS: tuple[tuple[UUID, dict[str, Any]], ...] = (
     (_ASSET_MCTOPTICS_LENS_TURRET_ID, _SETTINGS_MCTOPTICS_LENS_TURRET),
 )
 
-# 11 typed ports across 4 Assets (per the Plan.wiring topology in
-# [[mctoptics-2bm-deployment-design]]).
+# 13 typed ports across 5 Assets (per the Plan.wiring topology in
+# [[mctoptics-2bm-deployment-design]] plus the lens_select PseudoAxis
+# fan-in port + operator-addressable virtual OUTPUT).
 # (asset_id, port_name, direction, signal_type)
 _PORT_SPECS: tuple[tuple[UUID, str, PortDirection, str], ...] = (
     # MCTOptics: 3 OUT + 2 IN
@@ -649,6 +726,22 @@ _PORT_SPECS: tuple[tuple[UUID, str, PortDirection, str], ...] = (
     # Oryx_5MP_camera: trigger in + image out
     (_ASSET_ORYX_5MP_ID, "trigger_in", PortDirection.INPUT, _SIG_TRIGGER),
     (_ASSET_ORYX_5MP_ID, "image_out", PortDirection.OUTPUT, _SIG_IMAGE),
+    # MCTOptics_lens_select (PseudoAxis): 1 constituent INPUT (receives
+    # the lens_turret feedback per validate_pseudoaxis_fanout) + 1
+    # operator-addressable OUTPUT (the virtual lens-index port the
+    # runtime expander addresses via pseudoaxis://<asset_id>/<port>).
+    (
+        _ASSET_MCTOPTICS_LENS_SELECT_ID,
+        "constituent_in",
+        PortDirection.INPUT,
+        _SIG_POS_FB_ROT,
+    ),
+    (
+        _ASSET_MCTOPTICS_LENS_SELECT_ID,
+        "lens_select_out",
+        PortDirection.OUTPUT,
+        _SIG_DISCRETE_INDEX,
+    ),
 )
 
 # 4 Calibration revisions. Magnification values derived per Optique Peter
@@ -734,7 +827,9 @@ _CALIBRATION_SPECS: tuple[
     ),
 )
 
-# 5 Plan wires per the Plan.wiring topology in [[mctoptics-2bm-deployment-design]].
+# 6 Plan wires per the Plan.wiring topology in [[mctoptics-2bm-deployment-design]]:
+# 5 motor / camera wires from the original topology plus 1 lens_turret
+# feedback fan-in to the lens_select PseudoAxis constituent INPUT.
 # (source_asset_id, source_port_name, target_asset_id, target_port_name)
 _WIRE_SPECS: tuple[tuple[UUID, str, UUID, str], ...] = (
     (
@@ -762,6 +857,17 @@ _WIRE_SPECS: tuple[tuple[UUID, str, UUID, str], ...] = (
         "focus_feedback",
     ),
     (_ASSET_MCTOPTICS_ID, "camera_trigger", _ASSET_ORYX_5MP_ID, "trigger_in"),
+    # PseudoAxis fan-in: lens_turret feedback drives the lens_select
+    # constituent so the runtime evaluator can reconstruct the virtual
+    # axis readback. The lens_select OUTPUT (lens_select_out) is
+    # addressed via the pseudoaxis:// URL scheme directly and carries
+    # no Plan-level wire.
+    (
+        _ASSET_MCTOPTICS_LENS_TURRET_ID,
+        "position_feedback_out",
+        _ASSET_MCTOPTICS_LENS_SELECT_ID,
+        "constituent_in",
+    ),
 )
 
 
@@ -918,7 +1024,36 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
             correlation_id=_CORRELATION_ID,
         )
 
-    # ----- Minimal Recipe ladder + 5 Plan wires -----
+    # ----- LookupTable partition rule on the lens_select PseudoAxis -----
+
+    # Operator-issued lens index -> turret rotation in degrees. The
+    # calibration_revision_id references one of the magnification
+    # revisions registered above. This is a deliberate placeholder for
+    # the test scope: the runtime evaluator would expect a revision
+    # whose value carries the index-to-angle table (a calibration
+    # quantity that does not exist yet in the closed catalog), and the
+    # handler does not load the revision, so any non-sentinel UUID
+    # satisfies construction + Family-membership gate. `invertible=False`
+    # with `readback_aggregator_kind=IDENTITY` skips the monotonicity
+    # check and uses the single constituent's feedback as the virtual
+    # readback. Replace with a real lens-turret-position calibration
+    # when the Calibration BC grows a table-shaped CalibrationQuantity.
+    await bind_update_asset_partition_rule(deps)(
+        UpdateAssetPartitionRule(
+            asset_id=_ASSET_MCTOPTICS_LENS_SELECT_ID,
+            partition_rule=LookupTable(
+                calibration_revision_id=_REV_MAG_OBJ_0_ID,
+                invertible=False,
+                readback_aggregator_kind=ReadbackAggregatorKind.IDENTITY,
+                unit_in="index",
+                unit_out="deg",
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # ----- Minimal Recipe ladder + 6 Plan wires -----
 
     await seed_capability_postgres(
         deps.event_store,
@@ -931,7 +1066,9 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
         DefineMethod(
             capability_id=_CAPABILITY_RECIPE_ID,
             name="mctoptics_image_acquisition",
-            needed_family_ids=frozenset({_CAP_MICROSCOPE_ID, _CAP_CAMERA_ID}),
+            needed_family_ids=frozenset(
+                {_CAP_IMAGING_DETECTOR_ID, _CAP_CAMERA_ID, _CAP_PSEUDO_AXIS_ID}
+            ),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -953,6 +1090,7 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
                 {
                     _ASSET_MCTOPTICS_ID,
                     _ASSET_MCTOPTICS_LENS_TURRET_ID,
+                    _ASSET_MCTOPTICS_LENS_SELECT_ID,
                     _ASSET_OPTIQUE_PETER_FOCUS_Z_ID,
                     _ASSET_ORYX_5MP_ID,
                 }
@@ -977,7 +1115,9 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
 
     # ----- Assertions -----
 
-    # Each of the 5 NEW Asset streams has the expected event sequence.
+    # Each of the 5 settings-carrying NEW Asset streams has the expected
+    # event sequence. lens_select is checked separately below since it
+    # carries no settings.
     for asset_id in (
         _ASSET_MCTOPTICS_ID,
         _ASSET_MCTOPTICS_OBJECTIVE_0_ID,
@@ -991,6 +1131,24 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
         assert "AssetFamilyAdded" in types, f"{asset_id}: expected Family attachment"
         assert "AssetSettingsUpdated" in types, f"{asset_id}: expected settings populated"
         assert "AssetActivated" in types, f"{asset_id}: expected activation"
+
+    # The lens_select PseudoAxis carries genesis + Family + activation +
+    # 2 ports + AssetPartitionRuleUpdated from the LookupTable rule set
+    # above; it has no settings (PseudoAxis is partition_rule + ports
+    # only).
+    lens_select_events, _ = await deps.event_store.load("Asset", _ASSET_MCTOPTICS_LENS_SELECT_ID)
+    lens_select_types = [e.event_type for e in lens_select_events]
+    assert lens_select_types[0] == "AssetRegistered", "lens_select: expected genesis"
+    assert "AssetFamilyAdded" in lens_select_types, (
+        "lens_select: expected PseudoAxis Family attached"
+    )
+    assert "AssetActivated" in lens_select_types, "lens_select: expected activation"
+    assert "AssetPartitionRuleUpdated" in lens_select_types, (
+        "lens_select: expected AssetPartitionRuleUpdated event"
+    )
+    assert "AssetSettingsUpdated" not in lens_select_types, (
+        "lens_select: no settings update expected (PseudoAxis carries no settings)"
+    )
 
     # Re-parent events emitted on the 2 EXISTING Asset streams.
     for asset_id in (_ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
