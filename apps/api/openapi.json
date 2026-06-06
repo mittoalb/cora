@@ -302,6 +302,20 @@
         "title": "AddAssetPortRequest",
         "type": "object"
       },
+      "AddMethodRequiredRoleRequest": {
+        "description": "Body for `POST /methods/{method_id}/add-required-role`.",
+        "properties": {
+          "requirement": {
+            "$ref": "#/components/schemas/RoleRequirementBody",
+            "description": "The positional role slot to declare. Uniqueness keyed on `role_name` within the Method scope; slice 1 declares the vocabulary only, slice 2 will layer Plan-side binding + port-coverage validation on top."
+          }
+        },
+        "required": [
+          "requirement"
+        ],
+        "title": "AddMethodRequiredRoleRequest",
+        "type": "object"
+      },
       "AddModelFamilyRequest": {
         "description": "Body for `POST /models/{model_id}/families`.",
         "properties": {
@@ -7981,6 +7995,45 @@
         "title": "PolicySummaryDTO",
         "type": "object"
       },
+      "PortDirection": {
+        "description": "The direction of an Asset port (5h).\n\nTwo values only: `INPUT` (receives a signal) and `OUTPUT`\n(drives a signal). Bidirectional devices declare TWO ports with\nopposite directions; matches PandABox / EPICS convention. A\nsingle `BIDIRECTIONAL` value would create ambiguity at wire-up\ntime (Plan.wiring needs to know which side is the source).",
+        "enum": [
+          "Input",
+          "Output"
+        ],
+        "title": "PortDirection",
+        "type": "string"
+      },
+      "PortRequirementBody": {
+        "description": "Wire format for a `PortRequirement` value object.",
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/PortDirection",
+            "description": "Required port direction (Input or Output), matching the Asset.ports `direction` field byte-for-byte."
+          },
+          "port_name": {
+            "description": "Exact (case-sensitive, after trimming) port name the bound Asset must expose on its `ports` set. Glob/regex matching is deferred to slice 2+ per the design memo's open-questions resolution.",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Port Name",
+            "type": "string"
+          },
+          "signal_type": {
+            "description": "Required port signal_type (TTL, LVDS, Encoder, Network, Sync, etc.). Free text 1-50 chars, matching AssetPort's signal_type shape exactly.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Signal Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_name",
+          "direction",
+          "signal_type"
+        ],
+        "title": "PortRequirementBody",
+        "type": "object"
+      },
       "PortViewDTO": {
         "description": "Read-side DTO for one Asset port on the integration-view bundle.",
         "properties": {
@@ -10417,6 +10470,23 @@
         "title": "RemoveAssetPortRequest",
         "type": "object"
       },
+      "RemoveMethodRequiredRoleRequest": {
+        "description": "Body for `POST /methods/{method_id}/remove-required-role`.",
+        "properties": {
+          "role_name": {
+            "description": "The Method-local role label to remove. Strict-not-idempotent: an unknown role_name returns 404.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Role Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_name"
+        ],
+        "title": "RemoveMethodRequiredRoleRequest",
+        "type": "object"
+      },
       "RemovePlanWireRequest": {
         "description": "Body for `POST /plans/{plan_id}/remove-wire`.\n\nAll four fields are required (the 4-tuple identifies the Wire to\nremove). Pydantic enforces non-empty port names at the boundary.\nRemoval is strict-not-idempotent: the Wire MUST currently exist\nin the Plan's wire set.",
         "properties": {
@@ -10768,6 +10838,44 @@
           "band"
         ],
         "title": "RiskBandDTO",
+        "type": "object"
+      },
+      "RoleRequirementBody": {
+        "description": "Wire format for a `RoleRequirement` value object.",
+        "properties": {
+          "family_id": {
+            "description": "The Family the bound Asset must satisfy at slice-2 Plan binding time. Eventual-consistency: existence is not verified at decide time.",
+            "format": "uuid",
+            "title": "Family Id",
+            "type": "string"
+          },
+          "optional": {
+            "default": false,
+            "description": "If True, slice-2 Plan binding may omit this role without triggering PlanRoleNotBoundError. Defaults to required.",
+            "title": "Optional",
+            "type": "boolean"
+          },
+          "required_ports": {
+            "description": "List of ports the bound Asset must expose for this role. Empty means the role has no port contract (pure Asset binding); slice 2's Wire-role-endpoint invariant only applies when this list is non-empty. Wire-side list, deduplicated to a frozenset at the domain VO.",
+            "items": {
+              "$ref": "#/components/schemas/PortRequirementBody"
+            },
+            "title": "Required Ports",
+            "type": "array"
+          },
+          "role_name": {
+            "description": "Method-local positional role label (for example, 'detector', 'sample_monitor', 'axis'). Uniqueness is scoped to the Method; cross-Method consistency is an operator convention, not a kernel invariant in slice 1.",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Role Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_name",
+          "family_id"
+        ],
+        "title": "RoleRequirementBody",
         "type": "object"
       },
       "RotateSealOnlineKeyBody": {
@@ -27078,6 +27186,111 @@
         ]
       }
     },
+    "/methods/{method_id}/add-required-role": {
+      "post": {
+        "operationId": "post_methods_add_required_role_methods__method_id__add_required_role_post",
+        "parameters": [
+          {
+            "description": "Target method's id.",
+            "in": "path",
+            "name": "method_id",
+            "required": true,
+            "schema": {
+              "description": "Target method's id.",
+              "format": "uuid",
+              "title": "Method Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMethodRequiredRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Role requirement VO validation failed: empty / whitespace-only role_name, empty / too-long port fields, or other shape-level VO constructor failure."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No method exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method cannot accept the role under current conditions: the method is Versioned or Deprecated (MethodCannotMutateRequiredRolesError), OR a role with the same role_name already exists on the method (MethodRoleNameAlreadyDeclaredError), OR a concurrent write to the same method stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation (missing field, malformed UUID, length out of bounds at the wire layer)."
+          }
+        },
+        "summary": "Declare a positional role slot on an existing Method",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
     "/methods/{method_id}/deprecate": {
       "post": {
         "operationId": "post_methods_deprecate_methods__method_id__deprecate_post",
@@ -27260,6 +27473,106 @@
           }
         },
         "summary": "Set, replace, or clear a Method's parameters_schema",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/methods/{method_id}/remove-required-role": {
+      "post": {
+        "operationId": "post_methods_remove_required_role_methods__method_id__remove_required_role_post",
+        "parameters": [
+          {
+            "description": "Target method's id.",
+            "in": "path",
+            "name": "method_id",
+            "required": true,
+            "schema": {
+              "description": "Target method's id.",
+              "format": "uuid",
+              "title": "Method Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveMethodRequiredRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "role_name VO validation failed: empty / whitespace-only or too-long string (InvalidRoleNameError)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No method exists with the given id, OR no role with the given role_name is declared on the method (MethodRoleNameNotFoundError)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Method cannot remove the role under current conditions: the method is Versioned or Deprecated (MethodCannotMutateRequiredRolesError), OR a concurrent write to the same method stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Remove a positional role slot from an existing Method",
         "tags": [
           "recipe"
         ]

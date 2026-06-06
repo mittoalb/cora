@@ -65,6 +65,24 @@ for determinism). Same precedent as Trust's Policy
 the two. Sorting in `to_payload` keeps the persisted bytes
 deterministic — same logical family set, same payload, same
 idempotency hash.
+
+## Positional role tagging: required_roles
+
+Slice 1 of the positional role-tagging workstream lands the Method-
+side `required_roles: frozenset[RoleRequirement]` field plus the
+`RoleRequirement` + `PortRequirement` + `RoleName` VOs. The
+Function-aspect gap (IEC 81346 `=`) was the motivating audit
+finding: two Cameras in one Method (one DETECTOR, one
+SAMPLE_MONITOR) cannot be disambiguated by `needed_family_ids`
+alone, which is a `frozenset[UUID]` with set-membership semantics.
+Each `RoleRequirement` carries a Method-local role name, the Family
+the bound Asset must satisfy, a set of port requirements, and an
+optional flag. Plan-side role bindings + the
+`PlanWireRoleEndpointMismatchError` invariant (which closes the
+role-table-vs-wire-graph divergence) land in slice 2. See
+[[project-method-required-roles-design]] for the full design lock
+and [[project-equipment-isa-gap-research]] for the Function-aspect
+gap context.
 """
 
 from dataclasses import dataclass, field
@@ -72,6 +90,11 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
+from cora.equipment.aggregates.asset import (
+    PORT_NAME_MAX_LENGTH,
+    PORT_SIGNAL_TYPE_MAX_LENGTH,
+    PortDirection,
+)
 from cora.infrastructure.bounded_text import validate_bounded_text
 
 METHOD_NAME_MAX_LENGTH = 200
@@ -83,6 +106,23 @@ METHOD_VERSION_TAG_MAX_LENGTH = 50
 # [[project_supply_design]] §"Method.needed_supplies consumer"
 # for the design lock.
 METHOD_NEEDED_SUPPLY_KIND_MAX_LENGTH = 50
+# RoleName bound. Method-local labels for positional role-tagging
+# (IEC 81346 Function aspect; see [[project-method-required-roles-design]]
+# and [[project-equipment-isa-gap-research]]). Free-string within the
+# Method scope; uniqueness enforced by the add_method_required_role
+# decider, not the VO. 50-char ceiling matches `RoleKind`-style
+# vocabulary precedent and stays well under the 200-char name-length
+# ceiling used by aggregate-display-name VOs.
+ROLE_NAME_MAX_LENGTH = 50
+# PortRequirement field bounds mirror the AssetPort VO in
+# `cora.equipment.aggregates.asset` so a port the Method requires can
+# never exceed what the Asset itself permits. The constants are
+# re-exported by name from this module so slice authors can `from
+# cora.recipe.aggregates.method import ROLE_PORT_NAME_MAX_LENGTH`
+# without dragging the equipment.asset namespace into Method slice
+# files.
+ROLE_PORT_NAME_MAX_LENGTH = PORT_NAME_MAX_LENGTH
+ROLE_PORT_SIGNAL_TYPE_MAX_LENGTH = PORT_SIGNAL_TYPE_MAX_LENGTH
 
 
 class MethodStatus(StrEnum):
@@ -249,6 +289,207 @@ class MethodName:
         object.__setattr__(self, "value", trimmed)
 
 
+class InvalidRoleNameError(ValueError):
+    """The supplied role_name is empty, whitespace-only, or too long.
+
+    Slice-1 of the positional role-tagging workstream. Role names are
+    Method-local free strings (1-50 chars after trimming); uniqueness
+    is enforced by the `add_method_required_role` decider, not by the
+    VO. See [[project-method-required-roles-design]] for the design
+    lock and [[project-equipment-isa-gap-research]] for the Function-
+    aspect gap context.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Method role name must be 1-{ROLE_NAME_MAX_LENGTH} chars after trimming "
+            f"(got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidPortRequirementError(ValueError):
+    """The supplied port requirement has an empty/whitespace-only or
+    too-long `port_name` or `signal_type`.
+
+    Mirrors `InvalidAssetPortNameError` and
+    `InvalidAssetPortSignalTypeError` from the Equipment BC. A port
+    requirement Method-side can never exceed what an Asset.ports entry
+    permits at register_asset time, so the bounds are shared via the
+    re-exported `ROLE_PORT_NAME_MAX_LENGTH` and
+    `ROLE_PORT_SIGNAL_TYPE_MAX_LENGTH` constants.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Invalid port requirement: {reason}")
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class RoleName:
+    """A Method-local positional role label. Trimmed; 1-50 chars.
+
+    Names roles within a single Method scope (for example, `"detector"`,
+    `"sample_monitor"`, `"axis"`). Cross-Method consistency (operators
+    using the same label for the same role across Methods) is a docs
+    concern, not a kernel invariant in slice 1. See
+    [[project-method-required-roles-design]] §"Open questions resolved".
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=ROLE_NAME_MAX_LENGTH,
+            error_class=InvalidRoleNameError,
+        )
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install the trimmed value.
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class PortRequirement:
+    """A port the Asset bound to a role MUST expose.
+
+    Tuple `(port_name, direction, signal_type)`. `port_name` is the
+    exact (case-sensitive, after trimming) port name the bound Asset
+    is expected to carry on its `ports` set. Glob/regex matching is
+    deferred per [[project-method-required-roles-design]] §"Open
+    questions resolved". `direction` reuses the closed `PortDirection`
+    enum from Equipment BC's Asset aggregate so a port the Method
+    requires is shape-comparable to the Asset.ports the Plan validates
+    against at slice 2.
+
+    The VO itself trims and bounds-checks the strings; uniqueness of
+    `port_name` within a single role's `required_ports` is structural
+    (frozenset semantics: identical (port_name, direction, signal_type)
+    tuples collapse). Cross-aggregate validation (the bound Asset has
+    matching ports) lands in slice 2's Plan decider.
+    """
+
+    port_name: str
+    direction: PortDirection
+    signal_type: str
+
+    def __post_init__(self) -> None:
+        trimmed_name = self.port_name.strip()
+        if not trimmed_name or len(trimmed_name) > ROLE_PORT_NAME_MAX_LENGTH:
+            raise InvalidPortRequirementError(
+                f"port_name must be 1-{ROLE_PORT_NAME_MAX_LENGTH} chars after trimming "
+                f"(got: {self.port_name!r})"
+            )
+        trimmed_signal = self.signal_type.strip()
+        if not trimmed_signal or len(trimmed_signal) > ROLE_PORT_SIGNAL_TYPE_MAX_LENGTH:
+            raise InvalidPortRequirementError(
+                f"signal_type must be 1-{ROLE_PORT_SIGNAL_TYPE_MAX_LENGTH} chars after "
+                f"trimming (got: {self.signal_type!r})"
+            )
+        # Frozen dataclasses block normal assignment in __post_init__;
+        # use object.__setattr__ to install the trimmed values.
+        object.__setattr__(self, "port_name", trimmed_name)
+        object.__setattr__(self, "signal_type", trimmed_signal)
+
+
+@dataclass(frozen=True)
+class RoleRequirement:
+    """A named positional role slot the Method declares.
+
+    Tuple `(role_name, family_id, required_ports, optional)`.
+
+    `role_name` is the Method-local label (`RoleName` VO).
+    `family_id` is the Family the Asset bound to this role must
+    satisfy (`Asset.family_ids` superset check at slice 2's Plan
+    decider; eventual-consistency on the family stream's existence,
+    same precedent as `Method.needed_family_ids`).
+
+    `required_ports` is the set of ports the bound Asset must expose
+    for this role; empty means "pure Asset-binding role, no port
+    contract." Non-empty means slice 2's
+    `PlanWireRoleEndpointMismatchError` invariant will require any Wire
+    whose endpoint port is named here to terminate at the Asset bound
+    to THIS role (closes the role-table-vs-wire-graph divergence the
+    2026-06-06 critique surfaced).
+
+    `optional` is False by default; a True role may be omitted from a
+    Plan's role_bindings without triggering Plan-side
+    `PlanRoleNotBoundError` (slice 2).
+
+    Uniqueness of `role_name` within a single Method's `required_roles`
+    is enforced by the `add_method_required_role` decider, not by the
+    VO (frozenset deduplicates on tuple equality, which includes
+    family_id + required_ports — two roles with the same name but
+    different families would NOT collide structurally; the decider
+    catches the role_name conflict).
+    """
+
+    role_name: RoleName
+    family_id: UUID
+    required_ports: frozenset[PortRequirement] = field(default_factory=frozenset[PortRequirement])
+    optional: bool = False
+
+
+class MethodRoleNameAlreadyDeclaredError(Exception):
+    """Attempted to add a required role whose name is already declared
+    on the Method.
+
+    Strict-not-idempotent: same precedent as
+    `AssetOwnerAlreadyPresentError` and `AssetCannotAddPortError`. The
+    diagnostic carries both `method_id` and the offending `role_name`
+    so the operator error response can disambiguate which role
+    conflicted.
+    """
+
+    def __init__(self, method_id: UUID, role_name: "RoleName") -> None:
+        super().__init__(
+            f"Method {method_id} already has required role {role_name.value!r}; "
+            "add_method_required_role is strict-not-idempotent"
+        )
+        self.method_id = method_id
+        self.role_name = role_name
+
+
+class MethodRoleNameNotFoundError(Exception):
+    """Attempted to remove a required role whose name is not declared
+    on the Method.
+
+    Mirror of `MethodRoleNameAlreadyDeclaredError`. Strict-not-
+    idempotent: a second remove (or a remove of an unknown role) hits
+    this rather than silently no-opping.
+    """
+
+    def __init__(self, method_id: UUID, role_name: "RoleName") -> None:
+        super().__init__(
+            f"Method {method_id} does not have required role {role_name.value!r}; nothing to remove"
+        )
+        self.method_id = method_id
+        self.role_name = role_name
+
+
+class MethodCannotMutateRequiredRolesError(Exception):
+    """Attempted to add/remove a required role on a Method not in
+    `Defined` status.
+
+    Mirrors `MethodCannotVersionError` shape. Required-roles mutations
+    are restricted to the `Defined` status: a `Versioned` Method has an
+    attested content_hash that covers `required_roles`, and a
+    `Deprecated` Method is out of use entirely. The error message
+    carries the current status for diagnostic clarity. Symmetric across
+    `add_method_required_role` and `remove_method_required_role` per
+    [[project-method-required-roles-design]] §"Slices".
+    """
+
+    def __init__(self, method_id: UUID, current_status: "MethodStatus") -> None:
+        super().__init__(
+            f"Method {method_id} cannot mutate required roles: currently in status "
+            f"{current_status.value}, required-role mutations require "
+            f"{MethodStatus.DEFINED.value}"
+        )
+        self.method_id = method_id
+        self.current_status = current_status
+
+
 @dataclass(frozen=True)
 class Method:
     """Aggregate root: an abstract technique-class recipe.
@@ -337,6 +578,21 @@ class Method:
     # [[project-assembly-aggregate-design]] Locks section for the cross-BC
     # contract.
     needed_assembly_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
+    # required_roles declares the Method's positional role slots
+    # (IEC 81346 Function aspect). Each `RoleRequirement` carries a
+    # Method-local role_name + the Family the bound Asset must satisfy
+    # + a set of port requirements + an optional flag. Defaults empty
+    # so legacy MethodDefined-only streams fold cleanly via the
+    # additive-state pattern. Plan-side role bindings (slice 2) will
+    # enforce 1-1 binding per non-optional role + port-coverage; this
+    # slice (1) only ships the Method-side declaration vocabulary.
+    # Identity within the set is structural (frozenset of
+    # RoleRequirement); role_name uniqueness is enforced at the
+    # decider (add_method_required_role rejects duplicates). See
+    # [[project-method-required-roles-design]] for the full lock and
+    # [[project-equipment-isa-gap-research]] for the Function-aspect
+    # gap context.
+    required_roles: frozenset[RoleRequirement] = field(default_factory=frozenset[RoleRequirement])
 
     def content_subset(self) -> dict[str, object]:
         """Canonical content subset hashed into MethodVersioned.content_hash.
@@ -362,6 +618,36 @@ class Method:
             "needed_family_ids": sorted(str(f) for f in self.needed_family_ids),
             "needed_supplies": sorted(self.needed_supplies),
             "needed_assembly_ids": sorted(str(a) for a in self.needed_assembly_ids),
+            # required_roles participates in the content hash so a
+            # MethodVersioned event attests to the declared role slots
+            # alongside parameters_schema / needed_family_ids / etc.
+            # Sort by role_name for byte-stable persistence; each
+            # entry materializes as a JSON-friendly dict (role_name,
+            # family_id as str, sorted required_ports, optional).
+            # required_ports inside each role sort by port_name +
+            # direction for deterministic serialization.
+            "required_roles": sorted(
+                (
+                    {
+                        "role_name": role.role_name.value,
+                        "family_id": str(role.family_id),
+                        "required_ports": sorted(
+                            (
+                                {
+                                    "port_name": port.port_name,
+                                    "direction": port.direction.value,
+                                    "signal_type": port.signal_type,
+                                }
+                                for port in role.required_ports
+                            ),
+                            key=lambda p: (p["port_name"], p["direction"]),
+                        ),
+                        "optional": role.optional,
+                    }
+                    for role in self.required_roles
+                ),
+                key=lambda r: r["role_name"],
+            ),
         }
 
 

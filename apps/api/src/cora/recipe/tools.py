@@ -11,6 +11,9 @@ from collections.abc import Callable
 
 from mcp.server.fastmcp import FastMCP
 
+from cora.recipe.features.add_method_required_role import (
+    tool as add_method_required_role_tool,
+)
 from cora.recipe.features.add_plan_wire import tool as add_plan_wire_tool
 from cora.recipe.features.define_capability import tool as define_capability_tool
 from cora.recipe.features.define_method import tool as define_method_tool
@@ -31,6 +34,9 @@ from cora.recipe.features.inspect_plan_binding import tool as inspect_plan_bindi
 from cora.recipe.features.list_methods import tool as list_methods_tool
 from cora.recipe.features.list_plans import tool as list_plans_tool
 from cora.recipe.features.list_practices import tool as list_practices_tool
+from cora.recipe.features.remove_method_required_role import (
+    tool as remove_method_required_role_tool,
+)
 from cora.recipe.features.remove_plan_wire import tool as remove_plan_wire_tool
 from cora.recipe.features.update_method_parameters_schema import (
     tool as update_method_parameters_schema_tool,
@@ -71,6 +77,14 @@ def register_recipe_tools(
     update_method_parameters_schema_tool.register(
         mcp,
         get_handler=lambda: get_handlers().update_method_parameters_schema,
+    )
+    add_method_required_role_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_method_required_role,
+    )
+    remove_method_required_role_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_method_required_role,
     )
     define_practice_tool.register(
         mcp,

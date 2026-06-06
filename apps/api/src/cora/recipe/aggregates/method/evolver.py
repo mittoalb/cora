@@ -6,7 +6,8 @@ is added to `MethodEvent` without a matching match arm here.
 
 Status mapping per event type:
   - `MethodDefined`              -> DEFINED   (genesis; version=None,
-                                                parameters_schema=None)
+                                                parameters_schema=None,
+                                                required_roles=empty)
   - `MethodVersioned`            -> VERSIONED (version=event.version_tag;
                                                 multi-source: Defined |
                                                 Versioned; parameters_schema
@@ -19,6 +20,17 @@ Status mapping per event type:
                                                 lifecycle; updates the
                                                 parameters_schema field
                                                 only)
+  - `MethodRequiredRoleAdded`    -> status preserved (slice 1 of the
+                                                positional role-tagging
+                                                workstream; appends a
+                                                RoleRequirement to
+                                                required_roles; decider
+                                                restricts to Defined)
+  - `MethodRequiredRoleRemoved`  -> status preserved (mirror of Added;
+                                                removes the role
+                                                identified by role_name;
+                                                decider restricts to
+                                                Defined)
 
 The mapping is hardcoded per match arm — the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -62,18 +74,24 @@ by Subject's evolver).
 from collections.abc import Sequence
 from typing import assert_never
 
+from cora.equipment.aggregates.asset import PortDirection
 from cora.infrastructure.evolver import require_state
 from cora.recipe.aggregates.method.events import (
     MethodDefined,
     MethodDeprecated,
     MethodEvent,
     MethodParametersSchemaUpdated,
+    MethodRequiredRoleAdded,
+    MethodRequiredRoleRemoved,
     MethodVersioned,
 )
 from cora.recipe.aggregates.method.state import (
     Method,
     MethodName,
     MethodStatus,
+    PortRequirement,
+    RoleName,
+    RoleRequirement,
 )
 
 
@@ -102,6 +120,9 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # needed_assembly_ids flows through genesis. Empty for
                 # legacy streams without the field (additive-state default).
                 needed_assembly_ids=frozenset(needed_assembly_ids),
+                # required_roles defaults empty at genesis; populated
+                # only by subsequent MethodRequiredRoleAdded events.
+                # Same additive-state posture as needed_assembly_ids.
             )
         case MethodVersioned(version_tag=version_tag, content_hash=content_hash):
             prior = require_state(state, "MethodVersioned")
@@ -122,6 +143,11 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # revisions; rebinding would mean a new Method).
                 capability_id=prior.capability_id,
                 needed_assembly_ids=prior.needed_assembly_ids,
+                # required_roles PRESERVED across versioning; the
+                # role declarations are part of the content the
+                # version_tag attests to (Method.content_subset
+                # includes required_roles).
+                required_roles=prior.required_roles,
             )
         case MethodDeprecated():
             prior = require_state(state, "MethodDeprecated")
@@ -143,6 +169,9 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # visible).
                 capability_id=prior.capability_id,
                 needed_assembly_ids=prior.needed_assembly_ids,
+                # required_roles PRESERVED across deprecation; the
+                # declared roles remain part of the historical record.
+                required_roles=prior.required_roles,
             )
         case MethodParametersSchemaUpdated(parameters_schema=parameters_schema):
             prior = require_state(state, "MethodParametersSchemaUpdated")
@@ -170,6 +199,69 @@ def evolve(state: Method | None, event: MethodEvent) -> Method:
                 # independently.
                 capability_id=prior.capability_id,
                 needed_assembly_ids=prior.needed_assembly_ids,
+                # required_roles PRESERVED across schema updates; the
+                # two fields evolve independently.
+                required_roles=prior.required_roles,
+            )
+        case MethodRequiredRoleAdded(
+            role_name=role_name,
+            family_id=family_id,
+            required_ports=required_ports,
+            optional=optional,
+        ):
+            prior = require_state(state, "MethodRequiredRoleAdded")
+            # Reconstruct the RoleRequirement VO from the payload dicts.
+            # The PortRequirement VO re-validates the per-port strings;
+            # this is defensive against a stored payload whose strings
+            # somehow drift out of bounds (would surface as
+            # InvalidPortRequirementError, wrapped by from_stored's
+            # deserialize_or_raise).
+            ports = frozenset(
+                PortRequirement(
+                    port_name=p["port_name"],
+                    direction=PortDirection(p["direction"]),
+                    signal_type=p["signal_type"],
+                )
+                for p in required_ports
+            )
+            new_role = RoleRequirement(
+                role_name=RoleName(role_name),
+                family_id=family_id,
+                required_ports=ports,
+                optional=optional,
+            )
+            return Method(
+                id=prior.id,
+                name=prior.name,
+                needed_family_ids=prior.needed_family_ids,
+                status=prior.status,
+                version=prior.version,
+                content_hash=prior.content_hash,
+                parameters_schema=prior.parameters_schema,
+                needed_supplies=prior.needed_supplies,
+                capability_id=prior.capability_id,
+                needed_assembly_ids=prior.needed_assembly_ids,
+                required_roles=prior.required_roles | {new_role},
+            )
+        case MethodRequiredRoleRemoved(role_name=role_name):
+            prior = require_state(state, "MethodRequiredRoleRemoved")
+            # Identity-by-role_name: drop the unique entry whose
+            # role_name matches. Decider rejects unknown role_names so
+            # the filtered set is always strictly smaller by one.
+            target = RoleName(role_name)
+            remaining = frozenset(role for role in prior.required_roles if role.role_name != target)
+            return Method(
+                id=prior.id,
+                name=prior.name,
+                needed_family_ids=prior.needed_family_ids,
+                status=prior.status,
+                version=prior.version,
+                content_hash=prior.content_hash,
+                parameters_schema=prior.parameters_schema,
+                needed_supplies=prior.needed_supplies,
+                capability_id=prior.capability_id,
+                needed_assembly_ids=prior.needed_assembly_ids,
+                required_roles=remaining,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

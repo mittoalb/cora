@@ -47,12 +47,17 @@ from cora.recipe.aggregates.method import (
     InvalidMethodNeededSuppliesError,
     InvalidMethodParametersSchemaError,
     InvalidMethodVersionTagError,
+    InvalidPortRequirementError,
+    InvalidRoleNameError,
     MethodAlreadyExistsError,
     MethodCannotDeprecateError,
+    MethodCannotMutateRequiredRolesError,
     MethodCannotVersionError,
     MethodCapabilityExecutorMismatchError,
     MethodNotFoundError,
     MethodParametersNotSubsetError,
+    MethodRoleNameAlreadyDeclaredError,
+    MethodRoleNameNotFoundError,
 )
 from cora.recipe.aggregates.plan import (
     InvalidPlanDefaultParametersError,
@@ -105,6 +110,7 @@ from cora.recipe.aggregates.recipe import (
 )
 from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features import (
+    add_method_required_role,
     add_plan_wire,
     define_capability,
     define_method,
@@ -125,6 +131,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    remove_method_required_role,
     remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
@@ -216,6 +223,8 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(version_method.router)
     app.include_router(deprecate_method.router)
     app.include_router(update_method_parameters_schema.router)
+    app.include_router(add_method_required_role.router)
+    app.include_router(remove_method_required_role.router)
     app.include_router(define_practice.router)
     app.include_router(get_practice.router)
     app.include_router(version_practice.router)
@@ -250,6 +259,11 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidMethodNeededSuppliesError,
         InvalidMethodParametersSchemaError,
         InvalidMethodVersionTagError,
+        # slice 1 of positional role-tagging: VO constructor failures
+        # (RoleName empty/too-long, PortRequirement empty/too-long port
+        # name or signal_type). Mapped to 400.
+        InvalidRoleNameError,
+        InvalidPortRequirementError,
         InvalidPracticeNameError,
         InvalidPracticeVersionTagError,
         InvalidPlanNameError,
@@ -268,6 +282,10 @@ def register_recipe_routes(app: FastAPI) -> None:
     for not_found_cls in (
         CapabilityNotFoundError,
         MethodNotFoundError,
+        # slice 1 of positional role-tagging: removing a role whose
+        # role_name is not declared on the Method (strict-not-
+        # idempotent symmetry with MethodRoleNameAlreadyDeclaredError).
+        MethodRoleNameNotFoundError,
         PracticeNotFoundError,
         PlanNotFoundError,
         # 6h: removing a Wire that's not currently in the Plan's wire
@@ -299,6 +317,14 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodParametersNotSubsetError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,
+        # slice 1 of positional role-tagging: lifecycle guard on
+        # required-role mutations (rejects Versioned and Deprecated;
+        # symmetric across add_method_required_role and
+        # remove_method_required_role).
+        MethodCannotMutateRequiredRolesError,
+        # slice 1 of positional role-tagging: duplicate role_name on
+        # add (strict-not-idempotent on the role_name identity).
+        MethodRoleNameAlreadyDeclaredError,
         PracticeCannotVersionError,
         PracticeCannotDeprecateError,
         PlanCannotVersionError,

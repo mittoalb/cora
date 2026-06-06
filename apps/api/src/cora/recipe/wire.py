@@ -31,6 +31,7 @@ from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.recipe.features import (
+    add_method_required_role,
     add_plan_wire,
     define_capability,
     define_method,
@@ -51,6 +52,7 @@ from cora.recipe.features import (
     list_methods,
     list_plans,
     list_practices,
+    remove_method_required_role,
     remove_plan_wire,
     update_method_parameters_schema,
     update_plan_default_parameters,
@@ -73,6 +75,8 @@ class RecipeHandlers:
     version_method: version_method.Handler
     deprecate_method: deprecate_method.Handler
     update_method_parameters_schema: update_method_parameters_schema.Handler
+    add_method_required_role: add_method_required_role.Handler
+    remove_method_required_role: remove_method_required_role.Handler
     define_practice: define_practice.IdempotentHandler
     get_practice: get_practice.Handler
     version_practice: version_practice.Handler
@@ -134,6 +138,16 @@ def wire_recipe(deps: Kernel) -> RecipeHandlers:
         update_method_parameters_schema=with_tracing(
             update_method_parameters_schema.bind(deps),
             command_name="UpdateMethodParametersSchema",
+            bc=_BC,
+        ),
+        add_method_required_role=with_tracing(
+            add_method_required_role.bind(deps),
+            command_name="AddMethodRequiredRole",
+            bc=_BC,
+        ),
+        remove_method_required_role=with_tracing(
+            remove_method_required_role.bind(deps),
+            command_name="RemoveMethodRequiredRole",
             bc=_BC,
         ),
         define_practice=with_tracing(

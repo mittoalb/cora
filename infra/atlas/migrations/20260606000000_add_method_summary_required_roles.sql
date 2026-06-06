@@ -1,0 +1,34 @@
+-- Widen proj_recipe_method_summary with the Method.required_roles facet:
+-- the positional role slots declared on the Method (IEC 81346 Function
+-- aspect, slice 1 of the positional role-tagging workstream). Stored
+-- as a sorted JSONB array of `{"role_name", "family_id",
+-- "required_ports", "optional"}` objects, sorted by `role_name` ASC at
+-- write time for byte-stable replay.
+--
+-- Additive JSONB array per [[project-method-required-roles-design]].
+-- Legacy MethodDefined-only event streams fold to an empty array via
+-- the NOT NULL DEFAULT '[]'::jsonb shape.
+--
+-- ## No GIN index
+--
+-- Defer the GIN index until a query in any view builder or analytics
+-- path filters by role_name or family_id. The slice 1 consumption
+-- pattern reads required_roles alongside the rest of the Method row;
+-- no current call site needs containment lookup. The cost of an
+-- unused GIN index is per-row write amplification.
+--
+-- ## Forward-only
+--
+-- Pure ADD COLUMN with safe default; greenfield-friendly; no backfill
+-- needed. Rollback via a NEW compensating migration per
+-- [[project-forward-only-migrations]].
+--
+-- ## v1 scope reminders (see design memo)
+--
+-- Aggregate-level required_roles is the Method-side declaration; Plan-
+-- side role_bindings + the Wire-role-endpoint invariant land in slice
+-- 2. This migration is data-substrate only; no Plan-side projection
+-- changes ship here.
+
+ALTER TABLE proj_recipe_method_summary
+    ADD COLUMN required_roles JSONB NOT NULL DEFAULT '[]'::jsonb;

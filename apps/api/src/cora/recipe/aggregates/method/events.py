@@ -160,8 +160,62 @@ class MethodParametersSchemaUpdated:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class MethodRequiredRoleAdded:
+    """A positional role slot was declared on the Method.
+
+    Slice 1 of the positional role-tagging workstream (IEC 81346
+    Function aspect). Strict-not-idempotent: a duplicate role_name
+    surfaces as `MethodRoleNameAlreadyDeclaredError` rather than
+    silently no-opping. Restricted to Methods in `Defined` status
+    (a `Versioned` Method has an attested content_hash that covers
+    required_roles, a `Deprecated` Method is out of use entirely).
+
+    `required_ports` is stored as a `tuple[dict[str, Any], ...]` in
+    the payload (each dict = {port_name, direction, signal_type})
+    for JSON-friendly persistence; the evolver converts to
+    `frozenset[PortRequirement]` when folding into state. Sorted by
+    `(port_name, direction)` for deterministic payload bytes —
+    matches the `to_payload` convention for `needed_family_ids` and
+    `needed_assembly_ids`. See [[project-method-required-roles-design]]
+    for the full lock.
+    """
+
+    method_id: UUID
+    role_name: str
+    family_id: UUID
+    required_ports: tuple[dict[str, Any], ...]
+    optional: bool
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class MethodRequiredRoleRemoved:
+    """A positional role slot was removed from the Method.
+
+    Mirror of `MethodRequiredRoleAdded`. Strict-not-idempotent:
+    removing a role_name not present surfaces as
+    `MethodRoleNameNotFoundError`. Same lifecycle restriction
+    (Defined-only). Payload carries only the `role_name` (the
+    structural identity of the role within the Method scope); the
+    full `RoleRequirement` is reconstructed by removing the matching
+    entry from state during folding.
+    """
+
+    method_id: UUID
+    role_name: str
+    occurred_at: datetime
+
+
 # Discriminated union of every event the Method aggregate emits.
-MethodEvent = MethodDefined | MethodVersioned | MethodDeprecated | MethodParametersSchemaUpdated
+MethodEvent = (
+    MethodDefined
+    | MethodVersioned
+    | MethodDeprecated
+    | MethodParametersSchemaUpdated
+    | MethodRequiredRoleAdded
+    | MethodRequiredRoleRemoved
+)
 
 
 def event_type_name(event: MethodEvent) -> str:
@@ -231,6 +285,38 @@ def to_payload(event: MethodEvent) -> dict[str, Any]:
             return {
                 "method_id": str(method_id),
                 "parameters_schema": parameters_schema,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case MethodRequiredRoleAdded(
+            method_id=method_id,
+            role_name=role_name,
+            family_id=family_id,
+            required_ports=required_ports,
+            optional=optional,
+            occurred_at=occurred_at,
+        ):
+            # required_ports comes in already as tuple[dict, ...] from
+            # the decider; sort by (port_name, direction) for byte-
+            # stable persistence regardless of insertion order.
+            return {
+                "method_id": str(method_id),
+                "role_name": role_name,
+                "family_id": str(family_id),
+                "required_ports": sorted(
+                    required_ports,
+                    key=lambda p: (p["port_name"], p["direction"]),
+                ),
+                "optional": optional,
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case MethodRequiredRoleRemoved(
+            method_id=method_id,
+            role_name=role_name,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "method_id": str(method_id),
+                "role_name": role_name,
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
@@ -303,6 +389,27 @@ def from_stored(stored: StoredEvent) -> MethodEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "MethodRequiredRoleAdded":
+            return deserialize_or_raise(
+                "MethodRequiredRoleAdded",
+                lambda: MethodRequiredRoleAdded(
+                    method_id=UUID(payload["method_id"]),
+                    role_name=payload["role_name"],
+                    family_id=UUID(payload["family_id"]),
+                    required_ports=tuple(payload.get("required_ports", ())),
+                    optional=bool(payload.get("optional", False)),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
+        case "MethodRequiredRoleRemoved":
+            return deserialize_or_raise(
+                "MethodRequiredRoleRemoved",
+                lambda: MethodRequiredRoleRemoved(
+                    method_id=UUID(payload["method_id"]),
+                    role_name=payload["role_name"],
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+            )
         case _:
             msg = f"Unknown MethodEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -313,6 +420,8 @@ __all__ = [
     "MethodDeprecated",
     "MethodEvent",
     "MethodParametersSchemaUpdated",
+    "MethodRequiredRoleAdded",
+    "MethodRequiredRoleRemoved",
     "MethodVersioned",
     "event_type_name",
     "from_stored",

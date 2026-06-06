@@ -48,6 +48,8 @@ def test_projection_metadata() -> None:
             "MethodVersioned",
             "MethodDeprecated",
             "MethodParametersSchemaUpdated",
+            "MethodRequiredRoleAdded",
+            "MethodRequiredRoleRemoved",
         }
     )
 
@@ -287,3 +289,105 @@ async def test_method_lifecycle_timestamps_is_immutable_dataclass() -> None:
     )
     with pytest.raises(dataclasses.FrozenInstanceError):
         instance.versioned_at = _NOW  # type: ignore[misc]
+
+
+# ---------- required_roles facet (slice 1 of positional role-tagging) ----------
+#
+# The two slice-1 events (MethodRequiredRoleAdded /
+# MethodRequiredRoleRemoved) use pure SQL jsonb operators
+# (jsonb_agg + DISTINCT ON + WHERE filter); the byte-stable sort +
+# dedup happen in PG, not in Python. So these unit tests pin SQL
+# shape + bind-param shape; the actual jsonb semantics are exercised
+# end-to-end in tests/integration/test_add_method_required_role_handler_postgres.py.
+
+
+@pytest.mark.unit
+async def test_method_required_role_added_executes_jsonb_union_sql() -> None:
+    """Add fires one UPDATE with the role-object dict bound on $2.
+    The pool's jsonb codec serializes the dict; the SQL cast wraps
+    it back as JSONB for jsonb_build_array. PG handles dedup + sort
+    via the SQL CTE."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    family_id = uuid4()
+    event = _stored(
+        "MethodRequiredRoleAdded",
+        {
+            "method_id": str(_METHOD_ID),
+            "role_name": "detector",
+            "family_id": str(family_id),
+            "required_ports": [
+                {"port_name": "trigger_in", "direction": "Input", "signal_type": "TTL"},
+            ],
+            "optional": False,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    # Single UPDATE; no fetchrow needed (PG does the read-modify-write).
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_method_summary" in sql
+    assert "jsonb_agg" in sql
+    assert "DISTINCT ON" in sql
+    assert "ORDER BY elem->>'role_name'" in sql
+    assert args.args[1] == _METHOD_ID
+    # The bound role-object is a plain dict; the codec serializes it.
+    assert args.args[2] == {
+        "role_name": "detector",
+        "family_id": str(family_id),
+        "required_ports": [
+            {"port_name": "trigger_in", "direction": "Input", "signal_type": "TTL"},
+        ],
+        "optional": False,
+    }
+
+
+@pytest.mark.unit
+async def test_method_required_role_removed_executes_jsonb_filter_sql() -> None:
+    """Remove fires one UPDATE that filters by role_name in the SQL
+    WHERE; the bound param is the plain role_name string."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "MethodRequiredRoleRemoved",
+        {
+            "method_id": str(_METHOD_ID),
+            "role_name": "detector",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    conn.execute.assert_awaited_once()
+    args = conn.execute.await_args
+    assert args is not None
+    sql = args.args[0]
+    assert "UPDATE proj_recipe_method_summary" in sql
+    assert "WHERE elem->>'role_name' <> $2::text" in sql
+    assert args.args[1] == _METHOD_ID
+    assert args.args[2] == "detector"
+
+
+@pytest.mark.unit
+async def test_method_required_role_added_payload_defaults_for_missing_optional_flag() -> None:
+    """A payload without optional defaults to False at the projection
+    layer (additive-state forward-compat for any synthesized event)."""
+    proj = MethodSummaryProjection()
+    conn = AsyncMock()
+    family_id = uuid4()
+    event = _stored(
+        "MethodRequiredRoleAdded",
+        {
+            "method_id": str(_METHOD_ID),
+            "role_name": "detector",
+            "family_id": str(family_id),
+            # required_ports + optional omitted
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    role_obj = conn.execute.await_args.args[2]
+    assert role_obj["required_ports"] == []
+    assert role_obj["optional"] is False

@@ -47,8 +47,8 @@ _FIXED_FAMILY_B = UUID("01900000-0000-7000-8000-000000000222")
 #     event_type_to_payload_type("MethodVersioned"), <content_subset>)`.
 # Pinned here so future Pydantic / canonicalization / payloadType-scheme
 # drift trips a single fixture rather than every consumer test.
-_GOLDEN_EMPTY = "401562ae3a3d9a376217b501a2def17b41fb4e33a32ef80ceed0d7704db0f76d"
-_GOLDEN_POPULATED = "4e6446dd422420c77413a28af7f340f541b84def875242da1495ff6944c6bb01"
+_GOLDEN_EMPTY = "1c9086707d91be0176ae8d5cf36d126cd9afc4c7e1e0635279b1aec789127f91"
+_GOLDEN_POPULATED = "aeff03a82058bddb1430b2ea8c5c3351adb653682ce46bfead4ef36647cea73b"
 
 _FIXED_ASM_A = UUID("01900000-0000-7000-8000-0000a0a0a0a1")
 _FIXED_ASM_B = UUID("01900000-0000-7000-8000-0000a0a0a0a2")
@@ -155,6 +155,10 @@ def test_decide_content_hash_matches_helper_output_directly() -> None:
             "needed_family_ids": [str(_FIXED_FAMILY_A)],
             "needed_supplies": ["nitrogen"],
             "needed_assembly_ids": [],
+            # required_roles joined the content subset when the
+            # positional role-tagging slice landed; empty list for a
+            # Method that hasn't declared any roles.
+            "required_roles": [],
         },
     )
     assert event.content_hash == expected
