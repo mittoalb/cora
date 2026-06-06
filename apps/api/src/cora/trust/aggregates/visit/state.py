@@ -30,7 +30,7 @@ Surface + Run + Subject.
 The aggregate is intentionally slim per `[[project_fold_cost_principles]]`
 and the thin-shape lock in `[[project_visit_aggregate_research]]`: 6
 owned scalar fields plus 2 collections (`presence_entries`,
-`external_refs`) plus 1 self-FK (`part_of_visit_id`).
+`external_refs`) plus 1 self-FK (`parent_id`).
 
 ## Two-tier period split
 
@@ -84,7 +84,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 
 VISIT_REASON_MAX_LENGTH = 500
 
@@ -194,7 +194,7 @@ class PresenceEntry:
     """One actor's presence record on a Visit.
 
     Fully-immutable frozen dataclass with default `__hash__`/`__eq__` over
-    ALL FOUR fields (per ExternalRef / Wire / AssetPort precedent). When
+    ALL FOUR fields (per Identifier / Wire / AssetPort precedent). When
     `VisitCheckedOut` flips `check_out_at` from None to a timestamp, the
     evolver removes the open entry and inserts a NEW entry with the same
     `(actor_id, mode, check_in_at)` plus the populated `check_out_at` --
@@ -433,20 +433,20 @@ class VisitCannotCheckInError(Exception):
         self.permitted_sources = permitted_sources
 
 
-class VisitPartOfNotFoundError(Exception):
-    """register_visit with part_of_visit_id set, but parent stream is empty."""
+class VisitParentNotFoundError(Exception):
+    """register_visit with parent_id set, but parent stream is empty."""
 
-    def __init__(self, visit_id: UUID, part_of_visit_id: UUID) -> None:
+    def __init__(self, visit_id: UUID, parent_id: UUID) -> None:
         super().__init__(
-            f"Visit {visit_id}: part_of_visit_id={part_of_visit_id} references a "
+            f"Visit {visit_id}: parent_id={parent_id} references a "
             f"parent visit whose stream has no events"
         )
         self.visit_id = visit_id
-        self.part_of_visit_id = part_of_visit_id
+        self.parent_id = parent_id
 
 
-class VisitPartOfMismatchedSurfaceError(Exception):
-    """Child Visit's surface_id differs from its part_of parent's surface_id.
+class VisitParentMismatchedSurfaceError(Exception):
+    """Child Visit's surface_id differs from its parent's surface_id.
 
     partOf cohesion lock: nested commissioning Visit (child) must operate
     on the SAME Surface as its parent user Visit. Cross-Surface partOf
@@ -458,17 +458,17 @@ class VisitPartOfMismatchedSurfaceError(Exception):
         self,
         visit_id: UUID,
         child_surface_id: UUID,
-        part_of_visit_id: UUID,
+        parent_id: UUID,
         parent_surface_id: UUID,
     ) -> None:
         super().__init__(
             f"Visit {visit_id}: surface_id={child_surface_id} does not match parent "
-            f"visit {part_of_visit_id}'s surface_id={parent_surface_id}; partOf "
+            f"visit {parent_id}'s surface_id={parent_surface_id}; partOf "
             f"nesting requires same-Surface cohesion"
         )
         self.visit_id = visit_id
         self.child_surface_id = child_surface_id
-        self.part_of_visit_id = part_of_visit_id
+        self.parent_id = parent_id
         self.parent_surface_id = parent_surface_id
 
 
@@ -481,7 +481,7 @@ class VisitCannotTakeControlError(Exception):
 
       - Visit's status is not in {Arrived, InProgress, OnHold}; or
       - Surface already has an active controller AND requesting Visit
-        is not a part_of descendant of the current holder.
+        is not a parent_id descendant of the current holder.
 
     The exception's `reason` discriminator distinguishes the two for
     log search + diagnostic messages.
@@ -556,11 +556,11 @@ class Visit:
     supplied at registration; decider may read them for invariants).
     Actual periods live on projection per Path C.
 
-    `part_of_visit_id: UUID | None` is the self-FK for commissioning-
+    `parent_id: UUID | None` is the self-FK for commissioning-
     during-user nesting. Constraint at register_visit: child Visit must
-    reference parent on the SAME Surface (`VisitPartOfMismatchedSurfaceError`).
+    reference parent on the SAME Surface (`VisitParentMismatchedSurfaceError`).
 
-    `external_refs: frozenset[ExternalRef]` is the open-scheme anti-
+    `external_refs: frozenset[Identifier]` is the open-scheme anti-
     corruption ref to upstream-deferred concepts (`proposal` / `btr` /
     `visit` / `cycle`). Reuses cross-BC infrastructure.
 
@@ -589,8 +589,8 @@ class Visit:
     type: VisitType
     planned_start_at: datetime
     planned_end_at: datetime
-    part_of_visit_id: UUID | None = None
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    parent_id: UUID | None = None
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
     presence_entries: frozenset[PresenceEntry] = field(default_factory=frozenset[PresenceEntry])
     status: VisitStatus = VisitStatus.PLANNED
     last_status_reason: str | None = None

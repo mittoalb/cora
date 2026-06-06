@@ -3,7 +3,7 @@
 A "consumer" is any aggregate that holds a reference to a Frame in a
 way that would break if the Frame were decommissioned. Two consumer
 types today:
-  - Frame: a child Frame's `parent_frame_id` points at this frame.
+  - Frame: a child Frame's `parent_id` points at this frame.
   - Mount: an active Mount's `placement.parent_frame_id` points at this
     frame.
 
@@ -13,9 +13,9 @@ this projection BEFORE calling the pure decider; the decider raises
 `FrameInUseError` if the tuple is non-empty.
 
 Subscribed events:
-  - FrameRegistered        -> INSERT (referenced_frame_id=parent_frame_id,
+  - FrameRegistered        -> INSERT (referenced_frame_id=parent_id,
                               consumer_id=this_frame_id, consumer_type='Frame')
-                              when parent_frame_id is not None
+                              when parent_id is not None
   - FrameDecommissioned    -> DELETE WHERE consumer_id = this_frame_id
                               (Frame consumers go away when they
                               themselves decommission)
@@ -92,7 +92,7 @@ class FrameConsumersProjection:
     ) -> None:
         match event.event_type:
             case "FrameRegistered":
-                parent_raw = event.payload.get("parent_frame_id")
+                parent_raw = event.payload.get("parent_id")
                 if parent_raw is None:
                     return
                 await conn.execute(

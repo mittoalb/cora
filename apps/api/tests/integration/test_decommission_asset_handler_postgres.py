@@ -301,7 +301,7 @@ async def test_decommission_asset_rejects_when_still_installed_in_mount(
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[frame_id, uuid4()])
     await register_frame.bind(deps)(
-        RegisterFrame(name="frame-for-decom-check", parent_frame_id=None, placement=None),
+        RegisterFrame(name="frame-for-decom-check", parent_id=None, placement=None),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -310,7 +310,7 @@ async def test_decommission_asset_rejects_when_still_installed_in_mount(
     await register_mount.bind(deps)(
         RegisterMount(
             slot_code="02-BM-A-K-decom",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),

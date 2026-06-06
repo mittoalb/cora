@@ -4,7 +4,7 @@ Pins the cross-aggregate, multi-stream atomic-write contract under
 real Postgres:
 
   1. Happy-path round-trip: parent transitions Active -> Superseded
-     AND child appears in Defined with parent_clearance_id pointer.
+     AND child appears in Defined with parent_id pointer.
      Both stream version cursors advance in a single transaction
      (shared xid8).
   2. Parent's stream stays untouched if a concurrent transition
@@ -104,7 +104,7 @@ async def test_amend_writes_parent_superseded_and_child_registered_atomically(
 
     child_id = await amend_clearance.bind(deps)(
         AmendClearance(
-            parent_clearance_id=parent_id,
+            parent_id=parent_id,
             kind=ClearanceKind.ESAF,
             facility_asset_id=uuid4(),
             title="Amended pilot (post scope-change)",
@@ -121,7 +121,7 @@ async def test_amend_writes_parent_superseded_and_child_registered_atomically(
     child = await load_clearance(deps.event_store, child_id)
     assert child is not None
     assert child.status == ClearanceStatus.DEFINED
-    assert child.parent_clearance_id == parent_id
+    assert child.parent_id == parent_id
 
     # Atomic xid8 invariant: both streams' newest events share the same
     # transaction_id (one Postgres tx covers both).
@@ -162,7 +162,7 @@ async def test_amend_on_non_active_parent_raises_with_no_child_stream(
     with pytest.raises(ClearanceCannotAmendError):
         await amend_clearance.bind(deps)(
             AmendClearance(
-                parent_clearance_id=parent_id,
+                parent_id=parent_id,
                 kind=ClearanceKind.ESAF,
                 facility_asset_id=uuid4(),
                 title="Should refuse",

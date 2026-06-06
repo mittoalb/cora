@@ -11,7 +11,7 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.trust.aggregates.visit import VisitType
 from cora.trust.features import register_visit
 from cora.trust.features.register_visit import RegisterVisit
@@ -42,7 +42,7 @@ async def test_handler_persists_visit_registered_to_postgres(
             type=VisitType.USER,
             planned_start_at=_NOW,
             planned_end_at=_PLANNED_END,
-            external_refs=frozenset({ExternalRef(scheme="proposal", id="12345")}),
+            external_refs=frozenset({Identifier(scheme="proposal", value="12345")}),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -61,8 +61,8 @@ async def test_handler_persists_visit_registered_to_postgres(
     assert stored.payload["type"] == "user"
     assert stored.payload["planned_start_at"] == _NOW.isoformat()
     assert stored.payload["planned_end_at"] == _PLANNED_END.isoformat()
-    assert stored.payload["part_of_visit_id"] is None
-    assert stored.payload["external_refs"] == [{"scheme": "proposal", "id": "12345"}]
+    assert stored.payload["parent_id"] is None
+    assert stored.payload["external_refs"] == [{"scheme": "proposal", "value": "12345"}]
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
     assert stored.event_id == _EVENT_ID

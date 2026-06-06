@@ -2,7 +2,7 @@
 
 Carries the caller-controlled fields: the clearance's `kind` (12-value
 StrEnum covering 9 surveyed facility forms), `title`, `bindings`
-(frozenset of typed CORA-aggregate refs + ExternalBinding fallback),
+(frozenset of typed CORA-aggregate refs + ExternalRefBinding fallback),
 `declarations` (frozenset of HazardDeclaration with target +
 classifications + mitigations + notes), `risk_band` (optional;
 populated for ESRF / MAX IV / DLS / DESY / SLAC variants where green/

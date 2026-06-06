@@ -2,7 +2,7 @@
 read model that backs `GET /visits`.
 
 Subscribed events:
-  - VisitRegistered  -> INSERT (genesis, with planned_* + part_of + external_refs)
+  - VisitRegistered  -> INSERT (genesis, with planned_* + parent_id + external_refs)
   - VisitArrived     -> UPDATE arrived_at + status='Arrived'
   - VisitStarted     -> UPDATE started_at + status='InProgress'
   - VisitHeld        -> UPDATE status='OnHold' + last_status_reason
@@ -51,7 +51,7 @@ _INSERT_SQL = """
 INSERT INTO proj_trust_visit_summary (
     visit_id, policy_id, surface_id, type, status,
     planned_start_at, planned_end_at,
-    part_of_visit_id, external_refs,
+    parent_id, external_refs,
     created_at
 )
 VALUES ($1, $2, $3, $4, 'Planned', $5, $6, $7, $8::jsonb, $9)
@@ -118,7 +118,7 @@ class VisitSummaryProjection:
 
         match event.event_type:
             case "VisitRegistered":
-                part_of_raw = payload.get("part_of_visit_id")
+                parent_raw = payload.get("parent_id")
                 await conn.execute(
                     _INSERT_SQL,
                     visit_id,
@@ -127,7 +127,7 @@ class VisitSummaryProjection:
                     payload["type"],
                     datetime.fromisoformat(payload["planned_start_at"]),
                     datetime.fromisoformat(payload["planned_end_at"]),
-                    UUID(part_of_raw) if part_of_raw is not None else None,
+                    UUID(parent_raw) if parent_raw is not None else None,
                     json.dumps(payload.get("external_refs", [])),
                     occurred_at,
                 )

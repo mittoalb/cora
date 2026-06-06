@@ -23,7 +23,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 class ExternalRefDTO(BaseModel):
     scheme: str
-    id: str
+    value: str
 
 
 class CampaignOutput(BaseModel):
@@ -82,8 +82,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             description=(campaign.description.value if campaign.description is not None else None),
             tags=sorted(t.value for t in campaign.tags),
             external_refs=[
-                ExternalRefDTO(scheme=r.scheme, id=r.id)
-                for r in sorted(campaign.external_refs, key=lambda r: (r.scheme, r.id))
+                ExternalRefDTO(scheme=r.scheme, value=r.value)
+                for r in sorted(campaign.external_refs, key=lambda r: (r.scheme, r.value))
             ],
             external_id=campaign.external_id,
             run_ids=sorted(campaign.run_ids),

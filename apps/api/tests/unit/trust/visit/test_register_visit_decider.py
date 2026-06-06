@@ -6,13 +6,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.trust.aggregates.visit import (
     InvalidVisitPlannedPeriodError,
     Visit,
     VisitAlreadyExistsError,
-    VisitPartOfMismatchedSurfaceError,
-    VisitPartOfNotFoundError,
+    VisitParentMismatchedSurfaceError,
+    VisitParentNotFoundError,
     VisitRegistered,
     VisitStatus,
     VisitType,
@@ -63,13 +63,13 @@ def test_genesis_emits_visit_registered() -> None:
     assert e.planned_start_at == PLANNED_START
     assert e.planned_end_at == PLANNED_END
     assert e.occurred_at == NOW
-    assert e.part_of_visit_id is None
+    assert e.parent_id is None
     assert e.external_refs == frozenset()
 
 
 @pytest.mark.unit
 def test_genesis_carries_external_refs_through_to_event() -> None:
-    ref = ExternalRef(scheme="proposal", id="12345")
+    ref = Identifier(scheme="proposal", value="12345")
     events = decide(
         state=None,
         command=replace(_BASE_CMD, external_refs=frozenset({ref})),
@@ -80,17 +80,17 @@ def test_genesis_carries_external_refs_through_to_event() -> None:
 
 
 @pytest.mark.unit
-def test_genesis_carries_part_of_visit_id() -> None:
+def test_genesis_carries_parent_id() -> None:
     parent_id = uuid4()
     parent = _parent_on(SURFACE_ID, parent_id=parent_id)
     ctx = RegisterVisitContext(parent_visit=parent)
     events = decide(
         state=None,
-        command=replace(_BASE_CMD, part_of_visit_id=parent_id),
+        command=replace(_BASE_CMD, parent_id=parent_id),
         context=ctx,
         now=NOW,
     )
-    assert events[0].part_of_visit_id == parent_id
+    assert events[0].parent_id == parent_id
 
 
 @pytest.mark.unit
@@ -135,14 +135,14 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
 def test_partof_requested_but_parent_missing_raises() -> None:
     parent_id = uuid4()
     ctx_missing = RegisterVisitContext(parent_visit=None)
-    with pytest.raises(VisitPartOfNotFoundError) as exc_info:
+    with pytest.raises(VisitParentNotFoundError) as exc_info:
         decide(
             state=None,
-            command=replace(_BASE_CMD, part_of_visit_id=parent_id),
+            command=replace(_BASE_CMD, parent_id=parent_id),
             context=ctx_missing,
             now=NOW,
         )
-    assert exc_info.value.part_of_visit_id == parent_id
+    assert exc_info.value.parent_id == parent_id
 
 
 @pytest.mark.unit
@@ -151,10 +151,10 @@ def test_partof_parent_on_different_surface_raises() -> None:
     other_surface = uuid4()
     parent = _parent_on(other_surface, parent_id=parent_id)
     ctx = RegisterVisitContext(parent_visit=parent)
-    with pytest.raises(VisitPartOfMismatchedSurfaceError) as exc_info:
+    with pytest.raises(VisitParentMismatchedSurfaceError) as exc_info:
         decide(
             state=None,
-            command=replace(_BASE_CMD, part_of_visit_id=parent_id),
+            command=replace(_BASE_CMD, parent_id=parent_id),
             context=ctx,
             now=NOW,
         )
@@ -169,8 +169,8 @@ def test_partof_parent_on_same_surface_passes() -> None:
     ctx = RegisterVisitContext(parent_visit=parent)
     events = decide(
         state=None,
-        command=replace(_BASE_CMD, part_of_visit_id=parent_id),
+        command=replace(_BASE_CMD, parent_id=parent_id),
         context=ctx,
         now=NOW,
     )
-    assert events[0].part_of_visit_id == parent_id
+    assert events[0].parent_id == parent_id

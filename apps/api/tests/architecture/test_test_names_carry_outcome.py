@@ -204,7 +204,7 @@ GRANDFATHERED_NAMES: frozenset[str] = frozenset(
         "tests/unit/caution/test_caution_events.py::test_deserialize_target_for_procedure",
         "tests/unit/caution/test_caution_events.py::test_serialize_target_for_asset",
         "tests/unit/caution/test_caution_events.py::test_serialize_target_for_procedure",
-        "tests/unit/caution/test_caution_evolver.py::test_fold_genesis_with_parent_caution_id",
+        "tests/unit/caution/test_caution_evolver.py::test_fold_genesis_with_parent_id",
         "tests/unit/caution/test_caution_evolver.py::test_fold_genesis_with_procedure_target",
         "tests/unit/decision/test_decision_reasoning_entries.py::test_decision_reasoning_with_agent_fields",
         "tests/unit/decision/test_decision_reasoning_entries.py::test_decision_reasoning_with_tool_call_fields",

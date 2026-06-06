@@ -79,6 +79,9 @@ class CalibrationStatus(StrEnum):
 class MeasuredSource:
     """Revision value was derived from an alignment Procedure.
 
+    Deviation from Identifier VO: wraps typed intra-CORA UUID, not
+    external (scheme, value) pair.
+
     The Procedure measured the value (operator sphere-centroid,
     live-tomostream readout, motor-encoder reading). The Procedure id
     is carried for PROV-O `wasGeneratedBy` provenance.
@@ -90,6 +93,9 @@ class MeasuredSource:
 @dataclass(frozen=True)
 class ComputedSource:
     """Revision value was extracted by numerical analysis of a Dataset.
+
+    Deviation from Identifier VO: wraps typed intra-CORA UUID, not
+    external (scheme, value) pair.
 
     Examples: `tomopy.find_center_vo` extracted a refined rotation
     center; flat-field correction derived from a flat baseline Dataset.
@@ -104,6 +110,9 @@ class ComputedSource:
 @dataclass(frozen=True)
 class AssertedSource:
     """Revision value was typed directly by an operator.
+
+    Deviation from Identifier VO: wraps typed intra-CORA UUID, not
+    external (scheme, value) pair.
 
     No automated derivation step; the operator asserted the value from
     memory, vendor datasheet, or out-of-band measurement. The Actor id

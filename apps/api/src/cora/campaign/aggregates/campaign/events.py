@@ -2,7 +2,8 @@
 
 Mirrors the locked event-module shape: event classes, discriminated
 union, `event_type_name`, `to_payload`, `from_stored`, plus the
-`serialize_external_ref` / `deserialize_external_ref` helpers.
+`serialize_external_ref` / `deserialize_external_ref` helpers
+(round-trip a typed `Identifier` VO through the wire payload).
 
 Six events shipped at BC genesis:
 
@@ -30,8 +31,10 @@ Two events added later for cross-aggregate membership:
 for deterministic payload bytes), reconstructed into
 `frozenset[CampaignTag]` by the evolver.
 
-`external_refs` travels as a sorted-by-(scheme, id) `list[{scheme, id}]`
-for the same deterministic-bytes reason.
+`external_refs` travels as a sorted-by-(scheme, value)
+`list[{scheme, value}]` for the same deterministic-bytes reason.
+The wire-payload key is `value` (not `id`) per the pre-pilot
+`id -> value` rename in `[[project_identifier_vo_design]]`.
 
 `subject_id`, `description`, `external_id` are nullable; encoded as
 None when absent. `from_stored` uses `.get(...)` for nullable keys
@@ -52,34 +55,34 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
-# ExternalRef serialize / deserialize (public cross-slice helpers)
+# Identifier serialize / deserialize (public cross-slice helpers)
 # ---------------------------------------------------------------------------
 
 
-def serialize_external_ref(ref: ExternalRef) -> dict[str, str]:
-    """Encode an ExternalRef to a JSON-friendly dict."""
-    return {"scheme": ref.scheme, "id": ref.id}
+def serialize_external_ref(ref: Identifier) -> dict[str, str]:
+    """Encode an Identifier (external-ref carrier) to a JSON-friendly dict."""
+    return {"scheme": ref.scheme, "value": ref.value}
 
 
-def deserialize_external_ref(payload: dict[str, Any]) -> ExternalRef:
-    """Decode a JSON-friendly dict to an ExternalRef.
+def deserialize_external_ref(payload: dict[str, Any]) -> Identifier:
+    """Decode a JSON-friendly dict to an Identifier.
 
     Wraps KeyError / TypeError as ValueError so callers don't see
     leaked low-level exceptions when an event payload is malformed.
     """
     return deserialize_vo_or_raise(
-        "ExternalRef",
-        lambda: ExternalRef(scheme=payload["scheme"], id=payload["id"]),
+        "Identifier",
+        lambda: Identifier(scheme=payload["scheme"], value=payload["value"]),
     )
 
 
-def _serialize_external_refs(refs: frozenset[ExternalRef]) -> list[dict[str, str]]:
-    """Sort + encode a frozenset of ExternalRef for deterministic bytes."""
-    return [serialize_external_ref(r) for r in sorted(refs, key=lambda r: (r.scheme, r.id))]
+def _serialize_external_refs(refs: frozenset[Identifier]) -> list[dict[str, str]]:
+    """Sort + encode a frozenset of Identifier for deterministic bytes."""
+    return [serialize_external_ref(r) for r in sorted(refs, key=lambda r: (r.scheme, r.value))]
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +104,7 @@ class CampaignRegistered:
     `lead_actor_id` is the campaign PI / lead operator (operator-
     asserted, may differ from envelope `principal_id`). `subject_id`
     / `description` / `external_id` are optional. `external_refs` is
-    `frozenset[ExternalRef]`.
+    `frozenset[Identifier]`.
     """
 
     campaign_id: UUID
@@ -111,7 +114,7 @@ class CampaignRegistered:
     subject_id: UUID | None
     description: str | None
     tags: frozenset[str]
-    external_refs: frozenset[ExternalRef]
+    external_refs: frozenset[Identifier]
     external_id: str | None
     occurred_at: datetime
 
@@ -251,7 +254,7 @@ def to_payload(event: CampaignEvent) -> dict[str, Any]:
 
     Primitives only: UUIDs become strings, datetimes become ISO-8601
     strings, `tags` becomes a sorted list, `external_refs` becomes a
-    sorted list of `{scheme, id}` dicts (deterministic bytes for
+    sorted list of `{scheme, value}` dicts (deterministic bytes for
     byte-for-byte idempotency replay).
     """
     match event:

@@ -26,7 +26,7 @@ class UpdateFramePlacementRequest(BaseModel):
     """Body for `PATCH /frames/{frame_id}/placement`.
 
     `new_placement.parent_frame_id` MUST equal the Frame's existing
-    `parent_frame_id` (you cannot reparent via update_frame_placement); the
+    `parent_id` (you cannot reparent via update_frame_placement); the
     decider enforces this with InvalidFrameRootError -> 400.
 
     `survey` is an optional opaque payload (instrument, technician,
@@ -67,7 +67,7 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Domain invariant violated: negative tolerance via "
                 "Placement VO OR new_placement.parent_frame_id does not "
-                "match the Frame's parent_frame_id."
+                "match the Frame's parent_id."
             ),
         },
         status.HTTP_403_FORBIDDEN: {

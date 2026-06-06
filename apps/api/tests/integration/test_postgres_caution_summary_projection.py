@@ -6,7 +6,7 @@ Pins:
   - CautionSuperseded -> UPDATE status='Superseded' + last_status_changed_at
                                  + superseded_by_caution_id (parent's row)
                                  + supersession child genesis lands with
-                                   parent_caution_id
+                                   parent_id
   - CautionRetired    -> UPDATE status='Retired' + retired_reason
                                  + last_status_changed_at
   - tags TEXT[] round-trip + GIN-index-backed filter
@@ -99,7 +99,7 @@ async def test_register_inserts_active_with_null_audit_columns(db_pool: asyncpg.
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT target_kind, target_id, category, severity, status, "
-            "last_status_changed_at, parent_caution_id, "
+            "last_status_changed_at, parent_id, "
             "superseded_by_caution_id, retired_reason, "
             "propagate_to_children, tags "
             "FROM proj_caution_summary WHERE caution_id = $1",
@@ -112,7 +112,7 @@ async def test_register_inserts_active_with_null_audit_columns(db_pool: asyncpg.
     assert row["severity"] == "Caution"
     assert row["status"] == "Active"
     assert row["last_status_changed_at"] is None
-    assert row["parent_caution_id"] is None
+    assert row["parent_id"] is None
     assert row["superseded_by_caution_id"] is None
     assert row["retired_reason"] is None
     assert row["propagate_to_children"] is False
@@ -156,7 +156,7 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Supersede atomic write -> parent row's status='Superseded' +
-    superseded_by_caution_id, child genesis lands with parent_caution_id."""
+    superseded_by_caution_id, child genesis lands with parent_id."""
     parent_id = uuid4()
     asset_id = uuid4()
     deps = _build_deps(db_pool, [parent_id, uuid4()])
@@ -170,7 +170,7 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
     later_deps = _build_deps(db_pool, [child_id, uuid4(), uuid4()], now=_LATER)
     await supersede_caution.bind(later_deps)(
         SupersedeCaution(
-            parent_caution_id=parent_id,
+            parent_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
             category=CautionCategory.WEAR,
             severity=CautionSeverity.WARNING,
@@ -189,8 +189,7 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
             parent_id,
         )
         child_row = await conn.fetchrow(
-            "SELECT status, parent_caution_id, severity "
-            "FROM proj_caution_summary WHERE caution_id = $1",
+            "SELECT status, parent_id, severity FROM proj_caution_summary WHERE caution_id = $1",
             child_id,
         )
 
@@ -201,7 +200,7 @@ async def test_supersede_updates_parent_row_and_inserts_child_with_parent_link(
 
     assert child_row is not None
     assert child_row["status"] == "Active"
-    assert child_row["parent_caution_id"] == parent_id
+    assert child_row["parent_id"] == parent_id
     assert child_row["severity"] == "Warning"
 
 
@@ -232,7 +231,7 @@ async def test_list_returns_only_active_by_default(db_pool: asyncpg.Pool) -> Non
     supersede_deps = _build_deps(db_pool, [child_id, uuid4(), uuid4()], now=_LATER)
     await supersede_caution.bind(supersede_deps)(
         SupersedeCaution(
-            parent_caution_id=parent_id,
+            parent_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
             category=CautionCategory.WEAR,
             severity=CautionSeverity.CAUTION,
@@ -522,8 +521,8 @@ async def test_propagate_to_children_stored_as_is_no_hierarchy_walk(
     child_asset = uuid4()
 
     # 1 caution on parent_asset with propagate=True; 0 cautions on child_asset.
-    parent_caution_id = uuid4()
-    deps = _build_deps(db_pool, [parent_caution_id, uuid4()])
+    parent_id = uuid4()
+    deps = _build_deps(db_pool, [parent_id, uuid4()])
     await register_caution.bind(deps)(
         _register_command(parent_asset, propagate_to_children=True),
         principal_id=_PRINCIPAL_ID,

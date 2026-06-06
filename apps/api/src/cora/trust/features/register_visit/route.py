@@ -11,7 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.routing import (
     ErrorResponse,
     get_correlation_id,
@@ -23,11 +23,11 @@ from cora.trust.features.register_visit.command import RegisterVisit
 from cora.trust.features.register_visit.handler import IdempotentHandler
 
 
-class _ExternalRefBody(BaseModel):
-    """One ExternalRef carried on the request body."""
+class _IdentifierBody(BaseModel):
+    """One Identifier carried on the request body."""
 
     scheme: str = Field(..., min_length=1, max_length=50)
-    id: str = Field(..., min_length=1, max_length=200)
+    value: str = Field(..., min_length=1, max_length=200)
 
 
 class RegisterVisitRequest(BaseModel):
@@ -54,15 +54,15 @@ class RegisterVisitRequest(BaseModel):
     planned_end_at: datetime = Field(
         ..., description="Scheduled end; must be strictly after planned_start_at."
     )
-    part_of_visit_id: UUID | None = Field(
+    parent_id: UUID | None = Field(
         default=None,
         description=(
             "Optional self-FK for nested commissioning. The decider enforces "
             "parent existence and same-Surface cohesion."
         ),
     )
-    external_refs: list[_ExternalRefBody] = Field(
-        default_factory=list[_ExternalRefBody],
+    external_refs: list[_IdentifierBody] = Field(
+        default_factory=list[_IdentifierBody],
         description=(
             "Anti-corruption refs to upstream-deferred concepts (proposal, "
             "btr, visit, cycle). Stored on the event; surfaced through the "
@@ -134,9 +134,9 @@ async def post_visits(
             type=body.type,
             planned_start_at=body.planned_start_at,
             planned_end_at=body.planned_end_at,
-            part_of_visit_id=body.part_of_visit_id,
+            parent_id=body.parent_id,
             external_refs=frozenset(
-                ExternalRef(scheme=r.scheme, id=r.id) for r in body.external_refs
+                Identifier(scheme=r.scheme, value=r.value) for r in body.external_refs
             ),
         ),
         principal_id=principal_id,

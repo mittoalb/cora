@@ -20,7 +20,7 @@ state change (`FrameRegistered -> Active`,
 `FrameDecommissioned -> Decommissioned`). Same precedent as Asset
 and Subject.
 
-`parent_frame_id` IS carried in the `FrameRegistered` payload as
+`parent_id` IS carried in the `FrameRegistered` payload as
 `UUID | None`. Root frames serialize None; child frames serialize a
 string.
 
@@ -93,7 +93,7 @@ class FrameRegistered:
     """A new frame was registered.
 
     Status is implicit (`Active`); the evolver sets it.
-    `parent_frame_id` and `placement` go together:
+    `parent_id` and `placement` go together:
     both None for root frames, both non-None for child frames. The
     decider's `InvalidFrameRootError` guard enforces the invariant.
     `supersedes` is None for non-revision frames; when present, marks
@@ -106,7 +106,7 @@ class FrameRegistered:
 
     frame_id: UUID
     name: str
-    parent_frame_id: UUID | None
+    parent_id: UUID | None
     placement: Placement | None
     occurred_at: datetime
     supersedes: FrameRevisionLink | None = None
@@ -172,7 +172,7 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
         case FrameRegistered(
             frame_id=frame_id,
             name=name,
-            parent_frame_id=parent_frame_id,
+            parent_id=parent_id,
             placement=placement,
             supersedes=supersedes,
             occurred_at=occurred_at,
@@ -180,7 +180,7 @@ def to_payload(event: FrameEvent) -> dict[str, Any]:
             return {
                 "frame_id": str(frame_id),
                 "name": name,
-                "parent_frame_id": (str(parent_frame_id) if parent_frame_id is not None else None),
+                "parent_id": (str(parent_id) if parent_id is not None else None),
                 "placement": (placement_to_payload(placement) if placement is not None else None),
                 "supersedes": (
                     _frame_revision_link_to_payload(supersedes) if supersedes is not None else None
@@ -227,13 +227,13 @@ def from_stored(stored: StoredEvent) -> FrameEvent:
         case "FrameRegistered":
 
             def _build_registered() -> FrameRegistered:
-                raw_parent = payload["parent_frame_id"]
+                raw_parent = payload["parent_id"]
                 raw_placement = payload["placement"]
                 raw_supersedes = payload.get("supersedes")
                 return FrameRegistered(
                     frame_id=UUID(payload["frame_id"]),
                     name=payload["name"],
-                    parent_frame_id=UUID(raw_parent) if raw_parent is not None else None,
+                    parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     placement=(
                         placement_from_payload(raw_placement) if raw_placement is not None else None
                     ),

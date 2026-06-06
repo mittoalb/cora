@@ -71,7 +71,7 @@ class RegisterClearanceRequest(BaseModel):
         description=(
             "Multi-binding: what this clearance gates against. Discriminated "
             "by `kind` ('Subject' | 'Asset' | 'Run' | 'Procedure' | 'External'). "
-            "ExternalBinding is the anti-corruption escape hatch for "
+            "ExternalRefBinding is the anti-corruption escape hatch for "
             "upstream-deferred refs (proposal / btr / lab_visit / session)."
         ),
     )

@@ -43,7 +43,7 @@ async def _seed(store: InMemoryEventStore) -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     new_event = to_new_event(

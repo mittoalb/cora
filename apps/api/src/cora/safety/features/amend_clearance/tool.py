@@ -1,7 +1,7 @@
 """MCP tool for the `amend_clearance` slice.
 
 Mirrors `register_clearance`'s MCP tool surface for the child fields,
-adding `parent_clearance_id` as the cross-aggregate anchor.
+adding `parent_id` as the cross-aggregate anchor.
 
 The discriminated-union `bindings` / `declarations` arguments are
 accepted as JSON dicts whose `kind` discriminator selects the
@@ -60,7 +60,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def amend_clearance_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        parent_clearance_id: Annotated[UUID, Field(description="Parent clearance's id.")],
+        parent_id: Annotated[UUID, Field(description="Parent clearance's id.")],
         kind: Annotated[ClearanceKind, Field(description="Child form-type.")],
         facility_asset_id: Annotated[
             UUID,
@@ -118,7 +118,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
 
         child_clearance_id = await handler(
             AmendClearance(
-                parent_clearance_id=parent_clearance_id,
+                parent_id=parent_id,
                 kind=kind,
                 facility_asset_id=facility_asset_id,
                 title=title,

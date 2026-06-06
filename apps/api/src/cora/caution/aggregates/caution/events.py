@@ -7,7 +7,7 @@ polymorphic-target serialize/deserialize helpers.
 Three events shipped at BC genesis:
 
   - `CautionRegistered`  -- genesis (Active); also written as the child
-                            genesis on supersession (with parent_caution_id set)
+                            genesis on supersession (with parent_id set)
   - `CautionSuperseded`  -- transition on the PARENT stream (Active -> Superseded)
   - `CautionRetired`     -- transition (Active -> Retired); single-stream
 
@@ -28,7 +28,7 @@ for projection queries) and the `StoredEvent.principal_id` envelope
 (at register time they are equal; at supersede/retire time the
 envelope-only convention applies, mirroring 11a-c-1 precedent).
 
-`parent_caution_id` is `None` on top-level registers; set to the
+`parent_id` is `None` on top-level registers; set to the
 parent's UUID on supersede-child genesis events. Travels in payload.
 
 ## Public `serialize_target` / `deserialize_target` helpers
@@ -113,7 +113,7 @@ class CautionRegistered:
     Initial status implicitly `Active` (event type IS the state-change
     indicator; the genesis evolver hardcodes the mapping). The same
     event class is reused for the supersession child: in that case
-    `parent_caution_id` is set to the parent's UUID; for top-level
+    `parent_id` is set to the parent's UUID; for top-level
     registers it is `None`.
 
     `target` is the typed VO inside the dataclass; `to_payload`
@@ -140,7 +140,7 @@ class CautionRegistered:
     author_actor_id: UUID
     expires_at: datetime | None
     propagate_to_children: bool
-    parent_caution_id: UUID | None
+    parent_id: UUID | None
     occurred_at: datetime
 
 
@@ -208,7 +208,7 @@ def to_payload(event: CautionEvent) -> dict[str, Any]:
             author_actor_id=author_actor_id,
             expires_at=expires_at,
             propagate_to_children=propagate_to_children,
-            parent_caution_id=parent_caution_id,
+            parent_id=parent_id,
             occurred_at=occurred_at,
         ):
             return {
@@ -222,9 +222,7 @@ def to_payload(event: CautionEvent) -> dict[str, Any]:
                 "author_actor_id": str(author_actor_id),
                 "expires_at": expires_at.isoformat() if expires_at is not None else None,
                 "propagate_to_children": propagate_to_children,
-                "parent_caution_id": (
-                    str(parent_caution_id) if parent_caution_id is not None else None
-                ),
+                "parent_id": (str(parent_id) if parent_id is not None else None),
                 "occurred_at": occurred_at.isoformat(),
             }
         case CautionSuperseded(
@@ -266,7 +264,7 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
     subfield, but the arm-level wrap catches every other malformed
     field too).
 
-    Nullable / defaulted fields (`expires_at`, `parent_caution_id`,
+    Nullable / defaulted fields (`expires_at`, `parent_id`,
     `propagate_to_children`) use `payload.get(...)` so future migrations
     that add new nullable fields remain forward-compat at replay time.
     """
@@ -276,7 +274,7 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
 
             def _build_registered() -> CautionRegistered:
                 expires_at_raw = payload.get("expires_at")
-                parent_caution_id_raw = payload.get("parent_caution_id")
+                parent_id_raw = payload.get("parent_id")
                 return CautionRegistered(
                     caution_id=UUID(payload["caution_id"]),
                     target=deserialize_target(payload["target"]),
@@ -292,9 +290,7 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
                         else None
                     ),
                     propagate_to_children=payload.get("propagate_to_children", False),
-                    parent_caution_id=(
-                        UUID(parent_caution_id_raw) if parent_caution_id_raw is not None else None
-                    ),
+                    parent_id=(UUID(parent_id_raw) if parent_id_raw is not None else None),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
 

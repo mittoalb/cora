@@ -43,7 +43,7 @@ def test_get_cautions_returns_200_with_full_state() -> None:
     assert body["workaround"] == "run at 0.6 mm/s"
     assert body["tags"] == sorted(["motion", "low-speed"])
     assert body["status"] == "Active"
-    assert body["parent_caution_id"] is None
+    assert body["parent_id"] is None
     assert body["superseded_by_caution_id"] is None
     assert body["retired_reason"] is None
     assert body["expires_at"] is None
@@ -114,7 +114,7 @@ def test_get_cautions_reflects_superseded_state_after_supersede() -> None:
 
     child = child_response.json()
     assert child["status"] == "Active"
-    assert child["parent_caution_id"] == parent_id
+    assert child["parent_id"] == parent_id
 
 
 @pytest.mark.contract

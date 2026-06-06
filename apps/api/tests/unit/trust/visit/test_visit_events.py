@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.trust.aggregates.visit import (
     VisitAborted,
@@ -71,11 +71,11 @@ def test_visit_registered_round_trips_with_external_refs_and_part_of() -> None:
         planned_start_at=_NOW,
         planned_end_at=_NOW + timedelta(hours=4),
         occurred_at=_NOW,
-        part_of_visit_id=uuid4(),
+        parent_id=uuid4(),
         external_refs=frozenset(
             {
-                ExternalRef(scheme="proposal", id="12345"),
-                ExternalRef(scheme="visit", id="cm98765-1"),
+                Identifier(scheme="proposal", value="12345"),
+                Identifier(scheme="visit", value="cm98765-1"),
             }
         ),
     )
@@ -95,7 +95,7 @@ def test_visit_registered_round_trips_without_optional_fields() -> None:
     )
     decoded = _round_trips(e)
     assert decoded == e
-    assert decoded.part_of_visit_id is None  # type: ignore[union-attr]
+    assert decoded.parent_id is None  # type: ignore[union-attr]
     assert decoded.external_refs == frozenset()  # type: ignore[union-attr]
 
 
@@ -137,8 +137,8 @@ def test_to_payload_external_refs_are_sorted_for_determinism() -> None:
         occurred_at=_NOW,
         external_refs=frozenset(
             {
-                ExternalRef(scheme="proposal", id="12345"),
-                ExternalRef(scheme="cycle", id="2026-1"),
+                Identifier(scheme="proposal", value="12345"),
+                Identifier(scheme="cycle", value="2026-1"),
             }
         ),
     )
@@ -152,8 +152,8 @@ def test_to_payload_external_refs_are_sorted_for_determinism() -> None:
         occurred_at=_NOW,
         external_refs=frozenset(
             {
-                ExternalRef(scheme="cycle", id="2026-1"),
-                ExternalRef(scheme="proposal", id="12345"),
+                Identifier(scheme="cycle", value="2026-1"),
+                Identifier(scheme="proposal", value="12345"),
             }
         ),
     )

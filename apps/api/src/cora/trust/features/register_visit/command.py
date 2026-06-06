@@ -5,7 +5,7 @@ mint deterministic UUIDs (`uuid5(NAMESPACE_BSS, f'{scheme}:{external_id}')`)
 for replay-safe ingest, while operator-direct registration can also supply
 a UUID.
 
-`part_of_visit_id` and `external_refs` ship on the command alongside
+`parent_id` and `external_refs` ship on the command alongside
 the lifecycle fields to avoid a two-pass event-payload migration when
 the partOf cohesion check + external-ref query slices land.
 """
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.trust.aggregates.visit import VisitType
 
 
@@ -37,7 +37,7 @@ class RegisterVisit:
     `planned_start_at` + `planned_end_at`: REQUIRED. Decider enforces
     `planned_end_at > planned_start_at`.
 
-    `part_of_visit_id`: OPTIONAL self-FK for nested commissioning.
+    `parent_id`: OPTIONAL self-FK for nested commissioning.
 
     `external_refs`: OPTIONAL anti-corruption refs to upstream-
     deferred concepts.
@@ -49,5 +49,5 @@ class RegisterVisit:
     type: VisitType
     planned_start_at: datetime
     planned_end_at: datetime
-    part_of_visit_id: UUID | None = None
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    parent_id: UUID | None = None
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])

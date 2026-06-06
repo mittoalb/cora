@@ -1,12 +1,12 @@
-"""MountChildrenProjection: parent_mount_id -> active child Mount IDs.
+"""MountChildrenProjection: parent_id -> active child Mount IDs.
 
 Backs the `decommission_mount` slice's projection precondition: a
 parent Mount cannot be decommissioned while it still has active
 child Mounts (no cascade-decommission per the design anti-hook).
 
 Subscribed events:
-  - MountRegistered     -> INSERT (parent_mount_id, child_mount_id)
-                           when parent_mount_id is not None
+  - MountRegistered     -> INSERT (parent_id, child_mount_id)
+                           when parent_id is not None
                            (top-level mounts are skipped)
   - MountDecommissioned -> DELETE matching row (child no longer
                            counts as a 'live' child of its parent)
@@ -32,9 +32,9 @@ if TYPE_CHECKING:
 
 _INSERT_SQL = """
 INSERT INTO proj_equipment_mount_children
-    (parent_mount_id, child_mount_id, registered_at)
+    (parent_id, child_mount_id, registered_at)
 VALUES ($1, $2, $3)
-ON CONFLICT (parent_mount_id, child_mount_id) DO NOTHING
+ON CONFLICT (parent_id, child_mount_id) DO NOTHING
 """
 
 _DELETE_BY_CHILD_SQL = """
@@ -45,7 +45,7 @@ WHERE child_mount_id = $1
 _SELECT_ACTIVE_CHILDREN_SQL = """
 SELECT child_mount_id
 FROM proj_equipment_mount_children
-WHERE parent_mount_id = $1
+WHERE parent_id = $1
 """
 
 
@@ -67,7 +67,7 @@ class MountChildrenProjection:
     ) -> None:
         match event.event_type:
             case "MountRegistered":
-                parent_raw = event.payload.get("parent_mount_id")
+                parent_raw = event.payload.get("parent_id")
                 if parent_raw is None:
                     return
                 await conn.execute(
@@ -87,13 +87,13 @@ class MountChildrenProjection:
 
 async def load_active_mount_children(
     pool: asyncpg.Pool,
-    parent_mount_id: UUID,
+    parent_id: UUID,
 ) -> tuple[UUID, ...]:
-    """Return the currently-active child mount IDs of `parent_mount_id`.
+    """Return the currently-active child mount IDs of `parent_id`.
 
     Used by the decommission_mount handler as a projection
     precondition: if the returned tuple is non-empty, the decider
     raises MountHasActiveChildrenError.
     """
-    rows = await pool.fetch(_SELECT_ACTIVE_CHILDREN_SQL, parent_mount_id)
+    rows = await pool.fetch(_SELECT_ACTIVE_CHILDREN_SQL, parent_id)
     return tuple(row["child_mount_id"] for row in rows)

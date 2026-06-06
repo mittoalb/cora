@@ -17,7 +17,7 @@ Clock and IdGenerator ports.
     pre-existing mount_id for diagnostics.
   - slot_code must be valid -> InvalidSlotCodeError (via SlotCode VO).
 
-Eventual-consistency: parent_mount_id existence NOT verified;
+Eventual-consistency: parent_id existence NOT verified;
 placement.parent_frame_id existence NOT verified.
 """
 
@@ -67,7 +67,7 @@ def decide(
         MountRegistered(
             mount_id=new_id,
             slot_code=slot_code.value,
-            parent_mount_id=command.parent_mount_id,
+            parent_id=command.parent_id,
             placement=command.placement,
             drawing=command.drawing,
             occurred_at=now,

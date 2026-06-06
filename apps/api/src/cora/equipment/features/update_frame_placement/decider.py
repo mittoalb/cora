@@ -13,7 +13,7 @@ Returns `[]` for the no-op-on-unchanged case (idempotent contract).
     None at the aggregate level) -> FrameCannotUpdateError (reason:
     root frame has no placement to update).
   - The new placement's `parent_frame_id` field must equal the Frame's
-    current `parent_frame_id` (you cannot reparent via
+    current `parent_id` (you cannot reparent via
     update_frame_placement; that would require a separate
     reparent_frame slice). -> InvalidFrameRootError.
   - When `new_placement == current_placement`, return `[]` (no-op).
@@ -45,7 +45,7 @@ def decide(
       - Status must be Active -> FrameCannotUpdateError (status mismatch)
       - Frame must be a child frame (placement
         is not None) -> FrameCannotUpdateError (root frame)
-      - `new_placement.parent_frame_id == state.parent_frame_id`
+      - `new_placement.parent_frame_id == state.parent_id`
         (update_frame_placement cannot reparent) -> InvalidFrameRootError
       - No-op on unchanged: `new_placement == current_placement`
         returns `[]` (idempotent contract).
@@ -60,10 +60,10 @@ def decide(
     if state.placement is None:
         msg = "root frame has no placement; update_frame_placement is only valid on child frames"
         raise FrameCannotUpdateError(state.id, msg)
-    if command.new_placement.parent_frame_id != state.parent_frame_id:
+    if command.new_placement.parent_frame_id != state.parent_id:
         msg = (
             f"new_placement.parent_frame_id ({command.new_placement.parent_frame_id}) "
-            f"must equal Frame.parent_frame_id ({state.parent_frame_id}); "
+            f"must equal Frame.parent_id ({state.parent_id}); "
             "update_frame_placement cannot reparent"
         )
         raise InvalidFrameRootError(msg)

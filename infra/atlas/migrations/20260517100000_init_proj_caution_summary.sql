@@ -14,8 +14,8 @@
 --   - CautionRegistered  -> INSERT (status='Active', last_status_changed_at=NULL,
 --                                   superseded_by_caution_id=NULL,
 --                                   retired_reason=NULL,
---                                   parent_caution_id=<None for top-level;
---                                                     UUID for supersession child>)
+--                                   parent_id=<None for top-level;
+--                                              UUID for supersession child>)
 --   - CautionSuperseded  -> UPDATE status='Superseded'
 --                                  + superseded_by_caution_id (<child>)
 --                                  + last_status_changed_at
@@ -36,7 +36,7 @@
 -- out of Active. `retired_reason` is set on Retired only; same
 -- closed enum as `CautionRetireReason` (Resolved / NoLongerApplies /
 -- WrongTarget). `superseded_by_caution_id` is set on the superseded
--- parent (links to its replacement). `parent_caution_id` is set on
+-- parent (links to its replacement). `parent_id` is set on
 -- the supersession child genesis (links back to its parent).
 --
 -- The two pointers together form the supersession-lineage chain.
@@ -85,7 +85,7 @@ CREATE TABLE proj_caution_summary (
     status                    TEXT        NOT NULL CHECK (
         status IN ('Active', 'Superseded', 'Retired')
     ),
-    parent_caution_id         UUID,
+    parent_id                 UUID,
     superseded_by_caution_id  UUID,
     retired_reason            TEXT        CHECK (
         retired_reason IS NULL OR retired_reason IN (

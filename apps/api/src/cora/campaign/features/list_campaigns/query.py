@@ -28,10 +28,10 @@ keyset key.
     only; the projection denorm is `run_count`, not the UUID set).
     Per design memo Watch item #10, this filter lands with
     the Run aggregate evolution.
-  - `external_ref_scheme` / `external_ref_id`: external_refs lives
+  - `external_ref_scheme` / `external_ref_value`: external_refs lives
     on the aggregate stream; the projection denorm is `external_id`
-    only. Reverse-query by ExternalRef tuple would need a
-    projection denorm table (per-campaign rows) which is deferred.
+    only. Reverse-query by Identifier (scheme, value) tuple would need
+    a projection denorm table (per-campaign rows) which is deferred.
 """
 
 from dataclasses import dataclass

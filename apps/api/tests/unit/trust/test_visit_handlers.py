@@ -572,7 +572,7 @@ async def test_take_control_handler_allows_when_pool_reports_partof_parent_holde
             type=VisitType.COMMISSIONING.value,
             planned_start_at=_PLANNED_START,
             planned_end_at=_PLANNED_END,
-            part_of_visit_id=parent_visit_id,
+            parent_id=parent_visit_id,
             occurred_at=_NOW,
         ),
         VisitArrived(visit_id=child_visit_id, occurred_at=_NOW),

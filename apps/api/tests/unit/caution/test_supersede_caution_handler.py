@@ -51,7 +51,7 @@ async def _seed_parent(store: InMemoryEventStore) -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     new_event = to_new_event(
@@ -87,7 +87,7 @@ def _build_deps(
 
 def _command() -> SupersedeCaution:
     return SupersedeCaution(
-        parent_caution_id=_PARENT_ID,
+        parent_id=_PARENT_ID,
         target=AssetTarget(asset_id=_ASSET_ID),
         category=CautionCategory.WEAR,
         severity=CautionSeverity.CAUTION,
@@ -130,7 +130,7 @@ async def test_handler_writes_parent_superseded_and_child_registered_atomically(
     child_events, child_version = await store.load("Caution", _CHILD_ID)
     assert child_version == 1
     assert child_events[0].event_type == "CautionRegistered"
-    assert child_events[0].payload["parent_caution_id"] == str(_PARENT_ID)
+    assert child_events[0].payload["parent_id"] == str(_PARENT_ID)
     assert child_events[0].payload["text"] == "updated text"
     assert child_events[0].payload["workaround"] == "updated workaround"
 

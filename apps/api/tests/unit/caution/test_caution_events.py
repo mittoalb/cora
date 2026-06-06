@@ -128,7 +128,7 @@ def test_caution_registered_event_type_name() -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "CautionRegistered"
@@ -147,7 +147,7 @@ def test_caution_registered_to_payload_asset_target_tags_sorted() -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     assert to_payload(event) == {
@@ -161,7 +161,7 @@ def test_caution_registered_to_payload_asset_target_tags_sorted() -> None:
         "author_actor_id": str(_AUTHOR_ID),
         "expires_at": None,
         "propagate_to_children": False,
-        "parent_caution_id": None,
+        "parent_id": None,
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -179,7 +179,7 @@ def test_caution_registered_round_trip_asset_target() -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("CautionRegistered", to_payload(original)))
@@ -200,7 +200,7 @@ def test_caution_registered_round_trip_procedure_target_with_expires_at() -> Non
         author_actor_id=_AUTHOR_ID,
         expires_at=expires,
         propagate_to_children=True,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("CautionRegistered", to_payload(original)))
@@ -208,7 +208,7 @@ def test_caution_registered_round_trip_procedure_target_with_expires_at() -> Non
 
 
 @pytest.mark.unit
-def test_caution_registered_round_trip_with_parent_caution_id() -> None:
+def test_caution_registered_round_trip_with_parent_id() -> None:
     parent_id = UUID("01900000-0000-7000-8000-00000000b999")
     original = CautionRegistered(
         caution_id=_CAUTION_ID,
@@ -221,12 +221,12 @@ def test_caution_registered_round_trip_with_parent_caution_id() -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=parent_id,
+        parent_id=parent_id,
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("CautionRegistered", to_payload(original)))
     assert rebuilt == original
-    assert rebuilt.parent_caution_id == parent_id  # type: ignore[union-attr]
+    assert rebuilt.parent_id == parent_id  # type: ignore[union-attr]
 
 
 # ---------- CautionSuperseded ----------
@@ -338,7 +338,7 @@ def test_caution_registered_payload_carries_target_dict_shape() -> None:
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     payload: dict[str, Any] = to_payload(event)

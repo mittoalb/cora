@@ -72,7 +72,7 @@ async def _seed_frame_mount_and_asset(
     await bind_register_frame(deps)(
         RegisterFrame(
             name=f"frame-for-{slot_code}",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -83,7 +83,7 @@ async def _seed_frame_mount_and_asset(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -251,7 +251,7 @@ async def test_uninstall_then_reinstall_on_other_mount_relocates_row(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-A-K-04",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -314,7 +314,7 @@ async def test_install_rejects_cross_mount_collision_via_back_lookup(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-X-K-uniq-b",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),

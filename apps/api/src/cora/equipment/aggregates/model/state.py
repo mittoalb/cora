@@ -365,6 +365,10 @@ class ManufacturerIdentifier:
 class Manufacturer:
     """A model's manufacturer: required name, optional (identifier, type).
 
+    Deviation from Identifier VO: 3-field VO with closed-enum
+    identifier_type {ROR, GRID, ISNI} + pairing invariant + name per
+    PIDINST 4.2.
+
     Pairing invariant: `identifier` and `identifier_type` are both set
     or both None. A bare identifier with no scheme cannot be resolved;
     a scheme with no identifier is meaningless. Enforced in

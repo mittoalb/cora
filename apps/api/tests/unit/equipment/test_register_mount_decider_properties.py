@@ -74,7 +74,7 @@ def _mount(mount_id: UUID, frame_id: UUID) -> Mount:
     return Mount(
         id=mount_id,
         slot_code=SlotCode("existing"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=None,
@@ -85,7 +85,7 @@ def _mount(mount_id: UUID, frame_id: UUID) -> Mount:
 @pytest.mark.unit
 @given(
     slot_code=_SLOT_CODE,
-    parent_mount_id=st.one_of(st.none(), st.uuids()),
+    parent_id=st.one_of(st.none(), st.uuids()),
     drawing_number=_DRAWING_NUMBER,
     include_drawing=st.booleans(),
     frame_id=st.uuids(),
@@ -94,7 +94,7 @@ def _mount(mount_id: UUID, frame_id: UUID) -> Mount:
 )
 def test_register_mount_emits_exactly_one_event_with_injected_fields(
     slot_code: str,
-    parent_mount_id: UUID | None,
+    parent_id: UUID | None,
     drawing_number: str,
     include_drawing: bool,
     frame_id: UUID,
@@ -110,7 +110,7 @@ def test_register_mount_emits_exactly_one_event_with_injected_fields(
     )
     command = RegisterMount(
         slot_code=slot_code,
-        parent_mount_id=parent_mount_id,
+        parent_id=parent_id,
         placement=placement,
         drawing=drawing,
     )
@@ -125,7 +125,7 @@ def test_register_mount_emits_exactly_one_event_with_injected_fields(
         MountRegistered(
             mount_id=new_id,
             slot_code=slot_code,
-            parent_mount_id=parent_mount_id,
+            parent_id=parent_id,
             placement=placement,
             drawing=drawing,
             occurred_at=now,
@@ -138,7 +138,7 @@ def test_register_mount_emits_exactly_one_event_with_injected_fields(
     existing_id=st.uuids(),
     slot_code=_SLOT_CODE,
     frame_id=st.uuids(),
-    parent_mount_id=st.one_of(st.none(), st.uuids()),
+    parent_id=st.one_of(st.none(), st.uuids()),
     now=aware_datetimes(),
     new_id=st.uuids(),
 )
@@ -146,14 +146,14 @@ def test_register_mount_on_existing_state_always_raises_already_exists(
     existing_id: UUID,
     slot_code: str,
     frame_id: UUID,
-    parent_mount_id: UUID | None,
+    parent_id: UUID | None,
     now: datetime,
     new_id: UUID,
 ) -> None:
     """Any non-None state -> MountAlreadyExistsError carrying state.id."""
     command = RegisterMount(
         slot_code=slot_code,
-        parent_mount_id=parent_mount_id,
+        parent_id=parent_id,
         placement=_placement(frame_id),
         drawing=None,
     )
@@ -173,7 +173,7 @@ def test_register_mount_on_existing_state_always_raises_already_exists(
     colliding_id=st.uuids(),
     slot_code=_SLOT_CODE,
     frame_id=st.uuids(),
-    parent_mount_id=st.one_of(st.none(), st.uuids()),
+    parent_id=st.one_of(st.none(), st.uuids()),
     now=aware_datetimes(),
     new_id=st.uuids(),
 )
@@ -181,14 +181,14 @@ def test_register_mount_with_slot_code_collision_always_raises_already_exists(
     colliding_id: UUID,
     slot_code: str,
     frame_id: UUID,
-    parent_mount_id: UUID | None,
+    parent_id: UUID | None,
     now: datetime,
     new_id: UUID,
 ) -> None:
     """context.existing_mount_id set -> MountAlreadyExistsError carrying context id."""
     command = RegisterMount(
         slot_code=slot_code,
-        parent_mount_id=parent_mount_id,
+        parent_id=parent_id,
         placement=_placement(frame_id),
         drawing=None,
     )
@@ -206,14 +206,14 @@ def test_register_mount_with_slot_code_collision_always_raises_already_exists(
 @pytest.mark.unit
 @given(
     slot_code=_SLOT_CODE,
-    parent_mount_id=st.one_of(st.none(), st.uuids()),
+    parent_id=st.one_of(st.none(), st.uuids()),
     frame_id=st.uuids(),
     now=aware_datetimes(),
     new_id=st.uuids(),
 )
 def test_register_mount_is_pure_same_input_same_output(
     slot_code: str,
-    parent_mount_id: UUID | None,
+    parent_id: UUID | None,
     frame_id: UUID,
     now: datetime,
     new_id: UUID,
@@ -221,7 +221,7 @@ def test_register_mount_is_pure_same_input_same_output(
     """Two calls with identical args return identical events (no clock leakage)."""
     command = RegisterMount(
         slot_code=slot_code,
-        parent_mount_id=parent_mount_id,
+        parent_id=parent_id,
         placement=_placement(frame_id),
         drawing=None,
     )

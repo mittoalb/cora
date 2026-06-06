@@ -2,7 +2,7 @@
 
 Supersedes an Active parent caution by creating a new child caution
 with the supplied fields, atomically with the parent's transition to
-`Superseded`. The child gets `parent_caution_id=<parent>` on its
+`Superseded`. The child gets `parent_id=<parent>` on its
 genesis event; the parent gets `CautionSuperseded(superseded_by_caution_id=
 <child>)` on its stream.
 
@@ -46,11 +46,11 @@ class SupersedeCaution:
     """Supersede an Active caution with a new child (`parent: Active -> Superseded`).
 
     Fields mirror `RegisterCaution` (the child IS a registration) +
-    `parent_caution_id`. `target` MUST match parent's; the decider
+    `parent_id`. `target` MUST match parent's; the decider
     enforces this.
     """
 
-    parent_caution_id: UUID
+    parent_id: UUID
     target: CautionTarget
     category: CautionCategory
     severity: CautionSeverity

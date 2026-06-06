@@ -1,7 +1,7 @@
 """Pure decider for the `SupersedeCaution` command.
 
 Cross-aggregate transition: parent goes `Active -> Superseded` while a
-new child caution is registered with `parent_caution_id=<parent>`.
+new child caution is registered with `parent_id=<parent>`.
 Both event streams are written atomically by the handler via
 `EventStore.append_streams`; the decider returns BOTH event lists
 typed as `SupersessionEvents` so the handler doesn't need to guess
@@ -123,7 +123,7 @@ def decide(
             author_actor_id=author_actor_id,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
-            parent_caution_id=parent.id,
+            parent_id=parent.id,
             occurred_at=now,
         )
     ]

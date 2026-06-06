@@ -86,7 +86,7 @@ def test_event_type_name_returns_class_name_per_event_kind() -> None:
             MountRegistered(
                 mount_id=uuid4(),
                 slot_code="x",
-                parent_mount_id=None,
+                parent_id=None,
                 placement=_placement(frame_id),
                 drawing=None,
                 occurred_at=_NOW,
@@ -140,13 +140,13 @@ def test_mount_registered_round_trip_for_root_mount_without_drawing() -> None:
     event = MountRegistered(
         mount_id=mount_id,
         slot_code="02-BM-A-K-01",
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
-    assert payload["parent_mount_id"] is None
+    assert payload["parent_id"] is None
     assert payload["drawing"] is None
     rebuilt = from_stored(_stored("MountRegistered", payload))
     assert rebuilt == event
@@ -161,7 +161,7 @@ def test_mount_registered_round_trip_with_parent_and_drawing_preserves_all_field
     event = MountRegistered(
         mount_id=mount_id,
         slot_code="02-BM-A-K-01-CHILD",
-        parent_mount_id=parent_mount,
+        parent_id=parent_mount,
         placement=_placement(frame_id),
         drawing=drawing,
         occurred_at=_NOW,
@@ -171,7 +171,7 @@ def test_mount_registered_round_trip_with_parent_and_drawing_preserves_all_field
     assert rebuilt == event
     assert isinstance(rebuilt, MountRegistered)
     assert rebuilt.drawing == drawing
-    assert rebuilt.parent_mount_id == parent_mount
+    assert rebuilt.parent_id == parent_mount
 
 
 @pytest.mark.unit
@@ -302,7 +302,7 @@ def test_mount_registered_payload_includes_full_placement_and_drawing_structure(
     event = MountRegistered(
         mount_id=mount_id,
         slot_code="02-BM-A-K-01",
-        parent_mount_id=parent_mount,
+        parent_id=parent_mount,
         placement=_placement(frame_id),
         drawing=drawing,
         occurred_at=_NOW,

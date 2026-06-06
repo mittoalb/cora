@@ -58,7 +58,7 @@ def test_evolve_genesis_sets_active_status_for_root_mount() -> None:
     event = MountRegistered(
         mount_id=mount_id,
         slot_code="02-BM-A-K-01",
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         occurred_at=_NOW,
@@ -67,7 +67,7 @@ def test_evolve_genesis_sets_active_status_for_root_mount() -> None:
     assert state == Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=None,
@@ -84,13 +84,13 @@ def test_evolve_genesis_sets_active_status_with_parent_and_drawing() -> None:
     event = MountRegistered(
         mount_id=mount_id,
         slot_code="02-BM-A-K-01-CHILD",
-        parent_mount_id=parent_mount,
+        parent_id=parent_mount,
         placement=_placement(frame_id),
         drawing=drawing,
         occurred_at=_NOW,
     )
     state = evolve(None, event)
-    assert state.parent_mount_id == parent_mount
+    assert state.parent_id == parent_mount
     assert state.drawing == drawing
     assert state.installed_asset_id is None
     assert state.status is MountStatus.ACTIVE
@@ -103,7 +103,7 @@ def test_evolve_placement_updated_changes_only_placement() -> None:
     prior = Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=None,
@@ -131,7 +131,7 @@ def test_evolve_asset_installed_sets_installed_asset_id() -> None:
     prior = Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=None,
@@ -160,7 +160,7 @@ def test_evolve_asset_installed_replaces_prior_specimen_in_swap_within_cycle() -
     prior = Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=prior_asset,
@@ -184,7 +184,7 @@ def test_evolve_asset_uninstalled_clears_installed_asset_id() -> None:
     prior = Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=asset_id,
@@ -209,7 +209,7 @@ def test_evolve_mount_decommissioned_sets_terminal_status() -> None:
     prior = Mount(
         id=mount_id,
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=drawing,
         installed_asset_id=None,
@@ -246,7 +246,7 @@ def test_fold_replays_register_install_uninstall_decommission() -> None:
         MountRegistered(
             mount_id=mount_id,
             slot_code="02-BM-A-K-01",
-            parent_mount_id=None,
+            parent_id=None,
             placement=_placement(frame_id),
             drawing=None,
             occurred_at=_NOW,

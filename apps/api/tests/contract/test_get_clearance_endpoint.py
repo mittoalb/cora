@@ -39,7 +39,7 @@ def test_get_clearances_returns_200_with_full_state() -> None:
     assert body["external_id"] == "ESAF-12345"
     assert body["status"] == "Defined"
     assert body["review_steps"] == []
-    assert body["parent_clearance_id"] is None
+    assert body["parent_id"] is None
 
 
 @pytest.mark.contract
@@ -68,7 +68,7 @@ def test_get_clearances_returns_bindings_with_kind_discriminator() -> None:
             "bindings": [
                 {"kind": "Subject", "id": sid},
                 {"kind": "Run", "id": rid},
-                {"kind": "External", "scheme": "proposal", "id": "GUP-12345"},
+                {"kind": "External", "scheme": "proposal", "value": "GUP-12345"},
             ],
         }
         post_response = client.post("/clearances", json=body)

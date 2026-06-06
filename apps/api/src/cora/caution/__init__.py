@@ -15,7 +15,7 @@ FSM) both forbid co-tenancy.
 
 Slices: `register_caution` (genesis -> Active), `supersede_caution`
 (cross-aggregate; parent Active -> Superseded, new child genesis with
-`parent_caution_id`), `retire_caution` (Active -> Retired),
+`parent_id`), `retire_caution` (Active -> Retired),
 `get_caution` (fold-on-read), `list_cautions` (projection-backed).
 Run-start integration is non-blocking via the `CautionLookup` port
 (mirrors `ClearanceLookup`).

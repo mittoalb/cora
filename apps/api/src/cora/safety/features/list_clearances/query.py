@@ -12,7 +12,7 @@ The 4 binds_to_* filters use UUID[] GIN indexes on the projection;
 each is matched against its corresponding binding-id array column
 (SubjectBinding -> subject_binding_ids, AssetBinding -> asset_binding_ids,
 RunBinding -> run_binding_ids, ProcedureBinding -> procedure_binding_ids).
-ExternalBinding refs are not filterable today; defer until consumer
+ExternalRefBinding refs are not filterable today; defer until consumer
 demands.
 """
 

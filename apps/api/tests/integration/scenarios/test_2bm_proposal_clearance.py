@@ -17,7 +17,7 @@ Phase operations.
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy. See [[project_safety_clearance_design]] for the design
 lock on the 8-state FSM, the 10-value `ClearanceKind` vocabulary,
-and the multi-binding shape (typed CORA refs + `ExternalBinding`).
+and the multi-binding shape (typed CORA refs + `ExternalRefBinding`).
 
 ## Why this scenario exists
 
@@ -40,10 +40,9 @@ is unambiguous.
 This scenario exercises:
 
   - `register_clearance` with realistic ESAF shape: bound to the
-    Subject (sample-level hazard) + an `ExternalBinding` to the
+    Subject (sample-level hazard) + an `ExternalRefBinding` to the
     proposal id (since CORA does not model Proposal aggregates;
-    that binding lives in the ExternalBinding's `(scheme, id)`
-    pair).
+    that binding wraps an `Identifier(scheme, value)` pair).
   - `submit_clearance` (Defined -> Submitted; PI signs off on the
     submitted form).
   - `start_clearance_review` (Submitted -> UnderReview;
@@ -61,7 +60,7 @@ This scenario exercises:
      intake (PI + Subject + Campaign registered per the standard
      `_beamtime_fixture` ceremony).
   2. The Beamline Scientist registers the ESAF against the
-     Subject sample + the proposal id (via ExternalBinding) +
+     Subject sample + the proposal id (via ExternalRefBinding) +
      declares a hazard for the porous-sandstone sample (NFPA704
      low-rating).
   3. PI submits the ESAF for review.
@@ -90,13 +89,13 @@ gate fires from Run BC".
 
 ## What this scenario surfaces (gap-finding intent)
 
-  - **ExternalBinding to Proposal is the canonical pattern.**
+  - **ExternalRefBinding to Proposal is the canonical pattern.**
     CORA does not model Proposal as an aggregate (per
     `project_bc_map.md` line 111: Programs / Funding lines /
     Proposals "consumed via anti-corruption adapter, not modeled
     internally"). The ESAF binds to the proposal via
-    `ExternalBinding(scheme="proposal", id="2026-1234")`. If a
-    facility ever needs CORA to model Proposal as an aggregate,
+    `ExternalRefBinding(ref=Identifier(scheme="proposal", value="2026-1234"))`.
+    If a facility ever needs CORA to model Proposal as an aggregate,
     this binding becomes a typed `ProposalBinding`. Watch item.
   - **Review chain length is per-facility convention.** This
     scenario uses 2 steps (BeamlineScientist + ESRB) matching
@@ -120,10 +119,11 @@ import asyncpg
 import pytest
 
 from cora.campaign.aggregates.campaign import CampaignIntent
+from cora.infrastructure.identifier import Identifier
 from cora.safety.aggregates.clearance import (
     ClearanceKind,
     ClearanceStatus,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
     SubjectBinding,
     load_clearance,
@@ -240,7 +240,7 @@ async def test_proposal_clearance_walks_to_active(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Seed facility + beamtime intake, register ESAF Clearance
-    bound to the Subject + proposal ExternalBinding, walk the full
+    bound to the Subject + proposal ExternalRefBinding, walk the full
     FSM (Defined -> Submitted -> UnderReview -> Approved -> Active)
     with a 2-step review chain (BeamlineScientist + ESRB). Assert
     each transition lands and Active is the terminal state."""
@@ -268,13 +268,15 @@ async def test_proposal_clearance_walks_to_active(
     )
 
     # ----- Safety BC: register ESAF for the proposal -----
-    # Multi-bind: Subject (sample-level hazard claim) + ExternalBinding
+    # Multi-bind: Subject (sample-level hazard claim) + ExternalRefBinding
     # for the proposal id (CORA does not model Proposal aggregate).
     # One HazardDeclaration: NFPA704 low-rating for the porous sandstone
     # sample (inert mineral, no special hazards).
 
     subject_binding = SubjectBinding(subject_id=_SUBJECT_ID)
-    proposal_binding = ExternalBinding(scheme="proposal", id="2026-1234")
+    proposal_binding = ExternalRefBinding(
+        ref=Identifier(scheme="proposal", value="2026-1234"),
+    )
 
     new_clearance_id = await bind_register_clearance(deps)(
         RegisterClearance(

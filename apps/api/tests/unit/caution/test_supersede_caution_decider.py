@@ -3,7 +3,7 @@
 Pins the cross-aggregate two-stream output shape:
   - parent_events == [CautionSuperseded(parent.id, superseded_by_caution_id=new_id)]
   - child_events == [CautionRegistered(caution_id=new_id,
-                                       parent_caution_id=parent.id, ...)]
+                                       parent_id=parent.id, ...)]
 """
 
 from datetime import UTC, datetime, timedelta
@@ -65,7 +65,7 @@ def _command(
     expires_at: datetime | None = None,
 ) -> SupersedeCaution:
     return SupersedeCaution(
-        parent_caution_id=parent_id,
+        parent_id=parent_id,
         target=target if target is not None else AssetTarget(asset_id=_ASSET_ID),
         category=CautionCategory.WEAR,
         severity=CautionSeverity.CAUTION,
@@ -100,7 +100,7 @@ def test_decide_emits_parent_superseded_and_child_registered() -> None:
     assert len(result.child_events) == 1
     assert isinstance(result.child_events[0], CautionRegistered)
     assert result.child_events[0].caution_id == new_id
-    assert result.child_events[0].parent_caution_id == parent.id
+    assert result.child_events[0].parent_id == parent.id
     assert result.child_events[0].text == "amended text"
     assert result.child_events[0].workaround == "amended workaround"
     assert result.child_events[0].target == AssetTarget(asset_id=_ASSET_ID)

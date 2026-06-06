@@ -18,9 +18,9 @@ Slot-code uniqueness is a projection-precondition concern at register
 time (not enforced at the DB level here), enabling a future
 multi-facility deployment where slot codes are facility-scoped.
 
-## Composition (parent_mount_id)
+## Composition (parent_id)
 
-`parent_mount_id` is the immediate parent in the slot hierarchy
+`parent_id` is the immediate parent in the slot hierarchy
 (an Assembly slot containing Device slots, ISA-88-derived). It is
 NOT the coordinate-frame parent: coordinate framing lives entirely
 on `Placement.parent_frame_id`, which references a Frame, not another
@@ -362,7 +362,7 @@ class Mount:
     alias operators use. Slot-code uniqueness is enforced via
     projection precondition at register time, not by the VO.
 
-    `parent_mount_id` is the immediate parent in the slot hierarchy
+    `parent_id` is the immediate parent in the slot hierarchy
     tree (Assembly slot containing Device slots). None for top-level
     slots. Distinct axis from `placement.parent_frame_id` (which names
     the coordinate frame, NOT a Mount).
@@ -382,7 +382,7 @@ class Mount:
 
     id: UUID
     slot_code: SlotCode
-    parent_mount_id: UUID | None
+    parent_id: UUID | None
     placement: Placement
     drawing: Drawing | None
     installed_asset_id: UUID | None

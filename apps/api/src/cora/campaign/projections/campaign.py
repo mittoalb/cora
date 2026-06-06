@@ -27,7 +27,7 @@ Subscribed events:
   - The projection does NOT include `external_refs` (lives on the
     aggregate stream; per design memo §12 the projection columns include
     `external_id` only, not `external_refs`). Reverse-query "Campaigns
-    by external_ref scheme/id" is a Watch item.
+    by external_ref scheme/value" is a Watch item.
   - The projection does NOT include `run_ids` (full set lives on the
     aggregate stream; `run_count` is the only denorm). Reverse-query
     "Campaigns containing run X" is Watch item #10 (needs Run.campaign_id

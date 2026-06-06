@@ -54,7 +54,7 @@ async def _seed_frame(pool: asyncpg.Pool, frame_id: UUID) -> None:
     await bind_register_frame(deps)(
         RegisterFrame(
             name=f"frame-{frame_id}",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -73,7 +73,7 @@ async def test_register_mount_inserts_slot_code_to_mount_id_row(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-A-K-lookup-01",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -98,7 +98,7 @@ async def test_register_mount_rejects_colliding_slot_code(db_pool: asyncpg.Pool)
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-B-K-collision",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -113,7 +113,7 @@ async def test_register_mount_rejects_colliding_slot_code(db_pool: asyncpg.Pool)
         await bind_register_mount(deps)(
             RegisterMount(
                 slot_code="02-BM-B-K-collision",
-                parent_mount_id=None,
+                parent_id=None,
                 placement=placement(frame_id),
                 drawing=None,
             ),
@@ -141,7 +141,7 @@ async def test_decommission_frees_slot_code_for_re_registration(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-C-K-recycle",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -165,7 +165,7 @@ async def test_decommission_frees_slot_code_for_re_registration(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code="02-BM-C-K-recycle",
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),

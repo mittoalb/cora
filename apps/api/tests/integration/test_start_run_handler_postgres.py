@@ -176,7 +176,7 @@ async def test_start_run_persists_event_with_full_upstream_chain_against_postgre
         "override_parameters": {},
         "effective_parameters": {},
         "trigger_source": None,
-        # 11a-c-3 additive payload field for ExternalRef-based clearance
+        # 11a-c-3 additive payload field for `Identifier`-based clearance
         # coverage. Defaults to [] when omitted; forward-compat via
         # `payload.get("external_refs", [])`.
         "external_refs": [],

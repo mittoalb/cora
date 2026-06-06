@@ -11,7 +11,7 @@
 --   - external_refs column shipped now (Phase beta) even though API
 --     surface lands Phase epsilon; closes the migration-drift concern
 --     surfaced in the gate review (P2-Design-3).
---   - part_of_visit_id column shipped now (Phase beta) even though
+--   - parent_id column shipped now (Phase beta) even though
 --     API surface lands Phase delta; same rationale.
 --   - VisitType is a closed enum enforced by CHECK constraint; adding
 --     a 6th value uses CORA's forward-only migration pattern (drop +
@@ -55,7 +55,7 @@ CREATE TABLE proj_trust_visit_summary (
     ),
     planned_start_at   TIMESTAMPTZ NOT NULL,
     planned_end_at     TIMESTAMPTZ NOT NULL,
-    part_of_visit_id   UUID        NULL,
+    parent_id          UUID        NULL,
     external_refs      JSONB       NOT NULL DEFAULT '[]'::jsonb,
     created_at         TIMESTAMPTZ NOT NULL,
     arrived_at         TIMESTAMPTZ,

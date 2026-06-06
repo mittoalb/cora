@@ -71,7 +71,7 @@ async def _seed_active_asset_in_mount(
 
     deps = build_postgres_deps(pool, now=_NOW, ids=[frame_id, uuid4()])
     await register_frame.bind(deps)(
-        RegisterFrame(name=f"frame-{slot_code}", parent_frame_id=None, placement=None),
+        RegisterFrame(name=f"frame-{slot_code}", parent_id=None, placement=None),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -80,7 +80,7 @@ async def _seed_active_asset_in_mount(
     await register_mount.bind(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),

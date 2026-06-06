@@ -8,7 +8,7 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
@@ -17,9 +17,9 @@ from cora.trust.features.register_visit.command import RegisterVisit
 from cora.trust.features.register_visit.handler import IdempotentHandler
 
 
-class _ExternalRefInput(BaseModel):
+class _IdentifierInput(BaseModel):
     scheme: str = Field(..., min_length=1, max_length=50)
-    id: str = Field(..., min_length=1, max_length=200)
+    value: str = Field(..., min_length=1, max_length=200)
 
 
 class RegisterVisitOutput(BaseModel):
@@ -60,7 +60,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             datetime,
             Field(description="Scheduled end; must be strictly after planned_start_at."),
         ],
-        part_of_visit_id: Annotated[
+        parent_id: Annotated[
             UUID | None,
             Field(
                 description=(
@@ -70,7 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ),
         ] = None,
         external_refs: Annotated[
-            list[_ExternalRefInput],
+            list[_IdentifierInput],
             Field(
                 description=(
                     "Anti-corruption refs to upstream-deferred concepts "
@@ -88,9 +88,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 type=type,
                 planned_start_at=planned_start_at,
                 planned_end_at=planned_end_at,
-                part_of_visit_id=part_of_visit_id,
+                parent_id=parent_id,
                 external_refs=frozenset(
-                    ExternalRef(scheme=r.scheme, id=r.id) for r in external_refs
+                    Identifier(scheme=r.scheme, value=r.value) for r in external_refs
                 ),
             ),
             principal_id=get_mcp_principal_id(ctx),

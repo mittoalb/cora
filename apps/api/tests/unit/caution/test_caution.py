@@ -280,9 +280,9 @@ def test_caution_propagate_to_children_defaults_to_false() -> None:
 
 
 @pytest.mark.unit
-def test_caution_parent_caution_id_defaults_to_none() -> None:
+def test_caution_parent_id_defaults_to_none() -> None:
     caution = _minimal_caution()
-    assert caution.parent_caution_id is None
+    assert caution.parent_id is None
 
 
 @pytest.mark.unit

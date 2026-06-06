@@ -24,9 +24,9 @@ capture, don't recompute).
 
 Initial status is implicit `Active` (event type IS the state-change
 indicator; the genesis evolver hardcodes the mapping). The single
-emitted event is `CautionRegistered` with `parent_caution_id=None`
+emitted event is `CautionRegistered` with `parent_id=None`
 (top-level register; supersession-child genesis is emitted by the
-`supersede_caution` decider with `parent_caution_id` set).
+`supersede_caution` decider with `parent_id` set).
 """
 
 from datetime import datetime
@@ -92,7 +92,7 @@ def decide(
             author_actor_id=author_actor_id,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
-            parent_caution_id=None,
+            parent_id=None,
             occurred_at=now,
         )
     ]

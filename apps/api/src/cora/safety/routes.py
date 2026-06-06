@@ -19,6 +19,7 @@ whole app); operators retry via the standard 409 flow.
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.infrastructure.identifier import InvalidIdentifierError
 from cora.safety.aggregates.clearance import (
     ClearanceAlreadyExistsError,
     ClearanceCannotActivateError,
@@ -33,7 +34,6 @@ from cora.safety.aggregates.clearance import (
     InvalidClearanceBindingsError,
     InvalidClearanceDeclarationTargetError,
     InvalidClearanceExpireReasonError,
-    InvalidClearanceExternalBindingError,
     InvalidClearanceExternalIdError,
     InvalidClearanceHazardNotesError,
     InvalidClearanceMitigationRefError,
@@ -134,7 +134,7 @@ def register_safety_routes(app: FastAPI) -> None:
         InvalidClearanceBindingsError,
         InvalidClearanceDeclarationTargetError,
         InvalidClearanceValidityWindowError,
-        InvalidClearanceExternalBindingError,
+        InvalidIdentifierError,
         InvalidClearanceMitigationRefError,
         InvalidClearanceHazardNotesError,
         InvalidClearanceExternalIdError,

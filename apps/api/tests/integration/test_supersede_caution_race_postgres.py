@@ -113,7 +113,7 @@ async def test_forced_concurrent_supersede_caution_raises_concurrency_error(
             author_actor_id=_AUTHOR_ID,
             expires_at=None,
             propagate_to_children=False,
-            parent_caution_id=parent_id,
+            parent_id=parent_id,
             occurred_at=_NOW,
         )
         return [

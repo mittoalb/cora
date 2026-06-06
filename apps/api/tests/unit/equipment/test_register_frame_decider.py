@@ -53,7 +53,7 @@ def test_decide_emits_frame_registered_for_root_frame() -> None:
         state=None,
         command=RegisterFrame(
             name="centerline_1p35_mrad",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         now=_NOW,
@@ -63,7 +63,7 @@ def test_decide_emits_frame_registered_for_root_frame() -> None:
         FrameRegistered(
             frame_id=new_id,
             name="centerline_1p35_mrad",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
             occurred_at=_NOW,
         )
@@ -79,7 +79,7 @@ def test_decide_emits_frame_registered_for_child_frame() -> None:
         state=None,
         command=RegisterFrame(
             name="centerline_5p1_mrad",
-            parent_frame_id=parent,
+            parent_id=parent,
             placement=placement,
         ),
         now=_NOW,
@@ -87,7 +87,7 @@ def test_decide_emits_frame_registered_for_child_frame() -> None:
     )
     assert len(events) == 1
     assert events[0].frame_id == new_id
-    assert events[0].parent_frame_id == parent
+    assert events[0].parent_id == parent
     assert events[0].placement == placement
 
 
@@ -100,7 +100,7 @@ def test_decide_rejects_root_frame_with_a_placement() -> None:
             state=None,
             command=RegisterFrame(
                 name="centerline",
-                parent_frame_id=None,
+                parent_id=None,
                 placement=_placement(uuid4()),
             ),
             now=_NOW,
@@ -119,7 +119,7 @@ def test_decide_rejects_child_frame_with_no_placement() -> None:
             state=None,
             command=RegisterFrame(
                 name="centerline_5p1_mrad",
-                parent_frame_id=parent,
+                parent_id=parent,
                 placement=None,
             ),
             now=_NOW,
@@ -129,9 +129,9 @@ def test_decide_rejects_child_frame_with_no_placement() -> None:
 
 
 @pytest.mark.unit
-def test_decide_rejects_child_frame_when_placement_parent_mismatches_parent_frame_id() -> None:
+def test_decide_rejects_child_frame_when_placement_parent_mismatches_parent_id() -> None:
     """The embedded Placement.parent_frame_id MUST equal the Frame's
-    declared parent_frame_id (placement points where the Frame says)."""
+    declared parent_id (placement points where the Frame says)."""
     new_id = uuid4()
     parent = uuid4()
     other_parent = uuid4()
@@ -141,7 +141,7 @@ def test_decide_rejects_child_frame_when_placement_parent_mismatches_parent_fram
             state=None,
             command=RegisterFrame(
                 name="centerline_5p1_mrad",
-                parent_frame_id=parent,
+                parent_id=parent,
                 placement=bad_placement,
             ),
             now=_NOW,
@@ -156,7 +156,7 @@ def test_decide_rejects_already_registered_frame() -> None:
     existing = Frame(
         id=uuid4(),
         name=FrameName("existing"),
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         status=FrameStatus.ACTIVE,
     )
@@ -165,7 +165,7 @@ def test_decide_rejects_already_registered_frame() -> None:
             state=existing,
             command=RegisterFrame(
                 name="new",
-                parent_frame_id=None,
+                parent_id=None,
                 placement=None,
             ),
             now=_NOW,
@@ -181,7 +181,7 @@ def test_decide_rejects_whitespace_only_name() -> None:
             state=None,
             command=RegisterFrame(
                 name="   ",
-                parent_frame_id=None,
+                parent_id=None,
                 placement=None,
             ),
             now=_NOW,
@@ -205,7 +205,7 @@ def test_decide_emits_supersedes_link_into_frame_registered_event() -> None:
         state=None,
         command=RegisterFrame(
             name="centerline_apsu",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
             supersedes=link,
         ),
@@ -216,7 +216,7 @@ def test_decide_emits_supersedes_link_into_frame_registered_event() -> None:
     event = events[0]
     assert isinstance(event, FrameRegistered)
     assert event.supersedes == link
-    assert event.parent_frame_id is None
+    assert event.parent_id is None
     assert event.placement is None
 
 
@@ -228,7 +228,7 @@ def test_decide_defaults_supersedes_to_none_when_command_omits_it() -> None:
         state=None,
         command=RegisterFrame(
             name="centerline_1p35_mrad",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         now=_NOW,
@@ -253,7 +253,7 @@ def test_decide_rejects_self_supersession() -> None:
             state=None,
             command=RegisterFrame(
                 name="self_revising",
-                parent_frame_id=None,
+                parent_id=None,
                 placement=None,
                 supersedes=self_link,
             ),

@@ -52,7 +52,7 @@ def test_decide_emits_clearance_registered_when_stream_is_empty() -> None:
     assert event.external_id is None
     assert event.valid_from is None
     assert event.valid_until is None
-    assert event.parent_clearance_id is None
+    assert event.parent_id is None
     assert event.occurred_at == _NOW
 
 

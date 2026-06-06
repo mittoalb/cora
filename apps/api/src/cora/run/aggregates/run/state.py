@@ -104,11 +104,11 @@ from typing import Any, Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
-from cora.infrastructure.external_ref import (
-    EXTERNAL_REF_ID_MAX_LENGTH,
-    EXTERNAL_REF_SCHEME_MAX_LENGTH,
-    ExternalRef,
-    InvalidExternalRefError,
+from cora.infrastructure.identifier import (
+    IDENTIFIER_SCHEME_MAX_LENGTH,
+    IDENTIFIER_VALUE_MAX_LENGTH,
+    Identifier,
+    InvalidIdentifierError,
 )
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
@@ -131,15 +131,16 @@ RUN_ADJUST_REASON_MAX_LENGTH = 500
 # payloads with no domain justification).
 RUN_PINNED_CALIBRATIONS_MAX_ENTRIES = 64
 
-# ExternalRef carries (scheme, id) pairs mirroring the Safety BC's
-# ExternalBinding shape exactly (proposal / btr / lab_visit / session /
-# cycle / visit, etc.). Same bounded lengths so the round-trip with
-# `ExternalBinding`-keyed clearance coverage queries stays symmetric.
-# The VO + bounds were hoisted to `cora.infrastructure.external_ref`;
-# the Run BC keeps the `RUN_EXTERNAL_REF_*` names as aliases for
-# backward-compat (existing routes / tools / tests reference them).
-RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = EXTERNAL_REF_SCHEME_MAX_LENGTH
-RUN_EXTERNAL_REF_ID_MAX_LENGTH = EXTERNAL_REF_ID_MAX_LENGTH
+# `Identifier(scheme, value)` carries open-scheme anti-corruption refs
+# mirroring the Safety BC's ExternalBinding shape (proposal / btr /
+# lab_visit / session / cycle / visit, etc.). Same bounded lengths so
+# the round-trip with `ExternalBinding`-keyed clearance coverage
+# queries stays symmetric. The VO + bounds live at
+# `cora.infrastructure.identifier`; the Run BC keeps the
+# `RUN_EXTERNAL_REF_*` names as aliases for backward-compat (existing
+# routes / tools / tests reference them).
+RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = IDENTIFIER_SCHEME_MAX_LENGTH
+RUN_EXTERNAL_REF_ID_MAX_LENGTH = IDENTIFIER_VALUE_MAX_LENGTH
 
 # RunReading polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
@@ -357,12 +358,12 @@ class RunPlanAssetDecommissionedError(Exception):
 
 
 # hoist alias: `InvalidRunExternalRefError` is the cross-BC
-# `InvalidExternalRefError` from `cora.infrastructure.external_ref`.
+# `InvalidIdentifierError` from `cora.infrastructure.identifier`.
 # Kept as a Run-scoped alias so the BC's routes / tools / re-exports
 # (which name the symbol `InvalidRunExternalRefError`) stay unchanged.
 # `isinstance(exc, InvalidRunExternalRefError)` and
-# `isinstance(exc, InvalidExternalRefError)` are now equivalent.
-InvalidRunExternalRefError = InvalidExternalRefError
+# `isinstance(exc, InvalidIdentifierError)` are now equivalent.
+InvalidRunExternalRefError = InvalidIdentifierError
 
 
 class RunCannotJoinCampaignError(Exception):
@@ -979,11 +980,10 @@ class RunName:
     value: str
 
 
-# hoist: `ExternalRef` lives at `cora.infrastructure.external_ref`.
-# The Run BC re-exports the typed VO here (via the top-of-file import
-# alongside `InvalidExternalRefError` / `EXTERNAL_REF_*` bounds) so
-# existing imports of `cora.run.aggregates.run.state.ExternalRef` keep
-# working without code edits at every call site.
+# Open-scheme anti-corruption ref: `Identifier(scheme, value)` lives at
+# `cora.infrastructure.identifier`. The Run BC carries
+# `external_refs: frozenset[Identifier]` on Run state; imports come
+# from the infrastructure module directly.
 
 
 @dataclass(frozen=True)
@@ -1041,7 +1041,7 @@ class Run:
     # ExternalBinding-based clearance coverage gating is deferred per
     # [[project_safety_clearance_design]] watch item; today the
     # field is forward-compat only (gate uses Run/Subject/Asset bindings).
-    external_refs: frozenset["ExternalRef"] = field(default_factory=frozenset["ExternalRef"])
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
     # optional Campaign membership. None means the Run is
     # standalone (not part of any Campaign). Set on RunStarted (when
     # `StartRun.campaign_id` was provided) or via the post-hoc

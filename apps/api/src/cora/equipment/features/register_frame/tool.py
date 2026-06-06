@@ -35,10 +35,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Register a new coordinate frame with the given name, "
             "optional parent frame, and optional placement relative "
-            "to that parent. For root frames pass both parent_frame_id "
+            "to that parent. For root frames pass both parent_id "
             "and placement as null; for child "
             "frames both are required and placement.parent_frame_id must "
-            "equal parent_frame_id. Placement tolerance fields must "
+            "equal parent_id. Placement tolerance fields must "
             "be >= 0 (negative values are rejected as InvalidPlacementError). "
             "Note: this MCP surface has no idempotency-key equivalent "
             "of the REST Idempotency-Key header; retries of a failed "
@@ -55,7 +55,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="Display name for the new frame.",
             ),
         ],
-        parent_frame_id: Annotated[
+        parent_id: Annotated[
             UUID | None,
             Field(
                 description=(
@@ -80,7 +80,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         frame_id = await handler(
             RegisterFrame(
                 name=name,
-                parent_frame_id=parent_frame_id,
+                parent_id=parent_id,
                 placement=domain_placement,
             ),
             principal_id=get_mcp_principal_id(ctx),

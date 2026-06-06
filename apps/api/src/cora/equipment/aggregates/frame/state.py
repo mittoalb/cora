@@ -7,7 +7,7 @@ centerlines that engage when the mirror is in use). Mount placements
 (and other Frame placements) reference a `parent_frame_id: UUID` field
 that points at a Frame's `id`.
 
-Frames form a tree: every Frame has a `parent_frame_id` that is
+Frames form a tree: every Frame has a `parent_id` that is
 either `None` (root frame, e.g., the storage-ring centerline as
 defined by the facility) or points at another Frame. Cycles are
 defensively rejected at register time (depth-bounded BFS, max depth
@@ -18,11 +18,11 @@ to catch that case loudly.
 ## Root frames versus child frames
 
 The invariant is "both together, or both None":
-  - Root frame: `parent_frame_id is None` AND
+  - Root frame: `parent_id is None` AND
     `placement is None`.
   - Child frame: both non-None, and the embedded
     `Placement.parent_frame_id` field MUST equal the Frame's own
-    `parent_frame_id` (the Placement points at the same parent that
+    `parent_id` (the Placement points at the same parent that
     the Frame declares).
 
 The decider enforces this invariant; `InvalidFrameRootError` carries
@@ -42,8 +42,8 @@ Transitions:
   - `decommission_frame`        -> Decommissioned (terminal; guarded
                                    by FrameInUseError if any active
                                    Mount.placement.parent_frame_id or
-                                   active child Frame references this
-                                   frame)
+                                   active child Frame.parent_id
+                                   references this frame)
 
 `update_frame_placement` does NOT change status; it updates
 `placement` and is a no-op when the new placement
@@ -96,17 +96,17 @@ class InvalidFrameRootError(ValueError):
     """A Frame's root-vs-child invariant was violated at register time.
 
     The invariant is "both fields together, or both None":
-      - Root frame: `parent_frame_id is None` AND
+      - Root frame: `parent_id is None` AND
         `placement is None`.
       - Child frame: both non-None, and the embedded
         `Placement.parent_frame_id` MUST equal the Frame's own
-        `parent_frame_id`.
+        `parent_id`.
 
     Three failure modes folded into one error:
-      1. `parent_frame_id` is None but `placement`
+      1. `parent_id` is None but `placement`
          is not (or vice versa).
       2. Both are non-None but `placement.parent_frame_id` does not
-         equal `parent_frame_id`.
+         equal `parent_id`.
 
     `reason` identifies which case fired for diagnostics.
     """
@@ -180,7 +180,7 @@ class FrameInUseError(Exception):
     A frame is "in use" when any of the following hold:
       - Some active Mount's `Placement.parent_frame_id` points at this
         frame (lands once the Mount aggregate exists).
-      - Some active child Frame's `parent_frame_id` points at this
+      - Some active child Frame's `parent_id` points at this
         frame.
 
     The handler loads consumers via the `frame_consumers` projection
@@ -289,7 +289,7 @@ class FrameRevisionLink:
 class Frame:
     """Aggregate root: a named coordinate frame in the placement tree.
 
-    `parent_frame_id` is the immediate parent in the frame tree.
+    `parent_id` is the immediate parent in the frame tree.
     `None` only for root frames (the storage-ring centerline at APS,
     for instance). Immutable across this aggregate's lifecycle (no
     `reparent_frame` slice in v1).
@@ -297,7 +297,7 @@ class Frame:
     `placement` is the pose of THIS frame's origin
     relative to its parent. `None` for root frames; non-None for
     child frames. The invariant
-    `placement.parent_frame_id == parent_frame_id` is enforced at the
+    `placement.parent_frame_id == parent_id` is enforced at the
     decider.
 
     `supersedes` marks this frame as a revision of an older frame
@@ -315,7 +315,7 @@ class Frame:
 
     id: UUID
     name: FrameName
-    parent_frame_id: UUID | None
+    parent_id: UUID | None
     placement: Placement | None
     supersedes: FrameRevisionLink | None = None
     status: FrameStatus = FrameStatus.ACTIVE

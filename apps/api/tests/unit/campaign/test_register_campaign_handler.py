@@ -10,7 +10,7 @@ from cora.campaign.errors import UnauthorizedError
 from cora.campaign.features import register_campaign
 from cora.campaign.features.register_campaign import RegisterCampaign
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -94,8 +94,8 @@ async def test_handler_serializes_external_refs_sorted() -> None:
     handler = register_campaign.bind(deps)
     refs = frozenset(
         {
-            ExternalRef(scheme="visit", id="V-77"),
-            ExternalRef(scheme="proposal", id="2025-100"),
+            Identifier(scheme="visit", value="V-77"),
+            Identifier(scheme="proposal", value="2025-100"),
         }
     )
     await handler(
@@ -105,8 +105,8 @@ async def test_handler_serializes_external_refs_sorted() -> None:
     )
     events, _ = await store.load("Campaign", _NEW_ID)
     assert events[0].payload["external_refs"] == [
-        {"scheme": "proposal", "id": "2025-100"},
-        {"scheme": "visit", "id": "V-77"},
+        {"scheme": "proposal", "value": "2025-100"},
+        {"scheme": "visit", "value": "V-77"},
     ]
 
 

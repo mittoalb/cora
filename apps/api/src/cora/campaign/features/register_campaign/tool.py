@@ -18,7 +18,7 @@ from cora.campaign.aggregates.campaign import (
 )
 from cora.campaign.features.register_campaign.command import RegisterCampaign
 from cora.campaign.features.register_campaign.handler import IdempotentHandler
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
@@ -30,10 +30,10 @@ class RegisterCampaignOutput(BaseModel):
     campaign_id: UUID
 
 
-def _refs_from_dicts(refs: list[dict[str, Any]] | None) -> frozenset[ExternalRef]:
+def _refs_from_dicts(refs: list[dict[str, Any]] | None) -> frozenset[Identifier]:
     if not refs:
         return frozenset()
-    return frozenset(ExternalRef(scheme=str(r["scheme"]), id=str(r["id"])) for r in refs)
+    return frozenset(Identifier(scheme=str(r["scheme"]), value=str(r["value"])) for r in refs)
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> None:
@@ -100,7 +100,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             Field(
                 default=None,
                 description=(
-                    "Optional anti-corruption refs; each {scheme: 'proposal', id: '12345'}."
+                    "Optional anti-corruption refs; each {scheme: 'proposal', value: '12345'}."
                 ),
             ),
         ] = None,

@@ -1,8 +1,8 @@
 """The `UpdateFramePlacement` command - intent dataclass for the update_frame_placement slice.
 
 Update-style: targets an existing Frame by `frame_id`. Carries the
-new Placement (which must reference the same `parent_frame_id` the
-Frame already has, enforced by the decider) and an optional
+new Placement (whose `parent_frame_id` must equal the Frame's
+existing `parent_id`, enforced by the decider) and an optional
 `survey` payload for re-survey provenance.
 
 The decider's no-op-on-unchanged contract (via

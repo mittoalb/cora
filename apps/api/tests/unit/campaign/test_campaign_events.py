@@ -1,4 +1,4 @@
-"""CampaignEvent serialization round-trips + ExternalRef helpers."""
+"""CampaignEvent serialization round-trips + Identifier (external-ref) helpers."""
 
 from datetime import UTC, datetime
 from typing import Any
@@ -19,7 +19,7 @@ from cora.campaign.aggregates.campaign import (
     serialize_external_ref,
     to_payload,
 )
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
@@ -50,32 +50,32 @@ def _stored(event_type: str, payload: dict[str, Any]) -> StoredEvent:
 
 @pytest.mark.unit
 def test_serialize_external_ref() -> None:
-    ref = ExternalRef(scheme="proposal", id="2025-100")
-    assert serialize_external_ref(ref) == {"scheme": "proposal", "id": "2025-100"}
+    ref = Identifier(scheme="proposal", value="2025-100")
+    assert serialize_external_ref(ref) == {"scheme": "proposal", "value": "2025-100"}
 
 
 @pytest.mark.unit
 def test_deserialize_external_ref() -> None:
-    ref = deserialize_external_ref({"scheme": "proposal", "id": "2025-100"})
-    assert ref == ExternalRef(scheme="proposal", id="2025-100")
+    ref = deserialize_external_ref({"scheme": "proposal", "value": "2025-100"})
+    assert ref == Identifier(scheme="proposal", value="2025-100")
 
 
 @pytest.mark.unit
 def test_external_ref_round_trip() -> None:
-    original = ExternalRef(scheme="btr", id="ABC-12345")
+    original = Identifier(scheme="btr", value="ABC-12345")
     rebuilt = deserialize_external_ref(serialize_external_ref(original))
     assert rebuilt == original
 
 
 @pytest.mark.unit
 def test_deserialize_external_ref_rejects_missing_scheme() -> None:
-    with pytest.raises(ValueError, match="Malformed ExternalRef payload"):
-        deserialize_external_ref({"id": "abc"})
+    with pytest.raises(ValueError, match="Malformed Identifier payload"):
+        deserialize_external_ref({"value": "abc"})
 
 
 @pytest.mark.unit
-def test_deserialize_external_ref_rejects_missing_id() -> None:
-    with pytest.raises(ValueError, match="Malformed ExternalRef payload"):
+def test_deserialize_external_ref_rejects_missing_value() -> None:
+    with pytest.raises(ValueError, match="Malformed Identifier payload"):
         deserialize_external_ref({"scheme": "proposal"})
 
 
@@ -107,8 +107,8 @@ def test_campaign_registered_round_trip_full() -> None:
     """All optional fields populated; tags sorted; external_refs included."""
     refs = frozenset(
         {
-            ExternalRef(scheme="proposal", id="2025-100"),
-            ExternalRef(scheme="visit", id="V-77"),
+            Identifier(scheme="proposal", value="2025-100"),
+            Identifier(scheme="visit", value="V-77"),
         }
     )
     event = CampaignRegistered(
@@ -126,8 +126,8 @@ def test_campaign_registered_round_trip_full() -> None:
     payload = to_payload(event)
     assert payload["tags"] == ["battery", "heating"]
     assert payload["external_refs"] == [
-        {"scheme": "proposal", "id": "2025-100"},
-        {"scheme": "visit", "id": "V-77"},
+        {"scheme": "proposal", "value": "2025-100"},
+        {"scheme": "visit", "value": "V-77"},
     ]
     assert payload["subject_id"] == str(_SUBJECT_ID)
     assert payload["external_id"] == "DOI:10.1234/abc"

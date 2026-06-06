@@ -4,7 +4,7 @@
 The frame_consumers projection is polymorphic: it tracks two consumer
 types of any given Frame:
 
-  - child Frames (whose parent_frame_id points at this frame)
+  - child Frames (whose parent_id points at this frame)
   - active Mounts (whose placement.parent_frame_id points at this frame)
 
 The decommission_frame handler loads load_active_frame_consumers()
@@ -13,9 +13,9 @@ This test pins the polymorphic INSERT + the typed DELETE + the
 handler-level reject end-to-end.
 
 Pins:
-  - FrameRegistered with non-None parent_frame_id -> INSERT
+  - FrameRegistered with non-None parent_id -> INSERT
     (referenced=parent, consumer=child, type='Frame')
-  - FrameRegistered with parent_frame_id=None (root) -> no INSERT
+  - FrameRegistered with parent_id=None (root) -> no INSERT
   - MountRegistered -> INSERT (referenced=placement.parent_frame_id,
     consumer=mount_id, type='Mount')
   - FrameDecommissioned -> DELETE the type='Frame' row only
@@ -62,7 +62,7 @@ async def _seed_root_frame(pool: asyncpg.Pool, frame_id: UUID) -> None:
     await bind_register_frame(deps)(
         RegisterFrame(
             name=f"root-{frame_id}",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -74,14 +74,14 @@ async def _seed_child_frame(
     pool: asyncpg.Pool,
     *,
     frame_id: UUID,
-    parent_frame_id: UUID,
+    parent_id: UUID,
 ) -> None:
     deps = _build_deps(pool, [frame_id, uuid4()])
     await bind_register_frame(deps)(
         RegisterFrame(
             name=f"child-{frame_id}",
-            parent_frame_id=parent_frame_id,
-            placement=placement(parent_frame_id),
+            parent_id=parent_id,
+            placement=placement(parent_id),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -99,7 +99,7 @@ async def _seed_mount(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(parent_frame_id),
             drawing=None,
         ),
@@ -110,7 +110,7 @@ async def _seed_mount(
 
 @pytest.mark.integration
 async def test_root_frame_inserts_no_consumer_row(db_pool: asyncpg.Pool) -> None:
-    """A root Frame (parent_frame_id=None) is no other Frame's consumer
+    """A root Frame (parent_id=None) is no other Frame's consumer
     and should not appear in the projection until something references
     it."""
     root_id = uuid4()
@@ -131,7 +131,7 @@ async def test_child_frame_inserts_frame_typed_consumer_row(
 ) -> None:
     parent_id, child_id = uuid4(), uuid4()
     await _seed_root_frame(db_pool, parent_id)
-    await _seed_child_frame(db_pool, frame_id=child_id, parent_frame_id=parent_id)
+    await _seed_child_frame(db_pool, frame_id=child_id, parent_id=parent_id)
     await drain_equipment_projections(db_pool)
 
     async with db_pool.acquire() as conn:
@@ -178,7 +178,7 @@ async def test_decommission_frame_rejected_while_child_frame_active(
     """Load-bearing fitness for the Frame-type consumer leg."""
     parent_id, child_id = uuid4(), uuid4()
     await _seed_root_frame(db_pool, parent_id)
-    await _seed_child_frame(db_pool, frame_id=child_id, parent_frame_id=parent_id)
+    await _seed_child_frame(db_pool, frame_id=child_id, parent_id=parent_id)
     await drain_equipment_projections(db_pool)
 
     deps = _build_deps(db_pool, [uuid4()], now=_LATER)

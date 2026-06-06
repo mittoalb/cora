@@ -7,7 +7,7 @@ copy-pasted construction across 9 decider test files.
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.trust.aggregates.visit import (
     Visit,
     VisitArrived,
@@ -38,8 +38,8 @@ def make_registered() -> VisitRegistered:
         planned_start_at=PLANNED_START,
         planned_end_at=PLANNED_END,
         occurred_at=NOW,
-        part_of_visit_id=None,
-        external_refs=frozenset({ExternalRef(scheme="proposal", id="12345")}),
+        parent_id=None,
+        external_refs=frozenset({Identifier(scheme="proposal", value="12345")}),
     )
 
 

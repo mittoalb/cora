@@ -59,7 +59,7 @@ class ClearanceOutput(BaseModel):
     review_steps: list[ReviewStepOutput]
     status: ClearanceStatus
     external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
-    parent_clearance_id: UUID | None = None
+    parent_id: UUID | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     next_review_due_at: datetime | None = None
@@ -88,7 +88,7 @@ def _clearance_to_output(clearance: Clearance) -> ClearanceOutput:
         review_steps=[_review_step_to_output(r) for r in clearance.review_steps],
         status=clearance.status,
         external_id=clearance.external_id,
-        parent_clearance_id=clearance.parent_clearance_id,
+        parent_id=clearance.parent_id,
         valid_from=clearance.valid_from,
         valid_until=clearance.valid_until,
         next_review_due_at=clearance.next_review_due_at,

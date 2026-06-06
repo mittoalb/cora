@@ -27,15 +27,16 @@ don't recompute).
     targets within that set. A target outside the binding set is
     incoherent.
   - `bindings` and `declarations` VO-internal validation already runs
-    at construction (ExternalBinding fields, HazardDeclaration
-    mitigations, notes); re-validation here would be redundant.
+    at construction (Identifier fields inside ExternalRefBinding,
+    HazardDeclaration mitigations, notes); re-validation here would be
+    redundant.
 
 Initial status is implicit `Defined` (event type IS the state-change
 indicator; the genesis evolver hardcodes the mapping). Per the
 cross-aggregate genesis convention.
 
-`parent_clearance_id` is always None for `register_clearance` (the
-amendment slice sets it; this slice is genesis-only).
+`parent_id` is always None for `register_clearance` (the amendment
+slice sets it; this slice is genesis-only).
 """
 
 from datetime import datetime
@@ -139,7 +140,7 @@ def decide(
             external_id=external_id,
             valid_from=command.valid_from,
             valid_until=command.valid_until,
-            parent_clearance_id=None,
+            parent_id=None,
             occurred_at=now,
         )
     ]

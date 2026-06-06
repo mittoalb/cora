@@ -707,6 +707,9 @@ class DatasetUri:
 class DatasetChecksum:
     """Bulk-content integrity hash. Algorithm + canonical value.
 
+    Deviation from Identifier VO: strict 64-char lowercase-hex value
+    invariant beyond Identifier's generic 1-200 bound.
+
     Only `sha256` accepted for now; the `(algorithm, value)` shape
     is forward-compatible for adding BLAKE3 / SHA3 / etc. when a
     real consumer asks. sha256 values must be 64 lowercase hex

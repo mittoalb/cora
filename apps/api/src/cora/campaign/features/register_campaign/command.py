@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from cora.campaign.aggregates.campaign import CampaignIntent
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 
 
 @dataclass(frozen=True)
@@ -50,5 +50,5 @@ class RegisterCampaign:
     subject_id: UUID | None = None
     description: str | None = None
     tags: frozenset[str] = field(default_factory=frozenset[str])
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
     external_id: str | None = None

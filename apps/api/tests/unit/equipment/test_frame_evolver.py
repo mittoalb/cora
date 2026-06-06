@@ -51,7 +51,7 @@ def test_evolve_genesis_sets_active_status_for_root_frame() -> None:
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_1p35_mrad",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
     )
@@ -59,7 +59,7 @@ def test_evolve_genesis_sets_active_status_for_root_frame() -> None:
     assert state == Frame(
         id=frame_id,
         name=FrameName("centerline_1p35_mrad"),
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         status=FrameStatus.ACTIVE,
     )
@@ -73,12 +73,12 @@ def test_evolve_genesis_sets_active_status_for_child_frame() -> None:
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_5p1_mrad",
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=placement,
         occurred_at=_NOW,
     )
     state = evolve(None, event)
-    assert state.parent_frame_id == parent
+    assert state.parent_id == parent
     assert state.placement == placement
     assert state.status is FrameStatus.ACTIVE
 
@@ -90,7 +90,7 @@ def test_evolve_frame_updated_changes_only_placement() -> None:
     prior = Frame(
         id=frame_id,
         name=FrameName("centerline_5p1_mrad"),
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=_placement(parent),
         status=FrameStatus.ACTIVE,
     )
@@ -120,7 +120,7 @@ def test_evolve_frame_updated_changes_only_placement() -> None:
     state = evolve(prior, event)
     assert state.id == prior.id
     assert state.name == prior.name
-    assert state.parent_frame_id == parent
+    assert state.parent_id == parent
     assert state.placement == new_placement
     assert state.status is FrameStatus.ACTIVE
 
@@ -133,7 +133,7 @@ def test_evolve_frame_decommissioned_sets_terminal_status() -> None:
     prior = Frame(
         id=frame_id,
         name=FrameName("centerline_5p1_mrad"),
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=placement,
         status=FrameStatus.ACTIVE,
     )
@@ -146,7 +146,7 @@ def test_evolve_frame_decommissioned_sets_terminal_status() -> None:
     assert state.status is FrameStatus.DECOMMISSIONED
     # placement + parent + name carry through
     assert state.placement == placement
-    assert state.parent_frame_id == parent
+    assert state.parent_id == parent
     assert state.name == prior.name
 
 
@@ -190,7 +190,7 @@ def test_fold_replays_genesis_then_update_then_decommission() -> None:
         FrameRegistered(
             frame_id=frame_id,
             name="centerline_5p1_mrad",
-            parent_frame_id=parent,
+            parent_id=parent,
             placement=initial_placement,
             occurred_at=_NOW,
         ),
@@ -229,14 +229,14 @@ def test_evolve_genesis_folds_supersedes_link_into_state() -> None:
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_apsu",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
         supersedes=link,
     )
     state = evolve(None, event)
     assert state.supersedes == link
-    assert state.parent_frame_id is None
+    assert state.parent_id is None
     assert state.placement is None
 
 
@@ -246,7 +246,7 @@ def test_evolve_genesis_defaults_supersedes_to_none_for_non_revision_frames() ->
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_1p35_mrad",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
     )
@@ -268,7 +268,7 @@ def test_evolve_frame_updated_preserves_supersedes_from_prior_state() -> None:
     prior = Frame(
         id=frame_id,
         name=FrameName("child_frame_with_revision_lineage"),
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=_placement(parent),
         supersedes=link,
         status=FrameStatus.ACTIVE,
@@ -314,7 +314,7 @@ def test_evolve_frame_decommissioned_preserves_supersedes_from_prior_state() -> 
     prior = Frame(
         id=frame_id,
         name=FrameName("root_frame_with_revision_lineage"),
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         supersedes=link,
         status=FrameStatus.ACTIVE,

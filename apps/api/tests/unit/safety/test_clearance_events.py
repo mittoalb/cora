@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance import (
     AssetBinding,
@@ -17,7 +18,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceReviewStepAppended,
     ClearanceSubmitted,
     ClearanceSuperseded,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
     ProcedureBinding,
     RunBinding,
@@ -103,9 +104,9 @@ def test_serialize_binding_procedure_round_trip() -> None:
 
 @pytest.mark.unit
 def test_serialize_binding_external_round_trip() -> None:
-    original = ExternalBinding(scheme="proposal", id="GUP-12345")
+    original = ExternalRefBinding(ref=Identifier(scheme="proposal", value="GUP-12345"))
     encoded = serialize_binding(original)
-    assert encoded == {"kind": "External", "scheme": "proposal", "id": "GUP-12345"}
+    assert encoded == {"kind": "External", "scheme": "proposal", "value": "GUP-12345"}
     assert deserialize_binding(encoded) == original
 
 
@@ -140,7 +141,7 @@ def test_deserialize_binding_rejects_non_uuid_id() -> None:
 @pytest.mark.unit
 def test_deserialize_binding_rejects_external_missing_scheme() -> None:
     with pytest.raises(ValueError, match="Malformed ClearanceBinding"):
-        deserialize_binding({"kind": "External", "id": "GUP-1"})
+        deserialize_binding({"kind": "External", "value": "GUP-1"})
 
 
 # ---------- serialize_classification / deserialize_classification ----------
@@ -247,7 +248,7 @@ def test_clearance_registered_event_type_name() -> None:
         external_id=None,
         valid_from=None,
         valid_until=None,
-        parent_clearance_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "ClearanceRegistered"
@@ -265,7 +266,7 @@ def test_clearance_registered_to_payload_round_trip() -> None:
         bindings=(
             {"kind": "Run", "id": str(rid)},
             {"kind": "Subject", "id": str(sid)},
-            {"kind": "External", "scheme": "proposal", "id": "GUP-12345"},
+            {"kind": "External", "scheme": "proposal", "value": "GUP-12345"},
         ),
         declarations=(
             {
@@ -281,7 +282,7 @@ def test_clearance_registered_to_payload_round_trip() -> None:
         external_id="ESAF-99999",
         valid_from=_NOW,
         valid_until=None,
-        parent_clearance_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     payload = to_payload(original)
@@ -297,25 +298,25 @@ def test_from_stored_rejects_unknown_event_type() -> None:
 
 @pytest.mark.unit
 def test_clearance_registered_round_trip_handles_optional_datetimes() -> None:
-    """valid_from / valid_until / parent_clearance_id None values survive round-trip."""
+    """valid_from / valid_until / parent_id None values survive round-trip."""
     parent = uuid4()
     original = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
         kind="DOOR",
         facility_asset_id=uuid4(),
         title="t",
-        bindings=({"kind": "External", "scheme": "btr", "id": "BTR-1"},),
+        bindings=({"kind": "External", "scheme": "btr", "value": "BTR-1"},),
         declarations=(),
         risk_band="Green",
         external_id=None,
         valid_from=None,
         valid_until=None,
-        parent_clearance_id=parent,
+        parent_id=parent,
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("ClearanceRegistered", to_payload(original)))
     assert isinstance(rebuilt, ClearanceRegistered)
-    assert rebuilt.parent_clearance_id == parent
+    assert rebuilt.parent_id == parent
     assert rebuilt.valid_from is None
     assert rebuilt.valid_until is None
 

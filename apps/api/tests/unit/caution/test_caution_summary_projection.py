@@ -75,7 +75,7 @@ def _registered_payload(**overrides: object) -> dict[str, Any]:
         "author_actor_id": str(_AUTHOR_ID),
         "expires_at": None,
         "propagate_to_children": False,
-        "parent_caution_id": None,
+        "parent_id": None,
         "occurred_at": _NOW.isoformat(),
     }
     base.update(overrides)
@@ -128,7 +128,7 @@ async def test_caution_registered_inserts_with_active_status_and_null_audit() ->
     #   $1 caution_id, $2 target_kind, $3 target_id, $4 category,
     #   $5 severity, $6 text, $7 workaround, $8 author_actor_id,
     #   $9 tags, $10 expires_at, $11 propagate_to_children,
-    #   $12 parent_caution_id, $13 registered_at
+    #   $12 parent_id, $13 registered_at
     assert args.args[1] == _CAUTION_ID
     assert args.args[2] == "Asset"
     assert args.args[3] == _ASSET_ID
@@ -140,7 +140,7 @@ async def test_caution_registered_inserts_with_active_status_and_null_audit() ->
     assert args.args[9] == ["alpha", "mu", "zeta"]
     assert args.args[10] is None  # expires_at
     assert args.args[11] is False  # propagate_to_children
-    assert args.args[12] is None  # parent_caution_id (top-level register)
+    assert args.args[12] is None  # parent_id (top-level register)
     assert args.args[13] == _NOW  # registered_at
 
 
@@ -173,13 +173,13 @@ async def test_caution_registered_with_procedure_target_and_expires_at() -> None
 
 
 @pytest.mark.unit
-async def test_caution_registered_supersession_child_carries_parent_caution_id() -> None:
-    """Supersession child genesis has parent_caution_id set to the parent's UUID."""
+async def test_caution_registered_supersession_child_carries_parent_id() -> None:
+    """Supersession child genesis has parent_id set to the parent's UUID."""
     proj = CautionSummaryProjection()
     conn = _conn_with_savepoint()
     event = _stored(
         "CautionRegistered",
-        _registered_payload(parent_caution_id=str(_PARENT_CAUTION_ID)),
+        _registered_payload(parent_id=str(_PARENT_CAUTION_ID)),
     )
 
     await proj.apply(event, conn)

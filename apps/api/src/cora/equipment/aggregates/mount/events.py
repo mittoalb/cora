@@ -23,7 +23,7 @@ state change (`MountRegistered -> Active`,
 `MountDecommissioned -> Decommissioned`). Same precedent as Asset /
 Frame / Subject.
 
-`parent_mount_id` IS carried in the `MountRegistered` payload as
+`parent_id` IS carried in the `MountRegistered` payload as
 `UUID | None`. Top-level slots serialize None.
 
 `placement` and `drawing` IS carried in `MountRegistered` (initial
@@ -70,7 +70,7 @@ class MountRegistered:
     """A new mount was registered.
 
     Status is implicit (`Active`); the evolver sets it.
-    `parent_mount_id` is optional (None for top-level slots).
+    `parent_id` is optional (None for top-level slots).
     `placement` is required; `drawing` is optional.
     `installed_asset_id` is implicitly None at registration; the
     install_asset slice transitions a vacant slot to occupied.
@@ -78,7 +78,7 @@ class MountRegistered:
 
     mount_id: UUID
     slot_code: str
-    parent_mount_id: UUID | None
+    parent_id: UUID | None
     placement: Placement
     drawing: Drawing | None
     occurred_at: datetime
@@ -183,7 +183,7 @@ def to_payload(event: MountEvent) -> dict[str, Any]:
         case MountRegistered(
             mount_id=mount_id,
             slot_code=slot_code,
-            parent_mount_id=parent_mount_id,
+            parent_id=parent_id,
             placement=placement,
             drawing=drawing,
             occurred_at=occurred_at,
@@ -191,7 +191,7 @@ def to_payload(event: MountEvent) -> dict[str, Any]:
             return {
                 "mount_id": str(mount_id),
                 "slot_code": slot_code,
-                "parent_mount_id": (str(parent_mount_id) if parent_mount_id is not None else None),
+                "parent_id": (str(parent_id) if parent_id is not None else None),
                 "placement": placement_to_payload(placement),
                 "drawing": (drawing_to_payload(drawing) if drawing is not None else None),
                 "occurred_at": occurred_at.isoformat(),
@@ -260,12 +260,12 @@ def from_stored(stored: StoredEvent) -> MountEvent:
         case "MountRegistered":
 
             def _build_registered() -> MountRegistered:
-                raw_parent = payload["parent_mount_id"]
+                raw_parent = payload["parent_id"]
                 raw_drawing = payload["drawing"]
                 return MountRegistered(
                     mount_id=UUID(payload["mount_id"]),
                     slot_code=payload["slot_code"],
-                    parent_mount_id=UUID(raw_parent) if raw_parent is not None else None,
+                    parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     placement=placement_from_payload(payload["placement"]),
                     drawing=(
                         drawing_from_payload(raw_drawing) if raw_drawing is not None else None

@@ -42,7 +42,7 @@ class CautionOutput(BaseModel):
     expires_at: datetime | None
     propagate_to_children: bool
     status: CautionStatus
-    parent_caution_id: UUID | None = None
+    parent_id: UUID | None = None
     superseded_by_caution_id: UUID | None = None
     retired_reason: CautionRetireReason | None = None
 
@@ -88,7 +88,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             expires_at=caution.expires_at,
             propagate_to_children=caution.propagate_to_children,
             status=caution.status,
-            parent_caution_id=caution.parent_caution_id,
+            parent_id=caution.parent_id,
             superseded_by_caution_id=caution.superseded_by_caution_id,
             retired_reason=caution.retired_reason,
         )

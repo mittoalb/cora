@@ -1,8 +1,8 @@
 """Pure decider for the `AmendClearance` command.
 
 Cross-aggregate transition: parent goes `Active -> Superseded` while a
-new child clearance is registered with `parent_clearance_id=<parent>`.
-Both event streams are written atomically by the handler via
+new child clearance is registered with `parent_id=<parent>`. Both
+event streams are written atomically by the handler via
 `EventStore.append_streams`; the decider returns BOTH event lists
 typed as `AmendmentEvents` so the handler doesn't need to guess which
 stream gets which event.
@@ -144,7 +144,7 @@ def decide(
             external_id=external_id,
             valid_from=command.valid_from,
             valid_until=command.valid_until,
-            parent_clearance_id=parent.id,
+            parent_id=parent.id,
             occurred_at=now,
         )
     ]

@@ -675,6 +675,9 @@ class AgentBudget:
 class ModelRef:
     """Model identity: provider + model + optional snapshot pin.
 
+    Deviation from Identifier VO: 3-tuple per project-agent-bc-design
+    mirroring OTel gen_ai.system + model + snapshot_pin.
+
     Required at `define_agent` (NOT at version_agent) so 8f-b's
     LLM has the model identity available the moment the Agent
     exists. Different `model_ref` = different Agent (changing model

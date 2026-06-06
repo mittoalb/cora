@@ -11,12 +11,12 @@ Genesis idempotency: caller supplies `visit_id`; collision raises
 `VisitAlreadyExistsError` (state is None means no prior events on the
 stream; non-None means the visit already exists).
 
-PartOf cohesion: when the command sets `part_of_visit_id`, the
+PartOf cohesion: when the command sets `parent_id`, the
 handler preloads the parent Visit via `context.parent_visit`. The
 decider then enforces:
-  - `VisitPartOfNotFoundError` if `command.part_of_visit_id` is set
+  - `VisitParentNotFoundError` if `command.parent_id` is set
     but the parent stream is empty (`context.parent_visit is None`).
-  - `VisitPartOfMismatchedSurfaceError` if `parent.surface_id` differs
+  - `VisitParentMismatchedSurfaceError` if `parent.surface_id` differs
     from the child's `surface_id`.
 
 Still does NOT verify that `policy_id` references an existing Policy
@@ -32,8 +32,8 @@ from cora.trust.aggregates.visit import (
     InvalidVisitPlannedPeriodError,
     Visit,
     VisitAlreadyExistsError,
-    VisitPartOfMismatchedSurfaceError,
-    VisitPartOfNotFoundError,
+    VisitParentMismatchedSurfaceError,
+    VisitParentNotFoundError,
     VisitRegistered,
 )
 from cora.trust.features.register_visit.command import RegisterVisit
@@ -54,10 +54,10 @@ def decide(
         -> VisitAlreadyExistsError
       - planned_end_at must be strictly after planned_start_at
         -> InvalidVisitPlannedPeriodError
-      - If part_of_visit_id set, parent must exist
-        -> VisitPartOfNotFoundError
+      - If parent_id set, parent must exist
+        -> VisitParentNotFoundError
       - If parent exists, parent.surface_id must match command.surface_id
-        -> VisitPartOfMismatchedSurfaceError
+        -> VisitParentMismatchedSurfaceError
     """
     if state is not None:
         raise VisitAlreadyExistsError(state.id)
@@ -66,17 +66,17 @@ def decide(
             planned_start_at=command.planned_start_at,
             planned_end_at=command.planned_end_at,
         )
-    if command.part_of_visit_id is not None:
+    if command.parent_id is not None:
         if context.parent_visit is None:
-            raise VisitPartOfNotFoundError(
+            raise VisitParentNotFoundError(
                 visit_id=command.visit_id,
-                part_of_visit_id=command.part_of_visit_id,
+                parent_id=command.parent_id,
             )
         if context.parent_visit.surface_id != command.surface_id:
-            raise VisitPartOfMismatchedSurfaceError(
+            raise VisitParentMismatchedSurfaceError(
                 visit_id=command.visit_id,
                 child_surface_id=command.surface_id,
-                part_of_visit_id=command.part_of_visit_id,
+                parent_id=command.parent_id,
                 parent_surface_id=context.parent_visit.surface_id,
             )
     return [
@@ -88,7 +88,7 @@ def decide(
             planned_start_at=command.planned_start_at,
             planned_end_at=command.planned_end_at,
             occurred_at=now,
-            part_of_visit_id=command.part_of_visit_id,
+            parent_id=command.parent_id,
             external_refs=command.external_refs,
         )
     ]

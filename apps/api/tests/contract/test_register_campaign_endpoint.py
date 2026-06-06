@@ -51,8 +51,8 @@ def test_post_campaigns_accepts_each_intent(intent: str) -> None:
 @pytest.mark.contract
 def test_post_campaigns_accepts_full_optional_payload() -> None:
     refs = [
-        {"scheme": "proposal", "id": "2025-100"},
-        {"scheme": "visit", "id": "V-77"},
+        {"scheme": "proposal", "value": "2025-100"},
+        {"scheme": "visit", "value": "V-77"},
     ]
     with TestClient(create_app()) as client:
         response = client.post(
@@ -103,7 +103,7 @@ def test_post_campaigns_rejects_missing_lead_actor_id_with_422() -> None:
 
 @pytest.mark.contract
 def test_post_campaigns_rejects_external_ref_with_empty_scheme_with_400() -> None:
-    """Per ExternalRef VO: scheme is bounded-text 1-50 chars after trim.
+    """Per Identifier VO: scheme is bounded-text 1-50 chars after trim.
 
     Pydantic's `min_length=1` on the DTO catches the empty case at
     422 BEFORE the domain VO ever runs. We assert 422 (the wire-level
@@ -112,7 +112,7 @@ def test_post_campaigns_rejects_external_ref_with_empty_scheme_with_400() -> Non
     with TestClient(create_app()) as client:
         response = client.post(
             "/campaigns",
-            json=_body(external_refs=[{"scheme": "", "id": "abc"}]),
+            json=_body(external_refs=[{"scheme": "", "value": "abc"}]),
         )
     # Pydantic catches the empty scheme at 422 via the DTO's min_length.
     assert response.status_code == 422

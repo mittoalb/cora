@@ -46,7 +46,7 @@ class ClearanceSummaryItem:
     asset_binding_ids: list[UUID]
     run_binding_ids: list[UUID]
     procedure_binding_ids: list[UUID]
-    parent_clearance_id: UUID | None
+    parent_id: UUID | None
     registered_at: datetime
     last_status_changed_at: datetime | None
     last_status_reason: str | None
@@ -80,7 +80,7 @@ class Handler(Protocol):
 _SELECT_COLUMNS = (
     "clearance_id, kind, facility_asset_id, title, external_id, status, risk_band, "
     "subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids, "
-    "parent_clearance_id, registered_at, "
+    "parent_id, registered_at, "
     "last_status_changed_at, last_status_reason, last_reviewed_by_actor_id, "
     "valid_from, valid_until, next_review_due_at"
 )
@@ -99,7 +99,7 @@ def _row_to_item(row: Any) -> ClearanceSummaryItem:
         asset_binding_ids=list(row["asset_binding_ids"]),
         run_binding_ids=list(row["run_binding_ids"]),
         procedure_binding_ids=list(row["procedure_binding_ids"]),
-        parent_clearance_id=row["parent_clearance_id"],
+        parent_id=row["parent_id"],
         registered_at=row["registered_at"],
         last_status_changed_at=row["last_status_changed_at"],
         last_status_reason=(

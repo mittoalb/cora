@@ -1,4 +1,4 @@
-"""Contract tests for `POST /cautions/{parent_caution_id}/supersede`."""
+"""Contract tests for `POST /cautions/{parent_id}/supersede`."""
 
 from uuid import UUID, uuid4
 

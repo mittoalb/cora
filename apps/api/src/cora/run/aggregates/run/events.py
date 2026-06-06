@@ -165,9 +165,9 @@ class RunStarted:
     trigger_source: str | None = None
     # anti-corruption refs to upstream-deferred concepts
     # (proposal / btr / lab_visit / session). Each entry is a dict
-    # `{"scheme": str, "id": str}` mirroring Safety BC's ExternalBinding
-    # wire shape. Defaults to () for legacy streams without the field; the
-    # evolver reconstructs typed `ExternalRef` VOs.
+    # `{"scheme": str, "value": str}` per the shared `Identifier` VO
+    # wire shape. Defaults to () for legacy streams without the field;
+    # the evolver reconstructs typed `Identifier` VOs.
     external_refs: tuple[dict[str, Any], ...] = ()
     # snapshot of Active cautions whose target referenced
     # this Run's scope at start time. Audit-trail proof + operator-

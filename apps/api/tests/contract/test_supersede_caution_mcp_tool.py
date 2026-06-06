@@ -23,7 +23,7 @@ def _register_args(asset_id: str, **overrides: object) -> dict[str, object]:
 
 def _supersede_args(parent_id: str, asset_id: str, **overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
-        "parent_caution_id": parent_id,
+        "parent_id": parent_id,
         "target": {"kind": "Asset", "id": asset_id},
         "category": "Wear",
         "severity": "Caution",

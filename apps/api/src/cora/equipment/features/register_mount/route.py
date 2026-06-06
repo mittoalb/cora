@@ -38,7 +38,7 @@ class RegisterMountRequest(BaseModel):
             "'02-BM-A-K-01'). Must be unique across Active mounts."
         ),
     )
-    parent_mount_id: UUID | None = Field(
+    parent_id: UUID | None = Field(
         ...,
         description=(
             "Immediate parent in the slot hierarchy. Null for top-level "
@@ -127,7 +127,7 @@ async def post_mounts(
     mount_id = await handler(
         RegisterMount(
             slot_code=body.slot_code,
-            parent_mount_id=body.parent_mount_id,
+            parent_id=body.parent_id,
             placement=body.placement.to_domain(),
             drawing=body.drawing.to_domain() if body.drawing is not None else None,
         ),

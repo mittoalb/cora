@@ -1,9 +1,9 @@
 """Cross-aggregate context the `register_visit` decider validates against.
 
 Built by the handler from one optional `load_visit` against
-`part_of_visit_id`. The decider distinguishes "no partOf asked for"
+`parent_id`. The decider distinguishes "no partOf asked for"
 from "partOf asked for but parent stream empty" by inspecting
-`command.part_of_visit_id` directly; the context only carries the
+`command.parent_id` directly; the context only carries the
 loaded `parent_visit | None`.
 """
 

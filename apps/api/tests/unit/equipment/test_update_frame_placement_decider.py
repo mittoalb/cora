@@ -49,7 +49,7 @@ def _frame(*, parent: object, status: FrameStatus = FrameStatus.ACTIVE) -> Frame
     return Frame(
         id=uuid4(),
         name=FrameName("centerline_5p1_mrad"),
-        parent_frame_id=parent,  # type: ignore[arg-type]
+        parent_id=parent,  # type: ignore[arg-type]
         placement=_placement(parent),
         status=status,
     )
@@ -132,7 +132,7 @@ def test_decide_raises_frame_cannot_update_when_state_is_root_frame() -> None:
     root = Frame(
         id=uuid4(),
         name=FrameName("centerline_1p35_mrad"),
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         status=FrameStatus.ACTIVE,
     )
@@ -152,7 +152,7 @@ def test_decide_raises_frame_cannot_update_when_state_is_root_frame() -> None:
 @pytest.mark.unit
 def test_decide_rejects_new_placement_whose_parent_does_not_match_frames_parent() -> None:
     """update_frame_placement cannot reparent: new_placement.parent_frame_id MUST
-    equal the Frame's existing parent_frame_id."""
+    equal the Frame's existing parent_id."""
     parent = uuid4()
     other = uuid4()
     frame = _frame(parent=parent)

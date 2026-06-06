@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identifier import Identifier, InvalidIdentifierError
 from cora.safety.aggregates.clearance import (
     CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
     CLEARANCE_MITIGATION_REF_MAX_LENGTH,
@@ -14,9 +15,8 @@ from cora.safety.aggregates.clearance import (
     ClearanceKind,
     ClearanceStatus,
     ClearanceTitle,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
-    InvalidClearanceExternalBindingError,
     InvalidClearanceHazardNotesError,
     InvalidClearanceMitigationRefError,
     InvalidClearanceTitleError,
@@ -98,29 +98,29 @@ def test_procedure_binding_carries_procedure_id() -> None:
 
 
 @pytest.mark.unit
-def test_external_binding_accepts_valid_pair() -> None:
-    b = ExternalBinding(scheme="proposal", id="GUP-12345")
-    assert b.scheme == "proposal"
-    assert b.id == "GUP-12345"
+def test_external_ref_binding_accepts_valid_pair() -> None:
+    b = ExternalRefBinding(ref=Identifier(scheme="proposal", value="GUP-12345"))
+    assert b.ref.scheme == "proposal"
+    assert b.ref.value == "GUP-12345"
 
 
 @pytest.mark.unit
-def test_external_binding_trims_fields() -> None:
-    b = ExternalBinding(scheme="  proposal  ", id="  GUP-12345  ")
-    assert b.scheme == "proposal"
-    assert b.id == "GUP-12345"
+def test_external_ref_binding_trims_fields() -> None:
+    b = ExternalRefBinding(ref=Identifier(scheme="  proposal  ", value="  GUP-12345  "))
+    assert b.ref.scheme == "proposal"
+    assert b.ref.value == "GUP-12345"
 
 
 @pytest.mark.unit
-def test_external_binding_rejects_empty_scheme() -> None:
-    with pytest.raises(InvalidClearanceExternalBindingError):
-        ExternalBinding(scheme="   ", id="x")
+def test_external_ref_binding_rejects_empty_scheme() -> None:
+    with pytest.raises(InvalidIdentifierError):
+        ExternalRefBinding(ref=Identifier(scheme="   ", value="x"))
 
 
 @pytest.mark.unit
-def test_external_binding_rejects_empty_id() -> None:
-    with pytest.raises(InvalidClearanceExternalBindingError):
-        ExternalBinding(scheme="x", id="   ")
+def test_external_ref_binding_rejects_empty_value() -> None:
+    with pytest.raises(InvalidIdentifierError):
+        ExternalRefBinding(ref=Identifier(scheme="x", value="   "))
 
 
 # ---------- HazardDeclaration ----------
@@ -252,7 +252,7 @@ def test_clearance_optional_fields_default_to_none_or_empty() -> None:
     assert c.risk_band is None
     assert c.review_steps == ()
     assert c.external_id is None
-    assert c.parent_clearance_id is None
+    assert c.parent_id is None
     assert c.valid_from is None
     assert c.valid_until is None
     assert c.next_review_due_at is None

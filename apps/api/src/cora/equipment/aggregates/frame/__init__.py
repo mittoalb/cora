@@ -7,8 +7,8 @@ deployment are the beamline centerlines: APS 2-BM has three
 5.23 mrad at the mirror), and the design memo's locked
 `alternate-centerlines` motivation is the canonical use case.
 
-Frames form a tree via `parent_frame_id`: root frames have
-`parent_frame_id = None` (and no `placement`);
+Frames form a tree via `parent_id`: root frames have
+`parent_id = None` (and no `placement`);
 child frames carry a `Placement` that positions them relative to
 their parent. The invariant ("both fields together, or both None")
 is enforced at the decider.

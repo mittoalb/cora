@@ -21,7 +21,7 @@ from cora.campaign.aggregates.campaign import (
     evolve,
     fold,
 )
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-00000000e001")
@@ -38,7 +38,7 @@ def _registered() -> CampaignRegistered:
         subject_id=_SUBJECT_ID,
         description="long-form description",
         tags=frozenset({"battery", "heating"}),
-        external_refs=frozenset({ExternalRef(scheme="proposal", id="2025-100")}),
+        external_refs=frozenset({Identifier(scheme="proposal", value="2025-100")}),
         external_id=None,
         occurred_at=_NOW,
     )
@@ -57,7 +57,7 @@ def test_registered_creates_planned_campaign() -> None:
     assert state.subject_id == _SUBJECT_ID
     assert state.description == CampaignDescription("long-form description")
     assert state.tags == frozenset({CampaignTag("battery"), CampaignTag("heating")})
-    assert state.external_refs == frozenset({ExternalRef(scheme="proposal", id="2025-100")})
+    assert state.external_refs == frozenset({Identifier(scheme="proposal", value="2025-100")})
     assert state.external_id is None
     assert state.run_ids == frozenset()
     assert state.status == CampaignStatus.PLANNED

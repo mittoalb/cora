@@ -4,8 +4,9 @@ Pydantic request/response schemas + APIRouter for `POST /campaigns`.
 The slice's BC-level wiring (`cora.campaign.routes.register_campaign_routes`)
 includes this router on the FastAPI app.
 
-`external_refs` body shape: `[{"scheme": "proposal", "id": "12345"}, ...]`;
-each item is validated by the `ExternalRef` VO at command-build time.
+`external_refs` body shape:
+`[{"scheme": "proposal", "value": "12345"}, ...]`; each item is
+validated by the shared `Identifier` VO at command-build time.
 """
 
 from typing import Annotated
@@ -22,10 +23,10 @@ from cora.campaign.aggregates.campaign import (
 )
 from cora.campaign.features.register_campaign.command import RegisterCampaign
 from cora.campaign.features.register_campaign.handler import IdempotentHandler
-from cora.infrastructure.external_ref import (
-    EXTERNAL_REF_ID_MAX_LENGTH,
-    EXTERNAL_REF_SCHEME_MAX_LENGTH,
-    ExternalRef,
+from cora.infrastructure.identifier import (
+    IDENTIFIER_SCHEME_MAX_LENGTH,
+    IDENTIFIER_VALUE_MAX_LENGTH,
+    Identifier,
 )
 from cora.infrastructure.routing import (
     ErrorResponse,
@@ -36,22 +37,22 @@ from cora.infrastructure.routing import (
 
 
 class ExternalRefDTO(BaseModel):
-    """Wire shape for an ExternalRef on the register_campaign request body."""
+    """Wire shape for an external-ref Identifier on the register_campaign request body."""
 
     scheme: str = Field(
         ...,
         min_length=1,
-        max_length=EXTERNAL_REF_SCHEME_MAX_LENGTH,
+        max_length=IDENTIFIER_SCHEME_MAX_LENGTH,
         description=(
             "Scheme identifier for the upstream-deferred concept "
             "(for example 'proposal', 'btr', 'visit', 'cycle')."
         ),
     )
-    id: str = Field(
+    value: str = Field(
         ...,
         min_length=1,
-        max_length=EXTERNAL_REF_ID_MAX_LENGTH,
-        description="Facility-issued opaque id under the named scheme.",
+        max_length=IDENTIFIER_VALUE_MAX_LENGTH,
+        description="Facility-issued opaque value under the named scheme.",
     )
 
 
@@ -130,9 +131,9 @@ def _get_handler(request: Request) -> IdempotentHandler:
     return handler
 
 
-def _refs_from_dto(dto_refs: list[ExternalRefDTO]) -> frozenset[ExternalRef]:
-    """Convert the body's list of DTOs to a typed frozenset of ExternalRef."""
-    return frozenset(ExternalRef(scheme=r.scheme, id=r.id) for r in dto_refs)
+def _refs_from_dto(dto_refs: list[ExternalRefDTO]) -> frozenset[Identifier]:
+    """Convert the body's list of DTOs to a typed frozenset of Identifier."""
+    return frozenset(Identifier(scheme=r.scheme, value=r.value) for r in dto_refs)
 
 
 router = APIRouter(tags=["campaign"])
@@ -147,7 +148,7 @@ router = APIRouter(tags=["campaign"])
             "model": ErrorResponse,
             "description": (
                 "Domain invariant violated (whitespace-only name / description "
-                "/ tag / external_id, or out-of-bounds external_ref scheme/id)."
+                "/ tag / external_id, or out-of-bounds external_ref scheme/value)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {

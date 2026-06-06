@@ -363,7 +363,7 @@ def decide(
             effective_parameters=effective_parameters,
             trigger_source=command.trigger_source,
             external_refs=tuple(
-                {"scheme": ref.scheme, "id": ref.id} for ref in command.external_refs
+                {"scheme": ref.scheme, "value": ref.value} for ref in command.external_refs
             ),
             acknowledged_cautions=acknowledged_cautions,
             campaign_id=command.campaign_id,

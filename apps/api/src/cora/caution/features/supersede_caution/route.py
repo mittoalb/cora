@@ -1,6 +1,6 @@
 """HTTP route for the `supersede_caution` slice.
 
-Action endpoint at `POST /cautions/{parent_caution_id}/supersede`.
+Action endpoint at `POST /cautions/{parent_id}/supersede`.
 Body carries the child caution's full fields (target, category,
 severity, text, workaround, author_actor_id, tags, expires_at,
 propagate_to_children). Returns 201 + the new child's caution_id.
@@ -36,10 +36,10 @@ from cora.infrastructure.routing import (
 
 
 class SupersedeCautionRequest(BaseModel):
-    """Body for `POST /cautions/{parent_caution_id}/supersede`.
+    """Body for `POST /cautions/{parent_id}/supersede`.
 
     Mirrors `RegisterCautionRequest`'s child fields exactly. The
-    `parent_caution_id` comes from the URL path, not the body.
+    `parent_id` comes from the URL path, not the body.
     """
 
     target: TargetDTO = Field(..., description="Must match parent's target.")
@@ -53,17 +53,17 @@ class SupersedeCautionRequest(BaseModel):
 
 
 class SupersedeCautionResponse(BaseModel):
-    """Response body for `POST /cautions/{parent_caution_id}/supersede`."""
+    """Response body for `POST /cautions/{parent_id}/supersede`."""
 
     caution_id: UUID = Field(..., description="The new child caution's id.")
 
 
 def _command_from_request(
-    parent_caution_id: UUID,
+    parent_id: UUID,
     body: SupersedeCautionRequest,
 ) -> SupersedeCaution:
     return SupersedeCaution(
-        parent_caution_id=parent_caution_id,
+        parent_id=parent_id,
         target=target_from_dto(body.target),
         category=body.category,
         severity=body.severity,
@@ -84,7 +84,7 @@ router = APIRouter(tags=["caution"])
 
 
 @router.post(
-    "/cautions/{parent_caution_id}/supersede",
+    "/cautions/{parent_id}/supersede",
     status_code=status.HTTP_201_CREATED,
     response_model=SupersedeCautionResponse,
     responses={
@@ -122,7 +122,7 @@ router = APIRouter(tags=["caution"])
     summary="Supersede an Active caution (atomic parent:Active->Superseded + child:Active)",
 )
 async def post_cautions_supersede(
-    parent_caution_id: Annotated[UUID, Path(description="Parent caution's id.")],
+    parent_id: Annotated[UUID, Path(description="Parent caution's id.")],
     body: SupersedeCautionRequest,
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -141,7 +141,7 @@ async def post_cautions_supersede(
     ] = None,
 ) -> SupersedeCautionResponse:
     child_caution_id = await handler(
-        _command_from_request(parent_caution_id, body),
+        _command_from_request(parent_id, body),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

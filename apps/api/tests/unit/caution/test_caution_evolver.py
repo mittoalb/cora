@@ -32,7 +32,7 @@ _PROCEDURE_ID = UUID("01900000-0000-7000-8000-00000000d004")
 def _genesis(
     *,
     target: AssetTarget | ProcedureTarget | None = None,
-    parent_caution_id: UUID | None = None,
+    parent_id: UUID | None = None,
 ) -> CautionRegistered:
     return CautionRegistered(
         caution_id=_CAUTION_ID,
@@ -45,7 +45,7 @@ def _genesis(
         author_actor_id=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
-        parent_caution_id=parent_caution_id,
+        parent_id=parent_id,
         occurred_at=_NOW,
     )
 
@@ -73,7 +73,7 @@ def test_fold_genesis_lands_in_active() -> None:
         expires_at=None,
         propagate_to_children=False,
         status=CautionStatus.ACTIVE,
-        parent_caution_id=None,
+        parent_id=None,
     )
 
 
@@ -85,11 +85,11 @@ def test_fold_genesis_with_procedure_target() -> None:
 
 
 @pytest.mark.unit
-def test_fold_genesis_with_parent_caution_id() -> None:
+def test_fold_genesis_with_parent_id() -> None:
     parent_id = UUID("01900000-0000-7000-8000-00000000dabc")
-    state = fold([_genesis(parent_caution_id=parent_id)])
+    state = fold([_genesis(parent_id=parent_id)])
     assert state is not None
-    assert state.parent_caution_id == parent_id
+    assert state.parent_id == parent_id
     assert state.status == CautionStatus.ACTIVE
 
 

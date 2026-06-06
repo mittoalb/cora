@@ -177,7 +177,7 @@ class CautionSummaryDTO(BaseModel):
     expires_at: datetime | None = None
     propagate_to_children: bool = False
     status: CautionStatus
-    parent_caution_id: UUID | None = None
+    parent_id: UUID | None = None
     superseded_by_caution_id: UUID | None = None
     retired_reason: CautionRetireReason | None = None
     registered_at: datetime
@@ -330,7 +330,7 @@ async def list_cautions(
                 expires_at=item.expires_at,
                 propagate_to_children=item.propagate_to_children,
                 status=CautionStatus(item.status),
-                parent_caution_id=item.parent_caution_id,
+                parent_id=item.parent_id,
                 superseded_by_caution_id=item.superseded_by_caution_id,
                 retired_reason=(
                     CautionRetireReason(item.retired_reason)

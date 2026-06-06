@@ -21,7 +21,7 @@ evolver -- same list-on-event / frozenset-on-state pattern as PolicyDefined.
 `external_refs` is serialized as a sorted list of dicts in to_payload for
 deterministic byte-equality across runs.
 
-`part_of_visit_id` and `external_refs` ship on the VisitRegistered event
+`parent_id` and `external_refs` ship on the VisitRegistered event
 payload alongside the lifecycle fields to avoid a two-pass payload migration
 when the partOf cohesion check + external-ref query slices land.
 """
@@ -32,7 +32,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -47,8 +47,8 @@ class VisitRegistered:
     planned_start_at: datetime
     planned_end_at: datetime
     occurred_at: datetime
-    part_of_visit_id: UUID | None = None
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    parent_id: UUID | None = None
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
 
 
 @dataclass(frozen=True)
@@ -238,17 +238,17 @@ def event_type_name(event: VisitEvent) -> str:
     return type(event).__name__
 
 
-def _external_refs_to_payload(refs: frozenset[ExternalRef]) -> list[dict[str, str]]:
-    """Sort + serialize ExternalRefs for deterministic payload bytes."""
+def _external_refs_to_payload(refs: frozenset[Identifier]) -> list[dict[str, str]]:
+    """Sort + serialize Identifiers for deterministic payload bytes."""
     return sorted(
-        ({"scheme": r.scheme, "id": r.id} for r in refs),
-        key=lambda d: (d["scheme"], d["id"]),
+        ({"scheme": r.scheme, "value": r.value} for r in refs),
+        key=lambda d: (d["scheme"], d["value"]),
     )
 
 
-def _external_refs_from_payload(payload: list[dict[str, str]]) -> frozenset[ExternalRef]:
-    """Rebuild ExternalRef set from a payload's serialized list."""
-    return frozenset(ExternalRef(scheme=item["scheme"], id=item["id"]) for item in payload)
+def _external_refs_from_payload(payload: list[dict[str, str]]) -> frozenset[Identifier]:
+    """Rebuild Identifier set from a payload's serialized list."""
+    return frozenset(Identifier(scheme=item["scheme"], value=item["value"]) for item in payload)
 
 
 def to_payload(event: VisitEvent) -> dict[str, Any]:
@@ -262,7 +262,7 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
             planned_start_at=planned_start_at,
             planned_end_at=planned_end_at,
             occurred_at=occurred_at,
-            part_of_visit_id=part_of_visit_id,
+            parent_id=parent_id,
             external_refs=external_refs,
         ):
             return {
@@ -273,9 +273,7 @@ def to_payload(event: VisitEvent) -> dict[str, Any]:
                 "planned_start_at": planned_start_at.isoformat(),
                 "planned_end_at": planned_end_at.isoformat(),
                 "occurred_at": occurred_at.isoformat(),
-                "part_of_visit_id": (
-                    str(part_of_visit_id) if part_of_visit_id is not None else None
-                ),
+                "parent_id": (str(parent_id) if parent_id is not None else None),
                 "external_refs": _external_refs_to_payload(external_refs),
             }
         case VisitArrived(visit_id=visit_id, occurred_at=occurred_at):
@@ -364,7 +362,7 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
         case "VisitRegistered":
 
             def _build_visit_registered() -> VisitRegistered:
-                part_of_raw = payload.get("part_of_visit_id")
+                parent_raw = payload.get("parent_id")
                 return VisitRegistered(
                     visit_id=UUID(payload["visit_id"]),
                     policy_id=UUID(payload["policy_id"]),
@@ -373,7 +371,7 @@ def from_stored(stored: StoredEvent) -> VisitEvent:
                     planned_start_at=datetime.fromisoformat(payload["planned_start_at"]),
                     planned_end_at=datetime.fromisoformat(payload["planned_end_at"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
-                    part_of_visit_id=UUID(part_of_raw) if part_of_raw is not None else None,
+                    parent_id=UUID(parent_raw) if parent_raw is not None else None,
                     external_refs=_external_refs_from_payload(payload.get("external_refs", [])),
                 )
 

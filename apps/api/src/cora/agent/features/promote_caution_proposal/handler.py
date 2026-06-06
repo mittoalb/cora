@@ -253,7 +253,7 @@ def bind(deps: Kernel) -> Handler:
                 author_actor_id=principal_id,
                 expires_at=expires_at,
                 propagate_to_children=False,
-                parent_caution_id=parent.id,
+                parent_id=parent.id,
                 occurred_at=now,
             )
 
@@ -312,7 +312,7 @@ def bind(deps: Kernel) -> Handler:
                 author_actor_id=principal_id,
                 expires_at=expires_at,
                 propagate_to_children=False,
-                parent_caution_id=None,
+                parent_id=None,
                 occurred_at=now,
             )
             register_envelope = to_new_event(

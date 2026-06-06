@@ -404,12 +404,12 @@ class Caution:
     vendor recommendation ID), it lands as additive
     `external_id: str | None`.
 
-    `parent_caution_id` is set on a superseding child (links to the
+    `parent_id` is set on a superseding child (links to the
     superseded parent). `superseded_by_caution_id` is set on the
     superseded parent (links to the child). The two pointers together
     form the supersession lineage chain; both come from
     `CautionSuperseded` (on the parent) + `CautionRegistered` with
-    `parent_caution_id` set (on the child genesis), written atomically
+    `parent_id` set (on the child genesis), written atomically
     via `EventStore.append_streams` mirroring `amend_clearance`.
 
     `propagate_to_children` is an explicit opt-in for Asset-hierarchy
@@ -436,6 +436,6 @@ class Caution:
     expires_at: datetime | None = None
     propagate_to_children: bool = False
     status: CautionStatus = CautionStatus.ACTIVE
-    parent_caution_id: UUID | None = None
+    parent_id: UUID | None = None
     superseded_by_caution_id: UUID | None = None
     retired_reason: CautionRetireReason | None = None

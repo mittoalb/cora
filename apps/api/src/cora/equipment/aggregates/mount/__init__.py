@@ -8,7 +8,7 @@ carries the slot's identity (`slot_code`), position (`Placement`
 against a Frame), and currently-installed specimen
 (`installed_asset_id: AssetId | None`).
 
-Mounts form a tree via `parent_mount_id` (Assembly slot containing
+Mounts form a tree via `parent_id` (Assembly slot containing
 Device slots, ISA-88-derived); the coordinate-frame parent is a
 separate axis on `Placement.parent_frame_id` (which references a Frame,
 NOT another Mount).

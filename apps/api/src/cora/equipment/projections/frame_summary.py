@@ -2,7 +2,7 @@
 placement events into the `proj_equipment_frame_summary` read model.
 
 Subscribed events:
-  - FrameRegistered        -> INSERT (status=Active; name, parent_frame_id,
+  - FrameRegistered        -> INSERT (status=Active; name, parent_id,
                               placement from payload)
   - FramePlacementUpdated  -> UPDATE placement
   - FrameDecommissioned    -> UPDATE status=Decommissioned
@@ -22,7 +22,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_FRAME_SQL = """
 INSERT INTO proj_equipment_frame_summary
-    (frame_id, name, parent_frame_id, placement, status, created_at)
+    (frame_id, name, parent_id, placement, status, created_at)
 VALUES ($1, $2, $3, $4, 'Active', $5)
 ON CONFLICT (frame_id) DO NOTHING
 """
@@ -59,15 +59,15 @@ class FrameSummaryProjection:
     ) -> None:
         match event.event_type:
             case "FrameRegistered":
-                parent_raw = event.payload.get("parent_frame_id")
-                parent_frame_id = UUID(parent_raw) if parent_raw else None
+                parent_raw = event.payload.get("parent_id")
+                parent_id = UUID(parent_raw) if parent_raw else None
                 placement = event.payload.get("placement")
                 placement_json = json.dumps(placement) if placement is not None else None
                 await conn.execute(
                     _INSERT_FRAME_SQL,
                     UUID(event.payload["frame_id"]),
                     event.payload["name"],
-                    parent_frame_id,
+                    parent_id,
                     placement_json,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                 )

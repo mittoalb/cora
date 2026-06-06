@@ -27,7 +27,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "Update a frame's placement. "
             "new_placement.parent_frame_id MUST equal the Frame's "
-            "existing parent_frame_id (update_frame_placement cannot reparent). "
+            "existing parent_id (update_frame_placement cannot reparent). "
             "Placement tolerance fields must be >= 0 (negative values "
             "are rejected as InvalidPlacementError). Idempotent: "
             "submitting an UpdateFramePlacement with the current placement is "

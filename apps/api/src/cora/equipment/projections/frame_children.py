@@ -1,12 +1,12 @@
-"""FrameChildrenProjection: tracks parent_frame_id -> child Frame IDs.
+"""FrameChildrenProjection: tracks parent_id -> child Frame IDs.
 
 Backs queries that need to walk the Frame tree (cycle defense at
 register time, listing children under a node, etc.) without
 event-stream replay.
 
 Subscribed events:
-  - FrameRegistered     -> INSERT (parent_frame_id, child_frame_id)
-                           when parent_frame_id is not None
+  - FrameRegistered     -> INSERT (parent_id, child_frame_id)
+                           when parent_id is not None
                            (root frames are skipped; they have no parent)
   - FrameDecommissioned -> DELETE matching row (child no longer counts
                            as a "live" child)
@@ -25,9 +25,9 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_SQL = """
 INSERT INTO proj_equipment_frame_children
-    (parent_frame_id, child_frame_id, registered_at)
+    (parent_id, child_frame_id, registered_at)
 VALUES ($1, $2, $3)
-ON CONFLICT (parent_frame_id, child_frame_id) DO NOTHING
+ON CONFLICT (parent_id, child_frame_id) DO NOTHING
 """
 
 _DELETE_BY_CHILD_SQL = """
@@ -54,7 +54,7 @@ class FrameChildrenProjection:
     ) -> None:
         match event.event_type:
             case "FrameRegistered":
-                parent_raw = event.payload.get("parent_frame_id")
+                parent_raw = event.payload.get("parent_id")
                 if parent_raw is None:
                     return
                 await conn.execute(

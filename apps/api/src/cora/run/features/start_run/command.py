@@ -39,7 +39,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
-from cora.run.aggregates.run import ExternalRef
+from cora.infrastructure.identifier import Identifier
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class StartRun:
     raid: str | None = None
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     trigger_source: str | None = None
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
     campaign_id: UUID | None = None
     # Decision→Run linkage: optional Decision-causation link
     # mirroring `AdjustRun.decided_by_decision_id`. Lets the operator

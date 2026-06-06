@@ -62,7 +62,7 @@ class CautionSummaryItem:
     expires_at: datetime | None
     propagate_to_children: bool
     status: str
-    parent_caution_id: UUID | None
+    parent_id: UUID | None
     superseded_by_caution_id: UUID | None
     retired_reason: str | None
     registered_at: datetime
@@ -93,7 +93,7 @@ class Handler(Protocol):
 _SELECT_COLUMNS = (
     "caution_id, target_kind, target_id, category, severity, text, workaround, "
     "author_actor_id, tags, expires_at, propagate_to_children, "
-    "status, parent_caution_id, superseded_by_caution_id, retired_reason, "
+    "status, parent_id, superseded_by_caution_id, retired_reason, "
     "registered_at, last_status_changed_at"
 )
 
@@ -112,7 +112,7 @@ def _row_to_item(row: Any) -> CautionSummaryItem:
         expires_at=row["expires_at"],
         propagate_to_children=bool(row["propagate_to_children"]),
         status=str(row["status"]),
-        parent_caution_id=row["parent_caution_id"],
+        parent_id=row["parent_id"],
         superseded_by_caution_id=row["superseded_by_caution_id"],
         retired_reason=(str(row["retired_reason"]) if row["retired_reason"] is not None else None),
         registered_at=row["registered_at"],

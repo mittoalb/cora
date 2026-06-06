@@ -62,7 +62,7 @@ class PlacementBody(BaseModel):
         description=(
             "The Frame whose origin these coordinates are measured "
             "against. For a child Frame's placement, "
-            "this MUST equal the owning Frame's parent_frame_id."
+            "this MUST equal the owning Frame's parent_id."
         ),
     )
     reference_surface: ReferenceSurface = Field(

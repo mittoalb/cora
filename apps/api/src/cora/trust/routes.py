@@ -64,8 +64,8 @@ from cora.trust.aggregates.visit import (
     VisitCannotTakeControlError,
     VisitCannotVoidError,
     VisitNotFoundError,
-    VisitPartOfMismatchedSurfaceError,
-    VisitPartOfNotFoundError,
+    VisitParentMismatchedSurfaceError,
+    VisitParentNotFoundError,
 )
 from cora.trust.aggregates.zone import InvalidZoneNameError, ZoneAlreadyExistsError
 from cora.trust.errors import UnauthorizedError
@@ -230,11 +230,11 @@ def register_trust_routes(app: FastAPI) -> None:
         app.add_exception_handler(logbook_state_cls, _handle_logbook_state)
     # Visit 404 + 400 + 409 (lifecycle + control) handlers.
     # VisitActorNotCheckedInError reuses 404 (semantically a not-found condition).
-    # VisitPartOfNotFoundError reuses 404 (missing parent stream).
+    # VisitParentNotFoundError reuses 404 (missing parent stream).
     for not_found_cls in (
         VisitNotFoundError,
         VisitActorNotCheckedInError,
-        VisitPartOfNotFoundError,
+        VisitParentNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for invalid_400_cls in (
@@ -254,7 +254,7 @@ def register_trust_routes(app: FastAPI) -> None:
         VisitCannotStartError,
         VisitCannotTakeControlError,
         VisitCannotVoidError,
-        VisitPartOfMismatchedSurfaceError,
+        VisitParentMismatchedSurfaceError,
     ):
         app.add_exception_handler(cannot_409_cls, _handle_visit_conflict_409)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

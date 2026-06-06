@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 from cora.trust.aggregates.visit import (
     VISIT_REASON_MAX_LENGTH,
     InvalidVisitPlannedPeriodError,
@@ -62,13 +62,13 @@ def test_visit_default_status_is_planned() -> None:
     assert v.status == VisitStatus.PLANNED
     assert v.last_status_reason is None
     assert v.external_refs == frozenset()
-    assert v.part_of_visit_id is None
+    assert v.parent_id is None
 
 
 @pytest.mark.unit
 def test_visit_carries_external_refs_as_frozenset() -> None:
-    """ExternalRef hosting matches Campaign/Run precedent (frozenset on state)."""
-    ref = ExternalRef(scheme="proposal", id="12345")
+    """Identifier hosting matches Campaign/Run precedent (frozenset on state)."""
+    ref = Identifier(scheme="proposal", value="12345")
     v = Visit(
         id=uuid4(),
         policy_id=uuid4(),

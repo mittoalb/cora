@@ -42,12 +42,12 @@ def test_split_binding_ids_pivots_typed_arms_into_four_lists() -> None:
 
 @pytest.mark.unit
 def test_split_binding_ids_skips_external_bindings() -> None:
-    """ExternalBinding refs are anti-corruption refs, not projected."""
+    """ExternalRefBinding refs are anti-corruption refs, not projected."""
     sid = uuid4()
     bindings: list[dict[str, Any]] = [
         {"kind": "Subject", "id": str(sid)},
-        {"kind": "External", "scheme": "proposal", "id": "GUP-12345"},
-        {"kind": "External", "scheme": "btr", "id": "BTR-67890"},
+        {"kind": "External", "scheme": "proposal", "value": "GUP-12345"},
+        {"kind": "External", "scheme": "btr", "value": "BTR-67890"},
     ]
     subject_ids, asset_ids, run_ids, procedure_ids = split_binding_ids(bindings)
     assert subject_ids == [sid]
@@ -156,7 +156,7 @@ async def test_apply_clearance_registered_emits_insert() -> None:
                 "declarations": [],
                 "valid_from": None,
                 "valid_until": None,
-                "parent_clearance_id": None,
+                "parent_id": None,
                 "occurred_at": _NOW.isoformat(),
             },
         ),

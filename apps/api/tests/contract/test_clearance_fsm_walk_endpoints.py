@@ -475,10 +475,10 @@ def test_amend_returns_201_with_new_child_id_and_supersedes_parent() -> None:
         parent_body = client.get(f"/clearances/{parent_cid}").json()
         assert parent_body["status"] == "Superseded"
 
-        # Child landed in Defined with parent_clearance_id pointer
+        # Child landed in Defined with parent_id pointer
         child_body = client.get(f"/clearances/{child_cid}").json()
         assert child_body["status"] == "Defined"
-        assert child_body["parent_clearance_id"] == parent_cid
+        assert child_body["parent_id"] == parent_cid
 
 
 @pytest.mark.contract

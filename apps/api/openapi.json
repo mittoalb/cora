@@ -680,7 +680,7 @@
         "type": "string"
       },
       "AmendClearanceRequest": {
-        "description": "Body for `POST /clearances/{parent_clearance_id}/amend`.\n\nMirrors `RegisterClearanceRequest`'s child-fields exactly. The\n`parent_clearance_id` comes from the URL path, not the body.",
+        "description": "Body for `POST /clearances/{parent_id}/amend`.\n\nMirrors `RegisterClearanceRequest`'s child-fields exactly. The\n`parent_id` comes from the URL path, not the body.",
         "properties": {
           "bindings": {
             "description": "Child's bindings; same discriminated-union shape as register_clearance.",
@@ -800,7 +800,7 @@
         "type": "object"
       },
       "AmendClearanceResponse": {
-        "description": "Response body for `POST /clearances/{parent_clearance_id}/amend`.",
+        "description": "Response body for `POST /clearances/{parent_id}/amend`.",
         "properties": {
           "clearance_id": {
             "description": "The new child clearance's id.",
@@ -1612,13 +1612,6 @@
       },
       "BindingExternalDTO": {
         "properties": {
-          "id": {
-            "description": "Facility-minted external ID (for example 'GUP-12345').",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
           "kind": {
             "const": "External",
             "title": "Kind",
@@ -1630,12 +1623,19 @@
             "minLength": 1,
             "title": "Scheme",
             "type": "string"
+          },
+          "value": {
+            "description": "Facility-minted external ID (for example 'GUP-12345').",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
           }
         },
         "required": [
           "kind",
           "scheme",
-          "id"
+          "value"
         ],
         "title": "BindingExternalDTO",
         "type": "object"
@@ -1704,7 +1704,7 @@
         "type": "object"
       },
       "BindingsByKind": {
-        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit `<kind>_ids` fields (matching the projection's UUID[]\ncolumns 1:1, mirroring the view-model's `subject_binding_ids` /\n`asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`\nplural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen\nproduces typed accessors; SDK consumers see the locked set of keys\nwithout `additionalProperties` ambiguity. ExternalBinding refs are\nNOT surfaced here (anti-corruption refs, not projected; see route\nsummary).",
+        "description": "Per-kind binding-id arrays surfaced on the list response.\n\nFour explicit `<kind>_ids` fields (matching the projection's UUID[]\ncolumns 1:1, mirroring the view-model's `subject_binding_ids` /\n`asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`\nplural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen\nproduces typed accessors; SDK consumers see the locked set of keys\nwithout `additionalProperties` ambiguity. ExternalRefBinding refs are\nNOT surfaced here (anti-corruption refs, not projected; see route\nsummary).",
         "properties": {
           "asset_ids": {
             "items": {
@@ -2532,7 +2532,7 @@
             "title": "Id",
             "type": "string"
           },
-          "parent_caution_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -2542,7 +2542,7 @@
                 "type": "null"
               }
             ],
-            "title": "Parent Caution Id"
+            "title": "Parent Id"
           },
           "propagate_to_children": {
             "title": "Propagate To Children",
@@ -2684,7 +2684,7 @@
             ],
             "title": "Last Status Changed At"
           },
-          "parent_caution_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -2694,7 +2694,7 @@
                 "type": "null"
               }
             ],
-            "title": "Parent Caution Id"
+            "title": "Parent Id"
           },
           "propagate_to_children": {
             "default": false,
@@ -2996,7 +2996,7 @@
             ],
             "title": "Next Review Due At"
           },
-          "parent_clearance_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -3006,7 +3006,7 @@
                 "type": "null"
               }
             ],
-            "title": "Parent Clearance Id"
+            "title": "Parent Id"
           },
           "review_steps": {
             "items": {
@@ -3072,7 +3072,7 @@
         "type": "object"
       },
       "ClearanceStatus": {
-        "description": "The Clearance's lifecycle state.\n\nEight values locked day one per [[project_safety_clearance_design]]:\n\n  - `Defined`     -- registered, not yet submitted\n  - `Submitted`   -- awaiting first reviewer pickup\n  - `UnderReview` -- >=1 reviewer step recorded but not terminal\n  - `Approved`    -- all required reviewers approved; not yet effective\n  - `Active`      -- currently in force; gates Run.start / Procedure.start\n  - `Expired`     -- validity window passed OR explicit expire_clearance\n  - `Rejected`    -- terminal-bad\n  - `Superseded`  -- replaced by amended child (parent_clearance_id link)\n\nCompresses the union of all 9 surveyed facility-form lifecycles per\nthe cross-facility portability research (v3 pass). Multi-step review\nrolls up into UnderReview + the `review_steps: tuple[...]` field; no\nfacility introduces states outside this set.",
+        "description": "The Clearance's lifecycle state.\n\nEight values locked day one per [[project_safety_clearance_design]]:\n\n  - `Defined`     -- registered, not yet submitted\n  - `Submitted`   -- awaiting first reviewer pickup\n  - `UnderReview` -- >=1 reviewer step recorded but not terminal\n  - `Approved`    -- all required reviewers approved; not yet effective\n  - `Active`      -- currently in force; gates Run.start / Procedure.start\n  - `Expired`     -- validity window passed OR explicit expire_clearance\n  - `Rejected`    -- terminal-bad\n  - `Superseded`  -- replaced by amended child (parent_id link)\n\nCompresses the union of all 9 surveyed facility-form lifecycles per\nthe cross-facility portability research (v3 pass). Multi-step review\nrolls up into UnderReview + the `review_steps: tuple[...]` field; no\nfacility introduces states outside this set.",
         "enum": [
           "Defined",
           "Submitted",
@@ -3164,7 +3164,7 @@
             ],
             "title": "Next Review Due At"
           },
-          "parent_clearance_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -3174,7 +3174,7 @@
                 "type": "null"
               }
             ],
-            "title": "Parent Clearance Id"
+            "title": "Parent Id"
           },
           "registered_at": {
             "format": "date-time",
@@ -5563,45 +5563,45 @@
         "type": "object"
       },
       "ExternalRefDTO-Input": {
-        "description": "Wire shape for an ExternalRef on the register_campaign request body.",
+        "description": "Wire shape for an external-ref Identifier on the register_campaign request body.",
         "properties": {
-          "id": {
-            "description": "Facility-issued opaque id under the named scheme.",
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
           "scheme": {
             "description": "Scheme identifier for the upstream-deferred concept (for example 'proposal', 'btr', 'visit', 'cycle').",
             "maxLength": 50,
             "minLength": 1,
             "title": "Scheme",
             "type": "string"
+          },
+          "value": {
+            "description": "Facility-issued opaque value under the named scheme.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
           }
         },
         "required": [
           "scheme",
-          "id"
+          "value"
         ],
         "title": "ExternalRefDTO",
         "type": "object"
       },
       "ExternalRefDTO-Output": {
-        "description": "Wire shape for an ExternalRef in the GET response.",
+        "description": "Wire shape for an external-ref Identifier in the GET response.",
         "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
           "scheme": {
             "title": "Scheme",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
             "type": "string"
           }
         },
         "required": [
           "scheme",
-          "id"
+          "value"
         ],
         "title": "ExternalRefDTO",
         "type": "object"
@@ -7674,7 +7674,7 @@
         "description": "Wire format for a Placement value object.\n\nMirrors the domain `Placement` dataclass field-for-field. Field\nsemantics, units, and tolerance rules live with the dataclass\nin `cora.equipment.aggregates._placement`; this body is purely\nthe wire shape that Pydantic parses.\n\nDomain validation (negative tolerance rejection) happens during\nthe dataclass construction in `to_domain`, not here, so the\nroute surfaces `InvalidPlacementError` -> 400 through the BC's\nexception handler.",
         "properties": {
           "parent_frame_id": {
-            "description": "The Frame whose origin these coordinates are measured against. For a child Frame's placement, this MUST equal the owning Frame's parent_frame_id.",
+            "description": "The Frame whose origin these coordinates are measured against. For a child Frame's placement, this MUST equal the owning Frame's parent_id.",
             "format": "uuid",
             "title": "Parent Frame Id",
             "type": "string"
@@ -9397,7 +9397,7 @@
         "description": "Body for `POST /clearances`.",
         "properties": {
           "bindings": {
-            "description": "Multi-binding: what this clearance gates against. Discriminated by `kind` ('Subject' | 'Asset' | 'Run' | 'Procedure' | 'External'). ExternalBinding is the anti-corruption escape hatch for upstream-deferred refs (proposal / btr / lab_visit / session).",
+            "description": "Multi-binding: what this clearance gates against. Discriminated by `kind` ('Subject' | 'Asset' | 'Run' | 'Procedure' | 'External'). ExternalRefBinding is the anti-corruption escape hatch for upstream-deferred refs (proposal / btr / lab_visit / session).",
             "items": {
               "discriminator": {
                 "mapping": {
@@ -9917,7 +9917,7 @@
         "type": "object"
       },
       "RegisterFrameRequest": {
-        "description": "Body for `POST /frames`.\n\nRoot frames pass `parent_frame_id=null` AND\n`placement=null`. Child frames pass both\nnon-null, and the embedded `placement.parent_frame_id` must equal\n`parent_frame_id` (decider enforces this with\nInvalidFrameRootError -> 400).",
+        "description": "Body for `POST /frames`.\n\nRoot frames pass `parent_id=null` AND\n`placement=null`. Child frames pass both\nnon-null, and the embedded `placement.parent_frame_id` must equal\n`parent_id` (decider enforces this with\nInvalidFrameRootError -> 400).",
         "properties": {
           "name": {
             "description": "Display name for the new frame.",
@@ -9926,7 +9926,7 @@
             "title": "Name",
             "type": "string"
           },
-          "parent_frame_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -9937,7 +9937,7 @@
               }
             ],
             "description": "Immediate parent in the frame tree. Must be null for root frames; required for all others. Goes together with placement (both null or both non-null).",
-            "title": "Parent Frame Id"
+            "title": "Parent Id"
           },
           "placement": {
             "anyOf": [
@@ -9948,12 +9948,12 @@
                 "type": "null"
               }
             ],
-            "description": "Pose of this frame's origin relative to its parent. Must be null for root frames; required for child frames and must reference parent_frame_id."
+            "description": "Pose of this frame's origin relative to its parent. Must be null for root frames; required for child frames and must reference parent_id."
           }
         },
         "required": [
           "name",
-          "parent_frame_id",
+          "parent_id",
           "placement"
         ],
         "title": "RegisterFrameRequest",
@@ -9988,7 +9988,7 @@
             ],
             "description": "Optional engineering reference for the slot itself (distinct from the installed Asset's build-to drawing)."
           },
-          "parent_mount_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -9999,7 +9999,7 @@
               }
             ],
             "description": "Immediate parent in the slot hierarchy. Null for top-level slots. Hierarchy axis is distinct from coordinate-frame axis (which lives on placement.parent_frame_id).",
-            "title": "Parent Mount Id"
+            "title": "Parent Id"
           },
           "placement": {
             "$ref": "#/components/schemas/PlacementBody",
@@ -10015,7 +10015,7 @@
         },
         "required": [
           "slot_code",
-          "parent_mount_id",
+          "parent_id",
           "placement"
         ],
         "title": "RegisterMountRequest",
@@ -10269,12 +10269,12 @@
           "external_refs": {
             "description": "Anti-corruption refs to upstream-deferred concepts (proposal, btr, visit, cycle). Stored on the event; surfaced through the list_visits_by_external_ref query slice.",
             "items": {
-              "$ref": "#/components/schemas/_ExternalRefBody"
+              "$ref": "#/components/schemas/_IdentifierBody"
             },
             "title": "External Refs",
             "type": "array"
           },
-          "part_of_visit_id": {
+          "parent_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -10285,7 +10285,7 @@
               }
             ],
             "description": "Optional self-FK for nested commissioning. The decider enforces parent existence and same-Surface cohesion.",
-            "title": "Part Of Visit Id"
+            "title": "Parent Id"
           },
           "planned_end_at": {
             "description": "Scheduled end; must be strictly after planned_start_at.",
@@ -11970,7 +11970,7 @@
         "type": "object"
       },
       "SupersedeCautionRequest": {
-        "description": "Body for `POST /cautions/{parent_caution_id}/supersede`.\n\nMirrors `RegisterCautionRequest`'s child fields exactly. The\n`parent_caution_id` comes from the URL path, not the body.",
+        "description": "Body for `POST /cautions/{parent_id}/supersede`.\n\nMirrors `RegisterCautionRequest`'s child fields exactly. The\n`parent_id` comes from the URL path, not the body.",
         "properties": {
           "category": {
             "$ref": "#/components/schemas/CautionCategory"
@@ -12045,7 +12045,7 @@
         "type": "object"
       },
       "SupersedeCautionResponse": {
-        "description": "Response body for `POST /cautions/{parent_caution_id}/supersede`.",
+        "description": "Response body for `POST /cautions/{parent_id}/supersede`.",
         "properties": {
           "caution_id": {
             "description": "The new child caution's id.",
@@ -12658,7 +12658,7 @@
         "type": "object"
       },
       "UpdateFramePlacementRequest": {
-        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame_id` MUST equal the Frame's existing\n`parent_frame_id` (you cannot reparent via update_frame_placement); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FramePlacementUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
+        "description": "Body for `PATCH /frames/{frame_id}/placement`.\n\n`new_placement.parent_frame_id` MUST equal the Frame's existing\n`parent_id` (you cannot reparent via update_frame_placement); the\ndecider enforces this with InvalidFrameRootError -> 400.\n\n`survey` is an optional opaque payload (instrument, technician,\nresidual provenance) carried verbatim onto the FramePlacementUpdated\nevent. The VO shape is intentionally open until the first\nsurvey adapter lands.",
         "properties": {
           "new_placement": {
             "$ref": "#/components/schemas/PlacementBody",
@@ -13354,27 +13354,27 @@
         "title": "_EqualsCriterion",
         "type": "object"
       },
-      "_ExternalRefBody": {
-        "description": "One ExternalRef carried on the request body.",
+      "_IdentifierBody": {
+        "description": "One Identifier carried on the request body.",
         "properties": {
-          "id": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
-          },
           "scheme": {
             "maxLength": 50,
             "minLength": 1,
             "title": "Scheme",
             "type": "string"
+          },
+          "value": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
           }
         },
         "required": [
           "scheme",
-          "id"
+          "value"
         ],
-        "title": "_ExternalRefBody",
+        "title": "_IdentifierBody",
         "type": "object"
       },
       "_InboundTermsRequest": {
@@ -19145,7 +19145,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (whitespace-only name / description / tag / external_id, or out-of-bounds external_ref scheme/id)."
+            "description": "Domain invariant violated (whitespace-only name / description / tag / external_id, or out-of-bounds external_ref scheme/value)."
           },
           "403": {
             "content": {
@@ -20793,19 +20793,19 @@
         ]
       }
     },
-    "/cautions/{parent_caution_id}/supersede": {
+    "/cautions/{parent_id}/supersede": {
       "post": {
-        "operationId": "post_cautions_supersede_cautions__parent_caution_id__supersede_post",
+        "operationId": "post_cautions_supersede_cautions__parent_id__supersede_post",
         "parameters": [
           {
             "description": "Parent caution's id.",
             "in": "path",
-            "name": "parent_caution_id",
+            "name": "parent_id",
             "required": true,
             "schema": {
               "description": "Parent caution's id.",
               "format": "uuid",
-              "title": "Parent Caution Id",
+              "title": "Parent Id",
               "type": "string"
             }
           },
@@ -21175,7 +21175,7 @@
             "description": "Query parameters failed validation OR `cursor` was malformed."
           }
         },
-        "summary": "List clearances with cursor pagination + kind / status / risk_band / facility_asset_id / binds_to_*_id filters. ExternalBinding refs not filterable; review_steps chain not surfaced (fetch get_clearance for both).",
+        "summary": "List clearances with cursor pagination + kind / status / risk_band / facility_asset_id / binds_to_*_id filters. ExternalRefBinding refs not filterable; review_steps chain not surfaced (fetch get_clearance for both).",
         "tags": [
           "safety"
         ]
@@ -22023,19 +22023,19 @@
         ]
       }
     },
-    "/clearances/{parent_clearance_id}/amend": {
+    "/clearances/{parent_id}/amend": {
       "post": {
-        "operationId": "post_clearances_amend_clearances__parent_clearance_id__amend_post",
+        "operationId": "post_clearances_amend_clearances__parent_id__amend_post",
         "parameters": [
           {
             "description": "Parent clearance's id.",
             "in": "path",
-            "name": "parent_clearance_id",
+            "name": "parent_id",
             "required": true,
             "schema": {
               "description": "Parent clearance's id.",
               "format": "uuid",
-              "title": "Parent Clearance Id",
+              "title": "Parent Id",
               "type": "string"
             }
           },
@@ -26714,7 +26714,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: whitespace-only name, negative tolerance, OR root-vs-child mismatch (parent_frame_id and placement must be both null or both non-null, and placement.parent_frame_id must equal parent_frame_id)."
+            "description": "Domain invariant violated: whitespace-only name, negative tolerance, OR root-vs-child mismatch (parent_id and placement must be both null or both non-null, and placement.parent_frame_id must equal parent_id)."
           },
           "403": {
             "content": {
@@ -26887,7 +26887,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated: negative tolerance via Placement VO OR new_placement.parent_frame_id does not match the Frame's parent_frame_id."
+            "description": "Domain invariant violated: negative tolerance via Placement VO OR new_placement.parent_frame_id does not match the Frame's parent_id."
           },
           "403": {
             "content": {

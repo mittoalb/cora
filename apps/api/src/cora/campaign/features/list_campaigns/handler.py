@@ -23,7 +23,7 @@ BOLA: command-name gating only. Per-row scoping deferred until ReBAC
   - `has_run_id`: needs Run.campaign_id indexed scan on the Run
     projection. The Campaign projection only carries `run_count`
     (denorm size), not the UUID set. Watch item #10.
-  - `external_ref_scheme` / `external_ref_id`: external_refs lives on
+  - `external_ref_scheme` / `external_ref_value`: external_refs lives on
     the aggregate stream; reverse-query needs a per-ref denorm.
 """
 

@@ -62,20 +62,20 @@ def test_decide_emits_caution_registered_when_stream_is_empty() -> None:
             author_actor_id=_AUTHOR_ID,
             expires_at=None,
             propagate_to_children=False,
-            parent_caution_id=None,
+            parent_id=None,
             occurred_at=_NOW,
         )
     ]
 
 
 @pytest.mark.unit
-def test_decide_top_level_register_has_no_parent_caution_id() -> None:
-    """Anti-hook discipline: top-level registers always have parent_caution_id=None;
+def test_decide_top_level_register_has_no_parent_id() -> None:
+    """Anti-hook discipline: top-level registers always have parent_id=None;
     supersession-child genesis is the only path that sets it."""
     events = register_caution.decide(
         state=None, command=_command(), now=_NOW, new_id=uuid4(), author_actor_id=_AUTHOR_ID
     )
-    assert events[0].parent_caution_id is None
+    assert events[0].parent_id is None
 
 
 @pytest.mark.unit

@@ -1,4 +1,4 @@
-"""End-to-end: register_mount with a non-null parent_mount_id lands
+"""End-to-end: register_mount with a non-null parent_id lands
 the expected (parent, child) edge in proj_equipment_mount_children
 against real Postgres, and a decommissioned child's row is removed.
 
@@ -9,8 +9,8 @@ design anti-hook). This test is the load-bearing fitness for that
 write-side / read-side pairing.
 
 Pins:
-  - MountRegistered with parent_mount_id != None -> INSERT (parent, child)
-  - MountRegistered with parent_mount_id == None (top-level) -> no INSERT
+  - MountRegistered with parent_id != None -> INSERT (parent, child)
+  - MountRegistered with parent_id == None (top-level) -> no INSERT
   - MountDecommissioned (on a child) -> DELETE the (parent, child) row
   - load_active_mount_children query helper returns the live child set
   - decommission_mount handler rejects a parent that still has live
@@ -53,7 +53,7 @@ async def _seed_frame(pool: asyncpg.Pool, frame_id: UUID) -> None:
     await bind_register_frame(deps)(
         RegisterFrame(
             name=f"frame-{frame_id}",
-            parent_frame_id=None,
+            parent_id=None,
             placement=None,
         ),
         principal_id=_PRINCIPAL_ID,
@@ -65,7 +65,7 @@ async def _seed_mount(
     pool: asyncpg.Pool,
     *,
     mount_id: UUID,
-    parent_mount_id: UUID | None,
+    parent_id: UUID | None,
     placement: Placement,
     slot_code: str,
 ) -> None:
@@ -73,7 +73,7 @@ async def _seed_mount(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=parent_mount_id,
+            parent_id=parent_id,
             placement=placement,
             drawing=None,
         ),
@@ -84,7 +84,7 @@ async def _seed_mount(
 
 @pytest.mark.integration
 async def test_top_level_mount_inserts_no_children_row(db_pool: asyncpg.Pool) -> None:
-    """A Mount with parent_mount_id=None is a top-level slot; it
+    """A Mount with parent_id=None is a top-level slot; it
     should NOT appear as a child of anything in the projection."""
     frame_id = uuid4()
     await _seed_frame(db_pool, frame_id)
@@ -92,7 +92,7 @@ async def test_top_level_mount_inserts_no_children_row(db_pool: asyncpg.Pool) ->
     await _seed_mount(
         db_pool,
         mount_id=top_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-A-K-top",
     )
@@ -100,7 +100,7 @@ async def test_top_level_mount_inserts_no_children_row(db_pool: asyncpg.Pool) ->
 
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT parent_mount_id, child_mount_id "
+            "SELECT parent_id, child_mount_id "
             "FROM proj_equipment_mount_children "
             "WHERE child_mount_id = $1",
             top_id,
@@ -116,14 +116,14 @@ async def test_child_mount_inserts_parent_to_child_edge(db_pool: asyncpg.Pool) -
     await _seed_mount(
         db_pool,
         mount_id=parent_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-A-K-parent",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_id,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-A-K-child",
     )
@@ -143,14 +143,14 @@ async def test_decommission_child_deletes_parent_to_child_edge(
     await _seed_mount(
         db_pool,
         mount_id=parent_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-B-K-parent",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_id,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-B-K-child",
     )
@@ -172,7 +172,7 @@ async def test_decommission_child_deletes_parent_to_child_edge(
 async def test_two_children_decommission_one_leaves_other_edge_intact(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Pin against a `DELETE WHERE parent_mount_id = $1` substitution
+    """Pin against a `DELETE WHERE parent_id = $1` substitution
     bug: a parent with two children, decommissioning one child must
     delete exactly that edge and leave the sibling edge intact."""
     frame_id = uuid4()
@@ -181,21 +181,21 @@ async def test_two_children_decommission_one_leaves_other_edge_intact(
     await _seed_mount(
         db_pool,
         mount_id=parent_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-D-K-parent",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_keep,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-D-K-keep",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_drop,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-D-K-drop",
     )
@@ -230,14 +230,14 @@ async def test_decommission_child_then_parent_succeeds_end_to_end(
     await _seed_mount(
         db_pool,
         mount_id=parent_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-E-K-parent",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_id,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-E-K-child",
     )
@@ -274,14 +274,14 @@ async def test_decommission_parent_rejected_while_child_active(
     await _seed_mount(
         db_pool,
         mount_id=parent_id,
-        parent_mount_id=None,
+        parent_id=None,
         placement=placement(frame_id),
         slot_code="02-BM-C-K-parent",
     )
     await _seed_mount(
         db_pool,
         mount_id=child_id,
-        parent_mount_id=parent_id,
+        parent_id=parent_id,
         placement=placement(frame_id),
         slot_code="02-BM-C-K-child",
     )

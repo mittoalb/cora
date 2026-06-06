@@ -126,7 +126,7 @@ async def seed_installed_asset(
 
     deps = build_postgres_deps(pool, now=now, ids=[frame_id, uuid4()])
     await bind_register_frame(deps)(
-        RegisterFrame(name=f"frame-{slot_code}", parent_frame_id=None, placement=None),
+        RegisterFrame(name=f"frame-{slot_code}", parent_id=None, placement=None),
         principal_id=_SEED_PRINCIPAL_ID,
         correlation_id=_SEED_CORRELATION_ID,
     )
@@ -135,7 +135,7 @@ async def seed_installed_asset(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),
@@ -193,7 +193,7 @@ async def install_existing_asset_into_fresh_mount(
 
     deps = build_postgres_deps(pool, now=now, ids=[frame_id, uuid4()])
     await bind_register_frame(deps)(
-        RegisterFrame(name=f"frame-{slot_code}", parent_frame_id=None, placement=None),
+        RegisterFrame(name=f"frame-{slot_code}", parent_id=None, placement=None),
         principal_id=_SEED_PRINCIPAL_ID,
         correlation_id=_SEED_CORRELATION_ID,
     )
@@ -202,7 +202,7 @@ async def install_existing_asset_into_fresh_mount(
     await bind_register_mount(deps)(
         RegisterMount(
             slot_code=slot_code,
-            parent_mount_id=None,
+            parent_id=None,
             placement=placement(frame_id),
             drawing=None,
         ),

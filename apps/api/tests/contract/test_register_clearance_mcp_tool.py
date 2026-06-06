@@ -73,7 +73,7 @@ def test_mcp_register_clearance_tool_accepts_multi_binding() -> None:
                         "bindings": [
                             {"kind": "Subject", "id": str(uuid4())},
                             {"kind": "Asset", "id": str(uuid4())},
-                            {"kind": "External", "scheme": "proposal", "id": "GUP-1"},
+                            {"kind": "External", "scheme": "proposal", "value": "GUP-1"},
                         ],
                         "risk_band": "Yellow",
                     },

@@ -14,7 +14,7 @@ Per [[project_safety_clearance_design]], the design locks:
     (form-type only; facility identity carried separately by
     `facility_asset_id` referencing Asset.Level.Site)
   - Multi-binding `frozenset[ClearanceBinding]` covering Subject /
-    Asset / Run / Procedure + ExternalBinding(scheme, id) for
+    Asset / Run / Procedure + ExternalRefBinding(ref=Identifier) for
     upstream-deferred refs (Proposal / BTR / LabVisit / Session per
     BC-map line 111 anti-corruption pattern)
   - Multi-step review chain via `review_steps: tuple[ReviewStep, ...]`
@@ -41,7 +41,7 @@ a later refactor split form-type from facility identity so the
 enum shrank from the originally-planned 12 down to 10). Extending to
 an 11th facility-form is purely additive.
 
-## Bindings: multi (frozenset), polymorphic (5 typed arms + ExternalBinding)
+## Bindings: multi (frozenset), polymorphic (5 typed arms + ExternalRefBinding)
 
 The `bindings` field on Clearance is a `frozenset[ClearanceBinding]`
 because one ESAF covers samples + user equipment + the Run + the
@@ -49,11 +49,11 @@ external proposal -- all at once. Single-binding shape would force one
 Clearance per binding (artificial); multi-binding is the natural shape.
 
 The 5 typed arms cover CORA-modeled aggregates (Subject / Asset / Run /
-Procedure) plus the anti-corruption escape hatch (ExternalBinding) for
-upstream-deferred refs CORA does NOT model: Proposal (BC map line 111
-defers), BeamtimeRequest, LabVisit (DLS-specific), Session. When CORA
-later models any of these as aggregates, ExternalBinding becomes a typed
-binding additively.
+Procedure) plus the anti-corruption escape hatch (ExternalRefBinding)
+for upstream-deferred refs CORA does NOT model: Proposal (BC map line
+111 defers), BeamtimeRequest, LabVisit (DLS-specific), Session. When
+CORA later models any of these as aggregates, ExternalRefBinding
+becomes a typed binding additively.
 
 ## Reviewers tuple, NOT additional FSM states
 
@@ -79,6 +79,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identifier import Identifier
 from cora.safety.aggregates.clearance.hazard_classification import HazardClassification, RiskBand
 
 CLEARANCE_TITLE_MAX_LENGTH = 200
@@ -89,8 +90,6 @@ CLEARANCE_REVIEWER_ROLE_MAX_LENGTH = 50
 CLEARANCE_REVIEWER_NOTES_MAX_LENGTH = 2000
 CLEARANCE_HAZARD_NOTES_MAX_LENGTH = 2000
 CLEARANCE_MITIGATION_REF_MAX_LENGTH = 200
-CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH = 50
-CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH = 200
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +109,7 @@ class ClearanceStatus(StrEnum):
       - `Active`      -- currently in force; gates Run.start / Procedure.start
       - `Expired`     -- validity window passed OR explicit expire_clearance
       - `Rejected`    -- terminal-bad
-      - `Superseded`  -- replaced by amended child (parent_clearance_id link)
+      - `Superseded`  -- replaced by amended child (parent_id link)
 
     Compresses the union of all 9 surveyed facility-form lifecycles per
     the cross-facility portability research (v3 pass). Multi-step review
@@ -236,19 +235,6 @@ class InvalidClearanceValidityWindowError(ValueError):
         )
         self.valid_from = valid_from
         self.valid_until = valid_until
-
-
-class InvalidClearanceExternalBindingError(ValueError):
-    """An ExternalBinding's scheme or id is empty, whitespace-only, or too long."""
-
-    def __init__(self, field_name: str, value: str, max_length: int) -> None:
-        super().__init__(
-            f"ExternalBinding {field_name} must be 1-{max_length} chars "
-            f"after trimming (got: {value!r})"
-        )
-        self.field_name = field_name
-        self.value = value
-        self.max_length = max_length
 
 
 class InvalidClearanceMitigationRefError(ValueError):
@@ -486,13 +472,13 @@ class ClearanceCannotExpireError(Exception):
 class ClearanceCannotAmendError(Exception):
     """Attempted `amend_clearance` on a parent in a disqualifying status."""
 
-    def __init__(self, parent_clearance_id: UUID, current_status: "ClearanceStatus") -> None:
+    def __init__(self, parent_id: UUID, current_status: "ClearanceStatus") -> None:
         super().__init__(
-            f"Clearance {parent_clearance_id} cannot be amended: currently in "
+            f"Clearance {parent_id} cannot be amended: currently in "
             f"status {current_status.value}, amend_clearance requires "
             f"{ClearanceStatus.ACTIVE.value}"
         )
-        self.parent_clearance_id = parent_clearance_id
+        self.parent_id = parent_id
         self.current_status = current_status
 
 
@@ -539,7 +525,7 @@ class ClearanceTitle:
 
 
 # ---------------------------------------------------------------------------
-# ClearanceBinding: 5-arm discriminated union (4 typed CORA refs + ExternalBinding)
+# ClearanceBinding: 5-arm discriminated union (4 typed CORA refs + ExternalRefBinding)
 # ---------------------------------------------------------------------------
 
 
@@ -572,38 +558,33 @@ class ProcedureBinding:
 
 
 @dataclass(frozen=True)
-class ExternalBinding:
+class ExternalRefBinding:
     """Clearance binds to an upstream-deferred concept CORA does NOT model.
 
     Per BC map line 111: Programs / Funding lines / Proposals are
     "consumed via anti-corruption adapter, not modeled internally". Same
-    for BeamtimeRequest, LabVisit (DLS-specific), Session. ExternalBinding
-    captures the (scheme, id) pair so the Clearance can still gate
+    for BeamtimeRequest, LabVisit (DLS-specific), Session. ExternalRefBinding
+    wraps the shared `Identifier(scheme, value)` VO from
+    `cora.infrastructure.identifier` so the Clearance can still gate
     against these references.
 
     Common schemes: 'proposal' / 'btr' / 'lab_visit' / 'session'.
-    Run carries an `external_refs: frozenset[ExternalRef]` field so
-    Run.start gating can match ExternalBinding to the Run's
+    Run carries a `frozenset[Identifier]` external-refs field so
+    Run.start gating can match ExternalRefBinding to the Run's
     facility-known refs.
+
+    The discriminator value on the wire stays `"External"` (meaningful
+    domain name, not vestigial). Only the in-memory arm renamed from
+    `ExternalBinding` to `ExternalRefBinding` per
+    [[project_identifier_vo_design]].
     """
 
-    scheme: str
-    id: str
-
-    def __post_init__(self) -> None:
-        # Loop var named `attr_name` (not `field_name`) to avoid shadowing the
-        # `dataclasses.field` import at module top.
-        for attr_name, value, max_length in (
-            ("scheme", self.scheme, CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH),
-            ("id", self.id, CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH),
-        ):
-            trimmed = value.strip()
-            if not trimmed or len(trimmed) > max_length:
-                raise InvalidClearanceExternalBindingError(attr_name, value, max_length)
-            object.__setattr__(self, attr_name, trimmed)
+    ref: Identifier
 
 
-ClearanceBinding = SubjectBinding | AssetBinding | RunBinding | ProcedureBinding | ExternalBinding
+ClearanceBinding = (
+    SubjectBinding | AssetBinding | RunBinding | ProcedureBinding | ExternalRefBinding
+)
 """Discriminated union: what a Clearance gates against.
 
 `isinstance` discrimination at the boundary (Pydantic at the API,
@@ -723,7 +704,7 @@ class Clearance:
     review_steps: tuple[ReviewStep, ...] = ()
     status: ClearanceStatus = ClearanceStatus.DEFINED
     external_id: str | None = None
-    parent_clearance_id: UUID | None = None
+    parent_id: UUID | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     next_review_due_at: datetime | None = None

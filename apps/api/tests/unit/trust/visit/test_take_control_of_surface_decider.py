@@ -102,7 +102,7 @@ def test_take_rejects_when_surface_held_by_non_parent() -> None:
 @pytest.mark.unit
 def test_take_allowed_when_active_holder_is_parent() -> None:
     parent_id = uuid4()
-    state = replace(make_visit(VisitStatus.IN_PROGRESS), part_of_visit_id=parent_id)
+    state = replace(make_visit(VisitStatus.IN_PROGRESS), parent_id=parent_id)
     ctx = TakeControlOfSurfaceContext(
         active_holder=SurfaceActiveVisit(visit_id=parent_id, since_at=NOW)
     )

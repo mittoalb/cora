@@ -1,8 +1,8 @@
 """Pure decider for the `TakeControlOfSurface` command.
 
 Authz check is enforced in the handler via `deps.authz` against
-`command.surface_id`; the part_of-descendant relationship is
-necessary but NOT sufficient for takeover. A part_of descendant of
+`command.surface_id`; the parent-descendant relationship is
+necessary but NOT sufficient for takeover. A parent_id descendant of
 the current holder STILL requires the explicit `TakeControlOfSurface`
 permission on the target Surface.
 
@@ -44,7 +44,7 @@ def decide(
         -> VisitCannotTakeControlError(reason="surface_mismatch")
       - Status must be Arrived | InProgress | OnHold
         -> VisitCannotTakeControlError(reason="status_not_eligible")
-      - Active holder, if present, must be self or part_of parent
+      - Active holder, if present, must be self or parent
         -> VisitCannotTakeControlError(reason="not_descendant")
     """
     if state is None:
@@ -65,7 +65,7 @@ def decide(
     if (
         active is not None
         and active.visit_id != state.id
-        and (state.part_of_visit_id is None or state.part_of_visit_id != active.visit_id)
+        and (state.parent_id is None or state.parent_id != active.visit_id)
     ):
         raise VisitCannotTakeControlError(
             visit_id=state.id,

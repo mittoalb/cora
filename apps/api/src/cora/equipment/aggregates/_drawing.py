@@ -127,6 +127,9 @@ class DrawingSystem(StrEnum):
 class Drawing:
     """A typed reference to an engineering drawing in an external system.
 
+    Deviation from Identifier VO: 3-tuple (system, number, revision?)
+    with optional revision qualifier.
+
     `system` says which document registry; `number` is the document
     identifier within that registry; `revision` is the optional
     snapshot pin (None means "latest").

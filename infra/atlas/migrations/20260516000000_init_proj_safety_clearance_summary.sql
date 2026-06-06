@@ -87,7 +87,7 @@ CREATE TABLE proj_safety_clearance_summary (
     asset_binding_ids         UUID[]      NOT NULL DEFAULT '{}',
     run_binding_ids           UUID[]      NOT NULL DEFAULT '{}',
     procedure_binding_ids     UUID[]      NOT NULL DEFAULT '{}',
-    parent_clearance_id       UUID,
+    parent_id                 UUID,
     registered_at             TIMESTAMPTZ NOT NULL,
     last_status_changed_at    TIMESTAMPTZ,
     last_status_reason        TEXT,

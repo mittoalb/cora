@@ -176,7 +176,7 @@ async def test_retired_and_superseded_cautions_never_returned(
     deps_s = build_postgres_deps(db_pool, now=_LATER, ids=[child_id, uuid4(), uuid4()])
     await supersede_caution.bind(deps_s)(
         SupersedeCaution(
-            parent_caution_id=parent_id,
+            parent_id=parent_id,
             target=AssetTarget(asset_id=asset_id),
             category=CautionCategory.WEAR,
             severity=CautionSeverity.WARNING,

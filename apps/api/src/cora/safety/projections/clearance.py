@@ -52,7 +52,7 @@ INSERT INTO proj_safety_clearance_summary
     (clearance_id, kind, facility_asset_id, title, external_id, status,
      risk_band,
      subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids,
-     parent_clearance_id, registered_at,
+     parent_id, registered_at,
      last_status_changed_at, last_status_reason, last_reviewed_by_actor_id,
      valid_from, valid_until, next_review_due_at)
 VALUES ($1, $2, $3, $4, $5, 'Defined',
@@ -132,7 +132,7 @@ def split_binding_ids(
 ) -> tuple[list[UUID], list[UUID], list[UUID], list[UUID]]:
     """Pivot the polymorphic bindings list into 4 typed UUID arrays.
 
-    ExternalBinding entries are skipped per the migration comment: not
+    ExternalRefBinding entries are skipped per the migration comment: not
     projected today; consumers needing them fetch the aggregate via
     `get_clearance` or wait for the future binding-projection split.
     """
@@ -184,7 +184,7 @@ class ClearanceSummaryProjection:
             )
             raw_valid_from = payload.get("valid_from")
             raw_valid_until = payload.get("valid_until")
-            raw_parent = payload.get("parent_clearance_id")
+            raw_parent = payload.get("parent_id")
             await conn.execute(
                 _INSERT_CLEARANCE_SQL,
                 UUID(payload["clearance_id"]),
@@ -267,8 +267,8 @@ class ClearanceSummaryProjection:
             # `by_clearance_id` is on the payload but not surfaced as a
             # projection column today; defer the parent->child denorm
             # until a list-view consumer asks for it (mirrors the
-            # ExternalBinding-projection deferral pattern). The child's
-            # `parent_clearance_id` already gives child->parent direction
+            # ExternalRefBinding-projection deferral pattern). The
+            # child's `parent_id` already gives child->parent direction
             # via the existing projection column.
             await conn.execute(
                 _UPDATE_SUPERSEDED_SQL,

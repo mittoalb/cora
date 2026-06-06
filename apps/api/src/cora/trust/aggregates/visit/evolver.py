@@ -50,7 +50,7 @@ def evolve(state: Visit | None, event: VisitEvent) -> Visit:
             type=type_,
             planned_start_at=planned_start_at,
             planned_end_at=planned_end_at,
-            part_of_visit_id=part_of_visit_id,
+            parent_id=parent_id,
             external_refs=external_refs,
         ):
             _ = state  # VisitRegistered is genesis; prior state ignored
@@ -61,7 +61,7 @@ def evolve(state: Visit | None, event: VisitEvent) -> Visit:
                 type=VisitType(type_),
                 planned_start_at=planned_start_at,
                 planned_end_at=planned_end_at,
-                part_of_visit_id=part_of_visit_id,
+                parent_id=parent_id,
                 external_refs=external_refs,
                 status=VisitStatus.PLANNED,
                 last_status_reason=None,

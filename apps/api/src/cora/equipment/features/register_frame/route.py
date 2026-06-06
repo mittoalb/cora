@@ -32,10 +32,10 @@ from cora.infrastructure.routing import (
 class RegisterFrameRequest(BaseModel):
     """Body for `POST /frames`.
 
-    Root frames pass `parent_frame_id=null` AND
+    Root frames pass `parent_id=null` AND
     `placement=null`. Child frames pass both
     non-null, and the embedded `placement.parent_frame_id` must equal
-    `parent_frame_id` (decider enforces this with
+    `parent_id` (decider enforces this with
     InvalidFrameRootError -> 400).
     """
 
@@ -45,7 +45,7 @@ class RegisterFrameRequest(BaseModel):
         max_length=FRAME_NAME_MAX_LENGTH,
         description="Display name for the new frame.",
     )
-    parent_frame_id: UUID | None = Field(
+    parent_id: UUID | None = Field(
         ...,
         description=(
             "Immediate parent in the frame tree. Must be null for "
@@ -59,7 +59,7 @@ class RegisterFrameRequest(BaseModel):
         description=(
             "Pose of this frame's origin relative to its parent. "
             "Must be null for root frames; required for child frames "
-            "and must reference parent_frame_id."
+            "and must reference parent_id."
         ),
     )
 
@@ -88,9 +88,9 @@ router = APIRouter(tags=["equipment"])
             "description": (
                 "Domain invariant violated: whitespace-only name, "
                 "negative tolerance, OR root-vs-child mismatch "
-                "(parent_frame_id and placement "
+                "(parent_id and placement "
                 "must be both null or both non-null, and "
-                "placement.parent_frame_id must equal parent_frame_id)."
+                "placement.parent_frame_id must equal parent_id)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -129,7 +129,7 @@ async def post_frames(
     frame_id = await handler(
         RegisterFrame(
             name=body.name,
-            parent_frame_id=body.parent_frame_id,
+            parent_id=body.parent_id,
             placement=placement,
         ),
         principal_id=principal_id,

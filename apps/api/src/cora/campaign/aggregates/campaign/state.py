@@ -48,12 +48,13 @@ a reportable shape vocabulary alongside a flexible domain-vocabulary
 surface. Day-1 lock is intentionally narrow: adding intents is cheap
 (additive StrEnum), pruning is expensive.
 
-## ExternalRef (anti-corruption for proposal / btr / visit / cycle)
+## Identifier (anti-corruption for proposal / btr / visit / cycle)
 
-`Campaign.external_refs: frozenset[ExternalRef]` reuses the cross-BC
-`cora.infrastructure.external_ref.ExternalRef` VO (hoisted at BC
-genesis from Run's state.py). Day-1 schemes: `proposal` / `btr` /
-`visit` / `cycle`. Mirrors `Run.external_refs` exactly.
+`Campaign.external_refs: frozenset[Identifier]` reuses the shared
+`cora.infrastructure.identifier.Identifier` VO (open-scheme anti-
+corruption-ref axis per `[[project_identifier_vo_design]]`). Day-1
+schemes: `proposal` / `btr` / `visit` / `cycle`. Mirrors
+`Run.external_refs` exactly.
 
 ## Lazy-mint `external_id` for facility-assigned / DataCite Project DOI
 
@@ -69,7 +70,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
-from cora.infrastructure.external_ref import ExternalRef
+from cora.infrastructure.identifier import Identifier
 
 CAMPAIGN_NAME_MAX_LENGTH = 200
 CAMPAIGN_DESCRIPTION_MAX_LENGTH = 2000
@@ -507,7 +508,7 @@ class Campaign:
     subject_id: UUID | None = None
     description: CampaignDescription | None = None
     tags: frozenset[CampaignTag] = field(default_factory=frozenset[CampaignTag])
-    external_refs: frozenset[ExternalRef] = field(default_factory=frozenset[ExternalRef])
+    external_refs: frozenset[Identifier] = field(default_factory=frozenset[Identifier])
     external_id: str | None = None
     run_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: CampaignStatus = CampaignStatus.PLANNED

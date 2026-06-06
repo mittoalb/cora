@@ -29,13 +29,16 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.identifier import (
+    IDENTIFIER_SCHEME_MAX_LENGTH,
+    IDENTIFIER_VALUE_MAX_LENGTH,
+    Identifier,
+)
 from cora.safety.aggregates.clearance import (
-    CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
-    CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
     CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
     AssetBinding,
     ClearanceBinding,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
     ProcedureBinding,
     RunBinding,
@@ -86,17 +89,17 @@ class BindingExternalDTO(BaseModel):
     scheme: str = Field(
         ...,
         min_length=1,
-        max_length=CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
+        max_length=IDENTIFIER_SCHEME_MAX_LENGTH,
         description=(
             "External-ref scheme: 'proposal' | 'btr' | 'lab_visit' | 'session' "
             "| <future>. Anti-corruption pattern for upstream-deferred concepts "
             "CORA does NOT model (per BC map line 111)."
         ),
     )
-    id: str = Field(
+    value: str = Field(
         ...,
         min_length=1,
-        max_length=CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
+        max_length=IDENTIFIER_VALUE_MAX_LENGTH,
         description="Facility-minted external ID (for example 'GUP-12345').",
     )
 
@@ -188,7 +191,7 @@ def binding_from_dto(dto: BindingDTO) -> ClearanceBinding:
         return RunBinding(run_id=dto.id)
     if isinstance(dto, BindingProcedureDTO):
         return ProcedureBinding(procedure_id=dto.id)
-    return ExternalBinding(scheme=dto.scheme, id=dto.id)
+    return ExternalRefBinding(ref=Identifier(scheme=dto.scheme, value=dto.value))
 
 
 def classification_from_dto(dto: ClassificationDTO) -> HazardClassification:

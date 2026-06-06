@@ -29,10 +29,10 @@ from cora.infrastructure.routing import (
 
 
 class ExternalRefDTO(BaseModel):
-    """Wire shape for an ExternalRef in the GET response."""
+    """Wire shape for an external-ref Identifier in the GET response."""
 
     scheme: str
-    id: str
+    value: str
 
 
 class CampaignResponse(BaseModel):
@@ -78,8 +78,8 @@ def _response_from_state(campaign: Campaign) -> CampaignResponse:
         description=campaign.description.value if campaign.description is not None else None,
         tags=sorted(t.value for t in campaign.tags),
         external_refs=[
-            ExternalRefDTO(scheme=r.scheme, id=r.id)
-            for r in sorted(campaign.external_refs, key=lambda r: (r.scheme, r.id))
+            ExternalRefDTO(scheme=r.scheme, value=r.value)
+            for r in sorted(campaign.external_refs, key=lambda r: (r.scheme, r.value))
         ],
         external_id=campaign.external_id,
         run_ids=sorted(campaign.run_ids),

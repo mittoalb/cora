@@ -5,8 +5,8 @@ Subscribed events:
   - CautionRegistered  -> INSERT (status='Active', last_status_changed_at=NULL,
                                   superseded_by_caution_id=NULL,
                                   retired_reason=NULL,
-                                  parent_caution_id=<None for top-level;
-                                                    UUID for supersession child>)
+                                  parent_id=<None for top-level;
+                                             UUID for supersession child>)
   - CautionSuperseded  -> UPDATE status='Superseded'
                                  + superseded_by_caution_id
                                  + last_status_changed_at
@@ -37,7 +37,7 @@ even though the failure mode is narrower here.
 
 ## Supersession child genesis
 
-The `CautionRegistered` arm reads `parent_caution_id` from the payload
+The `CautionRegistered` arm reads `parent_id` from the payload
 unconditionally: `None` for top-level registers, a UUID for the
 supersession child genesis written atomically alongside the parent's
 `CautionSuperseded` (via `EventStore.append_streams`). The child's
@@ -66,7 +66,7 @@ _INSERT_CAUTION_SQL = """
 INSERT INTO proj_caution_summary
     (caution_id, target_kind, target_id, category, severity, text, workaround,
      author_actor_id, tags, expires_at, propagate_to_children,
-     status, parent_caution_id, superseded_by_caution_id, retired_reason,
+     status, parent_id, superseded_by_caution_id, retired_reason,
      registered_at, last_status_changed_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
         $8, $9::text[], $10, $11,
@@ -115,7 +115,7 @@ class CautionSummaryProjection:
             payload = event.payload
             target = payload["target"]
             raw_expires_at = payload.get("expires_at")
-            raw_parent = payload.get("parent_caution_id")
+            raw_parent = payload.get("parent_id")
             # Wrap in SAVEPOINT mirroring the supply projection's
             # forward-compat pattern; the PK alone makes the INSERT
             # idempotent today, but a future cross-stream uniqueness

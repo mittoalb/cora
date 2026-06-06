@@ -1,6 +1,6 @@
 """HTTP route for the `amend_clearance` slice.
 
-Action endpoint at `POST /clearances/{parent_clearance_id}/amend`.
+Action endpoint at `POST /clearances/{parent_id}/amend`.
 Body carries the child clearance's full fields (kind, facility,
 title, bindings, declarations, risk_band, external_id?, valid_from?,
 valid_until?). Returns 201 + the new child's clearance_id.
@@ -42,10 +42,10 @@ from cora.safety.features.amend_clearance.handler import IdempotentHandler
 
 
 class AmendClearanceRequest(BaseModel):
-    """Body for `POST /clearances/{parent_clearance_id}/amend`.
+    """Body for `POST /clearances/{parent_id}/amend`.
 
     Mirrors `RegisterClearanceRequest`'s child-fields exactly. The
-    `parent_clearance_id` comes from the URL path, not the body.
+    `parent_id` comes from the URL path, not the body.
     """
 
     kind: ClearanceKind = Field(
@@ -85,17 +85,17 @@ class AmendClearanceRequest(BaseModel):
 
 
 class AmendClearanceResponse(BaseModel):
-    """Response body for `POST /clearances/{parent_clearance_id}/amend`."""
+    """Response body for `POST /clearances/{parent_id}/amend`."""
 
     clearance_id: UUID = Field(..., description="The new child clearance's id.")
 
 
 def _command_from_request(
-    parent_clearance_id: UUID,
+    parent_id: UUID,
     body: AmendClearanceRequest,
 ) -> AmendClearance:
     return AmendClearance(
-        parent_clearance_id=parent_clearance_id,
+        parent_id=parent_id,
         kind=body.kind,
         facility_asset_id=body.facility_asset_id,
         title=body.title,
@@ -117,7 +117,7 @@ router = APIRouter(tags=["safety"])
 
 
 @router.post(
-    "/clearances/{parent_clearance_id}/amend",
+    "/clearances/{parent_id}/amend",
     status_code=status.HTTP_201_CREATED,
     response_model=AmendClearanceResponse,
     responses={
@@ -155,7 +155,7 @@ router = APIRouter(tags=["safety"])
     summary="Amend an Active clearance (atomic parent:Active->Superseded + child:Defined)",
 )
 async def post_clearances_amend(
-    parent_clearance_id: Annotated[UUID, Path(description="Parent clearance's id.")],
+    parent_id: Annotated[UUID, Path(description="Parent clearance's id.")],
     body: AmendClearanceRequest,
     handler: Annotated[IdempotentHandler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -174,7 +174,7 @@ async def post_clearances_amend(
     ] = None,
 ) -> AmendClearanceResponse:
     child_clearance_id = await handler(
-        _command_from_request(parent_clearance_id, body),
+        _command_from_request(parent_id, body),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

@@ -53,7 +53,7 @@ def test_decide_emits_mount_registered_for_top_level_slot() -> None:
         state=None,
         command=RegisterMount(
             slot_code="02-BM-A-K-01",
-            parent_mount_id=None,
+            parent_id=None,
             placement=_placement(frame_id),
             drawing=None,
         ),
@@ -66,7 +66,7 @@ def test_decide_emits_mount_registered_for_top_level_slot() -> None:
     assert isinstance(event, MountRegistered)
     assert event.mount_id == new_id
     assert event.slot_code == "02-BM-A-K-01"
-    assert event.parent_mount_id is None
+    assert event.parent_id is None
     assert event.drawing is None
 
 
@@ -80,7 +80,7 @@ def test_decide_emits_mount_registered_for_child_slot_with_drawing() -> None:
         state=None,
         command=RegisterMount(
             slot_code="child-01",
-            parent_mount_id=parent_mount,
+            parent_id=parent_mount,
             placement=_placement(frame_id),
             drawing=drawing,
         ),
@@ -88,7 +88,7 @@ def test_decide_emits_mount_registered_for_child_slot_with_drawing() -> None:
         now=_NOW,
         new_id=new_id,
     )
-    assert events[0].parent_mount_id == parent_mount
+    assert events[0].parent_id == parent_mount
     assert events[0].drawing == drawing
 
 
@@ -98,7 +98,7 @@ def test_decide_rejects_already_registered_stream() -> None:
     existing = Mount(
         id=uuid4(),
         slot_code=SlotCode("existing"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(uuid4()),
         drawing=None,
         installed_asset_id=None,
@@ -109,7 +109,7 @@ def test_decide_rejects_already_registered_stream() -> None:
             state=existing,
             command=RegisterMount(
                 slot_code="new",
-                parent_mount_id=None,
+                parent_id=None,
                 placement=_placement(uuid4()),
                 drawing=None,
             ),
@@ -129,7 +129,7 @@ def test_decide_rejects_colliding_slot_code() -> None:
             state=None,
             command=RegisterMount(
                 slot_code="02-BM-A-K-01",
-                parent_mount_id=None,
+                parent_id=None,
                 placement=_placement(uuid4()),
                 drawing=None,
             ),
@@ -147,7 +147,7 @@ def test_decide_rejects_whitespace_only_slot_code() -> None:
             state=None,
             command=RegisterMount(
                 slot_code="   ",
-                parent_mount_id=None,
+                parent_id=None,
                 placement=_placement(uuid4()),
                 drawing=None,
             ),

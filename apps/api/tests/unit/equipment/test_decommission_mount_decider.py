@@ -57,7 +57,7 @@ def _mount(
     return Mount(
         id=uuid4(),
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(uuid4()),
         drawing=None,
         installed_asset_id=installed_asset_id,  # type: ignore[arg-type]

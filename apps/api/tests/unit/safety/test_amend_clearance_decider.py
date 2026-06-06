@@ -3,7 +3,7 @@
 Pins the cross-aggregate two-stream output shape:
   - parent_events == [ClearanceSuperseded(parent.id, by_clearance_id=new_id)]
   - child_events == [ClearanceRegistered(clearance_id=new_id,
-                                         parent_clearance_id=parent.id, ...)]
+                                         parent_id=parent.id, ...)]
 """
 
 from datetime import UTC, datetime
@@ -54,7 +54,7 @@ def _command(
     bindings: frozenset[ClearanceBinding] | None = None,
 ) -> AmendClearance:
     return AmendClearance(
-        parent_clearance_id=parent_id,
+        parent_id=parent_id,
         kind=ClearanceKind.ESAF,
         facility_asset_id=uuid4(),
         title=title,
@@ -86,7 +86,7 @@ def test_decide_emits_parent_superseded_and_child_registered() -> None:
     assert len(result.child_events) == 1
     assert isinstance(result.child_events[0], ClearanceRegistered)
     assert result.child_events[0].clearance_id == new_id
-    assert result.child_events[0].parent_clearance_id == parent.id
+    assert result.child_events[0].parent_id == parent.id
     assert result.child_events[0].title == "Amended pilot"
     assert result.child_events[0].kind == ClearanceKind.ESAF.value
 
@@ -98,7 +98,7 @@ def test_decide_child_carries_validity_window_when_provided() -> None:
     valid_from = datetime(2026, 6, 1, tzinfo=UTC)
     valid_until = datetime(2026, 9, 1, tzinfo=UTC)
     cmd = AmendClearance(
-        parent_clearance_id=parent.id,
+        parent_id=parent.id,
         kind=ClearanceKind.ESAF,
         facility_asset_id=uuid4(),
         title="Amended",
@@ -155,7 +155,7 @@ def test_decide_rejects_inverted_child_validity_window() -> None:
     parent = _parent()
     ctx = ClearanceAmendmentContext(parent=parent, parent_version=1)
     cmd = AmendClearance(
-        parent_clearance_id=parent.id,
+        parent_id=parent.id,
         kind=ClearanceKind.ESAF,
         facility_asset_id=uuid4(),
         title="Amended",
@@ -178,7 +178,7 @@ def test_decide_rejects_child_declaration_target_outside_bindings() -> None:
     in_scope = SubjectBinding(subject_id=uuid4())
     out_of_scope = SubjectBinding(subject_id=uuid4())
     cmd = AmendClearance(
-        parent_clearance_id=parent.id,
+        parent_id=parent.id,
         kind=ClearanceKind.ESAF,
         facility_asset_id=uuid4(),
         title="Amended",

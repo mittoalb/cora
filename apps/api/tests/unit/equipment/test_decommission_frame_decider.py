@@ -53,7 +53,7 @@ def _frame(status: FrameStatus = FrameStatus.ACTIVE) -> Frame:
     return Frame(
         id=uuid4(),
         name=FrameName("centerline_5p1_mrad"),
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=_placement(parent),
         status=status,
     )

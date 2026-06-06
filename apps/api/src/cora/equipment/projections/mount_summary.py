@@ -4,7 +4,7 @@ read model that backs operator-facing Mount queries.
 
 Subscribed events:
   - MountRegistered          -> INSERT (status=Active; installed_asset_id=NULL;
-                                slot_code, parent_mount_id, placement,
+                                slot_code, parent_id, placement,
                                 drawing from payload)
   - MountDecommissioned      -> UPDATE status=Decommissioned
   - MountPlacementUpdated    -> UPDATE placement
@@ -27,7 +27,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_MOUNT_SQL = """
 INSERT INTO proj_equipment_mount_summary
-    (mount_id, slot_code, parent_mount_id, placement, drawing,
+    (mount_id, slot_code, parent_id, placement, drawing,
      installed_asset_id, status, created_at)
 VALUES ($1, $2, $3, $4, $5, NULL, 'Active', $6)
 ON CONFLICT (mount_id) DO NOTHING
@@ -73,15 +73,15 @@ class MountSummaryProjection:
     ) -> None:
         match event.event_type:
             case "MountRegistered":
-                parent_raw = event.payload.get("parent_mount_id")
-                parent_mount_id = UUID(parent_raw) if parent_raw else None
+                parent_raw = event.payload.get("parent_id")
+                parent_id = UUID(parent_raw) if parent_raw else None
                 drawing = event.payload.get("drawing")
                 drawing_json = json.dumps(drawing) if drawing is not None else None
                 await conn.execute(
                     _INSERT_MOUNT_SQL,
                     UUID(event.payload["mount_id"]),
                     event.payload["slot_code"],
-                    parent_mount_id,
+                    parent_id,
                     json.dumps(event.payload["placement"]),
                     drawing_json,
                     datetime.fromisoformat(event.payload["occurred_at"]),

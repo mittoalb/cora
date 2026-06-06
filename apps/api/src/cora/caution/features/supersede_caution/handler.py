@@ -93,7 +93,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "supersede_caution.start",
             command_name=_COMMAND_NAME,
-            parent_caution_id=str(command.parent_caution_id),
+            parent_id=str(command.parent_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -109,7 +109,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "supersede_caution.denied",
                 command_name=_COMMAND_NAME,
-                parent_caution_id=str(command.parent_caution_id),
+                parent_id=str(command.parent_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,
@@ -118,12 +118,10 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision.reason)
 
         # Pre-load parent stream + version (cross-aggregate context).
-        stored, parent_version = await deps.event_store.load(
-            _STREAM_TYPE, command.parent_caution_id
-        )
+        stored, parent_version = await deps.event_store.load(_STREAM_TYPE, command.parent_id)
         parent = fold([from_stored(s) for s in stored])
         if parent is None:
-            raise CautionNotFoundError(command.parent_caution_id)
+            raise CautionNotFoundError(command.parent_id)
 
         context = CautionSupersessionContext(parent=parent, parent_version=parent_version)
 
@@ -170,7 +168,7 @@ def bind(deps: Kernel) -> Handler:
             [
                 StreamAppend(
                     stream_type=_STREAM_TYPE,
-                    stream_id=command.parent_caution_id,
+                    stream_id=command.parent_id,
                     expected_version=context.parent_version,
                     events=parent_new_events,
                 ),
@@ -186,7 +184,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "supersede_caution.success",
             command_name=_COMMAND_NAME,
-            parent_caution_id=str(command.parent_caution_id),
+            parent_id=str(command.parent_id),
             child_caution_id=str(new_id),
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),

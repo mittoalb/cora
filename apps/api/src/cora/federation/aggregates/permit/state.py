@@ -187,6 +187,9 @@ class PermitStatus(StrEnum):
 class ScopeRef:
     """Opaque reference to a publishable scope inside the publisher facility.
 
+    Deviation from Identifier VO: 3-tuple per
+    project-federation-port-design L37.
+
     Carried verbatim through the permit; the publisher's pull-side
     adapter resolves a `ScopeRef` to a concrete set of artifact
     streams at request time. Kept as a structural triple of strings so

@@ -45,7 +45,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="External alias (e.g., '02-BM-A-K-01').",
             ),
         ],
-        parent_mount_id: Annotated[
+        parent_id: Annotated[
             UUID | None,
             Field(description="Parent slot in the hierarchy; null for top-level."),
         ],
@@ -62,7 +62,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         mount_id = await handler(
             RegisterMount(
                 slot_code=slot_code,
-                parent_mount_id=parent_mount_id,
+                parent_id=parent_id,
                 placement=placement.to_domain(),
                 drawing=drawing.to_domain() if drawing is not None else None,
             ),

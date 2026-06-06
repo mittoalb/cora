@@ -212,6 +212,10 @@ The `<rowtype>` suffix names the persisted relation, not a usage pattern. Siblin
 
 The `_ids` suffix fitness test (`test_uuid_collection_field_suffix.py`) carves this single field out by name. Adding another PROV-O-aligned field reuses the same carve-out registry entry; do not extend the bare-plural shape outside the PROV-O vocabulary.
 
+### Self-referential parent pointers use `parent_id`
+
+Self-referential parent pointers on aggregate state use the field name `parent_id` with type `<Aggregate>Id | None` (or the bare `UUID | None` carrier where the typed-Id alias has not been introduced). The aggregate's own module namespace already disambiguates the target type, so the verbose `parent_<aggregate>_id` and `part_of_<aggregate>_id` forms are forbidden: `Asset.parent_id`, not `Asset.parent_asset_id`. Cross-aggregate parent pointers keep their qualifier because the qualifier is NOT the aggregate's own name (`Procedure.parent_run_id` references a Run, `Visit.parent_surface_id` references a Surface). The 7 self-parent sites that follow this convention today are `Asset`, `Mount`, `Frame`, `Caution`, `Clearance`, `Visit`, and `Decision`. The rule is enforced by `tests/architecture/test_self_parent_field_naming.py`.
+
 ## Documentation
 
 Docstrings carry intent. Comments carry hidden constraints. Test names carry scenarios. Everything else is noise.

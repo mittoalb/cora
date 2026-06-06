@@ -80,10 +80,10 @@ def test_to_payload_serializes_run_started_with_subject_to_primitives() -> None:
         "override_parameters": {},
         "effective_parameters": {},
         "trigger_source": None,
-        # Additive payload field for ExternalRef-based
-        # clearance coverage (anti-corruption refs to proposal /
-        # btr / lab_visit / session). Defaults to [] when omitted;
-        # forward-compat via `payload.get("external_refs", [])`.
+        # Additive payload field for `Identifier`-based anti-corruption
+        # refs (proposal / btr / lab_visit / session). Defaults to []
+        # when omitted; forward-compat via
+        # `payload.get("external_refs", [])`.
         "external_refs": [],
         # Additive payload field for the non-blocking caution
         # snapshot (anti-pattern: ack lives on the consumption

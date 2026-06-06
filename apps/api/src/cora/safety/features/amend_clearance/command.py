@@ -2,7 +2,7 @@
 
 Amends an Active parent clearance by creating a new child clearance
 with the supplied fields, atomically with the parent's transition to
-`Superseded`. The child gets `parent_clearance_id=<parent>` on its
+`Superseded`. The child gets `parent_id=<parent>` on its
 genesis event; the parent gets `ClearanceSuperseded(by_clearance_id=
 <child>)` on its stream.
 
@@ -32,13 +32,13 @@ class AmendClearance:
     """Amend an Active clearance with a new child (`parent: Active -> Superseded`).
 
     Fields mirror `RegisterClearance` (the child IS a registration) +
-    `parent_clearance_id`. The child clearance lands in `Defined` per
+    `parent_id`. The child clearance lands in `Defined` per
     the standard genesis-event convention; the operator subsequently
     drives it through the FSM (submit / start_review / etc.) as a
     normal clearance.
     """
 
-    parent_clearance_id: UUID
+    parent_id: UUID
     kind: ClearanceKind
     facility_asset_id: UUID
     title: str

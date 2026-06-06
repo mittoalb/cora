@@ -48,7 +48,7 @@ def _mount(*, frame_id: object, status: MountStatus = MountStatus.ACTIVE) -> Mou
     return Mount(
         id=uuid4(),
         slot_code=SlotCode("02-BM-A-K-01"),
-        parent_mount_id=None,
+        parent_id=None,
         placement=_placement(frame_id),
         drawing=None,
         installed_asset_id=None,

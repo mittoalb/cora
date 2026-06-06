@@ -20,11 +20,13 @@ the evolver reconstructs via `ClearanceKind(payload["kind"])` and
 `RiskBand(payload["risk_band"]) if payload.get("risk_band") else None`.
 
 The 4 typed ClearanceBinding arms (Subject / Asset / Run / Procedure)
-encode as `{"kind": "Subject", "id": "<uuid>"}` etc.; ExternalBinding
-encodes as `{"kind": "External", "scheme": "...", "id": "..."}`. The
-evolver dispatches on the `"kind"` discriminator. Same shape pattern as
-ClearanceBinding's typed-arm-vs-ExternalBinding split is preserved on
-the wire.
+encode as `{"kind": "Subject", "id": "<uuid>"}` etc.; ExternalRefBinding
+encodes as `{"kind": "External", "scheme": "...", "value": "..."}` (the
+discriminator value `"External"` stays per [[project_identifier_vo_design]];
+only the inner payload key renamed `id -> value` to match the shared
+Identifier VO wire shape). The evolver dispatches on the `"kind"`
+discriminator. Same shape pattern as ClearanceBinding's typed-arm-vs-
+ExternalRefBinding split is preserved on the wire.
 """
 
 from dataclasses import dataclass
@@ -33,6 +35,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
+from cora.infrastructure.identifier import Identifier
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance.hazard_classification import (
     GHSPictogram,
@@ -44,7 +47,7 @@ from cora.safety.aggregates.clearance.hazard_classification import (
 from cora.safety.aggregates.clearance.state import (
     AssetBinding,
     ClearanceBinding,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
     ProcedureBinding,
     RunBinding,
@@ -62,11 +65,11 @@ class ClearanceRegistered:
 
     Carries the full Clearance shape at registration time:
     `kind / title / bindings / declarations / risk_band /
-    external_id? / valid_from? / valid_until? / parent_clearance_id?`.
+    external_id? / valid_from? / valid_until? / parent_id?`.
 
-    `parent_clearance_id` is non-None only for Clearances registered
-    via the future `amend_clearance` slice (11a-c). For 11a-a's
-    `register_clearance`, parent_clearance_id is always None.
+    `parent_id` is non-None only for Clearances registered via the
+    `amend_clearance` slice. For `register_clearance`, parent_id is
+    always None.
     """
 
     clearance_id: UUID
@@ -79,7 +82,7 @@ class ClearanceRegistered:
     external_id: str | None
     valid_from: datetime | None
     valid_until: datetime | None
-    parent_clearance_id: UUID | None
+    parent_id: UUID | None
     occurred_at: datetime
 
 
@@ -252,7 +255,8 @@ def serialize_binding(binding: ClearanceBinding) -> dict[str, Any]:
     """Encode a typed ClearanceBinding to a JSON-friendly dict.
 
     The dict carries a `"kind"` discriminator plus the binding-specific
-    fields (id for typed-arm refs; scheme + id for ExternalBinding).
+    fields (id for typed-arm refs; scheme + value for ExternalRefBinding,
+    flattening the wrapped `Identifier`).
     """
     match binding:
         case SubjectBinding(subject_id=subject_id):
@@ -263,8 +267,8 @@ def serialize_binding(binding: ClearanceBinding) -> dict[str, Any]:
             return {"kind": "Run", "id": str(run_id)}
         case ProcedureBinding(procedure_id=procedure_id):
             return {"kind": "Procedure", "id": str(procedure_id)}
-        case ExternalBinding(scheme=scheme, id=id_):
-            return {"kind": "External", "scheme": scheme, "id": id_}
+        case ExternalRefBinding(ref=ref):
+            return {"kind": "External", "scheme": ref.scheme, "value": ref.value}
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(binding)
 
@@ -290,7 +294,9 @@ def deserialize_binding(payload: dict[str, Any]) -> ClearanceBinding:
             case "Procedure":
                 return ProcedureBinding(procedure_id=UUID(payload["id"]))
             case "External":
-                return ExternalBinding(scheme=payload["scheme"], id=payload["id"])
+                return ExternalRefBinding(
+                    ref=Identifier(scheme=payload["scheme"], value=payload["value"]),
+                )
             case _:
                 msg = f"Unknown ClearanceBinding kind: {kind!r}"
                 raise ValueError(msg)
@@ -426,7 +432,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
             external_id=external_id,
             valid_from=valid_from,
             valid_until=valid_until,
-            parent_clearance_id=parent_clearance_id,
+            parent_id=parent_id,
             occurred_at=occurred_at,
         ):
             return {
@@ -440,9 +446,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 "external_id": external_id,
                 "valid_from": valid_from.isoformat() if valid_from is not None else None,
                 "valid_until": valid_until.isoformat() if valid_until is not None else None,
-                "parent_clearance_id": (
-                    str(parent_clearance_id) if parent_clearance_id is not None else None
-                ),
+                "parent_id": (str(parent_id) if parent_id is not None else None),
                 "occurred_at": occurred_at.isoformat(),
             }
         case ClearanceSubmitted(clearance_id=cid, occurred_at=occurred_at):
@@ -543,7 +547,7 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
             def _build_registered() -> ClearanceRegistered:
                 raw_valid_from = payload.get("valid_from")
                 raw_valid_until = payload.get("valid_until")
-                raw_parent = payload.get("parent_clearance_id")
+                raw_parent = payload.get("parent_id")
                 return ClearanceRegistered(
                     clearance_id=UUID(payload["clearance_id"]),
                     kind=payload["kind"],
@@ -563,7 +567,7 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                         if raw_valid_until is not None
                         else None
                     ),
-                    parent_clearance_id=(UUID(raw_parent) if raw_parent is not None else None),
+                    parent_id=(UUID(raw_parent) if raw_parent is not None else None),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )
 

@@ -75,7 +75,7 @@ def test_post_clearances_accepts_multi_binding_request() -> None:
         {"kind": "Run", "id": str(uuid4())},
         {"kind": "Subject", "id": str(uuid4())},
         {"kind": "Asset", "id": str(uuid4())},
-        {"kind": "External", "scheme": "proposal", "id": "GUP-12345"},
+        {"kind": "External", "scheme": "proposal", "value": "GUP-12345"},
     ]
     with TestClient(create_app()) as client:
         response = client.post("/clearances", json=body)

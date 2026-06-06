@@ -80,7 +80,7 @@ async def test_visit_registered_inserts_full_row() -> None:
             "planned_start_at": _NOW.isoformat(),
             "planned_end_at": (_NOW + timedelta(hours=4)).isoformat(),
             "occurred_at": _NOW.isoformat(),
-            "part_of_visit_id": None,
+            "parent_id": None,
             "external_refs": [],
         },
     )
@@ -201,14 +201,14 @@ async def test_visit_registered_handles_part_of_and_external_refs() -> None:
             "planned_start_at": _NOW.isoformat(),
             "planned_end_at": (_NOW + timedelta(hours=1)).isoformat(),
             "occurred_at": _NOW.isoformat(),
-            "part_of_visit_id": str(parent),
-            "external_refs": [{"scheme": "proposal", "id": "12345"}],
+            "parent_id": str(parent),
+            "external_refs": [{"scheme": "proposal", "value": "12345"}],
         },
     )
     await proj.apply(event, conn)
     args = conn.execute.await_args
     assert args is not None
     # Args: sql, visit_id, policy_id, surface_id, type, planned_start, planned_end,
-    #       part_of_visit_id, external_refs_json, occurred_at
+    #       parent_id, external_refs_json, occurred_at
     assert args.args[7] == parent
-    assert '[{"scheme": "proposal", "id": "12345"}]' in args.args[8]
+    assert '[{"scheme": "proposal", "value": "12345"}]' in args.args[8]

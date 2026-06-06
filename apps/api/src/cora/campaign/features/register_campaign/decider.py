@@ -18,7 +18,7 @@ capture, don't recompute).
   - Each `tag` wrapped via `CampaignTag(...)`; 1-50 chars after trim
     -> `InvalidCampaignTagError`. Empty tags-set IS allowed (the
     closed `intent` enum carries the discriminator weight).
-  - `external_refs` validated by the `ExternalRef` VO at command-build
+  - `external_refs` validated by the `Identifier` VO at command-build
     time; this decider trusts the typed input. (Re-validation here
     would duplicate the `__post_init__` bound check; if a future
     serialization path bypasses the VO, add a defensive

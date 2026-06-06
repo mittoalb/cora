@@ -32,7 +32,7 @@ class BindingsByKindOutput(BaseModel):
     Mirrors `cora.safety.features.list_clearances.route.BindingsByKind`
     shape exactly (4 named `<kind>_ids` fields aligned with the
     projection's plural column names, no `additionalProperties`).
-    ExternalBinding refs are NOT surfaced (anti-corruption refs, not
+    ExternalRefBinding refs are NOT surfaced (anti-corruption refs, not
     projected; see tool description).
     """
 
@@ -51,7 +51,7 @@ class ClearanceSummaryItemOutput(BaseModel):
     status: ClearanceStatus
     risk_band: RiskBand | None = None
     bindings: BindingsByKindOutput
-    parent_clearance_id: UUID | None = None
+    parent_id: UUID | None = None
     registered_at: datetime
     last_status_changed_at: datetime | None = None
     last_status_reason: str | None = None
@@ -78,7 +78,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Filters: kind / status / risk_band / facility_asset_id + 4 "
             "binding-id filters (binds_to_subject_id / binds_to_asset_id / "
             "binds_to_run_id / binds_to_procedure_id). Returns sorted by "
-            "registered_at ASC. ExternalBinding refs (for example, proposal / btr / "
+            "registered_at ASC. ExternalRefBinding refs (for example, proposal / btr / "
             "lab_visit / session) are NOT filterable here; the review_steps "
             "chain is NOT in the response. Fetch get_clearance for both."
         ),
@@ -150,7 +150,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                         run_ids=item.run_binding_ids,
                         procedure_ids=item.procedure_binding_ids,
                     ),
-                    parent_clearance_id=item.parent_clearance_id,
+                    parent_id=item.parent_id,
                     registered_at=item.registered_at,
                     last_status_changed_at=item.last_status_changed_at,
                     last_status_reason=item.last_status_reason,

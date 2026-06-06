@@ -16,19 +16,22 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
+from cora.infrastructure.identifier import (
+    IDENTIFIER_SCHEME_MAX_LENGTH,
+    IDENTIFIER_VALUE_MAX_LENGTH,
+    Identifier,
+)
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 from cora.safety.aggregates.clearance import (
-    CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH,
-    CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH,
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
     AssetBinding,
     ClearanceBinding,
     ClearanceKind,
-    ExternalBinding,
+    ExternalRefBinding,
     HazardDeclaration,
     ProcedureBinding,
     RunBinding,
@@ -73,8 +76,8 @@ class _BindingProcedureArg(BaseModel):
 
 class _BindingExternalArg(BaseModel):
     kind: Literal["External"]
-    scheme: str = Field(..., min_length=1, max_length=CLEARANCE_EXTERNAL_BINDING_SCHEME_MAX_LENGTH)
-    id: str = Field(..., min_length=1, max_length=CLEARANCE_EXTERNAL_BINDING_ID_MAX_LENGTH)
+    scheme: str = Field(..., min_length=1, max_length=IDENTIFIER_SCHEME_MAX_LENGTH)
+    value: str = Field(..., min_length=1, max_length=IDENTIFIER_VALUE_MAX_LENGTH)
 
 
 _BindingArg = Annotated[
@@ -141,7 +144,7 @@ def _binding_from_arg(arg: _BindingArg) -> ClearanceBinding:
         return RunBinding(run_id=arg.id)
     if isinstance(arg, _BindingProcedureArg):
         return ProcedureBinding(procedure_id=arg.id)
-    return ExternalBinding(scheme=arg.scheme, id=arg.id)
+    return ExternalRefBinding(ref=Identifier(scheme=arg.scheme, value=arg.value))
 
 
 def _classification_from_arg(arg: _ClassificationArg) -> HazardClassification:

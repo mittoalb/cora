@@ -45,7 +45,7 @@ def _genesis_event(*, with_optional: bool = False) -> ClearanceRegistered:
         external_id="ESAF-12345" if with_optional else None,
         valid_from=_NOW if with_optional else None,
         valid_until=None,
-        parent_clearance_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
 

@@ -267,6 +267,9 @@ class InvalidAlternateIdentifierValueError(ValueError):
 class AlternateIdentifier:
     """A flat (kind, value) tuple identifying an Asset under an alternate scheme.
 
+    Deviation from Identifier VO: pre-committed to gain PIDINST 13.2
+    alternateIdentifierName as a third field.
+
     PIDINST v1.0 Property 13: instance-tier alternate identifiers
     distinct from the PID-tier persistent identifier. Examples:
 
@@ -528,6 +531,9 @@ class InvalidAssetOwnerIdentifierPairingError(ValueError):
 class AssetOwner:
     """A body owning or curating the Asset (PIDINST v1.0 Property 5).
 
+    Deviation from Identifier VO: 3-field VO with pairing invariant +
+    name field per PIDINST 5.3.1.
+
     `name` is mandatory (5.1). `contact` is optional (5.2; free text,
     spec hints at email). `identifier` (5.3) and `identifier_type`
     (5.3.1) are independently optional but jointly constrained: both
@@ -650,6 +656,9 @@ class InvalidPersistentIdentifierValueError(ValueError):
 @dataclass(frozen=True)
 class PersistentIdentifier:
     """PIDINST v1.0 Property 1: the persistent identifier of the instrument.
+
+    Deviation from Identifier VO: closed-enum scheme {DOI, HANDLE} +
+    PIDINST property 1 single-primary semantic.
 
     Tuple `(scheme, value)` where `scheme` is a closed
     `PersistentIdentifierScheme` member and `value` is the operator-

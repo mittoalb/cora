@@ -5,14 +5,14 @@
 `binds_to_subject_id`, `binds_to_asset_id`, `binds_to_run_id`,
 `binds_to_procedure_id`. Returns `{"items": [...], "next_cursor": "..." | null}`.
 
-**ExternalBinding refs (`{"scheme": "proposal", "id": "GUP-12345"}` and
-similar anti-corruption refs for upstream-deferred concepts like BTR /
-LabVisit / Session) are NOT filterable via this endpoint.** The
+**ExternalRefBinding refs (`{"scheme": "proposal", "value": "GUP-12345"}`
+and similar anti-corruption refs for upstream-deferred concepts like
+BTR / LabVisit / Session) are NOT filterable via this endpoint.** The
 projection's 4 UUID[] columns only carry the typed CORA-aggregate
 bindings (Subject / Asset / Run / Procedure). Clearances with only
-ExternalBinding entries are returned only when filters other than
+ExternalRefBinding entries are returned only when filters other than
 `binds_to_*_id` match (kind / status / risk_band / facility_asset_id).
-Fetch by id via `get_clearance` when ExternalBinding inspection is
+Fetch by id via `get_clearance` when ExternalRefBinding inspection is
 required.
 
 **Reviewers chain is NOT in the response** (`last_reviewed_by_actor_id`
@@ -57,7 +57,7 @@ class BindingsByKind(BaseModel):
     `asset_binding_ids` / `run_binding_ids` / `procedure_binding_ids`
     plural shape) instead of a `dict[str, list[UUID]]`: OpenAPI codegen
     produces typed accessors; SDK consumers see the locked set of keys
-    without `additionalProperties` ambiguity. ExternalBinding refs are
+    without `additionalProperties` ambiguity. ExternalRefBinding refs are
     NOT surfaced here (anti-corruption refs, not projected; see route
     summary).
     """
@@ -79,7 +79,7 @@ class ClearanceSummaryDTO(BaseModel):
     status: ClearanceStatus
     risk_band: RiskBand | None = None
     bindings: BindingsByKind
-    parent_clearance_id: UUID | None = None
+    parent_id: UUID | None = None
     registered_at: datetime
     last_status_changed_at: datetime | None = None
     last_status_reason: str | None = None
@@ -119,7 +119,7 @@ router = APIRouter(tags=["safety"])
     },
     summary=(
         "List clearances with cursor pagination + kind / status / risk_band / "
-        "facility_asset_id / binds_to_*_id filters. ExternalBinding refs "
+        "facility_asset_id / binds_to_*_id filters. ExternalRefBinding refs "
         "not filterable; review_steps chain not surfaced (fetch get_clearance "
         "for both)."
     ),
@@ -206,7 +206,7 @@ async def list_clearances(
                     run_ids=item.run_binding_ids,
                     procedure_ids=item.procedure_binding_ids,
                 ),
-                parent_clearance_id=item.parent_clearance_id,
+                parent_id=item.parent_id,
                 registered_at=item.registered_at,
                 last_status_changed_at=item.last_status_changed_at,
                 last_status_reason=item.last_status_reason,

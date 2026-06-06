@@ -18,7 +18,7 @@ from cora.campaign.aggregates.campaign import (
 )
 from cora.campaign.features.register_campaign import RegisterCampaign
 from cora.campaign.features.register_campaign.decider import decide
-from cora.infrastructure.external_ref import ExternalRef, InvalidExternalRefError
+from cora.infrastructure.identifier import Identifier, InvalidIdentifierError
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000d001")
@@ -109,7 +109,7 @@ def test_decider_normalizes_tags_via_vo() -> None:
 
 @pytest.mark.unit
 def test_decider_carries_external_refs() -> None:
-    refs = frozenset({ExternalRef(scheme="proposal", id="2025-100")})
+    refs = frozenset({Identifier(scheme="proposal", value="2025-100")})
     events = decide(
         state=None,
         command=_command(external_refs=refs),
@@ -217,7 +217,7 @@ def test_decider_rejects_too_long_external_id() -> None:
 
 @pytest.mark.unit
 def test_external_ref_vo_rejects_empty_scheme() -> None:
-    """The ExternalRef VO raises at command-build time; the decider
+    """The Identifier VO raises at command-build time; the decider
     never sees a malformed ref."""
-    with pytest.raises(InvalidExternalRefError):
-        ExternalRef(scheme="", id="abc")
+    with pytest.raises(InvalidIdentifierError):
+        Identifier(scheme="", value="abc")

@@ -89,7 +89,7 @@ async def test_handler_appends_caution_registered_event_to_store() -> None:
     # the command surface no longer carries an author field.
     assert stored.payload["author_actor_id"] == str(_PRINCIPAL_ID)
     assert stored.payload["propagate_to_children"] is False
-    assert stored.payload["parent_caution_id"] is None
+    assert stored.payload["parent_id"] is None
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.event_id == _EVENT_ID
     assert stored.principal_id == _PRINCIPAL_ID

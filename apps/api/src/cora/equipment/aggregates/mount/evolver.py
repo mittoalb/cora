@@ -11,7 +11,7 @@ The status mapping is hardcoded per match arm; the event type IS the
 status-change indicator (no status field in event payloads). Same
 precedent as Frame / Asset / Subject.
 
-`slot_code`, `parent_mount_id`, `drawing` are reconstructed from the
+`slot_code`, `parent_id`, `drawing` are reconstructed from the
 `MountRegistered` payload (set at registration, immutable in v1; no
 reparent or rename slices). `placement` is set at registration and
 mutated by `MountPlacementUpdated.new_placement`. `installed_asset_id`
@@ -49,7 +49,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
         case MountRegistered(
             mount_id=mount_id,
             slot_code=slot_code,
-            parent_mount_id=parent_mount_id,
+            parent_id=parent_id,
             placement=placement,
             drawing=drawing,
         ):
@@ -57,7 +57,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
             return Mount(
                 id=mount_id,
                 slot_code=SlotCode(slot_code),
-                parent_mount_id=parent_mount_id,
+                parent_id=parent_id,
                 placement=placement,
                 drawing=drawing,
                 installed_asset_id=None,
@@ -68,7 +68,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
             return Mount(
                 id=prior.id,
                 slot_code=prior.slot_code,
-                parent_mount_id=prior.parent_mount_id,
+                parent_id=prior.parent_id,
                 placement=prior.placement,
                 drawing=prior.drawing,
                 installed_asset_id=prior.installed_asset_id,
@@ -79,7 +79,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
             return Mount(
                 id=prior.id,
                 slot_code=prior.slot_code,
-                parent_mount_id=prior.parent_mount_id,
+                parent_id=prior.parent_id,
                 placement=new_placement,
                 drawing=prior.drawing,
                 installed_asset_id=prior.installed_asset_id,
@@ -90,7 +90,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
             return Mount(
                 id=prior.id,
                 slot_code=prior.slot_code,
-                parent_mount_id=prior.parent_mount_id,
+                parent_id=prior.parent_id,
                 placement=prior.placement,
                 drawing=prior.drawing,
                 installed_asset_id=asset_id,
@@ -101,7 +101,7 @@ def evolve(state: Mount | None, event: MountEvent) -> Mount:
             return Mount(
                 id=prior.id,
                 slot_code=prior.slot_code,
-                parent_mount_id=prior.parent_mount_id,
+                parent_id=prior.parent_id,
                 placement=prior.placement,
                 drawing=prior.drawing,
                 installed_asset_id=None,

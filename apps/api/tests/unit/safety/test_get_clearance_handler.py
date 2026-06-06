@@ -142,7 +142,7 @@ async def test_get_handler_loads_state_from_directly_seeded_event_stream() -> No
         external_id=None,
         valid_from=None,
         valid_until=None,
-        parent_clearance_id=None,
+        parent_id=None,
         occurred_at=_NOW,
     )
     new_event = to_new_event(

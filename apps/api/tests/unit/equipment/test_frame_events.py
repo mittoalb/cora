@@ -80,7 +80,7 @@ def test_event_type_name_returns_class_name_per_event_kind() -> None:
             FrameRegistered(
                 frame_id=uuid4(),
                 name="x",
-                parent_frame_id=None,
+                parent_id=None,
                 placement=None,
                 occurred_at=_NOW,
             )
@@ -111,14 +111,14 @@ def test_frame_registered_round_trip_for_root_frame() -> None:
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_1p35_mrad",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
     assert payload["frame_id"] == str(frame_id)
     assert payload["name"] == "centerline_1p35_mrad"
-    assert payload["parent_frame_id"] is None
+    assert payload["parent_id"] is None
     assert payload["placement"] is None
     rebuilt = from_stored(_stored("FrameRegistered", payload))
     assert rebuilt == event
@@ -132,7 +132,7 @@ def test_frame_registered_round_trip_for_child_frame_preserves_placement_fields(
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_5p1_mrad",
-        parent_frame_id=parent,
+        parent_id=parent,
         placement=placement,
         occurred_at=_NOW,
     )
@@ -217,7 +217,7 @@ def test_from_stored_raises_on_malformed_uuid_in_frame_registered_payload() -> N
     bad_payload: dict[str, object] = {
         "frame_id": "not-a-uuid",
         "name": "x",
-        "parent_frame_id": None,
+        "parent_id": None,
         "placement": None,
         "occurred_at": _NOW.isoformat(),
     }
@@ -242,7 +242,7 @@ def test_frame_registered_round_trip_carries_supersedes_link() -> None:
     event = FrameRegistered(
         frame_id=frame_id,
         name="centerline_apsu",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
         supersedes=link,
@@ -265,7 +265,7 @@ def test_frame_registered_round_trip_tolerates_legacy_payload_without_supersedes
     legacy_payload: dict[str, object] = {
         "frame_id": str(frame_id),
         "name": "legacy_root_frame",
-        "parent_frame_id": None,
+        "parent_id": None,
         "placement": None,
         "occurred_at": _NOW.isoformat(),
         # NO supersedes key
@@ -288,7 +288,7 @@ def test_supersedes_payload_carries_predecessor_and_transform_fields() -> None:
     event = FrameRegistered(
         frame_id=uuid4(),
         name="successor",
-        parent_frame_id=None,
+        parent_id=None,
         placement=None,
         occurred_at=_NOW,
         supersedes=link,

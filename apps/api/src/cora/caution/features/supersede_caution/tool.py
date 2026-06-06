@@ -1,7 +1,7 @@
 """MCP tool for the `supersede_caution` slice.
 
 Mirrors `register_caution`'s MCP tool surface for the child fields,
-adding `parent_caution_id` as the cross-aggregate anchor.
+adding `parent_id` as the cross-aggregate anchor.
 
 The polymorphic `target` argument is accepted as a JSON dict whose
 `kind` discriminator selects the variant; reuses `register_caution`'s
@@ -53,7 +53,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def supersede_caution_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        parent_caution_id: Annotated[UUID, Field(description="Parent caution's id.")],
+        parent_id: Annotated[UUID, Field(description="Parent caution's id.")],
         target: Annotated[
             dict[str, Any],
             Field(
@@ -115,7 +115,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         parsed_target = _TARGET_ADAPTER.validate_python(target)
         child_caution_id = await handler(
             SupersedeCaution(
-                parent_caution_id=parent_caution_id,
+                parent_id=parent_id,
                 target=target_from_dto(parsed_target),
                 category=category,
                 severity=severity,

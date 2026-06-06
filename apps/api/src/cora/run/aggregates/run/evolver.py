@@ -79,6 +79,7 @@ from collections.abc import Sequence
 from typing import assert_never
 
 from cora.infrastructure.evolver import require_state
+from cora.infrastructure.identifier import Identifier
 from cora.run.aggregates.run.events import (
     DecisionDebriefRequested,
     RunAborted,
@@ -94,7 +95,7 @@ from cora.run.aggregates.run.events import (
     RunStopped,
     RunTruncated,
 )
-from cora.run.aggregates.run.state import ExternalRef, Run, RunName, RunStatus
+from cora.run.aggregates.run.state import Run, RunName, RunStatus
 
 
 def evolve(state: Run | None, event: RunEvent) -> Run:
@@ -128,7 +129,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 trigger_source=trigger_source,
                 reading_logbook_id=None,
                 external_refs=frozenset(
-                    ExternalRef(scheme=ref["scheme"], id=ref["id"]) for ref in external_refs
+                    Identifier(scheme=ref["scheme"], value=ref["value"]) for ref in external_refs
                 ),
                 campaign_id=campaign_id,
                 last_adjusted_at=None,

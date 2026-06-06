@@ -429,13 +429,13 @@ async def test_end_to_end_supersede_path_atomic_two_stream_write(
     )
 
     # New Caution is a fresh aggregate, lands at Active with the refined
-    # body, links back to parent via parent_caution_id.
+    # body, links back to parent via parent_id.
     assert new_caution_id != parent_id
     child = await load_caution(deps.event_store, new_caution_id)
     assert child is not None
     assert child.status == CautionStatus.ACTIVE
     assert child.text.value.startswith("Refined")
-    assert child.parent_caution_id == parent_id
+    assert child.parent_id == parent_id
 
     # Parent stream advanced to version 2 (genesis + Superseded) and the
     # parent is now in Superseded status (read-side reflects the cross-BC
