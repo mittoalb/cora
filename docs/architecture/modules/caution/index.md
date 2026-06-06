@@ -31,9 +31,9 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Caution` | `id: UUID` | `target`, `category`, `severity`, `text`, `workaround`, `author_actor_id`, `tags`, `expires_at?`, `propagate_to_children`, `status`, `parent_caution_id?`, `superseded_by_caution_id?`, `retired_reason?` | yes |
+| `Caution` | `id: UUID` | `target`, `category`, `severity`, `text`, `workaround`, `author_actor_id`, `tags`, `expires_at?`, `propagate_to_children`, `status`, `parent_id?`, `superseded_by_caution_id?`, `retired_reason?` | yes |
 
-`parent_caution_id` is populated only on a Caution that supersedes a prior one. `superseded_by_caution_id` is populated only on a Caution that has been replaced. The two pointers together form the lineage chain that downstream readers walk to find the current head of a quirk's history.
+`parent_id` is populated only on a Caution that supersedes a prior one. `superseded_by_caution_id` is populated only on a Caution that has been replaced. The two pointers together form the lineage chain that downstream readers walk to find the current head of a quirk's history.
 
 `propagate_to_children` is an explicit opt-in: when True, the projection walks `Asset.parent_id` downward at query time so a Caution on an Assembly surfaces on every Device under it.
 
@@ -84,7 +84,7 @@ The authoring actor is carried on the event envelope (`StoredEvent.principal_id`
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `CautionRegistered` | `caution_id`, `target`, `category`, `severity`, `text`, `workaround`, `author_actor_id`, `tags`, `expires_at?`, `propagate_to_children`, `parent_caution_id?`, `occurred_at` | `register_caution` succeeds, or as the child genesis event in `supersede_caution` |
+| `CautionRegistered` | `caution_id`, `target`, `category`, `severity`, `text`, `workaround`, `author_actor_id`, `tags`, `expires_at?`, `propagate_to_children`, `parent_id?`, `occurred_at` | `register_caution` succeeds, or as the child genesis event in `supersede_caution` |
 | `CautionSuperseded` | `caution_id` (parent), `superseded_by_caution_id` (child), `occurred_at` | `supersede_caution` succeeds, written to the parent stream |
 | `CautionRetired` | `caution_id`, `reason`, `occurred_at` | `retire_caution` succeeds |
 
@@ -93,7 +93,7 @@ The authoring actor is carried on the event envelope (`StoredEvent.principal_id`
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
 | `RegisterCaution` | NEW | `POST /cautions` | `register_caution` | required |
-| `SupersedeCaution` | NEW | `POST /cautions/{parent_caution_id}/supersede` | `supersede_caution` | required |
+| `SupersedeCaution` | NEW | `POST /cautions/{parent_id}/supersede` | `supersede_caution` | required |
 | `RetireCaution` | MODIFIED | `POST /cautions/{caution_id}/retire` | `retire_caution` | none |
 | `GetCaution` | QUERY | `GET /cautions/{caution_id}` | `get_caution` | none |
 | `ListCautions` | QUERY | `GET /cautions` | `list_cautions` | none |
@@ -144,7 +144,7 @@ CREATE TABLE proj_caution_summary (
     status                    TEXT         NOT NULL CHECK (
         status IN ('Active', 'Superseded', 'Retired')
     ),
-    parent_caution_id         UUID,
+    parent_id         UUID,
     superseded_by_caution_id  UUID,
     retired_reason            TEXT         CHECK (
         retired_reason IS NULL OR retired_reason IN (
@@ -160,7 +160,7 @@ The `CHECK` constraints encode the closed `CautionStatus`, `CautionCategory`, `C
 
 `GET /cautions/{id}` reads from this projection with fold-on-read fallback for fields not yet projected. `GET /cautions` reads exclusively from the projection with filters on `status`, `target_kind`, `target_id`, `category`, `severity`, and `tags`, plus keyset pagination over `(registered_at, caution_id)`.
 
-The supersession lineage walks `superseded_by_caution_id` forward (to find the head of a chain) and `parent_caution_id` backward (to find the chain's root). Today this walk is client-side; a future projection could materialize a `head_caution_id` column when the rule-of-three trigger fires.
+The supersession lineage walks `superseded_by_caution_id` forward (to find the head of a chain) and `parent_id` backward (to find the chain's root). Today this walk is client-side; a future projection could materialize a `head_caution_id` column when the rule-of-three trigger fires.
 
 ## Cross-Module boundaries
 
@@ -252,7 +252,7 @@ The four examples below follow the canonical path for one Caution: register an A
     mcp.call_tool(
         "supersede_caution",
         {
-            "parent_caution_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c",
+            "parent_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c",
             "category": "OperationalWindow",
             "severity": "Caution",
             "text": "Hexapod stalls below 0.5 mm/s after thermal-soak completes (cycle 2026-1 + 2026-2 observed).",

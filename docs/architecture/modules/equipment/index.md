@@ -28,8 +28,8 @@ Out of scope
 | `Family` | `id: UUID` | `id`, `name: FamilyName`, `status: FamilyStatus`, `version: str?`, `affordances: frozenset[Affordance]`, `settings_schema: dict?` | yes (3-state) |
 | `Model` | `id: UUID` | `id`, `name`, `manufacturer: Manufacturer`, `part_number`, `declared_family_ids: frozenset[UUID]`, `status: ModelStatus`, `version: str?` | yes (3-state) |
 | `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?` | yes (4-state lifecycle, 3-state condition) |
-| `Frame` | `id: UUID` | `id`, `name`, `parent_frame_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
-| `Mount` | `id: UUID` | `id`, `slot_code`, `parent_mount_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
+| `Frame` | `id: UUID` | `id`, `name`, `parent_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
+| `Mount` | `id: UUID` | `id`, `slot_code`, `parent_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
 | `Fixture` | `id: UUID` | `id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings: frozenset[SlotAssetBinding]`, `parameter_overrides: dict`, `persistent_id?`, `registered_at` | no (genesis + set-once persistent-id assign) |
 
@@ -214,10 +214,10 @@ stateDiagram-v2
 : The Asset is not Decommissioned. Owners are keyed on `owner_name`; alternate identifiers are keyed on `(kind, value)`. Strict-not-idempotent: re-adding the same key raises, removing an absent key raises.
 
 `decommission_frame`
-: The Frame has no active consumers. A consumer is any Mount whose `placement` references this Frame or any child Frame whose `parent_frame_id` is this Frame. Raises `FrameInUseError` listing the offending consumers.
+: The Frame has no active consumers. A consumer is any Mount whose `placement` references this Frame or any child Frame whose `parent_id` is this Frame. Raises `FrameInUseError` listing the offending consumers.
 
 `decommission_mount`
-: The Mount has no Asset currently installed (`installed_asset_id` is NULL). The Mount has no active child Mounts whose `parent_mount_id` references this Mount. Raises `MountHasAssetInstalledError` or `MountHasActiveChildrenError`.
+: The Mount has no Asset currently installed (`installed_asset_id` is NULL). The Mount has no active child Mounts whose `parent_id` references this Mount. Raises `MountHasAssetInstalledError` or `MountHasActiveChildrenError`.
 
 `install_asset` / `uninstall_asset`
 : Install sets `Mount.installed_asset_id` and fails if the Mount is already occupied, the Asset does not exist, the Asset is Decommissioned, or the Asset is already installed in any other active Mount. Uninstall clears the slot and fails if the Mount is already empty.
@@ -283,7 +283,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `FrameRegistered` | `frame_id`, `name`, `parent_frame_id?`, `placement?`, `supersedes?`, `occurred_at` | `register_frame` succeeds (genesis); a root Frame omits parent and placement |
+| `FrameRegistered` | `frame_id`, `name`, `parent_id?`, `placement?`, `supersedes?`, `occurred_at` | `register_frame` succeeds (genesis); a root Frame omits parent and placement |
 | `FramePlacementUpdated` | `frame_id`, `placement`, `occurred_at` | `update_frame_placement` succeeds |
 | `FrameDecommissioned` | `frame_id`, `occurred_at` | `decommission_frame` succeeds |
 
@@ -291,7 +291,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `MountRegistered` | `mount_id`, `slot_code`, `parent_mount_id?`, `placement`, `drawing?`, `occurred_at` | `register_mount` succeeds (genesis) |
+| `MountRegistered` | `mount_id`, `slot_code`, `parent_id?`, `placement`, `drawing?`, `occurred_at` | `register_mount` succeeds (genesis) |
 | `MountPlacementUpdated` | `mount_id`, `placement`, `occurred_at` | `update_mount_placement` succeeds |
 | `MountAssetInstalled` | `mount_id`, `asset_id`, `occurred_at` | `install_asset` succeeds |
 | `MountAssetUninstalled` | `mount_id`, `previous_asset_id`, `occurred_at` | `uninstall_asset` succeeds |
@@ -485,7 +485,7 @@ The word "slot" carries two distinct meanings in this module, only differentiate
 |---|---|---|
 | Cardinality | one Asset per Mount, facility-unique `slot_code` | N Assets per Fixture, `slot_name` unique only within the materialization |
 | Lifecycle | two-state FSM (`Active`, `Decommissioned`), in-place mutation via install / uninstall / `update_mount_placement` | no FSM; single-event genesis; "if it needs to change, register a new Fixture" |
-| Relation graph | inbound terminus of the placement tree (`Mount.placement.parent_frame_id` -> Frame; `parent_mount_id` -> Mount) | outbound hub of the composition tree (`Fixture.assembly_id` -> Assembly; `Fixture.surface_id` -> Trust `Surface`) |
+| Relation graph | inbound terminus of the placement tree (`Mount.placement.parent_frame_id` -> Frame; `parent_id` -> Mount) | outbound hub of the composition tree (`Fixture.assembly_id` -> Assembly; `Fixture.surface_id` -> Trust `Surface`) |
 | Back-reference shape | `proj_equipment_asset_location` projection (Asset deliberately carries NO `installed_at` field) | denormalized `Asset.fixture_id` scalar set by `attach_asset_to_fixture` on the Asset stream |
 
 The `Mount.installed_asset_id` field is the single source of truth for "what is bolted into this slot right now"; the `proj_equipment_asset_location` projection feeds the back-lookup. The `Asset.fixture_id` field is the back-reference for "what Fixture currently binds this Asset"; it is set and cleared by the `attach_asset_to_fixture` / `detach_asset_from_fixture` slices that mirror the Fixture's `slot_asset_bindings` set.
@@ -632,7 +632,7 @@ The Model summary backs `GET /models` and the catalog-lookup pattern (find a mod
 CREATE TABLE proj_equipment_frame_summary (
     frame_id                      UUID        PRIMARY KEY,
     name                          TEXT        NOT NULL,
-    parent_frame_id               UUID,
+    parent_id               UUID,
     placement_relative_to_parent  JSONB,
     status                        TEXT        NOT NULL CHECK (
         status IN ('Active', 'Decommissioned')
@@ -642,18 +642,18 @@ CREATE TABLE proj_equipment_frame_summary (
 );
 
 CREATE INDEX proj_equipment_frame_summary_parent_idx
-    ON proj_equipment_frame_summary (parent_frame_id)
-    WHERE parent_frame_id IS NOT NULL;
+    ON proj_equipment_frame_summary (parent_id)
+    WHERE parent_id IS NOT NULL;
 ```
 
 The Frame summary backs Frame queries and tree walks. Root Frames carry NULL parent and NULL placement.
 
 ```sql title="proj_equipment_frame_children"
 CREATE TABLE proj_equipment_frame_children (
-    parent_frame_id  UUID        NOT NULL,
+    parent_id  UUID        NOT NULL,
     child_frame_id   UUID        NOT NULL,
     registered_at    TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (parent_frame_id, child_frame_id)
+    PRIMARY KEY (parent_id, child_frame_id)
 );
 
 CREATE INDEX proj_equipment_frame_children_by_child_idx
@@ -681,7 +681,7 @@ The Frame children join projection materializes the parent-child edge for tree w
 CREATE TABLE proj_equipment_mount_summary (
     mount_id            UUID        PRIMARY KEY,
     slot_code           TEXT        NOT NULL,
-    parent_mount_id     UUID,
+    parent_id     UUID,
     placement           JSONB       NOT NULL,
     drawing             JSONB,
     installed_asset_id  UUID,
@@ -693,8 +693,8 @@ CREATE TABLE proj_equipment_mount_summary (
 );
 
 CREATE INDEX proj_equipment_mount_summary_parent_idx
-    ON proj_equipment_mount_summary (parent_mount_id)
-    WHERE parent_mount_id IS NOT NULL;
+    ON proj_equipment_mount_summary (parent_id)
+    WHERE parent_id IS NOT NULL;
 
 CREATE INDEX proj_equipment_mount_summary_installed_asset_idx
     ON proj_equipment_mount_summary (installed_asset_id)
@@ -714,10 +714,10 @@ CREATE INDEX proj_equipment_mount_slot_code_by_mount_idx
 
 ```sql title="proj_equipment_mount_children"
 CREATE TABLE proj_equipment_mount_children (
-    parent_mount_id  UUID        NOT NULL,
+    parent_id  UUID        NOT NULL,
     child_mount_id   UUID        NOT NULL,
     registered_at    TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (parent_mount_id, child_mount_id)
+    PRIMARY KEY (parent_id, child_mount_id)
 );
 
 CREATE INDEX proj_equipment_mount_children_by_child_idx

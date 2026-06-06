@@ -33,7 +33,7 @@ Out of scope
 | `CampaignTag` | trimmed bounded text, 1-50 chars per tag | `Campaign.tags` (frozenset) |
 | `CampaignIntent` | closed StrEnum `{Series, Sweep, Coordination, Block}` | `Campaign.intent` |
 | `CampaignStatus` | closed StrEnum `{Planned, Active, Held, Closed, Abandoned}` | `Campaign.status` |
-| `ExternalRef` | `(scheme: str, id: str)` shared cross-BC VO; day-1 schemes `proposal`, `btr`, `visit`, `cycle` | `Campaign.external_refs` (frozenset) |
+| `Identifier` | `(scheme: str, value: str)` shared cross-BC VO at `cora.infrastructure.identifier`; day-1 schemes `proposal`, `btr`, `visit`, `cycle` | `Campaign.external_refs` (frozenset) |
 
 `hold_campaign`, `abandon_campaign`, and `remove_run_from_campaign` carry a free-form `reason: str` (1-500 chars after trim) validated at the decider rather than wrapped in a VO, mirroring the audit-breadcrumb precedent set by Run abort / stop reasons.
 

@@ -42,7 +42,7 @@ Out of scope
 | `RunStopReason` | trimmed string, 1–500 chars | `RunStopped.reason` (decider-input VO) |
 | `RunTruncateReason` | trimmed string, 1–500 chars | `RunTruncated.reason` (decider-input VO) |
 | `ChannelName` | trimmed string, 1–255 chars | `RunReading.channel_name` |
-| `ExternalRef` | `(scheme: str, id: str)` shared kernel | `Run.external_refs` (anti-corruption refs to upstream concepts like proposal / btr / lab_visit / session) |
+| `Identifier` | `(scheme: str, value: str)` shared cross-BC VO at `cora.infrastructure.identifier` | `Run.external_refs` (anti-corruption refs to upstream concepts like proposal / btr / lab_visit / session) |
 
 The wire representation of each reason is a plain `str` (post-trim); the VO exists at decider-input time to centralize validation. Reason fields are free-form today; a structured taxonomy is a future-additive change behind the same triggers across all four reason fields.
 

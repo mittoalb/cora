@@ -28,11 +28,11 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Clearance` | `id: UUID` (+ optional facility-minted `external_id: str`) | `kind`, `facility_asset_id`, `title`, `bindings`, `declarations`, `risk_band?`, `review_steps`, `status`, `parent_clearance_id?`, `valid_from?`, `valid_until?`, `next_review_due_at?` | yes |
+| `Clearance` | `id: UUID` (+ optional facility-minted `external_id: str`) | `kind`, `facility_asset_id`, `title`, `bindings`, `declarations`, `risk_band?`, `review_steps`, `status`, `parent_id?`, `valid_from?`, `valid_until?`, `next_review_due_at?` | yes |
 
 `facility_asset_id` references the `Asset.Level.Site` for the facility that owns this clearance. The Equipment hierarchy carries facility identity; the Safety module does not duplicate it as a parallel enum.
 
-`parent_clearance_id` is populated only on a Clearance that supersedes a prior one via the amendment flow.
+`parent_id` is populated only on a Clearance that supersedes a prior one via the amendment flow.
 
 ## Value Objects
 
@@ -102,7 +102,7 @@ stateDiagram-v2
 : Both require a free-form `reason` (1–500 chars). `reject` from `UnderReview`; `expire` from `Active`.
 
 `amend_clearance`
-: Parent must be `Active`. The slice creates a new child Clearance (with `parent_clearance_id` pointing back) and atomically supersedes the parent in a single cross-stream write (see Cross-Module boundaries).
+: Parent must be `Active`. The slice creates a new child Clearance (with `parent_id` pointing back) and atomically supersedes the parent in a single cross-stream write (see Cross-Module boundaries).
 
 The approving and rejecting actor is carried on the event envelope (`StoredEvent.principal_id`); the aggregate state does not duplicate it.
 
@@ -110,7 +110,7 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `ClearanceRegistered` | `clearance_id`, `kind`, `facility_asset_id`, `title`, `bindings`, `declarations`, `risk_band?`, `external_id?`, `valid_from?`, `valid_until?`, `parent_clearance_id?`, `occurred_at` | `register_clearance` succeeds, or as the child genesis event in `amend_clearance` |
+| `ClearanceRegistered` | `clearance_id`, `kind`, `facility_asset_id`, `title`, `bindings`, `declarations`, `risk_band?`, `external_id?`, `valid_from?`, `valid_until?`, `parent_id?`, `occurred_at` | `register_clearance` succeeds, or as the child genesis event in `amend_clearance` |
 | `ClearanceSubmitted` | `clearance_id`, `occurred_at` | `submit_clearance` succeeds |
 | `ClearanceReviewStarted` | `clearance_id`, `first_reviewer_role`, `occurred_at` | `start_clearance_review` succeeds |
 | `ClearanceReviewStepAppended` | `clearance_id`, `step_index`, `role`, `decision`, `actor_id`, `decided_at`, `notes?`, `occurred_at` | `append_clearance_review_step` succeeds |
@@ -132,7 +132,7 @@ The approving and rejecting actor is carried on the event envelope (`StoredEvent
 | `RejectClearance` | MODIFIED | `POST /clearances/{clearance_id}/reject` | `reject_clearance` | none |
 | `ActivateClearance` | MODIFIED | `POST /clearances/{clearance_id}/activate` | `activate_clearance` | none |
 | `ExpireClearance` | MODIFIED | `POST /clearances/{clearance_id}/expire` | `expire_clearance` | none |
-| `AmendClearance` | NEW | `POST /clearances/{parent_clearance_id}/amend` | `amend_clearance` | required |
+| `AmendClearance` | NEW | `POST /clearances/{parent_id}/amend` | `amend_clearance` | required |
 | `GetClearance` | QUERY | `GET /clearances/{clearance_id}` | `get_clearance` | none |
 | `ListClearances` | QUERY | `GET /clearances` | `list_clearances` | none |
 
@@ -189,7 +189,7 @@ CREATE TABLE proj_safety_clearance_summary (
     asset_binding_ids         UUID[]       NOT NULL DEFAULT '{}',
     run_binding_ids           UUID[]       NOT NULL DEFAULT '{}',
     procedure_binding_ids     UUID[]       NOT NULL DEFAULT '{}',
-    parent_clearance_id       UUID,
+    parent_id       UUID,
     registered_at             TIMESTAMPTZ  NOT NULL,
     last_status_changed_at    TIMESTAMPTZ,
     last_status_reason        TEXT,
