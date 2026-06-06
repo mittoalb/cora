@@ -36,7 +36,7 @@ Family membership by loading each Family in the target Asset's
 ids are passed to the decider via the `pseudoaxis_family_ids`
 keyword so the decider can stay pure (no I/O, no Family loading)
 and tests can bypass the by-name lookup by supplying the set
-directly (mirrors the Slice 2 `InMemoryRecipeExpansionPort` shape).
+directly (mirrors the `InMemoryRecipeExpansionPort` shape).
 
 See [[project_plan_wiring_design]] and [[project_pseudoaxis_design]]
 for the locked design memos.
@@ -98,7 +98,8 @@ def decide(
         entry whose role's required_ports include the candidate
         wire's endpoint port_name on the matching direction, the
         wire's endpoint Asset MUST equal the role's bound Asset ->
-        PlanWireRoleEndpointMismatchError (slice 2 structural closure)
+        PlanWireRoleEndpointMismatchError (structural closure between
+        Plan.role_bindings and Plan.wires)
 
     `pseudoaxis_family_ids` defaults to the empty set so callers that
     have no PseudoAxis Assets in play skip the fan-out check entirely.
@@ -154,15 +155,27 @@ def decide(
             assets_by_id=context.assets,
         )
 
-    # Slice-2 role-endpoint check: structural closure between
-    # Plan.role_bindings and Plan.wires. For each RoleRequirement on
-    # the Plan's bound Method, look at its required_ports. If the
-    # proposed wire's endpoint port (source side for OUTPUT
-    # required_ports, target side for INPUT required_ports) matches
-    # a required_port's name, the wire's endpoint Asset MUST equal
-    # the Asset bound to that role on the Plan. Skipped when the
-    # Method is not loaded (legacy Plans) or when the role is not
-    # yet bound on the Plan (partial Plan, no conflict to enforce).
+    # Role-endpoint check: structural closure between Plan.role_bindings
+    # and Plan.wires. For each RoleRequirement on the Plan's bound Method,
+    # look at its required_ports. If the proposed wire's endpoint port
+    # (source side for OUTPUT required_ports, target side for INPUT
+    # required_ports) matches a required_port's name, the wire's
+    # endpoint Asset MUST equal the Asset bound to that role on the
+    # Plan. Skipped when the Method is not loaded (a Plan with no
+    # method_id genuinely has no roles to validate against, so a wire
+    # add can proceed) or when the role is not yet bound (operator
+    # can wire before binding; the symmetric closure lives in
+    # `bind_plan_role.decide`, which scans state.wires and rejects a
+    # bind that would diverge from existing wire endpoints).
+    #
+    # The asymmetry with `bind_plan_role` (which raises
+    # MethodNotFoundError when context.method is None) is principled:
+    # bind cannot proceed without a method because role_name must be
+    # validated against method.required_roles; wire CAN proceed because
+    # the method is only consulted for the role-endpoint check, and
+    # everything else (asset-binding, port-existence, fan-in, signal
+    # type, pseudoaxis fan-out) stands on its own. Do not equalize.
+    #
     # See [[project-plan-role-bindings-design]] for the rationale.
     if context.method is not None:
         binding_by_role_name = {b.role_name: b.asset_id for b in state.role_bindings}

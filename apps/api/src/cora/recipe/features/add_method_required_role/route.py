@@ -1,10 +1,10 @@
-"""HTTP route for the `add_method_required_role` slice.
+"""HTTP route for `add_method_required_role`.
 
 Action endpoint at `POST /methods/{method_id}/add-required-role`.
 Body carries the `RoleRequirement` block (role_name + family_id +
 required_ports + optional). 201 Created on success, mirroring the
 Method BC's POST-style targeted-mutation convention; no DELETE verb
-on the Method aggregate's mutation slices (the sibling slice is
+on the Method aggregate's mutation slices (the sibling mutation is
 `remove_method_required_role` via POST).
 """
 
@@ -32,9 +32,10 @@ class AddMethodRequiredRoleRequest(BaseModel):
         ...,
         description=(
             "The positional role slot to declare. Uniqueness keyed on "
-            "`role_name` within the Method scope; slice 1 declares the "
-            "vocabulary only, slice 2 will layer Plan-side binding + "
-            "port-coverage validation on top."
+            "`role_name` within the Method scope. The Method aggregate "
+            "owns the role vocabulary only; Plan-side binding and "
+            "port-coverage validation are enforced by the Plan "
+            "aggregate (bind_plan_role + add_plan_wire)."
         ),
     )
 

@@ -20,9 +20,9 @@ Status mapping per event type:
                                                 lifecycle; updates the
                                                 parameters_schema field
                                                 only)
-  - `MethodRequiredRoleAdded`    -> status preserved (slice 1 of the
-                                                positional role-tagging
-                                                workstream; appends a
+  - `MethodRequiredRoleAdded`    -> status preserved (positional
+                                                role-tagging workstream;
+                                                appends a
                                                 RoleRequirement to
                                                 required_roles; decider
                                                 restricts to Defined)

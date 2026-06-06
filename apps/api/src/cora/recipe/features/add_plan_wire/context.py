@@ -40,12 +40,12 @@ class PlanWireContext:
     missing keys.
 
     `method` is the Plan's bound Method (loaded by the handler via
-    state.method_id) when present. The slice-2 role-endpoint check
-    walks `method.required_roles` to enforce the structural closure
-    between Plan.role_bindings and Plan.wires (see
+    state.method_id) when present. The role-endpoint check walks
+    `method.required_roles` to enforce the structural closure between
+    Plan.role_bindings and Plan.wires (see
     `PlanWireRoleEndpointMismatchError`). None when state.method_id
-    is None (legacy Plans) OR when the test passes a context without
-    a method (legacy add_plan_wire tests that predate slice 2).
+    is None (Plan with no Method binding) OR when the test passes a
+    context without a method.
     """
 
     assets: dict[UUID, Asset]

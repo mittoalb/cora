@@ -25,7 +25,8 @@ class BindPlanRole:
     The decider enforces: Plan exists + status is Defined, role_name
     declared on Method.required_roles, asset_id in Plan.asset_ids,
     Asset carries role.family_id, Asset.ports cover role.required_ports,
-    role_name not already bound. Slice 2 of positional role-tagging.
+    role_name not already bound, no existing wire endpoint claims the
+    role's required_port at a different Asset.
     """
 
     plan_id: UUID

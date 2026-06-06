@@ -1,4 +1,4 @@
-"""MCP tool for the `add_method_required_role` slice."""
+"""MCP tool for `add_method_required_role`."""
 
 from collections.abc import Callable
 from typing import Annotated, Any
@@ -22,13 +22,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="add_method_required_role",
         description=(
             "Declare a positional role slot on an existing Method "
-            "(slice 1 of the positional role-tagging workstream; IEC "
-            "81346 Function aspect). The role carries a Method-local "
-            "name, the Family the bound Asset must satisfy, a set of "
-            "required ports, and an optional flag. Strict-not-"
-            "idempotent on role_name; rejects when the method is "
-            "Versioned or Deprecated. Plan-side binding lands in "
-            "slice 2."
+            "(positional role-tagging workstream; IEC 81346 Function "
+            "aspect). The role carries a Method-local name, the Family "
+            "the bound Asset must satisfy, a set of required ports, "
+            "and an optional flag. Strict-not-idempotent on role_name; "
+            "rejects when the method is Versioned or Deprecated. "
+            "Plan-side binding lives in `bind_plan_role`."
         ),
     )
     async def add_method_required_role_tool(  # pyright: ignore[reportUnusedFunction]

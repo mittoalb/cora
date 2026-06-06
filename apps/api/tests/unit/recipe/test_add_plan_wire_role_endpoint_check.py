@@ -255,12 +255,87 @@ def test_wire_passes_when_method_is_none_legacy_plan() -> None:
     assert len(events) == 1
 
 
+def _method_with_trigger_input_role(method_id: UUID, fid: UUID) -> Method:
+    return Method(
+        id=method_id,
+        name=MethodName("m"),
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("shutter"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="trigger_in",
+                                direction=PortDirection.INPUT,
+                                signal_type="TTL",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        ),
+    )
+
+
+@pytest.mark.unit
+def test_wire_target_port_matches_role_required_port_but_wrong_asset_raises() -> None:
+    """Symmetric to the source-side scenario: role SHUTTER bound to
+    shutter_A on its INPUT port `trigger_in`. Operator tries to wire
+    into shutter_B's trigger_in. shutter_B carries the same port name;
+    the role check rejects with endpoint_role='target'.
+    """
+    shutter_a = uuid4()
+    shutter_b = uuid4()
+    trigger_src = uuid4()
+    fid = uuid4()
+    method_id = uuid4()
+    method = _method_with_trigger_input_role(method_id, fid)
+    state = _plan_with(
+        asset_ids=frozenset({shutter_a, shutter_b, trigger_src}),
+        role_bindings=frozenset(
+            {RoleBinding(role_name=RoleName("shutter"), asset_id=shutter_a)},
+        ),
+        method_id=method_id,
+    )
+    trigger_in = AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")
+    trigger_out = AssetPort(name="trigger_out", direction=PortDirection.OUTPUT, signal_type="TTL")
+    assets = {
+        shutter_a: _asset(shutter_a, ports=frozenset({trigger_in})),
+        shutter_b: _asset(shutter_b, ports=frozenset({trigger_in})),
+        trigger_src: _asset(trigger_src, ports=frozenset({trigger_out})),
+    }
+    context = PlanWireContext(assets=assets, method=method)
+
+    with pytest.raises(PlanWireRoleEndpointMismatchError) as exc:
+        add_plan_wire.decide(
+            state=state,
+            command=AddPlanWire(
+                plan_id=state.id,
+                source_asset_id=trigger_src,
+                source_port_name="trigger_out",
+                target_asset_id=shutter_b,
+                target_port_name="trigger_in",
+            ),
+            context=context,
+            now=_NOW,
+        )
+    assert exc.value.endpoint_role == "target"
+    assert exc.value.expected_asset_id == shutter_a
+    assert exc.value.actual_asset_id == shutter_b
+
+
 @pytest.mark.unit
 def test_wire_passes_when_role_not_yet_bound() -> None:
     """If Method declares a role but no Plan.role_binding exists for
-    it yet, the wire's port-name overlap doesn't conflict (nothing
+    it yet, the wire's port-name overlap does not conflict (nothing
     to be wrong about). Operators can wire freely before binding;
-    binding-step will check separately."""
+    `bind_plan_role.decide` scans existing wires symmetrically and
+    rejects the bind if it would pin the role to a different Asset
+    than the wire's endpoint, so the wire-then-bind ordering is
+    closed at the bind step, not here. See
+    `PlanWireRoleEndpointMismatchError`."""
     cam = uuid4()
     sink = uuid4()
     fid = uuid4()

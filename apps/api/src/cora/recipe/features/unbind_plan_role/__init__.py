@@ -2,7 +2,7 @@
 
 Removes a RoleBinding (identified by role_name) from an existing
 Plan's role_bindings set; strict-not-idempotent. Mirror of
-`bind_plan_role`. Slice 2 of positional role-tagging.
+`bind_plan_role`.
 
 See [[project-plan-role-bindings-design]] for the design lock.
 """

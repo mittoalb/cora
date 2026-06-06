@@ -1,4 +1,4 @@
-"""MCP tool for the `bind_plan_role` slice."""
+"""MCP tool for `bind_plan_role`."""
 
 from collections.abc import Callable
 from typing import Annotated, Any
@@ -22,11 +22,11 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="bind_plan_role",
         description=(
             "Bind a Method.required_role to a specific Asset on an "
-            "existing Plan (slice 2 of positional role-tagging; IEC "
-            "81346 Function aspect). The binding is validated against "
-            "the Method's required_roles + the Asset's family_ids + "
-            "the Asset's ports. Strict-not-idempotent on role_name; "
-            "rejects when the Plan is Versioned/Deprecated."
+            "existing Plan (positional role-tagging; IEC 81346 Function "
+            "aspect). The binding is validated against the Method's "
+            "required_roles + the Asset's family_ids + the Asset's "
+            "ports + the existing wire graph. Strict-not-idempotent on "
+            "role_name; rejects when the Plan is Versioned/Deprecated."
         ),
     )
     async def bind_plan_role_tool(  # pyright: ignore[reportUnusedFunction]

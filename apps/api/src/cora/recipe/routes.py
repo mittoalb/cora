@@ -271,7 +271,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         InvalidMethodNeededSuppliesError,
         InvalidMethodParametersSchemaError,
         InvalidMethodVersionTagError,
-        # slice 1 of positional role-tagging: VO constructor failures
+        # Positional role-tagging VO constructor failures
         # (RoleName empty/too-long, PortRequirement empty/too-long port
         # name or signal_type). Mapped to 400.
         InvalidRoleNameError,
@@ -294,18 +294,18 @@ def register_recipe_routes(app: FastAPI) -> None:
     for not_found_cls in (
         CapabilityNotFoundError,
         MethodNotFoundError,
-        # slice 1 of positional role-tagging: removing a role whose
-        # role_name is not declared on the Method (strict-not-
-        # idempotent symmetry with MethodRoleNameAlreadyDeclaredError).
+        # Removing a Method.required_role whose role_name is not
+        # declared (strict-not-idempotent symmetry with
+        # MethodRoleNameAlreadyDeclaredError).
         MethodRoleNameNotFoundError,
         PracticeNotFoundError,
         PlanNotFoundError,
         # 6h: removing a Wire that's not currently in the Plan's wire
         # set (strict-not-idempotent symmetry with PlanWireAlreadyExistsError).
         PlanWireNotFoundError,
-        # slice 2 of positional role-tagging: unbinding a role whose
-        # role_name is not currently bound on the Plan (strict-not-
-        # idempotent symmetry with PlanRoleAlreadyBoundError).
+        # Unbinding a Plan.role_binding whose role_name is not
+        # currently bound (strict-not-idempotent symmetry with
+        # PlanRoleAlreadyBoundError).
         PlanRoleNotBoundError,
         RecipeNotFoundError,
         RecipeVersionNotFoundError,
@@ -333,13 +333,12 @@ def register_recipe_routes(app: FastAPI) -> None:
         MethodParametersNotSubsetError,
         MethodCannotVersionError,
         MethodCannotDeprecateError,
-        # slice 1 of positional role-tagging: lifecycle guard on
-        # required-role mutations (rejects Versioned and Deprecated;
-        # symmetric across add_method_required_role and
-        # remove_method_required_role).
+        # Lifecycle guard on Method.required_roles mutations
+        # (rejects Versioned and Deprecated; symmetric across
+        # add_method_required_role and remove_method_required_role).
         MethodCannotMutateRequiredRolesError,
-        # slice 1 of positional role-tagging: duplicate role_name on
-        # add (strict-not-idempotent on the role_name identity).
+        # Duplicate role_name on add to Method.required_roles
+        # (strict-not-idempotent on the role_name identity).
         MethodRoleNameAlreadyDeclaredError,
         PracticeCannotVersionError,
         PracticeCannotDeprecateError,
@@ -364,24 +363,24 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanWireDirectionMismatchError,
         PlanWireSignalTypeMismatchError,
         PlanWireSelfLoopError,
-        # PseudoAxis fan-out guards on Plan.wires (Slice 3): the
-        # candidate wire would leave a PseudoAxis Asset structurally
-        # inconsistent with its partition rule. All 409 (state-conflict
-        # family; consistent with the structural guards above).
+        # PseudoAxis fan-out guards on Plan.wires: the candidate wire
+        # would leave a PseudoAxis Asset structurally inconsistent
+        # with its partition rule. All 409 (state-conflict family;
+        # consistent with the structural guards above).
         PlanPseudoAxisOutputCardinalityError,
         PlanPseudoAxisArityMismatchError,
         PlanPseudoAxisFanoutSignalTypeMismatchError,
-        # slice 2 of positional role-tagging: Plan-side bind/unbind
-        # lifecycle + structural guards. All 409.
+        # Plan-side bind/unbind lifecycle + structural guards on
+        # role_bindings. All 409.
         PlanCannotMutateRoleBindingsError,
         PlanRoleAlreadyBoundError,
         PlanRoleAssetNotBoundError,
         PlanRoleFamilyMismatchError,
         PlanRoleNameNotDeclaredError,
         PlanRolePortCoverageNotSatisfiedError,
-        # slice 2 structural closure: a Wire endpoint port matches a
-        # role's required_ports but terminates at a different Asset
-        # than the one bound to that role.
+        # Structural closure between role_bindings and wires: a Wire
+        # endpoint port matches a role's required_ports but terminates
+        # at a different Asset than the one bound to that role.
         PlanWireRoleEndpointMismatchError,
         # Recipe transition guards.
         RecipeCannotVersionError,

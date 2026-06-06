@@ -1,8 +1,8 @@
 """Vertical slice for the `AddMethodRequiredRole` command.
 
 Adds a single `RoleRequirement` (positional role slot; IEC 81346
-Function aspect, slice 1) to an existing Method's required_roles
-set; strict-not-idempotent on role_name: a duplicate role_name
+Function aspect) to an existing Method's required_roles set;
+strict-not-idempotent on role_name: a duplicate role_name
 surfaces as 409 rather than silent no-op. The lifecycle guard
 mirrors `update_method_parameters_schema` in spirit but is stricter:
 required-roles mutations are restricted to the `Defined` status.
@@ -25,8 +25,9 @@ Module-as-namespace surface:
 
 See [[project-method-required-roles-design]] for the full design
 lock and [[project-equipment-isa-gap-research]] for the Function-
-aspect gap context. Plan-side role bindings + Wire-role-endpoint
-invariant ship as a follow-up slice.
+aspect gap context. The Plan-side role bindings and the
+Wire-role-endpoint invariant live in `bind_plan_role` /
+`unbind_plan_role` / `add_plan_wire`.
 """
 
 from cora.recipe.features.add_method_required_role import tool

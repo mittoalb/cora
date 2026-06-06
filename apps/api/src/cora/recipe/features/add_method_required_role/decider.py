@@ -15,8 +15,8 @@ Three disqualifying conditions surface as dedicated error classes:
 Eventual-consistency on `family_id`: the decider does NOT verify the
 referenced Family stream exists. Same precedent as
 `Method.needed_family_ids` and `Method.needed_assembly_ids`. Mismatch
-surfaces at slice-2 Plan binding when the role can't be filled by an
-Asset carrying that Family.
+surfaces at Plan binding (`bind_plan_role`) when the role cannot be
+filled by an Asset carrying that Family.
 
 `RoleRequirement` + `PortRequirement` + `RoleName` VOs validate their
 own bounded text in `__post_init__`; reaching the decider means the

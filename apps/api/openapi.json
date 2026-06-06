@@ -307,7 +307,7 @@
         "properties": {
           "requirement": {
             "$ref": "#/components/schemas/RoleRequirementBody",
-            "description": "The positional role slot to declare. Uniqueness keyed on `role_name` within the Method scope; slice 1 declares the vocabulary only, slice 2 will layer Plan-side binding + port-coverage validation on top."
+            "description": "The positional role slot to declare. Uniqueness keyed on `role_name` within the Method scope. The Method aggregate owns the role vocabulary only; Plan-side binding and port-coverage validation are enforced by the Plan aggregate (bind_plan_role + add_plan_wire)."
           }
         },
         "required": [
@@ -8036,7 +8036,7 @@
             "description": "Required port direction (Input or Output), matching the Asset.ports `direction` field byte-for-byte."
           },
           "port_name": {
-            "description": "Exact (case-sensitive, after trimming) port name the bound Asset must expose on its `ports` set. Glob/regex matching is deferred to slice 2+ per the design memo's open-questions resolution.",
+            "description": "Exact (case-sensitive, after trimming) port name the bound Asset must expose on its `ports` set. Glob/regex matching is deferred per the design memo's open-questions resolution.",
             "maxLength": 100,
             "minLength": 1,
             "title": "Port Name",
@@ -10868,19 +10868,19 @@
         "description": "Wire format for a `RoleRequirement` value object.",
         "properties": {
           "family_id": {
-            "description": "The Family the bound Asset must satisfy at slice-2 Plan binding time. Eventual-consistency: existence is not verified at decide time.",
+            "description": "The Family the bound Asset must satisfy at Plan binding time. Eventual-consistency: existence is not verified at decide time.",
             "format": "uuid",
             "title": "Family Id",
             "type": "string"
           },
           "optional": {
             "default": false,
-            "description": "If True, slice-2 Plan binding may omit this role without triggering PlanRoleNotBoundError. Defaults to required.",
+            "description": "If True, Plan binding may omit this role without triggering PlanRoleNotBoundError. Defaults to required.",
             "title": "Optional",
             "type": "boolean"
           },
           "required_ports": {
-            "description": "List of ports the bound Asset must expose for this role. Empty means the role has no port contract (pure Asset binding); slice 2's Wire-role-endpoint invariant only applies when this list is non-empty. Wire-side list, deduplicated to a frozenset at the domain VO.",
+            "description": "List of ports the bound Asset must expose for this role. Empty means the role has no port contract (pure Asset binding); the Wire-role-endpoint invariant only applies when this list is non-empty. Wire-side list, deduplicated to a frozenset at the domain VO.",
             "items": {
               "$ref": "#/components/schemas/PortRequirementBody"
             },
@@ -10888,7 +10888,7 @@
             "type": "array"
           },
           "role_name": {
-            "description": "Method-local positional role label (for example, 'detector', 'sample_monitor', 'axis'). Uniqueness is scoped to the Method; cross-Method consistency is an operator convention, not a kernel invariant in slice 1.",
+            "description": "Method-local positional role label (for example, 'detector', 'sample_monitor', 'axis'). Uniqueness is scoped to the Method; cross-Method consistency is an operator convention, not a kernel invariant.",
             "maxLength": 50,
             "minLength": 1,
             "title": "Role Name",

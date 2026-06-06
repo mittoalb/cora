@@ -164,7 +164,7 @@ class MethodParametersSchemaUpdated:
 class MethodRequiredRoleAdded:
     """A positional role slot was declared on the Method.
 
-    Slice 1 of the positional role-tagging workstream (IEC 81346
+    Part of the positional role-tagging workstream (IEC 81346
     Function aspect). Strict-not-idempotent: a duplicate role_name
     surfaces as `MethodRoleNameAlreadyDeclaredError` rather than
     silently no-opping. Restricted to Methods in `Defined` status

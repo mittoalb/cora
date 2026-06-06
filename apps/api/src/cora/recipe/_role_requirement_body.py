@@ -42,7 +42,7 @@ class PortRequirementBody(BaseModel):
         description=(
             "Exact (case-sensitive, after trimming) port name the "
             "bound Asset must expose on its `ports` set. Glob/regex "
-            "matching is deferred to slice 2+ per the design memo's "
+            "matching is deferred per the design memo's "
             "open-questions resolution."
         ),
     )
@@ -83,15 +83,15 @@ class RoleRequirementBody(BaseModel):
             "Method-local positional role label (for example, "
             "'detector', 'sample_monitor', 'axis'). Uniqueness is "
             "scoped to the Method; cross-Method consistency is an "
-            "operator convention, not a kernel invariant in slice 1."
+            "operator convention, not a kernel invariant."
         ),
     )
     family_id: UUID = Field(
         ...,
         description=(
-            "The Family the bound Asset must satisfy at slice-2 Plan "
-            "binding time. Eventual-consistency: existence is not "
-            "verified at decide time."
+            "The Family the bound Asset must satisfy at Plan binding "
+            "time. Eventual-consistency: existence is not verified at "
+            "decide time."
         ),
     )
     required_ports: list[PortRequirementBody] = Field(
@@ -99,15 +99,15 @@ class RoleRequirementBody(BaseModel):
         description=(
             "List of ports the bound Asset must expose for this "
             "role. Empty means the role has no port contract (pure "
-            "Asset binding); slice 2's Wire-role-endpoint invariant "
-            "only applies when this list is non-empty. Wire-side "
-            "list, deduplicated to a frozenset at the domain VO."
+            "Asset binding); the Wire-role-endpoint invariant only "
+            "applies when this list is non-empty. Wire-side list, "
+            "deduplicated to a frozenset at the domain VO."
         ),
     )
     optional: bool = Field(
         default=False,
         description=(
-            "If True, slice-2 Plan binding may omit this role without "
+            "If True, Plan binding may omit this role without "
             "triggering PlanRoleNotBoundError. Defaults to required."
         ),
     )

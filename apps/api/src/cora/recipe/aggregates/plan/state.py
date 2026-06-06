@@ -442,8 +442,8 @@ class Plan:
     wires: frozenset["Wire"] = field(default_factory=frozenset["Wire"])
     content_hash: str | None = None
     # role_bindings declares which Asset fills each of the bound
-    # Method's required_roles (slice 2 of positional role-tagging;
-    # IEC 81346 Function aspect). Each `RoleBinding` is a (role_name,
+    # Method's required_roles (positional role-tagging; IEC 81346
+    # Function aspect). Each `RoleBinding` is a (role_name,
     # asset_id) pair; uniqueness within the set is keyed on role_name
     # (enforced by the bind_plan_role decider, not the VO). The
     # role_name links to a `RoleRequirement` declared on the Plan's
@@ -489,10 +489,10 @@ class Plan:
                 )
                 for w in self.wires
             ),
-            # role_bindings joined the content subset when slice 2 of
-            # positional role-tagging landed. Rendered as a sorted list
-            # of (role_name, asset_id) tuples for byte-stable
-            # serialization (matches the wires sort convention).
+            # role_bindings participates in content identity:
+            # rendered as a sorted list of (role_name, asset_id)
+            # tuples for byte-stable serialization (matches the wires
+            # sort convention).
             "role_bindings": sorted(
                 (b.role_name.value, str(b.asset_id)) for b in self.role_bindings
             ),
@@ -846,7 +846,7 @@ def _wire_diagnostic(wire: Wire) -> str:
     )
 
 
-# ---------- role_bindings (slice 2 of positional role-tagging) ----------
+# ---------- role_bindings (Plan-side positional role-tagging) ----------
 
 
 @dataclass(frozen=True)
@@ -876,7 +876,7 @@ class PlanRoleAlreadyBoundError(Exception):
     """Attempted to bind a role_name that's already in the Plan's role_bindings.
 
     Strict-not-idempotent: same precedent as
-    `PlanWireAlreadyExistsError` and slice-1's
+    `PlanWireAlreadyExistsError` and
     `MethodRoleNameAlreadyDeclaredError`. The diagnostic carries the
     Plan id and the offending role_name.
     """
@@ -892,23 +892,23 @@ class PlanRoleAlreadyBoundError(Exception):
 
 
 class PlanRoleNotBoundError(Exception):
-    """Attempted to unbind a role_name that isn't in the Plan's role_bindings,
-    or to add a wire against an Asset port required by a role the Plan has
-    not yet bound.
+    """Attempted to unbind a role_name that isn't in the Plan's role_bindings.
 
-    Strict-not-idempotent for the unbind side: a second unbind raises
-    rather than silently no-opping. Also fires from
-    `add_plan_wire` when the candidate wire's endpoint port matches a
-    `RoleRequirement.required_ports` entry but no `RoleBinding` for
-    that role exists on the Plan yet (operators must bind the role
-    before wiring against its ports).
+    Strict-not-idempotent: a second unbind raises rather than silently
+    no-opping. Operators wire freely before binding; `add_plan_wire`
+    does NOT raise this error when the role is unbound (the wire stands
+    on its own port-shape validity). The role-table-vs-wire-graph
+    closure lives in `bind_plan_role.decide`, which scans
+    `state.wires` and rejects a bind that would diverge from an existing
+    wire's endpoint Asset (raises `PlanWireRoleEndpointMismatchError`,
+    not this class).
+
+    Mapped to HTTP 409.
     """
 
     def __init__(self, plan_id: UUID, role_name: "RoleName") -> None:
         super().__init__(
-            f"Plan {plan_id} does not bind role {role_name.value!r}; "
-            "nothing to unbind, or wire references the role's port "
-            "before the role has been bound"
+            f"Plan {plan_id} does not bind role {role_name.value!r}; nothing to unbind"
         )
         self.plan_id = plan_id
         self.role_name = role_name
@@ -1070,7 +1070,7 @@ class PlanWireRoleEndpointMismatchError(Exception):
 class PlanCannotMutateRoleBindingsError(Exception):
     """Attempted to bind / unbind a role on a Plan not in `Defined` status.
 
-    Mirrors `MethodCannotMutateRequiredRolesError` from slice 1.
+    Mirrors `MethodCannotMutateRequiredRolesError`.
     Versioned Plans have an attested content_hash that covers
     role_bindings; Deprecated Plans are out of use entirely. Mapped to
     HTTP 409. Symmetric across `bind_plan_role` and `unbind_plan_role`.

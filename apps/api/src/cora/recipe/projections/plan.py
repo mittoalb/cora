@@ -94,10 +94,10 @@ SET default_parameters_present = $2, updated_at = now()
 WHERE plan_id = $1
 """
 
-# Slice-2: role_bindings is a sorted JSONB array of
+# role_bindings is a sorted JSONB array of
 # {"role_name", "asset_id"} objects, sorted by role_name for byte-
-# stable replay. Mirrors the slice-1 Method.required_roles writers
-# pattern + proj_equipment_asset_summary.owners pattern.
+# stable replay. Mirrors the Method.required_roles writers pattern
+# and proj_equipment_asset_summary.owners pattern.
 _UPDATE_ROLE_BOUND_SQL = """
 UPDATE proj_recipe_plan_summary
 SET role_bindings = COALESCE(
@@ -192,7 +192,7 @@ class PlanSummaryProjection:
                 # Bind payload (role_name + asset_id as dict) flows to
                 # the SQL via the pool's jsonb codec (encoder=json.dumps);
                 # the SQL cast wraps it back as JSONB for jsonb_build_array.
-                # Mirrors the slice-1 method projection pattern.
+                # Mirrors the Method projection's required_roles pattern.
                 binding_jsonb: dict[str, object] = {
                     "role_name": event.payload["role_name"],
                     "asset_id": event.payload["asset_id"],

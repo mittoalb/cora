@@ -98,7 +98,7 @@ def test_method_state_reuses_port_direction_from_equipment_bc() -> None:
 
 @pytest.mark.architecture
 def test_add_plan_wire_decider_enforces_role_endpoint_check() -> None:
-    """Slice 2 closure: the add_plan_wire decider MUST reference
+    """The add_plan_wire decider MUST reference
     PlanWireRoleEndpointMismatchError and walk Method.required_roles
     against Plan.role_bindings to prevent role-table-vs-wire-graph
     divergence. Pin so a future refactor that drops the role check
@@ -108,7 +108,7 @@ def test_add_plan_wire_decider_enforces_role_endpoint_check() -> None:
 
     source = inspect.getsource(add_plan_wire_decider)
     assert "PlanWireRoleEndpointMismatchError" in source, (
-        "add_plan_wire decider must enforce the role-endpoint check (slice 2 structural closure)"
+        "add_plan_wire decider must enforce the role-endpoint check (structural closure)"
     )
     assert "required_roles" in source, (
         "add_plan_wire decider must walk Method.required_roles to validate role-port consistency"
@@ -117,3 +117,128 @@ def test_add_plan_wire_decider_enforces_role_endpoint_check() -> None:
         "add_plan_wire decider must compare against Plan.role_bindings "
         "to identify the role's bound Asset"
     )
+
+
+@pytest.mark.architecture
+def test_bind_plan_role_decider_enforces_role_endpoint_check() -> None:
+    """The bind_plan_role decider MUST raise
+    PlanWireRoleEndpointMismatchError when an existing wire claims the
+    role's required port at a different Asset. The companion to the
+    add_plan_wire pin above: together they close BOTH temporal
+    orderings (bind-then-wire AND wire-then-bind / unbind-rebind)."""
+    from cora.recipe.features.bind_plan_role import decider as bind_plan_role_decider
+
+    source = inspect.getsource(bind_plan_role_decider)
+    assert "PlanWireRoleEndpointMismatchError" in source, (
+        "bind_plan_role decider must enforce the symmetric role-endpoint check; "
+        "without it, wire-then-bind and unbind-rebind orderings silently diverge "
+        "the role table from the wire graph"
+    )
+    assert "state.wires" in source, (
+        "bind_plan_role decider must scan state.wires for endpoints that already "
+        "claim a required_port of the role being bound"
+    )
+
+
+@pytest.mark.architecture
+def test_bind_plan_role_decider_rejects_wire_then_bind_ordering_behaviorally() -> None:
+    """Behavior-level companion to the source-string pins above: the
+    role-endpoint closure is exercised by constructing a minimal Plan
+    with an existing wire on a different Asset than the candidate
+    binding, calling decide(), and asserting the raise. A future
+    refactor that keeps the substring `PlanWireRoleEndpointMismatchError`
+    in the source but no longer raises (e.g. behind a feature flag,
+    inside a dead branch) would slip past the source-string pin; this
+    test catches that drift."""
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from cora.equipment.aggregates.asset import (
+        Asset,
+        AssetLevel,
+        AssetName,
+        AssetPort,
+        PortDirection,
+    )
+    from cora.recipe.aggregates.method import (
+        Method,
+        MethodName,
+        PortRequirement,
+        RoleName,
+        RoleRequirement,
+    )
+    from cora.recipe.aggregates.plan import (
+        Plan,
+        PlanName,
+        PlanStatus,
+        PlanWireRoleEndpointMismatchError,
+        Wire,
+    )
+    from cora.recipe.features import bind_plan_role
+    from cora.recipe.features.bind_plan_role import BindPlanRole, BindPlanRoleContext
+
+    candidate_aid = uuid4()
+    wire_aid = uuid4()
+    fid = uuid4()
+    method_id = uuid4()
+    plan_id = uuid4()
+    method = Method(
+        id=method_id,
+        name=MethodName("m"),
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("detector"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="data_out",
+                                direction=PortDirection.OUTPUT,
+                                signal_type="frame",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        ),
+    )
+    state = Plan(
+        id=plan_id,
+        name=PlanName("p"),
+        practice_id=uuid4(),
+        asset_ids=frozenset({candidate_aid, wire_aid}),
+        status=PlanStatus.DEFINED,
+        method_id=method_id,
+        wires=frozenset(
+            {
+                Wire(
+                    source_asset_id=wire_aid,
+                    source_port_name="data_out",
+                    target_asset_id=uuid4(),
+                    target_port_name="data_in",
+                ),
+            }
+        ),
+    )
+    asset = Asset(
+        id=candidate_aid,
+        name=AssetName("a"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        family_ids=frozenset({fid}),
+        ports=frozenset(
+            {AssetPort(name="data_out", direction=PortDirection.OUTPUT, signal_type="frame")}
+        ),
+    )
+    with pytest.raises(PlanWireRoleEndpointMismatchError):
+        bind_plan_role.decide(
+            state=state,
+            command=BindPlanRole(
+                plan_id=plan_id,
+                role_name=RoleName("detector"),
+                asset_id=candidate_aid,
+            ),
+            context=BindPlanRoleContext(method=method, asset=asset),
+            now=datetime(2026, 6, 6, 12, 0, 0, tzinfo=UTC),
+        )

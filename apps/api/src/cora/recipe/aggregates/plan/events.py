@@ -206,8 +206,8 @@ class PlanDefaultParametersUpdated:
 class PlanRoleBound:
     """A positional role slot was bound to a specific Asset on a Plan.
 
-    Slice 2 of the positional role-tagging workstream. Strict-not-
-    idempotent: a duplicate role_name surfaces as
+    Plan-side closure for the positional role-tagging workstream.
+    Strict-not-idempotent: a duplicate role_name surfaces as
     `PlanRoleAlreadyBoundError`. Restricted to Plans in `Defined`
     status; mirrors `PlanWireAdded`'s shape with the role identity
     carried as a primitive string so `from_stored` can rebuild the

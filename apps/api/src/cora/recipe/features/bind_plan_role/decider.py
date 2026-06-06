@@ -21,11 +21,16 @@ Invariants:
   - Bound Asset's ports must cover every entry in the role's
     required_ports (exact triple match on port_name, direction,
     signal_type) -> PlanRolePortCoverageNotSatisfiedError
+  - No existing wire's endpoint may claim the role's required_port
+    (matched by port_name + direction side) at an Asset other than
+    the candidate bound Asset. Without this scan the wire-then-bind
+    and unbind-rebind orderings silently divergence the role table
+    from the wire graph -> PlanWireRoleEndpointMismatchError
 """
 
 from datetime import datetime
 
-from cora.equipment.aggregates.asset import AssetNotFoundError
+from cora.equipment.aggregates.asset import AssetNotFoundError, PortDirection
 from cora.recipe.aggregates.method import MethodNotFoundError, RoleRequirement
 from cora.recipe.aggregates.plan import (
     Plan,
@@ -38,6 +43,7 @@ from cora.recipe.aggregates.plan import (
     PlanRoleNameNotDeclaredError,
     PlanRolePortCoverageNotSatisfiedError,
     PlanStatus,
+    PlanWireRoleEndpointMismatchError,
 )
 from cora.recipe.features.bind_plan_role.command import BindPlanRole
 from cora.recipe.features.bind_plan_role.context import BindPlanRoleContext
@@ -65,11 +71,16 @@ def decide(
 
     method = context.method
     if method is None:
-        # state.method_id is None on legacy Plans or the cross-load
-        # missed; surfacing MethodNotFoundError matches add_plan_wire's
-        # AssetNotFoundError convention for missing cross-BC streams.
-        # method_id is the Plan's bound Method; bare uuid4() sentinel
-        # not appropriate because state.method_id may be None.
+        # Unlike `add_plan_wire`, this decider CANNOT proceed without a
+        # Method: the role_name must be validated against
+        # method.required_roles, and there is no fallback semantic that
+        # could justify silently binding to an unknown role. The
+        # asymmetry with add_plan_wire (which silently skips the role
+        # check when method is None) is principled and documented in
+        # the add_plan_wire decider. `state.method_id or command.plan_id`
+        # surfaces the better sentinel: prefer the genuine method_id when
+        # the Plan declares one, otherwise echo plan_id so the operator
+        # sees the offending Plan.
         raise MethodNotFoundError(state.method_id or command.plan_id)
 
     matching_role: RoleRequirement | None = None
@@ -108,6 +119,49 @@ def decide(
             command.asset_id,
             missing,
         )
+
+    # Wire-graph consistency: scan existing wires for any endpoint
+    # that already claims this role's port (by name + side) at a
+    # different Asset than the candidate binding. Without this scan,
+    # the wire-then-bind temporal ordering (operator adds a wire
+    # before binding the role) and the unbind-rebind ordering
+    # (operator unbinds a role while wires still reference its
+    # port, then rebinds to a different Asset) would silently
+    # produce role-table-vs-wire-graph divergence. The add_plan_wire
+    # decider already enforces the bind-then-wire ordering; this
+    # branch closes the bind ordering symmetrically. Mirrors the
+    # add_plan_wire role-endpoint check exactly: OUTPUT required_ports
+    # constrain wire SOURCE endpoints, INPUT required_ports constrain
+    # wire TARGET endpoints.
+    for required in matching_role.required_ports:
+        if required.direction is PortDirection.OUTPUT:
+            for wire in state.wires:
+                if (
+                    wire.source_port_name == required.port_name
+                    and wire.source_asset_id != command.asset_id
+                ):
+                    raise PlanWireRoleEndpointMismatchError(
+                        state.id,
+                        wire,
+                        command.role_name,
+                        "source",
+                        command.asset_id,
+                        wire.source_asset_id,
+                    )
+        if required.direction is PortDirection.INPUT:
+            for wire in state.wires:
+                if (
+                    wire.target_port_name == required.port_name
+                    and wire.target_asset_id != command.asset_id
+                ):
+                    raise PlanWireRoleEndpointMismatchError(
+                        state.id,
+                        wire,
+                        command.role_name,
+                        "target",
+                        command.asset_id,
+                        wire.target_asset_id,
+                    )
 
     return [
         PlanRoleBound(

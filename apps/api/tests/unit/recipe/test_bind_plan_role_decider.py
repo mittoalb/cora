@@ -39,7 +39,9 @@ from cora.recipe.aggregates.plan import (
     PlanRoleNameNotDeclaredError,
     PlanRolePortCoverageNotSatisfiedError,
     PlanStatus,
+    PlanWireRoleEndpointMismatchError,
     RoleBinding,
+    Wire,
 )
 from cora.recipe.features import bind_plan_role
 from cora.recipe.features.bind_plan_role import BindPlanRole, BindPlanRoleContext
@@ -53,6 +55,7 @@ def _plan(
     method_id: UUID | None = None,
     status: PlanStatus = PlanStatus.DEFINED,
     role_bindings: frozenset[RoleBinding] | None = None,
+    wires: frozenset[Wire] | None = None,
 ) -> Plan:
     return Plan(
         id=uuid4(),
@@ -62,6 +65,7 @@ def _plan(
         status=status,
         method_id=method_id or uuid4(),
         role_bindings=role_bindings if role_bindings is not None else frozenset(),
+        wires=wires if wires is not None else frozenset(),
     )
 
 
@@ -394,6 +398,281 @@ def test_happy_path_emits_plan_role_bound_event() -> None:
             occurred_at=_NOW,
         )
     ]
+
+
+def _device_asset(
+    *,
+    asset_id: UUID,
+    family_ids: frozenset[UUID],
+    ports: frozenset[AssetPort],
+) -> Asset:
+    from cora.equipment.aggregates.asset import AssetLevel
+
+    return Asset(
+        id=asset_id,
+        name=AssetName("a"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        family_ids=family_ids,
+        ports=ports,
+    )
+
+
+def _output_wire(
+    *,
+    source_asset_id: UUID,
+    source_port: str = "data_out",
+    target_asset_id: UUID | None = None,
+    target_port: str = "data_in",
+) -> Wire:
+    return Wire(
+        source_asset_id=source_asset_id,
+        source_port_name=source_port,
+        target_asset_id=target_asset_id if target_asset_id is not None else uuid4(),
+        target_port_name=target_port,
+    )
+
+
+def _input_wire(
+    *,
+    target_asset_id: UUID,
+    target_port: str = "trigger_in",
+    source_asset_id: UUID | None = None,
+    source_port: str = "trigger_out",
+) -> Wire:
+    return Wire(
+        source_asset_id=source_asset_id if source_asset_id is not None else uuid4(),
+        source_port_name=source_port,
+        target_asset_id=target_asset_id,
+        target_port_name=target_port,
+    )
+
+
+@pytest.mark.unit
+def test_wire_then_bind_existing_output_wire_at_wrong_asset_raises_role_endpoint_mismatch() -> None:
+    """An OUTPUT wire installed before binding fixes the source-side Asset.
+
+    If the operator wires `data_out` first and then tries to bind the
+    detector role to a DIFFERENT Asset, the wire graph and the role
+    table would silently diverge. The bind decider must reject.
+    """
+    candidate_aid = uuid4()
+    wire_aid = uuid4()
+    fid = uuid4()
+    state = _plan(
+        asset_ids=frozenset({candidate_aid, wire_aid}),
+        wires=frozenset({_output_wire(source_asset_id=wire_aid, source_port="data_out")}),
+    )
+    method = _method(
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("detector"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="data_out",
+                                direction=PortDirection.OUTPUT,
+                                signal_type="frame",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        )
+    )
+    asset = _device_asset(
+        asset_id=candidate_aid,
+        family_ids=frozenset({fid}),
+        ports=frozenset(
+            {AssetPort(name="data_out", direction=PortDirection.OUTPUT, signal_type="frame")}
+        ),
+    )
+    with pytest.raises(PlanWireRoleEndpointMismatchError) as exc:
+        bind_plan_role.decide(
+            state=state,
+            command=BindPlanRole(
+                plan_id=state.id,
+                role_name=RoleName("detector"),
+                asset_id=candidate_aid,
+            ),
+            context=BindPlanRoleContext(method=method, asset=asset),
+            now=_NOW,
+        )
+    assert exc.value.endpoint_role == "source"
+    assert exc.value.expected_asset_id == candidate_aid
+    assert exc.value.actual_asset_id == wire_aid
+
+
+@pytest.mark.unit
+def test_wire_then_bind_existing_input_wire_at_wrong_asset_raises_role_endpoint_mismatch() -> None:
+    """An INPUT wire installed before binding fixes the target-side Asset.
+
+    Symmetric to the OUTPUT case: if the role's required_port has
+    direction INPUT, an existing wire whose `target_port_name` matches
+    at a different Asset rejects the bind.
+    """
+    candidate_aid = uuid4()
+    wire_aid = uuid4()
+    fid = uuid4()
+    state = _plan(
+        asset_ids=frozenset({candidate_aid, wire_aid}),
+        wires=frozenset({_input_wire(target_asset_id=wire_aid, target_port="trigger_in")}),
+    )
+    method = _method(
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("detector"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="trigger_in",
+                                direction=PortDirection.INPUT,
+                                signal_type="TTL",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        )
+    )
+    asset = _device_asset(
+        asset_id=candidate_aid,
+        family_ids=frozenset({fid}),
+        ports=frozenset(
+            {AssetPort(name="trigger_in", direction=PortDirection.INPUT, signal_type="TTL")}
+        ),
+    )
+    with pytest.raises(PlanWireRoleEndpointMismatchError) as exc:
+        bind_plan_role.decide(
+            state=state,
+            command=BindPlanRole(
+                plan_id=state.id,
+                role_name=RoleName("detector"),
+                asset_id=candidate_aid,
+            ),
+            context=BindPlanRoleContext(method=method, asset=asset),
+            now=_NOW,
+        )
+    assert exc.value.endpoint_role == "target"
+    assert exc.value.expected_asset_id == candidate_aid
+    assert exc.value.actual_asset_id == wire_aid
+
+
+@pytest.mark.unit
+def test_unbind_rebind_to_different_asset_raises_role_endpoint_mismatch() -> None:
+    """Wires survive an unbind, so rebinding the role to a different Asset diverges.
+
+    The unbind_plan_role slice does NOT cascade-delete wires that
+    reference the unbound role's port. If the operator then rebinds
+    to a different Asset, the bind decider must catch the divergence.
+    """
+    original_aid = uuid4()
+    new_aid = uuid4()
+    fid = uuid4()
+    # Plan state AFTER unbind: role_bindings is empty, wires still
+    # reference the original_aid on `data_out`.
+    state = _plan(
+        asset_ids=frozenset({original_aid, new_aid}),
+        role_bindings=frozenset(),
+        wires=frozenset({_output_wire(source_asset_id=original_aid, source_port="data_out")}),
+    )
+    method = _method(
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("detector"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="data_out",
+                                direction=PortDirection.OUTPUT,
+                                signal_type="frame",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        )
+    )
+    new_asset = _device_asset(
+        asset_id=new_aid,
+        family_ids=frozenset({fid}),
+        ports=frozenset(
+            {AssetPort(name="data_out", direction=PortDirection.OUTPUT, signal_type="frame")}
+        ),
+    )
+    with pytest.raises(PlanWireRoleEndpointMismatchError) as exc:
+        bind_plan_role.decide(
+            state=state,
+            command=BindPlanRole(
+                plan_id=state.id,
+                role_name=RoleName("detector"),
+                asset_id=new_aid,
+            ),
+            context=BindPlanRoleContext(method=method, asset=new_asset),
+            now=_NOW,
+        )
+    assert exc.value.endpoint_role == "source"
+    assert exc.value.actual_asset_id == original_aid
+
+
+@pytest.mark.unit
+def test_wire_at_correct_asset_passes_bind_role_endpoint_check() -> None:
+    """A pre-installed wire whose endpoint matches the candidate Asset is fine.
+
+    The role-endpoint check only fires when the wire endpoint is at a
+    DIFFERENT Asset; same-Asset wires are the supported bind-after-wire
+    ordering that the slice should not block.
+    """
+    candidate_aid = uuid4()
+    fid = uuid4()
+    state = _plan(
+        asset_ids=frozenset({candidate_aid, uuid4()}),
+        wires=frozenset({_output_wire(source_asset_id=candidate_aid, source_port="data_out")}),
+    )
+    method = _method(
+        required_roles=frozenset(
+            {
+                RoleRequirement(
+                    role_name=RoleName("detector"),
+                    family_id=fid,
+                    required_ports=frozenset(
+                        {
+                            PortRequirement(
+                                port_name="data_out",
+                                direction=PortDirection.OUTPUT,
+                                signal_type="frame",
+                            ),
+                        }
+                    ),
+                ),
+            }
+        )
+    )
+    asset = _device_asset(
+        asset_id=candidate_aid,
+        family_ids=frozenset({fid}),
+        ports=frozenset(
+            {AssetPort(name="data_out", direction=PortDirection.OUTPUT, signal_type="frame")}
+        ),
+    )
+    events = bind_plan_role.decide(
+        state=state,
+        command=BindPlanRole(
+            plan_id=state.id,
+            role_name=RoleName("detector"),
+            asset_id=candidate_aid,
+        ),
+        context=BindPlanRoleContext(method=method, asset=asset),
+        now=_NOW,
+    )
+    assert len(events) == 1
+    assert isinstance(events[0], PlanRoleBound)
 
 
 # unused warning suppression

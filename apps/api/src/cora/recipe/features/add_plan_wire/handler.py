@@ -189,9 +189,9 @@ def bind(deps: Kernel) -> Handler:
                 f.id for f in loaded if f is not None and f.name == _PSEUDOAXIS_FAMILY_NAME
             )
 
-        # Slice-2: also load the Plan's bound Method so the decider
-        # can run the role-endpoint check (structural closure between
-        # role_bindings and wires). When state.method_id is None
+        # Load the Plan's bound Method so the decider can run the
+        # role-endpoint check (structural closure between role_bindings
+        # and wires). When state.method_id is None
         # (legacy Plan) OR the Method stream is missing (eventual-
         # consistency reference; PlanDefined doesn't verify Method
         # existence at write time), the role check no-ops. This is

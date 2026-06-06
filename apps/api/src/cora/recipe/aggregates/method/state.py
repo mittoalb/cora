@@ -68,21 +68,21 @@ idempotency hash.
 
 ## Positional role tagging: required_roles
 
-Slice 1 of the positional role-tagging workstream lands the Method-
-side `required_roles: frozenset[RoleRequirement]` field plus the
-`RoleRequirement` + `PortRequirement` + `RoleName` VOs. The
-Function-aspect gap (IEC 81346 `=`) was the motivating audit
-finding: two Cameras in one Method (one DETECTOR, one
-SAMPLE_MONITOR) cannot be disambiguated by `needed_family_ids`
-alone, which is a `frozenset[UUID]` with set-membership semantics.
-Each `RoleRequirement` carries a Method-local role name, the Family
-the bound Asset must satisfy, a set of port requirements, and an
-optional flag. Plan-side role bindings + the
+The Method-side `required_roles: frozenset[RoleRequirement]` field
+plus the `RoleRequirement` + `PortRequirement` + `RoleName` VOs
+encode the positional role-tagging vocabulary. The Function-aspect
+gap (IEC 81346 `=`) was the motivating audit finding: two Cameras
+in one Method (one DETECTOR, one SAMPLE_MONITOR) cannot be
+disambiguated by `needed_family_ids` alone, which is a
+`frozenset[UUID]` with set-membership semantics. Each
+`RoleRequirement` carries a Method-local role name, the Family the
+bound Asset must satisfy, a set of port requirements, and an
+optional flag. Plan-side role bindings and the
 `PlanWireRoleEndpointMismatchError` invariant (which closes the
-role-table-vs-wire-graph divergence) land in slice 2. See
-[[project-method-required-roles-design]] for the full design lock
-and [[project-equipment-isa-gap-research]] for the Function-aspect
-gap context.
+role-table-vs-wire-graph divergence) live in the Plan aggregate.
+See [[project-method-required-roles-design]] for the full design
+lock and [[project-equipment-isa-gap-research]] for the
+Function-aspect gap context.
 """
 
 from dataclasses import dataclass, field
@@ -283,12 +283,12 @@ class MethodName:
 class InvalidRoleNameError(ValueError):
     """The supplied role_name is empty, whitespace-only, or too long.
 
-    Slice-1 of the positional role-tagging workstream. Role names are
+    Part of the positional role-tagging workstream. Role names are
     Method-local free strings (1-50 chars after trimming); uniqueness
     is enforced by the `add_method_required_role` decider, not by the
     VO. See [[project-method-required-roles-design]] for the design
-    lock and [[project-equipment-isa-gap-research]] for the Function-
-    aspect gap context.
+    lock and [[project-equipment-isa-gap-research]] for the
+    Function-aspect gap context.
     """
 
     def __init__(self, value: str) -> None:
@@ -324,7 +324,7 @@ class RoleName:
     Names roles within a single Method scope (for example, `"detector"`,
     `"sample_monitor"`, `"axis"`). Cross-Method consistency (operators
     using the same label for the same role across Methods) is a docs
-    concern, not a kernel invariant in slice 1. See
+    concern, not a kernel invariant. See
     [[project-method-required-roles-design]] §"Open questions resolved".
     """
 
@@ -342,13 +342,13 @@ class PortRequirement:
     questions resolved". `direction` reuses the closed `PortDirection`
     enum from Equipment BC's Asset aggregate so a port the Method
     requires is shape-comparable to the Asset.ports the Plan validates
-    against at slice 2.
+    against at bind-time.
 
     The VO itself trims and bounds-checks the strings; uniqueness of
     `port_name` within a single role's `required_ports` is structural
     (frozenset semantics: identical (port_name, direction, signal_type)
     tuples collapse). Cross-aggregate validation (the bound Asset has
-    matching ports) lands in slice 2's Plan decider.
+    matching ports) lives in the Plan decider.
     """
 
     port_name: str
@@ -382,21 +382,21 @@ class RoleRequirement:
 
     `role_name` is the Method-local label (`RoleName` VO).
     `family_id` is the Family the Asset bound to this role must
-    satisfy (`Asset.family_ids` superset check at slice 2's Plan
-    decider; eventual-consistency on the family stream's existence,
-    same precedent as `Method.needed_family_ids`).
+    satisfy (`Asset.family_ids` superset check at the Plan decider;
+    eventual-consistency on the family stream's existence, same
+    precedent as `Method.needed_family_ids`).
 
     `required_ports` is the set of ports the bound Asset must expose
     for this role; empty means "pure Asset-binding role, no port
-    contract." Non-empty means slice 2's
-    `PlanWireRoleEndpointMismatchError` invariant will require any Wire
+    contract." Non-empty means the
+    `PlanWireRoleEndpointMismatchError` invariant requires any Wire
     whose endpoint port is named here to terminate at the Asset bound
     to THIS role (closes the role-table-vs-wire-graph divergence the
     2026-06-06 critique surfaced).
 
     `optional` is False by default; a True role may be omitted from a
     Plan's role_bindings without triggering Plan-side
-    `PlanRoleNotBoundError` (slice 2).
+    `PlanRoleNotBoundError`.
 
     Uniqueness of `role_name` within a single Method's `required_roles`
     is enforced by the `add_method_required_role` decider, not by the
@@ -565,9 +565,9 @@ class Method:
     # Method-local role_name + the Family the bound Asset must satisfy
     # + a set of port requirements + an optional flag. Defaults empty
     # so legacy MethodDefined-only streams fold cleanly via the
-    # additive-state pattern. Plan-side role bindings (slice 2) will
-    # enforce 1-1 binding per non-optional role + port-coverage; this
-    # slice (1) only ships the Method-side declaration vocabulary.
+    # additive-state pattern. Plan-side role bindings enforce
+    # 1-1 binding per non-optional role + port-coverage; the Method
+    # aggregate only owns the declaration vocabulary.
     # Identity within the set is structural (frozenset of
     # RoleRequirement); role_name uniqueness is enforced at the
     # decider (add_method_required_role rejects duplicates). See
