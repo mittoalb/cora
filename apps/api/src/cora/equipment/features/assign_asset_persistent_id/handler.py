@@ -33,10 +33,10 @@ from cora.equipment._asset_update_handler import make_asset_update_handler
 from cora.equipment.aggregates.asset import (
     Asset,
     AssetEvent,
-    PersistentIdentifier,
 )
 from cora.equipment.features.assign_asset_persistent_id.command import AssignAssetPersistentId
 from cora.equipment.features.assign_asset_persistent_id.decider import decide
+from cora.infrastructure.identifier import PersistentIdentifier
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 

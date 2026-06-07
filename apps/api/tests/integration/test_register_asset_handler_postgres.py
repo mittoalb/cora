@@ -23,8 +23,6 @@ import pytest
 
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetLevel,
     AssetLifecycle,
     AssetName,
@@ -39,6 +37,10 @@ from cora.equipment.features import define_family, define_model, register_asset
 from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.define_model import DefineModel
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 

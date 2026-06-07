@@ -40,9 +40,6 @@ from cora.equipment.aggregates.asset import (
     AssetPersistentIdAlreadyAssignedError,
     AssetPersistentIdAssigned,
     AssetPersistentIdAssignmentForbiddenError,
-    InvalidPersistentIdentifierValueError,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.ports.doi_minter import (
@@ -59,10 +56,7 @@ __all__ = [
     "AssetPersistentIdAssignmentForbiddenError",
     "DoiMinter",
     "EquipmentHandlers",
-    "InvalidPersistentIdentifierValueError",
-    "PersistentIdentifier",
     "PersistentIdentifierMintError",
-    "PersistentIdentifierScheme",
     "UnauthorizedError",
     "register_equipment_projections",
     "register_equipment_routes",

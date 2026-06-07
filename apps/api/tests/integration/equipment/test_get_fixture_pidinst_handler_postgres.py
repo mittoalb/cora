@@ -37,7 +37,6 @@ from cora.equipment.aggregates.asset import (
     AssetOwnerIdentifier,
     AssetOwnerIdentifierType,
     AssetOwnerName,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.aggregates.fixture import SlotAssetBinding
 from cora.equipment.aggregates.model import (
@@ -66,6 +65,9 @@ from cora.equipment.features.define_model import DefineModel
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_fixture import RegisterFixture
 from cora.infrastructure.config import Settings
+from cora.infrastructure.identifier import (
+    PersistentIdentifierScheme,
+)
 from cora.infrastructure.kernel import Kernel
 from tests.integration._equipment_helpers import (
     drain_equipment_projections,

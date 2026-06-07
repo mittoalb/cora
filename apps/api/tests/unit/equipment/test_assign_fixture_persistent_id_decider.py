@@ -5,10 +5,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.equipment.aggregates.asset import (
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
-)
 from cora.equipment.aggregates.fixture import (
     Fixture,
     FixtureNotFoundError,
@@ -19,6 +15,10 @@ from cora.equipment.aggregates.fixture import (
 from cora.equipment.features import assign_fixture_persistent_id
 from cora.equipment.features.assign_fixture_persistent_id.command import (
     AssignFixturePersistentId,
+)
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(60, method="thread")]

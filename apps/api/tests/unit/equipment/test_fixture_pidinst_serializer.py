@@ -28,8 +28,6 @@ from cora.equipment.aggregates.asset import (
     AssetOwnerIdentifier,
     AssetOwnerIdentifierType,
     AssetOwnerName,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.aggregates.model import ManufacturerIdentifierType
 from cora.equipment.errors import (
@@ -38,6 +36,10 @@ from cora.equipment.errors import (
     FixtureNameMissingError,
     FixtureOwnerStateNotAvailableError,
     PidinstRecordInvariantError,
+)
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(60, method="thread")]

@@ -25,11 +25,13 @@ from cora.equipment._pidinst_types import (
     SchemaVersion,
 )
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetLifecycle,
 )
 from cora.equipment.aggregates.model import ManufacturerIdentifierType
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from tests.unit.equipment._helpers import (
     build_minimal_view,
     build_view_2bm_rotary_stage,

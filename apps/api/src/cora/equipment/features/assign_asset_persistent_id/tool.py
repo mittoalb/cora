@@ -7,9 +7,9 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
-from cora.equipment.aggregates.asset import PersistentIdentifierScheme
 from cora.equipment.features.assign_asset_persistent_id.command import AssignAssetPersistentId
 from cora.equipment.features.assign_asset_persistent_id.handler import Handler
+from cora.infrastructure.identifier import PersistentIdentifierScheme
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id

@@ -18,7 +18,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.equipment.aggregates.asset import PersistentIdentifier, PersistentIdentifierScheme
 from cora.equipment.aggregates.asset.events import (
     AssetPersistentIdAssigned,
     AssetRegistered,
@@ -63,6 +62,7 @@ from cora.equipment.features.get_fixture_pidinst._view_assembler import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identifier import PersistentIdentifier, PersistentIdentifierScheme
 from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps as _build_deps_shared
 

@@ -76,7 +76,6 @@ from cora.equipment._pidinst_types import (
     RelatedIdentifier,
     SchemaVersion,
 )
-from cora.equipment.aggregates.asset import PersistentIdentifierScheme
 from cora.equipment.errors import (
     AssetNameMissingError,
     FixtureLandingPageMissingError,
@@ -87,6 +86,7 @@ from cora.equipment.errors import (
     ManufacturerStateNotAvailableError,
     OwnerStateNotAvailableError,
 )
+from cora.infrastructure.identifier import PersistentIdentifierScheme
 
 _URN_UUID_PREFIX = "urn:uuid:"
 _FAMILY_URN_PREFIX = "urn:cora:family:"

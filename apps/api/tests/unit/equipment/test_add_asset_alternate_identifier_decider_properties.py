@@ -19,9 +19,6 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cora.equipment.aggregates.asset import (
-    ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetAlternateIdentifierAdded,
     AssetAlternateIdentifierAlreadyPresentError,
@@ -34,6 +31,11 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.features import add_asset_alternate_identifier
 from cora.equipment.features.add_asset_alternate_identifier import (
     AddAssetAlternateIdentifier,
+)
+from cora.infrastructure.identifier import (
+    ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
+    AlternateIdentifier,
+    AlternateIdentifierKind,
 )
 
 if TYPE_CHECKING:

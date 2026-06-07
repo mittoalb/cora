@@ -27,7 +27,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from cora.equipment.aggregates.asset import (
+from cora.infrastructure.identifier import (
     PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
     InvalidPersistentIdentifierValueError,
     PersistentIdentifier,

@@ -11,7 +11,7 @@ guard).
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.equipment.aggregates.asset import AlternateIdentifier
+from cora.infrastructure.identifier import AlternateIdentifier
 
 
 @dataclass(frozen=True)

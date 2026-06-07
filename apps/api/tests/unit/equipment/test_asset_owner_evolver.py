@@ -7,8 +7,6 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetActivated,
     AssetAlternateIdentifierAdded,
@@ -35,6 +33,10 @@ from cora.equipment.aggregates.asset import (
     AssetRestored,
     AssetSettingsUpdated,
     evolve,
+)
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
 )
 from cora.infrastructure.identity import ActorId
 

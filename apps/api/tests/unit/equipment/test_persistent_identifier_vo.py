@@ -4,13 +4,11 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from cora.equipment.aggregates.asset import (
+from cora.infrastructure.identifier import (
+    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
     InvalidPersistentIdentifierValueError,
     PersistentIdentifier,
     PersistentIdentifierScheme,
-)
-from cora.equipment.aggregates.asset.state import (
-    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
 )
 
 pytestmark = pytest.mark.timeout(60, method="thread")

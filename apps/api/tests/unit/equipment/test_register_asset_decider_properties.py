@@ -29,14 +29,16 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from cora.equipment.aggregates.asset import (
-    ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetLevel,
     AssetRegistered,
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identifier import (
+    ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from cora.infrastructure.identity import ActorId
 from tests._strategies import aware_datetimes, printable_ascii_text
 

@@ -26,7 +26,6 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from cora.equipment.aggregates.asset import (
-    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
     Asset,
     AssetLevel,
     AssetLifecycle,
@@ -35,11 +34,14 @@ from cora.equipment.aggregates.asset import (
     AssetPersistentIdAlreadyAssignedError,
     AssetPersistentIdAssigned,
     AssetPersistentIdAssignmentForbiddenError,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.features import assign_asset_persistent_id
 from cora.equipment.features.assign_asset_persistent_id.command import AssignAssetPersistentId
+from cora.infrastructure.identifier import (
+    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID

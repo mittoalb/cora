@@ -6,8 +6,6 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetAlternateIdentifierAdded,
     AssetAlternateIdentifierAlreadyPresentError,
@@ -16,11 +14,15 @@ from cora.equipment.aggregates.asset import (
     AssetLifecycle,
     AssetName,
     AssetNotFoundError,
-    InvalidAlternateIdentifierValueError,
 )
 from cora.equipment.features import add_asset_alternate_identifier
 from cora.equipment.features.add_asset_alternate_identifier import (
     AddAssetAlternateIdentifier,
+)
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+    InvalidAlternateIdentifierValueError,
 )
 
 _NOW = datetime(2026, 6, 2, 12, 0, 0, tzinfo=UTC)

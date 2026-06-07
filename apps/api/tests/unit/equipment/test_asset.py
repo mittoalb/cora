@@ -5,8 +5,6 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetAlternateIdentifierAlreadyPresentError,
     AssetAlternateIdentifierNotPresentError,
@@ -14,8 +12,12 @@ from cora.equipment.aggregates.asset import (
     AssetLifecycle,
     AssetModelMismatchError,
     AssetName,
-    InvalidAlternateIdentifierValueError,
     InvalidAssetNameError,
+)
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+    InvalidAlternateIdentifierValueError,
 )
 
 # ---------- AssetName VO ----------

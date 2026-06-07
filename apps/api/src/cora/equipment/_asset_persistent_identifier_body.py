@@ -19,7 +19,7 @@ Mirrors the placement of `_asset_owner_body` and
 
 from pydantic import BaseModel, Field
 
-from cora.equipment.aggregates.asset import (
+from cora.infrastructure.identifier import (
     PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
     PersistentIdentifierScheme,
 )

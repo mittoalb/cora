@@ -17,8 +17,6 @@ import pytest
 
 from cora.equipment import EquipmentHandlers, UnauthorizedError, wire_equipment
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetAlternateIdentifierNotPresentError,
     AssetCannotAddAlternateIdentifierError,
     AssetLevel,
@@ -38,6 +36,10 @@ from cora.equipment.features.remove_asset_alternate_identifier import (
     RemoveAssetAlternateIdentifier,
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 

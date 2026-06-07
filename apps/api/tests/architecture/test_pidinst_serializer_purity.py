@@ -26,7 +26,6 @@ from cora.equipment._pidinst_types import (
     PidinstRecord,
     SchemaVersion,
 )
-from cora.equipment.aggregates.asset import AlternateIdentifierKind
 from cora.equipment.errors import (
     AssetNameMissingError,
     LandingPageMissingError,
@@ -34,6 +33,7 @@ from cora.equipment.errors import (
     OwnerStateNotAvailableError,
     PidinstRecordInvariantError,
 )
+from cora.infrastructure.identifier import AlternateIdentifierKind
 from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 
 pytestmark = [pytest.mark.architecture]

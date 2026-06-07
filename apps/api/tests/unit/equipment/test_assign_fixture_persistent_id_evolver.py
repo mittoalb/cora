@@ -10,10 +10,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from cora.equipment.aggregates.asset import (
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
-)
 from cora.equipment.aggregates.fixture import (
     Fixture,
     FixtureNotFoundError,
@@ -22,6 +18,10 @@ from cora.equipment.aggregates.fixture import (
     SlotAssetBinding,
     evolve,
     fold,
+)
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 from cora.infrastructure.identity import ActorId
 

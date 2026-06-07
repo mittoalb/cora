@@ -6,8 +6,6 @@ from uuid import uuid4
 import pytest
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetAlternateIdentifierNotPresentError,
     AssetAlternateIdentifierRemoved,
@@ -20,6 +18,10 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.features import remove_asset_alternate_identifier
 from cora.equipment.features.remove_asset_alternate_identifier import (
     RemoveAssetAlternateIdentifier,
+)
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
 )
 
 _NOW = datetime(2026, 6, 2, 12, 0, 0, tzinfo=UTC)

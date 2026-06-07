@@ -23,12 +23,12 @@ from cora.equipment._pidinst_types import (
     ModelPidinstView,
     Owner,
 )
-from cora.equipment.aggregates.asset import (
+from cora.equipment.aggregates.asset import AssetLifecycle
+from cora.equipment.aggregates.model import ManufacturerIdentifierType
+from cora.infrastructure.identifier import (
     AlternateIdentifier,
     AlternateIdentifierKind,
-    AssetLifecycle,
 )
-from cora.equipment.aggregates.model import ManufacturerIdentifierType
 
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000b001")
 _MODEL_ID = UUID("01900000-0000-7000-8000-00000000b002")

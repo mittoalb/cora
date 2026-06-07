@@ -11,8 +11,6 @@ import pytest
 
 from cora.equipment.aggregates._drawing import Drawing, DrawingSystem
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     Asset,
     AssetAlreadyExistsError,
     AssetLevel,
@@ -29,6 +27,10 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from cora.infrastructure.identity import ActorId
 
 _TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))

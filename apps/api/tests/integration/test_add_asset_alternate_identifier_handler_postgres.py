@@ -12,8 +12,6 @@ import asyncpg
 import pytest
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetCannotAddAlternateIdentifierError,
     AssetLevel,
     load_asset,
@@ -28,6 +26,10 @@ from cora.equipment.features.add_asset_alternate_identifier import (
 )
 from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+)
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 6, 2, 12, 0, 0, tzinfo=UTC)

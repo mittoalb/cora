@@ -26,7 +26,6 @@ from cora.equipment.aggregates.fixture.state import (
     FixtureNotFoundError,
     FixturePersistentIdAlreadyAssignedError,
     MalformedFixturePersistentIdentifierError,
-    PersistentIdentifier,
     SlotAssetBinding,
 )
 
@@ -39,7 +38,6 @@ __all__ = [
     "FixturePersistentIdAssigned",
     "FixtureRegistered",
     "MalformedFixturePersistentIdentifierError",
-    "PersistentIdentifier",
     "SlotAssetBinding",
     "event_type_name",
     "evolve",

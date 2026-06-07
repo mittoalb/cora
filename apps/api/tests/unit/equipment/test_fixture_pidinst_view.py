@@ -18,13 +18,13 @@ from cora.equipment._pidinst_types import (
     FixturePidinstView,
     Manufacturer,
 )
-from cora.equipment.aggregates.asset import (
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
-)
 from cora.equipment.aggregates.asset.state import (
     AssetOwner,
     AssetOwnerName,
+)
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(60, method="thread")]

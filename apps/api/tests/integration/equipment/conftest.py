@@ -20,11 +20,11 @@ Currently exposes:
 
 import pytest
 
-from cora.equipment.aggregates.asset import (
+from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
+from cora.infrastructure.identifier import (
     PersistentIdentifier,
     PersistentIdentifierScheme,
 )
-from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
 
 pytestmark = pytest.mark.timeout(60, method="thread")
 

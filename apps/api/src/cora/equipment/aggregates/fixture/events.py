@@ -25,12 +25,12 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.equipment.aggregates.asset import PersistentIdentifierScheme
 from cora.equipment.aggregates.fixture.state import (
     MalformedFixturePersistentIdentifierError,
     SlotAssetBinding,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identifier import PersistentIdentifierScheme
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 

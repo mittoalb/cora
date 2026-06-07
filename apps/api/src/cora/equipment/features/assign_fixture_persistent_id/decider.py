@@ -30,7 +30,6 @@ fitness).
 
 from datetime import datetime
 
-from cora.equipment.aggregates.asset import PersistentIdentifier
 from cora.equipment.aggregates.fixture import (
     Fixture,
     FixtureNotFoundError,
@@ -40,6 +39,7 @@ from cora.equipment.aggregates.fixture import (
 from cora.equipment.features.assign_fixture_persistent_id.command import (
     AssignFixturePersistentId,
 )
+from cora.infrastructure.identifier import PersistentIdentifier
 
 
 def decide(

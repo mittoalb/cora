@@ -88,15 +88,18 @@ from uuid import UUID
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._partition_rule import PartitionRule
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+    PersistentIdentifier,
+)
 from cora.infrastructure.identity import ActorId
 
 ASSET_NAME_MAX_LENGTH = 200
-ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH = 200
 ASSET_OWNER_NAME_MAX_LENGTH = 255
 ASSET_OWNER_CONTACT_MAX_LENGTH = 255
 ASSET_OWNER_IDENTIFIER_MAX_LENGTH = 255
 ASSET_OWNER_IDENTIFIER_TYPE_MAX_LENGTH = 64
-PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH = 200
 
 
 class AssetLevel(StrEnum):
@@ -221,83 +224,6 @@ class AssetPort:
         # use object.__setattr__ to install trimmed values.
         object.__setattr__(self, "name", trimmed_name)
         object.__setattr__(self, "signal_type", trimmed_signal)
-
-
-class AlternateIdentifierKind(StrEnum):
-    """Closed vocabulary for an Asset's alternate-identifier kind.
-
-    Values are verbatim from PIDINST v1.0 spec page 8 (Table 1)
-    Property 13 `alternateIdentifierType` controlled vocabulary:
-    SerialNumber, InventoryNumber, Other. Operationally:
-
-      - `SerialNumber` is the manufacturer's per-unit identifier
-        (the value engraved on the chassis or printed on the QR
-        sticker; for example, an Aerotech ANT130-L's `12345-ABC`).
-      - `InventoryNumber` is the facility-issued asset tag (for
-        example, an APS-issued `APS-2BM-CAM-001`).
-      - `Other` is the catch-all for vendor-specific or
-        unconventional identifier schemes that don't fit the prior
-        two; resolution is operator-supplied free text in the
-        `value` field.
-
-    Adding a fourth member is an additive enum change at a future
-    migration boundary. The closed-enum stance mirrors
-    `ManufacturerIdentifierType` (Model BC) and the broader
-    [[project-family-affordance-design]] closed-vocabulary
-    precedent. See [[project-asset-alternate-identifiers-design]]
-    Lock B for the design rationale.
-    """
-
-    SERIAL_NUMBER = "SerialNumber"
-    INVENTORY_NUMBER = "InventoryNumber"
-    OTHER = "Other"
-
-
-class InvalidAlternateIdentifierValueError(ValueError):
-    """The supplied alternate-identifier value is empty, whitespace-only, or too long."""
-
-    def __init__(self, value: str) -> None:
-        super().__init__(
-            f"Alternate identifier value must be 1-{ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH} "
-            f"chars after trimming (got: {value!r})"
-        )
-        self.value = value
-
-
-@dataclass(frozen=True)
-class AlternateIdentifier:
-    """A flat (kind, value) tuple identifying an Asset under an alternate scheme.
-
-    Deviation from Identifier VO: pre-committed to gain PIDINST 13.2
-    alternateIdentifierName as a third field.
-
-    PIDINST v1.0 Property 13: instance-tier alternate identifiers
-    distinct from the PID-tier persistent identifier. Examples:
-
-      - `(SerialNumber, "12345-ABC")` for a manufacturer's serial
-      - `(InventoryNumber, "APS-2BM-CAM-001")` for a facility asset tag
-      - `(Other, "RIC-99")` for a legacy or vendor-specific scheme
-
-    `value` is trimmed and length-bounded 1-200 chars via the shared
-    `validate_bounded_text` helper, matching the
-    `ManufacturerIdentifier` precedent in the Model BC. The VO is
-    FLAT (kind + value); no scheme URIs, namespaces, or labels per
-    [[project-asset-alternate-identifiers-design]] Lock C. Pairing
-    uniqueness across Assets is NOT enforced in v1 (Lock F).
-    """
-
-    kind: AlternateIdentifierKind
-    value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH,
-            error_class=InvalidAlternateIdentifierValueError,
-        )
-        # Frozen dataclasses block normal assignment in __post_init__;
-        # use object.__setattr__ to install the trimmed value.
-        object.__setattr__(self, "value", trimmed)
 
 
 class AssetAlternateIdentifierAlreadyPresentError(Exception):
@@ -621,79 +547,6 @@ class AssetCannotAddOwnerError(Exception):
         self.reason = reason
 
 
-class PersistentIdentifierScheme(StrEnum):
-    """Closed PIDINST v1.0 Property 1 identifier-type vocabulary (subset).
-
-    Values match `PidinstIdentifierType.DOI.value` and
-    `PidinstIdentifierType.HANDLE.value` byte-for-byte so the
-    serializer swap (URN to DOI / Handle) does not need a translation
-    map. URN and URL members of `PidinstIdentifierType` are
-    intentionally NOT mirrored here: `Asset.persistent_id` is an
-    assigned-by-operator persistent identifier, not a runtime fallback
-    or a content URL.
-
-    Adding a fourth member (for example ARK or PURL) is an additive
-    enum change at a future migration boundary, gated on operator
-    demand. The closed-enum stance mirrors `AlternateIdentifierKind`
-    and `ManufacturerIdentifierType`.
-    """
-
-    DOI = "DOI"
-    HANDLE = "Handle"
-
-
-class InvalidPersistentIdentifierValueError(ValueError):
-    """The supplied persistent_id value is empty, whitespace-only, or too long."""
-
-    def __init__(self, value: str) -> None:
-        super().__init__(
-            f"Persistent identifier value must be "
-            f"1-{PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH} chars after trimming "
-            f"(got: {value!r})"
-        )
-        self.value = value
-
-
-@dataclass(frozen=True)
-class PersistentIdentifier:
-    """PIDINST v1.0 Property 1: the persistent identifier of the instrument.
-
-    Deviation from Identifier VO: closed-enum scheme {DOI, HANDLE} +
-    PIDINST property 1 single-primary semantic.
-
-    Tuple `(scheme, value)` where `scheme` is a closed
-    `PersistentIdentifierScheme` member and `value` is the operator-
-    supplied opaque string identifying the Asset under that scheme.
-
-    Examples:
-      - `(DOI, "10.5281/zenodo.1234567")` for a Zenodo-minted DOI
-      - `(DOI, "10.13139/OLCF/1234")` for an OLCF-minted DOI
-      - `(HANDLE, "20.500.12613/12345")` for a Handle.net record
-
-    `value` is trimmed and length-bounded 1-200 chars via the shared
-    `validate_bounded_text` helper, matching the
-    `AlternateIdentifier.value` precedent. The VO is FLAT (scheme +
-    value); no resolver URLs, no prefix / suffix split. Pairing
-    enforcement is implicit: scheme is a non-None enum member by
-    construction, value is non-empty by `validate_bounded_text`.
-
-    Set-once invariant lives at the aggregate level (the decider), not
-    on the VO: a `PersistentIdentifier` instance is always valid
-    standalone; the Asset's state enforces that only one ever lands.
-    """
-
-    scheme: PersistentIdentifierScheme
-    value: str
-
-    def __post_init__(self) -> None:
-        trimmed = validate_bounded_text(
-            self.value,
-            max_length=PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
-            error_class=InvalidPersistentIdentifierValueError,
-        )
-        object.__setattr__(self, "value", trimmed)
-
-
 class AssetPersistentIdAlreadyAssignedError(Exception):
     """Attempted to assign a persistent_id to an Asset that already carries one.
 
@@ -748,18 +601,6 @@ class AssetPersistentIdAssignmentForbiddenError(Exception):
         self.asset_id = asset_id
         self.attempted = attempted
         self.reason = reason
-
-
-class MalformedPersistentIdentifierError(Exception):
-    """A stored AssetPersistentIdAssigned payload failed deserialization.
-
-    Wraps any underlying `ValueError` raised by
-    `PersistentIdentifierScheme(...)` or `PersistentIdentifier(...)` at
-    `from_stored` time, per the [[project-from-stored-wrap-convention]]
-    precedent (mirrors `Malformed*` siblings in other BCs). The
-    evolver itself never raises; it trusts that `from_stored` already
-    wrapped any malformed payload as this error class.
-    """
 
 
 class AssetCondition(StrEnum):

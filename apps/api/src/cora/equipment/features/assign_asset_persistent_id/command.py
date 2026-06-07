@@ -12,7 +12,7 @@ decider.
 from dataclasses import dataclass
 from uuid import UUID
 
-from cora.equipment.aggregates.asset import PersistentIdentifierScheme
+from cora.infrastructure.identifier import PersistentIdentifierScheme
 
 
 @dataclass(frozen=True)

@@ -88,7 +88,6 @@ from cora.equipment.aggregates.asset import (
     AssetOwnerNotPresentError,
     AssetPersistentIdAlreadyAssignedError,
     AssetPersistentIdAssignmentForbiddenError,
-    InvalidAlternateIdentifierValueError,
     InvalidAssetNameError,
     InvalidAssetOwnerContactError,
     InvalidAssetOwnerIdentifierError,
@@ -99,8 +98,6 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetPortNameError,
     InvalidAssetPortSignalTypeError,
     InvalidAssetSettingsError,
-    InvalidPersistentIdentifierValueError,
-    MalformedPersistentIdentifierError,
 )
 from cora.equipment.aggregates.family import (
     FamilyAlreadyExistsError,
@@ -232,6 +229,11 @@ from cora.equipment.features import (
     version_model,
 )
 from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
+from cora.infrastructure.identifier import (
+    InvalidAlternateIdentifierValueError,
+    InvalidPersistentIdentifierValueError,
+    MalformedPersistentIdentifierError,
+)
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:

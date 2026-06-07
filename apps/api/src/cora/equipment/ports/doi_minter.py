@@ -32,7 +32,7 @@ maps it to 502.
 
 from typing import Protocol
 
-from cora.equipment.aggregates.asset import (
+from cora.infrastructure.identifier import (
     PersistentIdentifier,
     PersistentIdentifierScheme,
 )

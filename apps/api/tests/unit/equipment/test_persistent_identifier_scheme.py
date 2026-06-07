@@ -12,7 +12,7 @@ from enum import StrEnum
 import pytest
 
 from cora.equipment._pidinst_types import PidinstIdentifierType
-from cora.equipment.aggregates.asset import PersistentIdentifierScheme
+from cora.infrastructure.identifier import PersistentIdentifierScheme
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(60, method="thread")]
 

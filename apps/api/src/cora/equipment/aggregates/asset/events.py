@@ -67,17 +67,19 @@ from cora.equipment.aggregates._partition_rule import (
     partition_rule_to_payload,
 )
 from cora.equipment.aggregates.asset.state import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetOwner,
     AssetOwnerContact,
     AssetOwnerIdentifier,
     AssetOwnerIdentifierType,
     AssetOwnerName,
+)
+from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
     MalformedPersistentIdentifierError,
     PersistentIdentifierScheme,
 )
-from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 

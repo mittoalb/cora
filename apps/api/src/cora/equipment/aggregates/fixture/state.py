@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from cora.equipment.aggregates.asset import PersistentIdentifier
+from cora.infrastructure.identifier import PersistentIdentifier
 from cora.infrastructure.identity import ActorId
 
 

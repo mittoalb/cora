@@ -10,10 +10,6 @@ from collections.abc import Sequence
 from dataclasses import replace
 from typing import assert_never
 
-from cora.equipment.aggregates.asset import (
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
-)
 from cora.equipment.aggregates.fixture.events import (
     FixtureEvent,
     FixturePersistentIdAssigned,
@@ -23,6 +19,10 @@ from cora.equipment.aggregates.fixture.state import (
     Fixture,
     FixtureAlreadyExistsError,
     FixtureNotFoundError,
+)
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 
 

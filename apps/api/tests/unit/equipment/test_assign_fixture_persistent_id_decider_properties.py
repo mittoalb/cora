@@ -29,11 +29,6 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from cora.equipment.aggregates.asset import (
-    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
-)
 from cora.equipment.aggregates.fixture import (
     Fixture,
     FixturePersistentIdAlreadyAssignedError,
@@ -42,6 +37,11 @@ from cora.equipment.aggregates.fixture import (
 from cora.equipment.features import assign_fixture_persistent_id
 from cora.equipment.features.assign_fixture_persistent_id.command import (
     AssignFixturePersistentId,
+)
+from cora.infrastructure.identifier import (
+    PERSISTENT_IDENTIFIER_VALUE_MAX_LENGTH,
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
 )
 
 if TYPE_CHECKING:

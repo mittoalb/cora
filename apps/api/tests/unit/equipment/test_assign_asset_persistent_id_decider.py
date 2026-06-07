@@ -14,11 +14,13 @@ from cora.equipment.aggregates.asset import (
     AssetPersistentIdAlreadyAssignedError,
     AssetPersistentIdAssigned,
     AssetPersistentIdAssignmentForbiddenError,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.features import assign_asset_persistent_id
 from cora.equipment.features.assign_asset_persistent_id.command import AssignAssetPersistentId
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.timeout(60, method="thread")]
 

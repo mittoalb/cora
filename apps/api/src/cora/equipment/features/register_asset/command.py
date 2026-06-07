@@ -47,10 +47,10 @@ from uuid import UUID
 
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
     AssetLevel,
     AssetOwner,
 )
+from cora.infrastructure.identifier import AlternateIdentifier
 
 
 @dataclass(frozen=True)

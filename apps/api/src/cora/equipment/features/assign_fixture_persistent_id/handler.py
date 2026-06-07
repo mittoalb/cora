@@ -38,7 +38,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Protocol, cast
 from uuid import UUID
 
-from cora.equipment.aggregates.asset import PersistentIdentifier
 from cora.equipment.aggregates.fixture import (
     Fixture,
     FixtureEvent,
@@ -52,6 +51,7 @@ from cora.equipment.features.assign_fixture_persistent_id.command import (
     AssignFixturePersistentId,
 )
 from cora.equipment.features.assign_fixture_persistent_id.decider import decide
+from cora.infrastructure.identifier import PersistentIdentifier
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.infrastructure.update_handler import make_update_handler

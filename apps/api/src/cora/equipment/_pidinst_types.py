@@ -44,15 +44,17 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import (
-    AlternateIdentifier,
-    AlternateIdentifierKind,
     AssetLifecycle,
     AssetOwner,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
 )
 from cora.equipment.aggregates.model import ManufacturerIdentifierType
 from cora.equipment.errors import PidinstRecordInvariantError
+from cora.infrastructure.identifier import (
+    AlternateIdentifier,
+    AlternateIdentifierKind,
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
+)
 
 
 class SchemaVersion(StrEnum):

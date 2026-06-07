@@ -117,11 +117,13 @@ from cora.equipment.aggregates.asset.state import (
     AssetLifecycle,
     AssetName,
     AssetPort,
-    PersistentIdentifier,
-    PersistentIdentifierScheme,
     PortDirection,
 )
 from cora.infrastructure.evolver import require_state
+from cora.infrastructure.identifier import (
+    PersistentIdentifier,
+    PersistentIdentifierScheme,
+)
 
 
 def evolve(state: Asset | None, event: AssetEvent) -> Asset:
