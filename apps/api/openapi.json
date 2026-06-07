@@ -1782,23 +1782,16 @@
         "type": "string"
       },
       "CalibrationResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives + the polymorphic-source wire shape. Decouples\nthe wire format from the domain model so the two can evolve\nindependently.\n\nPer Path C, `defined_at` / `last_revised_at` are projection-\nsourced (not aggregate state) and therefore nullable on the\nwire: the projection may transiently lag behind the event store,\nor the deps may lack a configured pool (in-memory test mode).\nMirrors the Method / Plan / Family read DTOs.",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives + the polymorphic-source wire shape. Decouples\nthe wire format from the domain model so the two can evolve\nindependently.\n\n`defined_at` is folded onto state per the fold-symmetry rule;\n`last_revised_at` remains projection-sourced and nullable on the\nwire (the projection may transiently lag behind the event store,\nor the deps may lack a configured pool in in-memory test mode).",
         "properties": {
           "defined_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Defined At"
+            "format": "date-time",
+            "title": "Defined At",
+            "type": "string"
           },
-          "defined_by_actor_id": {
+          "defined_by": {
             "format": "uuid",
-            "title": "Defined By Actor Id",
+            "title": "Defined By",
             "type": "string"
           },
           "description": {
@@ -1858,7 +1851,8 @@
           "operating_point",
           "description",
           "revisions",
-          "defined_by_actor_id"
+          "defined_at",
+          "defined_by"
         ],
         "title": "CalibrationResponse",
         "type": "object"
@@ -1885,9 +1879,9 @@
             "title": "Defined At",
             "type": "string"
           },
-          "defined_by_actor_id": {
+          "defined_by": {
             "format": "uuid",
-            "title": "Defined By Actor Id",
+            "title": "Defined By",
             "type": "string"
           },
           "description": {
@@ -1955,7 +1949,7 @@
           "operating_point",
           "defined_at",
           "last_revised_at",
-          "defined_by_actor_id",
+          "defined_by",
           "revision_count"
         ],
         "title": "CalibrationSummaryDTO",
@@ -2507,9 +2501,9 @@
       "CautionResponse": {
         "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`target` is rendered via the public `serialize_target` helper as\n`{kind, id}`.",
         "properties": {
-          "author_actor_id": {
+          "authored_by": {
             "format": "uuid",
-            "title": "Author Actor Id",
+            "title": "Authored By",
             "type": "string"
           },
           "category": {
@@ -2605,7 +2599,7 @@
           "severity",
           "text",
           "workaround",
-          "author_actor_id",
+          "authored_by",
           "tags",
           "expires_at",
           "propagate_to_children",
@@ -2647,9 +2641,9 @@
       "CautionSummaryDTO": {
         "description": "One caution in a paginated list.",
         "properties": {
-          "author_actor_id": {
+          "authored_by": {
             "format": "uuid",
-            "title": "Author Actor Id",
+            "title": "Authored By",
             "type": "string"
           },
           "category": {
@@ -2777,7 +2771,7 @@
           "severity",
           "text",
           "workaround",
-          "author_actor_id",
+          "authored_by",
           "status",
           "registered_at"
         ],
@@ -3117,7 +3111,7 @@
           "kind": {
             "$ref": "#/components/schemas/ClearanceKind"
           },
-          "last_reviewed_by_actor_id": {
+          "last_reviewed_by": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -3127,7 +3121,7 @@
                 "type": "null"
               }
             ],
-            "title": "Last Reviewed By Actor Id"
+            "title": "Last Reviewed By"
           },
           "last_status_changed_at": {
             "anyOf": [
@@ -3490,7 +3484,7 @@
         "type": "string"
       },
       "CredentialResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nMirrors the Credential aggregate state plus projection-sourced\nlifecycle timestamps. `secret_ref` / `public_material_ref` /\n`rotation_pending_*_ref` are OPAQUE pointers (URI / KMS ARN /\nvault path), never raw secret material.\n\nPer Path C, `registered_at` / `rotation_started_at` are\nprojection-sourced (not aggregate state) and therefore nullable\non the wire: the projection may transiently lag behind the event\nstore, or the deps may lack a configured pool (in-memory test\nmode). Mirrors the Calibration / Method / Plan read DTOs.",
+        "description": "Read-side DTO at the API boundary.\n\nMirrors the Credential aggregate state plus projection-sourced\nlifecycle timestamps. `secret_ref` / `public_material_ref` /\n`rotation_pending_*_ref` are OPAQUE pointers (URI / KMS ARN /\nvault path), never raw secret material.\n\n`registered_at` and `registered_by` are sourced from aggregate\nstate (folded from the genesis envelope per the fold-symmetry\nPath C reversal); `rotation_started_at` is projection-sourced\nand therefore nullable on the wire because the projection may\ntransiently lag behind the event store, or the deps may lack a\nconfigured pool (in-memory test mode). Mirrors the Calibration /\nMethod / Plan read DTOs.",
         "properties": {
           "audience": {
             "title": "Audience",
@@ -3532,20 +3526,13 @@
             "$ref": "#/components/schemas/CredentialPurpose"
           },
           "registered_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Registered At"
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
           },
-          "registered_by_actor_id": {
+          "registered_by": {
             "format": "uuid",
-            "title": "Registered By Actor Id",
+            "title": "Registered By",
             "type": "string"
           },
           "rotation_pending_public_material_ref": {
@@ -3598,7 +3585,8 @@
           "secret_ref",
           "public_material_ref",
           "expires_at",
-          "registered_by_actor_id",
+          "registered_by",
+          "registered_at",
           "rotation_pending_secret_ref",
           "rotation_pending_public_material_ref",
           "status"
@@ -3918,11 +3906,6 @@
       "DecisionResponse": {
         "description": "Read-side DTO at the API boundary.\n\n`confidence_band` is a derived field (Low / Medium / High /\nCertain) computed at read time from the stored `confidence`\nfloat. Never stored; one source of truth = the float.\nReturns null when confidence is null.",
         "properties": {
-          "actor_id": {
-            "format": "uuid",
-            "title": "Actor Id",
-            "type": "string"
-          },
           "alternatives": {
             "items": {
               "type": "string"
@@ -3971,6 +3954,11 @@
           "context": {
             "maxLength": 100,
             "title": "Context",
+            "type": "string"
+          },
+          "decided_by": {
+            "format": "uuid",
+            "title": "Decided By",
             "type": "string"
           },
           "id": {
@@ -4049,7 +4037,7 @@
         },
         "required": [
           "id",
-          "actor_id",
+          "decided_by",
           "context",
           "choice",
           "parent_id",
@@ -4069,11 +4057,6 @@
       "DecisionSummaryDTO": {
         "description": "One decision in a paginated list.",
         "properties": {
-          "actor_id": {
-            "format": "uuid",
-            "title": "Actor Id",
-            "type": "string"
-          },
           "choice": {
             "title": "Choice",
             "type": "string"
@@ -4111,6 +4094,11 @@
             "title": "Created At",
             "type": "string"
           },
+          "decided_by": {
+            "format": "uuid",
+            "title": "Decided By",
+            "type": "string"
+          },
           "decision_id": {
             "format": "uuid",
             "title": "Decision Id",
@@ -4142,7 +4130,7 @@
         },
         "required": [
           "decision_id",
-          "actor_id",
+          "decided_by",
           "rule",
           "parent_id",
           "confidence",
@@ -7202,9 +7190,9 @@
             "title": "Defined At",
             "type": "string"
           },
-          "defined_by_actor_id": {
+          "defined_by": {
             "format": "uuid",
-            "title": "Defined By Actor Id",
+            "title": "Defined By",
             "type": "string"
           },
           "direction": {
@@ -7293,7 +7281,7 @@
           "allowed_artifact_kinds",
           "abi_tier_floor",
           "expires_at",
-          "defined_by_actor_id",
+          "defined_by",
           "status",
           "terms",
           "defined_at"
@@ -7357,9 +7345,9 @@
             "title": "Defined At",
             "type": "string"
           },
-          "defined_by_actor_id": {
+          "defined_by": {
             "format": "uuid",
-            "title": "Defined By Actor Id",
+            "title": "Defined By",
             "type": "string"
           },
           "direction": {
@@ -7429,7 +7417,7 @@
           "direction",
           "abi_tier_floor",
           "expires_at",
-          "defined_by_actor_id",
+          "defined_by",
           "status",
           "terms_kind",
           "defined_at"
@@ -9716,12 +9704,6 @@
         "additionalProperties": false,
         "description": "Body for `POST /decisions`.",
         "properties": {
-          "actor_id": {
-            "description": "WHO made the decision. Existence-checked; 404 if the Actor doesn't exist. Decision can be made by any Actor including Deactivated (historical fact still holds).",
-            "format": "uuid",
-            "title": "Actor Id",
-            "type": "string"
-          },
           "alternatives": {
             "description": "Options considered (ORDER PRESERVED for AI top-k). For PolicyGrant context, carries the determining policy IDs (Cedar-style).",
             "items": {
@@ -9768,6 +9750,12 @@
             "maxLength": 100,
             "minLength": 1,
             "title": "Context",
+            "type": "string"
+          },
+          "decided_by": {
+            "description": "WHO made the decision (Actor.id). Existence-checked; 404 if the Actor doesn't exist. Decision can be made by any Actor including Deactivated (historical fact still holds).",
+            "format": "uuid",
+            "title": "Decided By",
             "type": "string"
           },
           "inputs": {
@@ -9858,7 +9846,7 @@
           }
         },
         "required": [
-          "actor_id",
+          "decided_by",
           "context",
           "choice"
         ],
@@ -10618,14 +10606,14 @@
       "ReviewStepResponse": {
         "description": "One step in the reviewer chain on the wire.",
         "properties": {
-          "actor_id": {
-            "format": "uuid",
-            "title": "Actor Id",
-            "type": "string"
-          },
           "decided_at": {
             "format": "date-time",
             "title": "Decided At",
+            "type": "string"
+          },
+          "decided_by": {
+            "format": "uuid",
+            "title": "Decided By",
             "type": "string"
           },
           "decision": {
@@ -10655,7 +10643,7 @@
         "required": [
           "step_index",
           "role",
-          "actor_id",
+          "decided_by",
           "decision",
           "decided_at"
         ],
@@ -10715,9 +10703,9 @@
             "title": "Established At",
             "type": "string"
           },
-          "established_by_actor_id": {
+          "established_by": {
             "format": "uuid",
-            "title": "Established By Actor Id",
+            "title": "Established By",
             "type": "string"
           },
           "revision_id": {
@@ -10775,7 +10763,7 @@
           "status",
           "source",
           "established_at",
-          "established_by_actor_id"
+          "established_by"
         ],
         "title": "RevisionResponse",
         "type": "object"
@@ -11292,20 +11280,13 @@
             "type": "string"
           },
           "initialized_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Initialized At"
+            "format": "date-time",
+            "title": "Initialized At",
+            "type": "string"
           },
-          "initialized_by_actor_id": {
+          "initialized_by": {
             "format": "uuid",
-            "title": "Initialized By Actor Id",
+            "title": "Initialized By",
             "type": "string"
           },
           "last_signed_at": {
@@ -11320,7 +11301,7 @@
             ],
             "title": "Last Signed At"
           },
-          "last_signed_by_actor_id": {
+          "last_signed_by": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -11330,7 +11311,7 @@
                 "type": "null"
               }
             ],
-            "title": "Last Signed By Actor Id"
+            "title": "Last Signed By"
           },
           "offline_credential_id": {
             "format": "uuid",
@@ -11352,7 +11333,8 @@
           "offline_credential_id",
           "current_head_hash",
           "current_sequence_number",
-          "initialized_by_actor_id",
+          "initialized_by",
+          "initialized_at",
           "status"
         ],
         "title": "SealResponse",
@@ -11394,9 +11376,9 @@
             "title": "Initialized At",
             "type": "string"
           },
-          "initialized_by_actor_id": {
+          "initialized_by": {
             "format": "uuid",
-            "title": "Initialized By Actor Id",
+            "title": "Initialized By",
             "type": "string"
           },
           "last_signed_at": {
@@ -11411,7 +11393,7 @@
             ],
             "title": "Last Signed At"
           },
-          "last_signed_by_actor_id": {
+          "last_signed_by": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -11421,7 +11403,7 @@
                 "type": "null"
               }
             ],
-            "title": "Last Signed By Actor Id"
+            "title": "Last Signed By"
           },
           "offline_credential_id": {
             "format": "uuid",
@@ -11442,7 +11424,7 @@
           "online_credential_id",
           "offline_credential_id",
           "current_sequence_number",
-          "initialized_by_actor_id",
+          "initialized_by",
           "status",
           "initialized_at"
         ],
@@ -11596,10 +11578,10 @@
       "SourceAssertedDTO": {
         "description": "Wire shape for an Asserted source (operator-typed value).",
         "properties": {
-          "actor_id": {
+          "asserted_by": {
             "description": "Actor id who asserted the value. Usually equals the request envelope's principal_id but may differ when an operator asserts a value on behalf of another.",
             "format": "uuid",
-            "title": "Actor Id",
+            "title": "Asserted By",
             "type": "string"
           },
           "kind": {
@@ -11610,7 +11592,7 @@
         },
         "required": [
           "kind",
-          "actor_id"
+          "asserted_by"
         ],
         "title": "SourceAssertedDTO",
         "type": "object"
@@ -20468,7 +20450,7 @@
           {
             "description": "Optional author filter ('cautions I authored').",
             "in": "query",
-            "name": "author_actor_id",
+            "name": "authored_by",
             "required": false,
             "schema": {
               "anyOf": [
@@ -20481,7 +20463,7 @@
                 }
               ],
               "description": "Optional author filter ('cautions I authored').",
-              "title": "Author Actor Id"
+              "title": "Authored By"
             }
           },
           {
@@ -23068,9 +23050,9 @@
             }
           },
           {
-            "description": "Optional Actor-id filter.",
+            "description": "Optional Actor-id filter (filters by Decision.decided_by).",
             "in": "query",
-            "name": "actor_id",
+            "name": "decided_by",
             "required": false,
             "schema": {
               "anyOf": [
@@ -23082,8 +23064,8 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional Actor-id filter.",
-              "title": "Actor Id"
+              "description": "Optional Actor-id filter (filters by Decision.decided_by).",
+              "title": "Decided By"
             }
           },
           {
@@ -23265,7 +23247,7 @@
                 }
               }
             },
-            "description": "Cross-aggregate reference does not exist: actor_id or parent_id."
+            "description": "Cross-aggregate reference does not exist: decided_by or parent_id."
           },
           "422": {
             "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."

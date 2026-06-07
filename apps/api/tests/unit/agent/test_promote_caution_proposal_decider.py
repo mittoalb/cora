@@ -20,6 +20,7 @@ from cora.decision.aggregates.decision import (
     DecisionContext,
     DecisionNotFoundError,
 )
+from cora.infrastructure.identity import ActorId
 
 
 def _decision(
@@ -31,7 +32,7 @@ def _decision(
 ) -> Decision:
     return Decision(
         id=decision_id or uuid4(),  # type: ignore[arg-type]
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context=DecisionContext(context),
         choice=DecisionChoice(choice),
         inputs=inputs,

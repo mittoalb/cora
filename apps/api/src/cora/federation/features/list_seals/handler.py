@@ -37,8 +37,8 @@ class SealSummaryItem:
     offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
-    initialized_by_actor_id: UUID
-    last_signed_by_actor_id: UUID | None
+    initialized_by: UUID
+    last_signed_by: UUID | None
     status: str
     initialized_at: datetime
     last_signed_at: datetime | None
@@ -69,7 +69,7 @@ _SELECT_COLUMNS = (
     "facility_id, seal_stream_id, "
     "online_credential_id, offline_credential_id, "
     "current_head_hash, current_sequence_number, "
-    "initialized_by_actor_id, last_signed_by_actor_id, "
+    "initialized_by, last_signed_by, "
     "status, initialized_at, last_signed_at"
 )
 
@@ -84,8 +84,8 @@ def _row_to_item(row: Any) -> SealSummaryItem:
             str(row["current_head_hash"]) if row["current_head_hash"] is not None else None
         ),
         current_sequence_number=int(row["current_sequence_number"]),
-        initialized_by_actor_id=row["initialized_by_actor_id"],
-        last_signed_by_actor_id=row["last_signed_by_actor_id"],
+        initialized_by=row["initialized_by"],
+        last_signed_by=row["last_signed_by"],
         status=str(row["status"]),
         initialized_at=row["initialized_at"],
         last_signed_at=row["last_signed_at"],

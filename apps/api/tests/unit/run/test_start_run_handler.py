@@ -33,6 +33,7 @@ from cora.equipment.aggregates.asset.events import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.recipe.aggregates.method import MethodNotFoundError
 from cora.recipe.aggregates.method.events import MethodDefined
 from cora.recipe.aggregates.method.events import (
@@ -172,6 +173,7 @@ async def _seed_asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     await _append(
         store,
@@ -198,7 +200,9 @@ async def _seed_asset(
     if decommissioned:
         from cora.equipment.aggregates.asset.events import AssetDecommissioned
 
-        dc_event = AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+        dc_event = AssetDecommissioned(
+            asset_id=asset_id, occurred_at=_NOW, decommissioned_by=ActorId(uuid4())
+        )
         await _append(
             store,
             stream_type="Asset",
@@ -255,7 +259,9 @@ async def _seed_subject_mounted(
     store: InMemoryEventStore,
     subject_id: UUID,
 ) -> None:
-    register_event = SubjectRegistered(subject_id=subject_id, name="TestSubject", occurred_at=_NOW)
+    register_event = SubjectRegistered(
+        subject_id=subject_id, name="TestSubject", occurred_at=_NOW, registered_by=ActorId(uuid4())
+    )
     await _append(
         store,
         stream_type="Subject",
@@ -266,7 +272,11 @@ async def _seed_subject_mounted(
         command_name="RegisterSubject",
     )
     mount_event = SubjectMounted(
-        subject_id=subject_id, asset_id=uuid4(), reason="", occurred_at=_NOW
+        subject_id=subject_id,
+        asset_id=uuid4(),
+        reason="",
+        occurred_at=_NOW,
+        mounted_by=ActorId(uuid4()),
     )
     await _append(
         store,
@@ -575,7 +585,9 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
         SubjectRemoved,
     )
 
-    measured = SubjectMeasured(subject_id=subject_id, occurred_at=_NOW)
+    measured = SubjectMeasured(
+        subject_id=subject_id, occurred_at=_NOW, measured_by=ActorId(uuid4())
+    )
     await _append(
         store,
         stream_type="Subject",
@@ -585,7 +597,7 @@ async def test_handler_propagates_subject_not_mountable_error() -> None:
         payload=subject_to_payload(measured),
         command_name="MeasureSubject",
     )
-    removed = SubjectRemoved(subject_id=subject_id, occurred_at=_NOW)
+    removed = SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=ActorId(uuid4()))
     await _append(
         store,
         stream_type="Subject",

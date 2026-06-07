@@ -133,6 +133,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             level=level,
             parent_id=parent_id,
             occurred_at=occurred_at,
+            commissioned_by=commissioned_by,
             drawing=drawing,
             model_id=model_id,
             alternate_identifiers=alternate_identifiers,
@@ -154,8 +155,10 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 # IS the commissioning event per L2 of the persistent-id
                 # design memo. Folding occurred_at avoids a new
                 # AssetCommissioned event for what the existing event
-                # already encodes.
+                # already encodes. Fold-symmetry: commissioned_by lands
+                # alongside commissioned_at on the same arm.
                 commissioned_at=occurred_at,
+                commissioned_by=commissioned_by,
                 # family_ids defaults to empty frozenset; condition
                 # defaults to NOMINAL. Additive-state pattern:
                 # default-via-state so legacy streams without these
@@ -186,10 +189,15 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
-        case AssetDecommissioned(occurred_at=occurred_at):
+        case AssetDecommissioned(
+            occurred_at=occurred_at,
+            decommissioned_by=decommissioned_by,
+        ):
             prior = require_state(state, "AssetDecommissioned")
             return Asset(
                 id=prior.id,
@@ -208,7 +216,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=occurred_at,
+                decommissioned_by=decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
@@ -235,7 +245,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetMaintenanceEntered():
@@ -257,7 +269,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetMaintenanceExited():
@@ -279,7 +293,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetFamilyAdded(family_id=family_id):
@@ -306,7 +322,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetFamilyRemoved(family_id=family_id):
@@ -334,7 +352,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetDegraded():
@@ -361,7 +381,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetFaulted():
@@ -383,7 +405,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetRestored():
@@ -405,7 +429,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetSettingsUpdated(settings=settings):
@@ -434,7 +460,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetPartitionRuleUpdated(partition_rule=partition_rule):
@@ -465,7 +493,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetPortAdded(
@@ -502,7 +532,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetPortRemoved(port_name=port_name):
@@ -532,7 +564,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetAlternateIdentifierAdded(alternate_identifier=identifier):
@@ -561,7 +595,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetAlternateIdentifierRemoved(alternate_identifier=identifier):
@@ -586,7 +622,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetOwnerAdded(owner=owner):
@@ -614,7 +652,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetPersistentIdAssigned(
@@ -648,7 +688,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=PersistentIdentifier(
                     scheme=PersistentIdentifierScheme(scheme),
                     value=value,
@@ -680,7 +722,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=prior.fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetAttachedToFixture(fixture_id=fixture_id):
@@ -706,7 +750,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=fixture_id,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case AssetDetachedFromFixture():
@@ -733,7 +779,9 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 fixture_id=None,
                 partition_rule=prior.partition_rule,
                 commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
                 decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

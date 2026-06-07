@@ -110,6 +110,7 @@ from cora.infrastructure.identifier import (
     Identifier,
     InvalidIdentifierError,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 
 RUN_NAME_MAX_LENGTH = 200
@@ -1054,12 +1055,17 @@ class Run:
     campaign_id: UUID | None = None
     # mid-flight parameter steering denorm. `last_adjusted_at`
     # carries the occurred_at of the most recent `RunAdjusted` event;
+    # `last_adjusted_by` carries the ActorId of the principal who
+    # issued that adjust (overwrite-on-each-adjust per the fold-
+    # symmetry pair-rule; see [[project_fold_symmetry_design]]).
     # `adjustment_count` is the cumulative count of accepted adjust
-    # operations. Defaults to None / 0 so legacy streams without the fields fold
-    # cleanly (forward-compat additive-state pattern, mirrors
-    # reading_logbook_id / campaign_id precedent). Per-adjustment audit
-    # history lives on the event log; aggregate state stays slim.
+    # operations. Defaults to None / None / 0 so legacy streams without
+    # the fields fold cleanly (forward-compat additive-state pattern,
+    # mirrors reading_logbook_id / campaign_id precedent). Per-
+    # adjustment audit history lives on the event log; aggregate state
+    # stays slim.
     last_adjusted_at: datetime | None = None
+    last_adjusted_by: ActorId | None = None
     adjustment_count: int = 0
     # AsShot calibration pin set (Calibration BC integration
     # per [[project_calibration_design]]). Each entry is a

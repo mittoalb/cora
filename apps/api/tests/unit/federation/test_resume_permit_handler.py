@@ -33,6 +33,7 @@ from cora.federation.features import resume_permit
 from cora.federation.features.resume_permit import ResumePermit
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -49,7 +50,7 @@ _SUSPEND_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed004")
 _NEXT_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed005")
 
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
-_DEFINING_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-0000000000bb")
+_DEFINING_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-0000000000bb"))
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -84,7 +85,7 @@ async def _seed_defined_permit(store: InMemoryEventStore) -> None:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_DEFINING_PRINCIPAL_ID,
+        defined_by=_DEFINING_PRINCIPAL_ID,
         terms=_outbound_terms(),
         occurred_at=_DEFINED_AT,
     )
@@ -110,7 +111,7 @@ async def _seed_active_permit(store: InMemoryEventStore) -> None:
     await _seed_defined_permit(store)
     activated = PermitActivated(
         permit_id=_PERMIT_ID,
-        activated_by_actor_id=_DEFINING_PRINCIPAL_ID,
+        activated_by=_DEFINING_PRINCIPAL_ID,
         occurred_at=_ACTIVATED_AT,
     )
     await store.append(
@@ -135,7 +136,7 @@ async def _seed_suspended_permit(store: InMemoryEventStore) -> None:
     await _seed_active_permit(store)
     suspended = PermitSuspended(
         permit_id=_PERMIT_ID,
-        suspended_by_actor_id=_DEFINING_PRINCIPAL_ID,
+        suspended_by=_DEFINING_PRINCIPAL_ID,
         occurred_at=_SUSPENDED_AT,
     )
     await store.append(
@@ -172,7 +173,7 @@ async def test_resume_permit_handler_appends_resumed_event() -> None:
     stored = events[-1]
     assert stored.event_type == "PermitResumed"
     assert stored.payload["permit_id"] == str(_PERMIT_ID)
-    assert stored.payload["resumed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["resumed_by"] == str(_PRINCIPAL_ID)
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
     assert stored.principal_id == _PRINCIPAL_ID

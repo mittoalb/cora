@@ -156,7 +156,7 @@ async def test_rotate_seal_online_key_handler_appends_event_from_live() -> None:
     assert transition.payload["facility_id"] == _FACILITY_ID
     assert transition.payload["new_online_credential_id"] == str(_NEW_ONLINE_KEY)
     assert transition.payload["signed_by_offline_root"] is True
-    assert transition.payload["rotated_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert transition.payload["rotated_by"] == str(_PRINCIPAL_ID)
     assert transition.correlation_id == _CORRELATION_ID
     assert transition.causation_id is None
 
@@ -432,9 +432,9 @@ async def test_rotate_seal_online_key_handler_denied_does_not_write_either_strea
 
 
 @pytest.mark.unit
-async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by_actor_id() -> None:
+async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `rotated_by_actor_id` on the emitted event (audit anchor for the
+    `rotated_by` on the emitted event (audit anchor for the
     operator gesture), regardless of who initialized the seal."""
     store = InMemoryEventStore()
     # Seed Initialized BY a different actor; the rotator should still be
@@ -458,7 +458,7 @@ async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by_ac
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Seal", _STREAM_ID)
-    assert events[-1].payload["rotated_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rotated_by"] == str(_PRINCIPAL_ID)
     decision_events, _ = await store.load("Decision", _DECISION_ID)
     assert decision_events[0].payload["actor_id"] == str(_PRINCIPAL_ID)
 

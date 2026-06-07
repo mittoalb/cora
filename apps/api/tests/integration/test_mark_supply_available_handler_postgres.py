@@ -58,6 +58,7 @@ async def test_mark_supply_available_appends_transition_event_to_same_stream(
         "from_status": "Unknown",
         "reason": "operator walkdown confirms LN2 flowing",
         "trigger": "Operator",
+        "triggered_by": str(_PRINCIPAL_ID),
         "occurred_at": _MARK_NOW.isoformat(),
     }
     assert transition.correlation_id == _CORRELATION_ID

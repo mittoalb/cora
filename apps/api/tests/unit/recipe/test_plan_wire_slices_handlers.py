@@ -32,6 +32,7 @@ from cora.equipment.aggregates.asset.events import event_type_name as asset_even
 from cora.equipment.aggregates.asset.events import to_payload as asset_to_payload
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.plan import PlanWireAssetNotBoundError
@@ -86,6 +87,7 @@ async def _seed_asset_with_port(
         level="Device",
         parent_id=None,
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     add_port = AssetPortAdded(
         asset_id=asset_id,
@@ -260,6 +262,7 @@ async def test_add_plan_wire_handler_dedupes_loads_when_source_equals_target() -
         level="Device",
         parent_id=None,
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     out_port = AssetPortAdded(
         asset_id=_SRC_ASSET_ID,

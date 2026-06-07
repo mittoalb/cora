@@ -1,7 +1,7 @@
 -- Phase 8f-b iter 1: operator acceptance-signal capture for Decisions.
 --
 -- The `DecisionRated` event (added to Decision aggregate) carries
--- (decision_id, rating, comment, rated_by_actor_id, rated_at). The
+-- (decision_id, rating, comment, rated_by, rated_at). The
 -- evolver folds latest-per-actor wins into
 -- `Decision.ratings: dict[UUID, DecisionRatingRecord]`. The
 -- projection mirrors that latest-per-actor snapshot for efficient
@@ -10,7 +10,7 @@
 -- Decision Y have?").
 --
 -- Schema decisions:
---   - Composite PK (decision_id, rated_by_actor_id): one row per
+--   - Composite PK (decision_id, rated_by): one row per
 --     (decision, actor) pair. ON CONFLICT UPDATE implements the
 --     latest-per-actor-wins fold at INSERT time.
 --   - `rating TEXT NOT NULL CHECK IN (...)` matches the projection
@@ -25,7 +25,7 @@
 --     regression / LoRA uncertainty estimator) are queryable
 --     without joining back to proj_decision_summary.
 --   - Index on (decision_id) supports "all ratings on this Decision"
---     (PK partial). Index on (rated_by_actor_id) supports "ratings
+--     (PK partial). Index on (rated_by) supports "ratings
 --     I have submitted across all Decisions" (audit / personal
 --     dashboard).
 --
@@ -35,17 +35,17 @@
 
 CREATE TABLE proj_decision_ratings (
     decision_id              UUID        NOT NULL,
-    rated_by_actor_id        UUID        NOT NULL,
+    rated_by        UUID        NOT NULL,
     rating                   TEXT        NOT NULL
                                          CHECK (rating IN ('useful', 'misleading', 'ignored')),
     comment                  TEXT,
     rated_at                 TIMESTAMPTZ NOT NULL,
     confidence_at_rating  DOUBLE PRECISION,
-    PRIMARY KEY (decision_id, rated_by_actor_id)
+    PRIMARY KEY (decision_id, rated_by)
 );
 
 CREATE INDEX proj_decision_ratings_by_actor_idx
-    ON proj_decision_ratings (rated_by_actor_id);
+    ON proj_decision_ratings (rated_by);
 
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON proj_decision_ratings TO cora_app;

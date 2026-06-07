@@ -28,7 +28,10 @@ from cora.equipment.features.register_fixture import (
     RegisterFixture,
     RegisterFixtureContext,
 )
+from cora.infrastructure.identity import ActorId
 from tests._strategies import aware_datetimes
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 
 def _slot_zero_or_more(family_id: UUID) -> TemplateSlot:
@@ -66,6 +69,7 @@ def test_decide_none_assembly_always_raises_not_found(now: datetime) -> None:
             context=RegisterFixtureContext(assembly_state=None),
             now=now,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.assembly_id == target
 
@@ -86,6 +90,7 @@ def test_decide_deprecated_assembly_always_raises_cannot_instantiate(
             context=context,
             now=now,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.assembly_id == assembly_id
 
@@ -122,6 +127,7 @@ def test_decide_zero_or_more_slot_accepts_any_binding_count(
         context=context,
         now=now,
         new_id=uuid4(),
+        registered_by=_TEST_ACTOR_ID,
     )
     assert len(events) == 1
     assert isinstance(events[0], FixtureRegistered)
@@ -168,6 +174,7 @@ def test_decide_orphan_error_always_carries_sorted_first_id(
             context=context,
             now=now,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == sorted(orphan_ids, key=str)[0]
 
@@ -200,6 +207,7 @@ def test_decide_is_pure_same_inputs_yield_same_events(
         context=context,
         now=now,
         new_id=new_id,
+        registered_by=_TEST_ACTOR_ID,
     )
     events_b = register_fixture.decide(
         state=None,
@@ -207,5 +215,6 @@ def test_decide_is_pure_same_inputs_yield_same_events(
         context=context,
         now=now,
         new_id=new_id,
+        registered_by=_TEST_ACTOR_ID,
     )
     assert events_a == events_b

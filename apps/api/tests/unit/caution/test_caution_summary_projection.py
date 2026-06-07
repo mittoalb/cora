@@ -72,7 +72,7 @@ def _registered_payload(**overrides: object) -> dict[str, Any]:
         "text": "hexapod stalls below 0.5 mm/s",
         "workaround": "run at 0.6 mm/s",
         "tags": ["alpha", "mu", "zeta"],
-        "author_actor_id": str(_AUTHOR_ID),
+        "authored_by": str(_AUTHOR_ID),
         "expires_at": None,
         "propagate_to_children": False,
         "parent_id": None,
@@ -126,7 +126,7 @@ async def test_caution_registered_inserts_with_active_status_and_null_audit() ->
     assert "'Active'" in sql  # status literal
     # Bound parameters (positional):
     #   $1 caution_id, $2 target_kind, $3 target_id, $4 category,
-    #   $5 severity, $6 text, $7 workaround, $8 author_actor_id,
+    #   $5 severity, $6 text, $7 workaround, $8 authored_by,
     #   $9 tags, $10 expires_at, $11 propagate_to_children,
     #   $12 parent_id, $13 registered_at
     assert args.args[1] == _CAUTION_ID

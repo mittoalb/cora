@@ -35,6 +35,7 @@ from uuid import UUID
 
 from cora.agent.aggregates.agent.state import ModelRef
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -157,13 +158,20 @@ class AgentSuspended:
     because operator-pause is a high-information signal that the
     audit log should always carry context for.
 
-    The suspending actor's id lives on the envelope; no actor
-    field on the payload (mirrors `supersede_caution` and the
-    security gate-review convention).
+    Fold-symmetry pair: `suspended_by` carries the suspending actor's
+    id alongside `occurred_at`. Both halves fold onto the Agent
+    aggregate state (`suspended_at` + `suspended_by`) per
+    [[project_fold_symmetry_design]]. REVERSES the previous
+    envelope-only convention for this event; the envelope still
+    carries `principal_id` for cross-cutting audit, but the payload
+    redundantly captures the same value under the canonical
+    `<verb>_by` name so on-state reads answer attribution without
+    crossing to the envelope.
     """
 
     agent_id: UUID
     reason: str
+    suspended_by: ActorId
     occurred_at: datetime
 
 
@@ -175,9 +183,16 @@ class AgentResumed:
     signal; if rationale matters operators record a Decision
     separately. Asymmetry with `AgentSuspended.reason` is
     deliberate (events carry facts; Decisions carry rationale).
+
+    Fold-symmetry pair: `resumed_by` carries the resuming actor's
+    id alongside `occurred_at`. Both halves fold onto the Agent
+    aggregate state (`resumed_at` + `resumed_by`) per
+    [[project_fold_symmetry_design]]. REVERSES the previous
+    envelope-only convention for this event.
     """
 
     agent_id: UUID
+    resumed_by: ActorId
     occurred_at: datetime
 
 
@@ -303,15 +318,22 @@ def to_payload(event: AgentEvent) -> dict[str, Any]:
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AgentSuspended(agent_id=agent_id, reason=reason, occurred_at=occurred_at):
+        case AgentSuspended(
+            agent_id=agent_id,
+            reason=reason,
+            suspended_by=suspended_by,
+            occurred_at=occurred_at,
+        ):
             return {
                 "agent_id": str(agent_id),
                 "reason": reason,
+                "suspended_by": str(suspended_by),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AgentResumed(agent_id=agent_id, occurred_at=occurred_at):
+        case AgentResumed(agent_id=agent_id, resumed_by=resumed_by, occurred_at=occurred_at):
             return {
                 "agent_id": str(agent_id),
+                "resumed_by": str(resumed_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case AgentToolGranted(agent_id=agent_id, tool_name=tool_name, occurred_at=occurred_at):
@@ -402,6 +424,7 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                 lambda: AgentSuspended(
                     agent_id=UUID(payload["agent_id"]),
                     reason=payload["reason"],
+                    suspended_by=ActorId(UUID(payload["suspended_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -410,6 +433,7 @@ def from_stored(stored: StoredEvent) -> AgentEvent:
                 "AgentResumed",
                 lambda: AgentResumed(
                     agent_id=UUID(payload["agent_id"]),
+                    resumed_by=ActorId(UUID(payload["resumed_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )

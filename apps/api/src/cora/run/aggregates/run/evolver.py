@@ -33,8 +33,8 @@ principle, gate-review 6f-3 L9 lock).
 **Critical invariant**: every transition arm MUST carry `id`,
 `name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
 `effective_parameters`, `trigger_source`, `reading_logbook_id`,
-`external_refs`, `campaign_id`, `last_adjusted_at`, AND
-`adjustment_count` through from prior state.
+`external_refs`, `campaign_id`, `last_adjusted_at`,
+`last_adjusted_by`, AND `adjustment_count` through from prior state.
 Constructing `Run(id=..., name=..., plan_id=..., subject_id=...,
 status=...)` without explicitly passing the additive fields would
 silently WIPE them to defaults (empty dict / None / empty frozenset
@@ -53,13 +53,16 @@ prior state's campaign_id (membership survives lifecycle transitions
 like running → held → completed). Pre-6i-c streams fold with
 `campaign_id=None` (forward-compat via payload.get in from_stored).
 
-`last_adjusted_at` and `adjustment_count` start at None / 0
-at genesis. The `RunAdjusted` arm replaces `effective_parameters`,
-stamps `last_adjusted_at = event.occurred_at`, and increments
-`adjustment_count`. All other arms preserve prior state's values:
-mid-flight adjustments survive Hold ⇄ Resume cycles and the terminal
-transitions stamp the closing effective set (the last value steered
-before the Run ended). Pre-6j streams fold with the safe defaults.
+`last_adjusted_at`, `last_adjusted_by`, and `adjustment_count` start
+at None / None / 0 at genesis. The `RunAdjusted` arm replaces
+`effective_parameters`, stamps `last_adjusted_at = event.occurred_at`,
+stamps `last_adjusted_by = event.adjusted_by` (fold-symmetry pair
+per [[project_fold_symmetry_design]]; overwrite-on-each-adjust), and
+increments `adjustment_count`. All other arms preserve prior state's
+values: mid-flight adjustments survive Hold ⇄ Resume cycles and the
+terminal transitions stamp the closing effective set (the last value
+steered before the Run ended). Pre-6j streams fold with the safe
+defaults.
 
 This evolver previously used `dataclasses.replace(state,
 status=...)` for the transition arms (terse, but no field-add
@@ -133,6 +136,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 ),
                 campaign_id=campaign_id,
                 last_adjusted_at=None,
+                last_adjusted_by=None,
                 adjustment_count=0,
                 # AsShot anchor set at genesis (frozenset for in-
                 # memory equality semantics; the event carries a tuple for
@@ -155,6 +159,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -175,6 +180,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -195,6 +201,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -215,6 +222,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -235,6 +243,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -255,19 +264,22 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
             )
         case RunAdjusted(
             effective_parameters=effective_parameters,
+            adjusted_by=adjusted_by,
             occurred_at=adjusted_at,
         ):
             # mid-flight steering. Status NOT touched
             # (membership-orthogonal pattern, same as the logbook +
             # campaign arms). Replace effective_parameters with the
             # post-merge snapshot from the event payload; stamp
-            # last_adjusted_at; increment adjustment_count.
+            # last_adjusted_at + last_adjusted_by (fold-symmetry pair);
+            # increment adjustment_count.
             # Shallow-copy the payload dict into state (B1 defence).
             prior = require_state(state, "RunAdjusted")
             return Run(
@@ -284,6 +296,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=adjusted_at,
+                last_adjusted_by=adjusted_by,
                 adjustment_count=prior.adjustment_count + 1,
                 # AsShot invariant: adjust_run never touches the
                 # pinned_calibration_ids; per the design memo this is the strongest
@@ -310,6 +323,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -335,6 +349,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,
@@ -360,6 +375,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 external_refs=prior.external_refs,
                 campaign_id=None,
                 last_adjusted_at=prior.last_adjusted_at,
+                last_adjusted_by=prior.last_adjusted_by,
                 adjustment_count=prior.adjustment_count,
                 # AsShot invariant: never change after start.
                 pinned_calibration_ids=prior.pinned_calibration_ids,

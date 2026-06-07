@@ -47,6 +47,7 @@ def evolve(
             slot_asset_bindings=slot_asset_bindings,
             parameter_overrides=parameter_overrides,
             occurred_at=occurred_at,
+            registered_by=registered_by,
         ):
             if state is not None:
                 raise FixtureAlreadyExistsError(state.id)
@@ -58,6 +59,7 @@ def evolve(
                 slot_asset_bindings=slot_asset_bindings,
                 parameter_overrides=parameter_overrides,
                 registered_at=occurred_at,
+                registered_by=registered_by,
             )
         case FixturePersistentIdAssigned(
             fixture_id=fixture_id,

@@ -22,6 +22,7 @@ from cora.equipment.aggregates.asset.events import (
 from cora.equipment.aggregates.asset.events import to_payload as asset_to_payload
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.operation.aggregates.procedure import (
     ProcedureCannotStartError,
     ProcedureNotFoundError,
@@ -106,6 +107,7 @@ async def _seed_asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         occurred_at=_PRIOR,
+        commissioned_by=ActorId(uuid4()),
     )
     await _append(
         store,
@@ -117,7 +119,9 @@ async def _seed_asset(
         command_name="RegisterAsset",
     )
     if decommissioned:
-        dc_event = AssetDecommissioned(asset_id=asset_id, occurred_at=_PRIOR)
+        dc_event = AssetDecommissioned(
+            asset_id=asset_id, occurred_at=_PRIOR, decommissioned_by=ActorId(uuid4())
+        )
         await _append(
             store,
             stream_type="Asset",

@@ -70,7 +70,7 @@ class GetPermitOutput(BaseModel):
     allowed_artifact_kinds: list[str]
     abi_tier_floor: str
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: UUID
     status: str
     terms: _TermsOutput
     defined_at: datetime
@@ -115,7 +115,7 @@ def _output_from_view(view: PermitView) -> GetPermitOutput:
         allowed_artifact_kinds=list(view.allowed_artifact_kinds),
         abi_tier_floor=view.abi_tier_floor,
         expires_at=view.expires_at,
-        defined_by_actor_id=view.defined_by_actor_id,
+        defined_by=view.defined_by,
         status=view.status,
         terms=_terms_output(view),
         defined_at=view.defined_at,

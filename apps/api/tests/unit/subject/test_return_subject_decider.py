@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotReturnError,
@@ -21,6 +22,7 @@ from cora.subject.features import return_subject
 from cora.subject.features.return_subject import ReturnSubject
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 
 
 def _subject(*, status: SubjectStatus = SubjectStatus.REMOVED) -> Subject:
@@ -34,8 +36,9 @@ def test_decide_emits_subject_returned_when_state_is_removed() -> None:
         state=state,
         command=ReturnSubject(subject_id=state.id),
         now=_NOW,
+        returned_by=_ACTOR,
     )
-    assert events == [SubjectReturned(subject_id=state.id, occurred_at=_NOW)]
+    assert events == [SubjectReturned(subject_id=state.id, occurred_at=_NOW, returned_by=_ACTOR)]
 
 
 @pytest.mark.unit
@@ -47,6 +50,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
             state=None,
             command=ReturnSubject(subject_id=target_id),
             now=_NOW,
+            returned_by=_ACTOR,
         )
     assert exc_info.value.subject_id == target_id
 
@@ -78,6 +82,7 @@ def test_decide_raises_cannot_return_for_every_non_removed_state(
             state=state,
             command=ReturnSubject(subject_id=state.id),
             now=_NOW,
+            returned_by=_ACTOR,
         )
     assert exc_info.value.subject_id == state.id
     assert exc_info.value.current_status is current
@@ -94,6 +99,7 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
             state=state,
             command=ReturnSubject(subject_id=state.id),
             now=_NOW,
+            returned_by=_ACTOR,
         )
     msg = str(exc_info.value)
     assert "Mounted" in msg
@@ -104,6 +110,6 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.REMOVED)
     command = ReturnSubject(subject_id=state.id)
-    first = return_subject.decide(state=state, command=command, now=_NOW)
-    second = return_subject.decide(state=state, command=command, now=_NOW)
+    first = return_subject.decide(state=state, command=command, now=_NOW, returned_by=_ACTOR)
+    second = return_subject.decide(state=state, command=command, now=_NOW, returned_by=_ACTOR)
     assert first == second

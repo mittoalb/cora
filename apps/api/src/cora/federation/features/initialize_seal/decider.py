@@ -5,7 +5,7 @@ Pure function: given the (always None) Seal state and an
 (one per slot), returns the events to append on the Seal stream. No
 I/O, no awaits, no side effects.
 
-`now` and `initialized_by_actor_id` are injected by the application
+`now` and `initialized_by` are injected by the application
 handler from the Clock port and the request envelope (non-determinism
 principle: capture, don't recompute).
 
@@ -60,7 +60,6 @@ BC's domain invariants.
 """
 
 from datetime import datetime
-from uuid import UUID
 
 from cora.federation.aggregates.credential import (
     CredentialNotFoundError,
@@ -79,6 +78,7 @@ from cora.federation.aggregates.seal import (
     verify_key_separation,
 )
 from cora.federation.features.initialize_seal.command import InitializeSeal
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 _ONLINE_SLOT = "online_credential_id"
@@ -90,7 +90,7 @@ def decide(
     command: InitializeSeal,
     *,
     now: datetime,
-    initialized_by_actor_id: UUID,
+    initialized_by: ActorId,
     online_credential: CredentialLookupResult | None,
     offline_credential: CredentialLookupResult | None,
 ) -> list[SealInitialized]:
@@ -135,7 +135,8 @@ def decide(
         offline_credential_id=command.offline_credential_id,
         current_head_hash=None,
         current_sequence_number=0,
-        initialized_by_actor_id=initialized_by_actor_id,
+        initialized_by=initialized_by,
+        initialized_at=now,
         status=SealStatus.LIVE,
     )
     verify_key_separation(prospective)
@@ -201,7 +202,7 @@ def decide(
             facility_id=facility_id,
             online_credential_id=command.online_credential_id,
             offline_credential_id=command.offline_credential_id,
-            initialized_by_actor_id=initialized_by_actor_id,
+            initialized_by=initialized_by,
             occurred_at=now,
         )
     ]

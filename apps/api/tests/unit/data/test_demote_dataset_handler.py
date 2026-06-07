@@ -31,6 +31,7 @@ from cora.data.features import demote_dataset
 from cora.data.features.demote_dataset import DemoteDataset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
@@ -39,6 +40,7 @@ _DATASET_ID = UUID("01900000-0000-7000-8000-00000000de01")
 _DEMOTE_EVENT_ID = UUID("01900000-0000-7000-8000-00000000de02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000de99")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000deaa")
+_SEED_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000debb"))
 
 
 async def _seed_registered(
@@ -60,6 +62,7 @@ async def _seed_registered(
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_SEED_ACTOR_ID,
         producing_run_end_state=None,
         intent=intent,
     )
@@ -84,6 +87,7 @@ async def _seed_promoted(store: InMemoryEventStore, dataset_id: UUID) -> None:
         dataset_id=dataset_id,
         reason="initial promotion for tests",
         occurred_at=_NOW,
+        promoted_by=_SEED_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=event_type_name(promoted),
@@ -106,6 +110,7 @@ async def _seed_retracted(store: InMemoryEventStore, dataset_id: UUID) -> None:
         dataset_id=dataset_id,
         reason="initial demote for tests",
         occurred_at=_NOW,
+        demoted_by=_SEED_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=event_type_name(demoted),

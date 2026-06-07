@@ -2,7 +2,7 @@
 
 Pin the FSM source-state guard (Rotating is the only legal source),
 the not-found branch, idempotency (same inputs -> same outputs),
-handler-injected `rotation_aborted_by_actor_id` reproducibility,
+handler-injected `rotation_aborted_by` reproducibility,
 and the strict-not-idempotent posture (re-aborting an Active
 credential raises rather than no-ops).
 
@@ -29,13 +29,14 @@ from cora.federation.features import abort_credential_rotation
 from cora.federation.features.abort_credential_rotation import (
     AbortCredentialRotation,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fec001")
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fec002")
 _OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fec003")
-_REGISTERED_BY = UUID("01900000-0000-7000-8000-000000fec099")
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 
 
 def _credential(
@@ -52,7 +53,8 @@ def _credential(
         secret_ref="vault://current/v1",
         public_material_ref="vault://current/pub/v1",
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_REGISTERED_BY,
+        registered_by=_REGISTERED_BY,
+        registered_at=_NOW,
         rotation_pending_secret_ref=pending_secret_ref,
         rotation_pending_public_material_ref=pending_public_material_ref,
         status=status,
@@ -62,7 +64,7 @@ def _credential(
 def _command(**overrides: object) -> AbortCredentialRotation:
     base: dict[str, object] = {
         "credential_id": _CREDENTIAL_ID,
-        "aborted_by_actor_id": _PRINCIPAL_ID,
+        "aborted_by": _PRINCIPAL_ID,
         "reason": "peer refused new material",
     }
     base.update(overrides)
@@ -80,12 +82,12 @@ def test_abort_credential_rotation_emits_event_when_state_is_rotating() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert events == [
         CredentialRotationAborted(
             credential_id=_CREDENTIAL_ID,
-            rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+            rotation_aborted_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
             reason="peer refused new material",
         )
@@ -100,7 +102,7 @@ def test_abort_credential_rotation_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+            rotation_aborted_by=_PRINCIPAL_ID,
         )
 
 
@@ -113,7 +115,7 @@ def test_abort_credential_rotation_rejects_when_state_is_active() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+            rotation_aborted_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "abort_rotation"
     assert exc.value.current_status is CredentialStatus.ACTIVE
@@ -128,7 +130,7 @@ def test_abort_credential_rotation_rejects_when_state_is_revoked() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+            rotation_aborted_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "abort_rotation"
     assert exc.value.current_status is CredentialStatus.REVOKED
@@ -147,7 +149,7 @@ def test_abort_credential_rotation_flows_reason_onto_event_payload() -> None:
         state=state,
         command=_command(reason="SecretStore generation failed mid-flight"),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -167,16 +169,16 @@ def test_abort_credential_rotation_defaults_reason_to_none_when_omitted() -> Non
         state=state,
         command=AbortCredentialRotation(
             credential_id=_CREDENTIAL_ID,
-            aborted_by_actor_id=_PRINCIPAL_ID,
+            aborted_by=_PRINCIPAL_ID,
         ),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, CredentialRotationAborted)
     assert event.reason is None
-    assert event.rotation_aborted_by_actor_id == _PRINCIPAL_ID
+    assert event.rotation_aborted_by == _PRINCIPAL_ID
 
 
 @pytest.mark.unit
@@ -189,20 +191,20 @@ def test_abort_credential_rotation_is_pure_same_inputs_same_outputs() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     second = abort_credential_rotation.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert first == second
 
 
 @pytest.mark.unit
 def test_abort_credential_rotation_uses_handler_injected_actor_id_verbatim() -> None:
-    """Sanity: handler-injected `rotation_aborted_by_actor_id` is used
+    """Sanity: handler-injected `rotation_aborted_by` is used
     verbatim; decider doesn't synthesize it."""
     state = _credential(
         CredentialStatus.ROTATING,
@@ -213,9 +215,9 @@ def test_abort_credential_rotation_uses_handler_injected_actor_id_verbatim() -> 
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=injected,
+        rotation_aborted_by=injected,
     )
-    assert events[0].rotation_aborted_by_actor_id == injected
+    assert events[0].rotation_aborted_by == injected
 
 
 @pytest.mark.unit
@@ -231,7 +233,7 @@ def test_abort_credential_rotation_uses_handler_injected_now_verbatim() -> None:
         state=state,
         command=_command(),
         now=custom_now,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -248,10 +250,10 @@ def test_abort_credential_rotation_actor_id_independent_of_registered_by() -> No
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=_OTHER_ACTOR_ID,
+        rotation_aborted_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].rotation_aborted_by_actor_id == _OTHER_ACTOR_ID
-    assert state.registered_by_actor_id == _REGISTERED_BY
+    assert events[0].rotation_aborted_by == _OTHER_ACTOR_ID
+    assert state.registered_by == _REGISTERED_BY
 
 
 @pytest.mark.unit
@@ -265,6 +267,6 @@ def test_abort_credential_rotation_does_not_mint_new_id() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_aborted_by_actor_id=_PRINCIPAL_ID,
+        rotation_aborted_by=_PRINCIPAL_ID,
     )
     assert events[0].credential_id == state.id

@@ -5,7 +5,7 @@ Active, or Suspended) -> Revoked. Strict-not-idempotent: re-revoking
 an already-Revoked permit raises `PermitCannotRevokeError` per the
 `deregister_supply` precedent.
 
-`revoked_by_actor_id` is handler-injected from the request
+`revoked_by` is handler-injected from the request
 envelope's `principal_id` (capture-don't-recompute) and stamped onto
 the emitted `PermitRevoked` event as the audit denorm.
 """
@@ -30,10 +30,11 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import revoke_permit
 from cora.federation.features.revoke_permit import RevokePermit
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PERMIT_ID = UUID("01900000-0000-7000-8000-000000fed001")
-_DEFINED_BY_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fed002")
+_DEFINED_BY_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed002"))
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed003")
 _EXPIRES_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=UTC)
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed004")
@@ -57,7 +58,8 @@ def _permit(status: PermitStatus) -> Permit:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_DEFINED_BY_ACTOR_ID,
+        defined_by=_DEFINED_BY_ACTOR_ID,
+        defined_at=_NOW,
         status=status,
         terms=_outbound_terms(),
     )
@@ -79,12 +81,12 @@ def test_revoke_permit_emits_event_from_any_non_revoked_status(
         state=_permit(current_status),
         command=RevokePermit(permit_id=_PERMIT_ID),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert events == [
         PermitRevoked(
             permit_id=_PERMIT_ID,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
             reason=None,
         )
@@ -99,7 +101,7 @@ def test_revoke_permit_rejects_when_already_revoked() -> None:
             state=_permit(PermitStatus.REVOKED),
             command=RevokePermit(permit_id=_PERMIT_ID),
             now=_NOW,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
         )
     assert exc_info.value.permit_id == _PERMIT_ID
     assert exc_info.value.current_status == PermitStatus.REVOKED
@@ -112,22 +114,22 @@ def test_revoke_permit_rejects_when_state_is_none() -> None:
             state=None,
             command=RevokePermit(permit_id=_PERMIT_ID),
             now=_NOW,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
         )
     assert exc_info.value.permit_id == _PERMIT_ID
 
 
 @pytest.mark.unit
-def test_revoke_permit_captures_handler_injected_revoked_by_actor_id() -> None:
-    """`revoked_by_actor_id` is captured verbatim from the handler, not recomputed."""
+def test_revoke_permit_captures_handler_injected_revoked_by() -> None:
+    """`revoked_by` is captured verbatim from the handler, not recomputed."""
     arbitrary_principal = uuid4()
     events = revoke_permit.decide(
         state=_permit(PermitStatus.ACTIVE),
         command=RevokePermit(permit_id=_PERMIT_ID),
         now=_NOW,
-        revoked_by_actor_id=arbitrary_principal,
+        revoked_by=arbitrary_principal,
     )
-    assert events[0].revoked_by_actor_id == arbitrary_principal
+    assert events[0].revoked_by == arbitrary_principal
 
 
 @pytest.mark.unit
@@ -138,7 +140,7 @@ def test_revoke_permit_uses_supplied_now_for_occurred_at() -> None:
         state=_permit(PermitStatus.DEFINED),
         command=RevokePermit(permit_id=_PERMIT_ID),
         now=custom_now,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -147,12 +149,8 @@ def test_revoke_permit_uses_supplied_now_for_occurred_at() -> None:
 def test_revoke_permit_is_pure_same_inputs_same_outputs() -> None:
     state = _permit(PermitStatus.ACTIVE)
     command = RevokePermit(permit_id=_PERMIT_ID)
-    first = revoke_permit.decide(
-        state=state, command=command, now=_NOW, revoked_by_actor_id=_PRINCIPAL_ID
-    )
-    second = revoke_permit.decide(
-        state=state, command=command, now=_NOW, revoked_by_actor_id=_PRINCIPAL_ID
-    )
+    first = revoke_permit.decide(state=state, command=command, now=_NOW, revoked_by=_PRINCIPAL_ID)
+    second = revoke_permit.decide(state=state, command=command, now=_NOW, revoked_by=_PRINCIPAL_ID)
     assert first == second
 
 
@@ -165,7 +163,7 @@ def test_revoke_permit_flows_reason_onto_event_payload() -> None:
         state=_permit(PermitStatus.DEFINED),
         command=RevokePermit(permit_id=_PERMIT_ID, reason="peer decommissioned"),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     event = events[0]
     assert isinstance(event, PermitRevoked)
@@ -180,7 +178,7 @@ def test_revoke_permit_defaults_reason_to_none_when_omitted() -> None:
         state=_permit(PermitStatus.DEFINED),
         command=RevokePermit(permit_id=_PERMIT_ID),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     event = events[0]
     assert isinstance(event, PermitRevoked)

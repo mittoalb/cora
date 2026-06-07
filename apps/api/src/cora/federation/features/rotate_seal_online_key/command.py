@@ -4,7 +4,7 @@
 fresh Credential.id to install in the online (warm) slot. The principal
 id of the invoker is supplied separately by the application handler at
 call time and stamped onto `SealOnlineKeyRotated` as
-`rotated_by_actor_id`.
+`rotated_by`.
 
 Rotation is a security-touching action (the offline root authorises a
 warm-key swap, typically in response to suspected compromise or planned

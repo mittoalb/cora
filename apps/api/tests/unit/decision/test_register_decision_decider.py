@@ -31,6 +31,7 @@ from cora.decision.features.register_decision import (
     DecisionRegistrationContext,
     RegisterDecision,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
@@ -41,7 +42,7 @@ def _actor() -> Actor:
 
 def _good_command(**overrides: Any) -> RegisterDecision:
     base: dict[str, Any] = {
-        "actor_id": uuid4(),
+        "decided_by": ActorId(uuid4()),
         "context": "RecipeApproval",
         "choice": "Approved",
         "parent_id": None,
@@ -61,7 +62,8 @@ def _good_command(**overrides: Any) -> RegisterDecision:
 def _existing_decision() -> Decision:
     return Decision(
         id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
+        decided_at=_NOW,
         context=DecisionContext("RecipeApproval"),
         choice=DecisionChoice("Approved"),
     )
@@ -73,8 +75,8 @@ def _existing_decision() -> Decision:
 @pytest.mark.unit
 def test_decide_emits_decision_registered_with_minimum_fields() -> None:
     new_id = uuid4()
-    actor_id = uuid4()
-    cmd = _good_command(actor_id=actor_id)
+    decided_by = ActorId(uuid4())
+    cmd = _good_command(decided_by=decided_by)
     events = register_decision.decide(
         state=None,
         command=cmd,
@@ -85,7 +87,7 @@ def test_decide_emits_decision_registered_with_minimum_fields() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.decision_id == new_id
-    assert event.actor_id == actor_id
+    assert event.decided_by == decided_by
     assert event.context == "RecipeApproval"
     assert event.choice == "Approved"
     assert event.parent_id is None
@@ -382,7 +384,7 @@ def test_decide_raises_when_actor_kind_is_agent() -> None:
     The operator-driven register_decision slice refuses kind=AGENT so it
     cannot become a signing-bypass route."""
     agent_actor = Actor(id=uuid4(), kind=ActorKind.AGENT)
-    cmd = _good_command(actor_id=agent_actor.id)
+    cmd = _good_command(decided_by=ActorId(agent_actor.id))
     with pytest.raises(InvalidActorKindForDecisionError) as exc_info:
         register_decision.decide(
             state=None,
@@ -399,7 +401,7 @@ def test_decide_accepts_service_account_actor() -> None:
     """Service-account Actors are first-class register_decision principals
     (machine callers like CI bridges); only AGENT is refused here."""
     sa_actor = Actor(id=uuid4(), kind=ActorKind.SERVICE_ACCOUNT)
-    cmd = _good_command(actor_id=sa_actor.id)
+    cmd = _good_command(decided_by=ActorId(sa_actor.id))
     events = register_decision.decide(
         state=None,
         command=cmd,
@@ -407,7 +409,7 @@ def test_decide_accepts_service_account_actor() -> None:
         now=_NOW,
         new_id=uuid4(),
     )
-    assert events[0].actor_id == sa_actor.id
+    assert events[0].decided_by == sa_actor.id
 
 
 # ---------- Cross-aggregate validation ----------

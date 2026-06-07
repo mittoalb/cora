@@ -36,11 +36,13 @@ from cora.data.features.register_dataset import (
     DatasetRegistrationContext,
     RegisterDataset,
 )
+from cora.infrastructure.identity import ActorId
 from cora.run.aggregates.run import Run, RunName, RunStatus
 from cora.subject.aggregates.subject import Subject, SubjectName
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000000099"))
 
 
 def _good_command(**overrides: object) -> RegisterDataset:
@@ -98,6 +100,7 @@ def test_decide_emits_dataset_registered_with_minimum_fields() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=new_id,
+        registered_by=_REGISTERED_BY,
     )
     assert len(events) == 1
     event = events[0]
@@ -119,7 +122,12 @@ def test_decide_emits_dataset_registered_with_minimum_fields() -> None:
 def test_decide_trims_name_via_value_object() -> None:
     cmd = _good_command(name="  trimmed  ")
     events = register_dataset.decide(
-        state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].name == "trimmed"
 
@@ -128,7 +136,12 @@ def test_decide_trims_name_via_value_object() -> None:
 def test_decide_trims_uri_via_value_object() -> None:
     cmd = _good_command(uri="  s3://b/k  ")
     events = register_dataset.decide(
-        state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].uri == "s3://b/k"
 
@@ -137,7 +150,12 @@ def test_decide_trims_uri_via_value_object() -> None:
 def test_decide_accepts_zero_byte_size() -> None:
     cmd = _good_command(byte_size=0)
     events = register_dataset.decide(
-        state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].byte_size == 0
 
@@ -146,7 +164,12 @@ def test_decide_accepts_zero_byte_size() -> None:
 def test_decide_accepts_encoding_conforms_to_set() -> None:
     cmd = _good_command(conforms_to=frozenset({"https://manual.nexusformat.org/"}))
     events = register_dataset.decide(
-        state=None, command=cmd, context=DatasetRegistrationContext(), now=_NOW, new_id=uuid4()
+        state=None,
+        command=cmd,
+        context=DatasetRegistrationContext(),
+        now=_NOW,
+        new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].conforms_to == frozenset({"https://manual.nexusformat.org/"})
 
@@ -164,6 +187,7 @@ def test_decide_raises_invalid_name_for_whitespace_only() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -177,6 +201,7 @@ def test_decide_raises_invalid_uri_for_missing_scheme() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -190,6 +215,7 @@ def test_decide_raises_invalid_checksum_for_md5() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -203,6 +229,7 @@ def test_decide_raises_invalid_byte_size_for_negative() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -216,6 +243,7 @@ def test_decide_raises_invalid_encoding_for_empty_media_type() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -229,6 +257,7 @@ def test_decide_raises_invalid_derived_from_for_too_many_entries() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -245,6 +274,7 @@ def test_decide_passes_when_producing_run_set_and_loaded() -> None:
         context=DatasetRegistrationContext(producing_run=run),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].producing_run_id == run.id
 
@@ -263,6 +293,7 @@ def test_decide_raises_when_producing_run_set_but_context_missing() -> None:
             context=DatasetRegistrationContext(producing_run=None),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -277,6 +308,7 @@ def test_decide_raises_when_subject_set_but_context_missing() -> None:
             context=DatasetRegistrationContext(subject=None),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -295,6 +327,7 @@ def test_decide_raises_when_derived_from_missing_in_context() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
     assert exc_info.value.missing_ids == [derived_b]
 
@@ -319,6 +352,7 @@ def test_decide_passes_with_full_cross_agg_context() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].producing_run_id == run.id
     assert events[0].subject_id == subject.id
@@ -338,6 +372,7 @@ def test_decide_raises_already_exists_when_state_not_none() -> None:
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
     assert exc_info.value.dataset_id == existing.id
 
@@ -352,6 +387,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=new_id,
+        registered_by=_REGISTERED_BY,
     )
     second = register_dataset.decide(
         state=None,
@@ -359,6 +395,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=new_id,
+        registered_by=_REGISTERED_BY,
     )
     assert first == second
 
@@ -404,6 +441,7 @@ def test_decide_captures_producing_run_status_into_event_payload(
         context=DatasetRegistrationContext(producing_run=run),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert len(events) == 1
     assert events[0].producing_run_end_state == run_status.value
@@ -421,6 +459,7 @@ def test_decide_captures_none_end_state_when_no_producing_run() -> None:
         context=DatasetRegistrationContext(),  # no producing_run loaded
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert len(events) == 1
     assert events[0].producing_run_end_state is None
@@ -437,6 +476,7 @@ def test_decide_defaults_intent_to_trial_in_event_payload() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].intent == "Trial"
 
@@ -456,6 +496,7 @@ def test_decide_defaults_used_calibration_ids_to_empty_tuple_on_event_payload() 
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].used_calibration_ids == ()
 
@@ -473,6 +514,7 @@ def test_decide_threads_used_calibration_ids_through_to_event() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert set(events[0].used_calibration_ids) == {cal_a, cal_b}
 
@@ -493,6 +535,7 @@ def test_decide_sorts_used_calibration_ids_before_emit_for_deterministic_bytes()
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     # The decider emits sorted by UUID natural ordering — pin the
     # exact tuple order (NOT just set equality) to defend against
@@ -514,6 +557,7 @@ def test_decide_raises_invalid_used_calibration_ids_for_too_many_entries() -> No
             context=DatasetRegistrationContext(),
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_REGISTERED_BY,
         )
 
 
@@ -528,6 +572,7 @@ def test_decide_accepts_used_calibration_ids_at_cardinality_cap() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert len(events[0].used_calibration_ids) == DATASET_USED_CALIBRATIONS_MAX_ENTRIES
 
@@ -548,6 +593,7 @@ def test_decide_does_not_cross_bc_validate_used_calibration_ids() -> None:
         context=DatasetRegistrationContext(),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert len(events) == 1
     assert set(events[0].used_calibration_ids) == synthetic
@@ -576,5 +622,6 @@ def test_decide_does_not_compare_used_calibration_ids_against_producing_run() ->
         context=DatasetRegistrationContext(producing_run=fake_run),
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_REGISTERED_BY,
     )
     assert events[0].used_calibration_ids == (cal_dataset_only,)

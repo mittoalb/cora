@@ -39,6 +39,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -73,6 +74,14 @@ class DatasetRegistered:
         before emit); the evolver reconstructs the frozenset.
         Pre-12c events fold cleanly with `payload.get(
         "used_calibration_ids", [])` returning an empty list.
+
+    Fold-symmetry attribution (per [[project_fold_symmetry_design]]):
+      - `registered_by: ActorId`: the envelope `principal_id` of the
+        register-slice caller. Carried on the event payload so a future
+        slice that opts into folding attribution onto Dataset state
+        already has the data. Dataset stays fold-NEITHER on state per
+        the Data BC entry in the fold-NEITHER allowlist (event payload
+        carries the actor, aggregate state does not denorm).
     """
 
     dataset_id: UUID
@@ -87,6 +96,7 @@ class DatasetRegistered:
     subject_id: UUID | None
     derived_from: frozenset[UUID]
     occurred_at: datetime
+    registered_by: ActorId
     # additions:
     producing_run_end_state: str | None = None
     intent: str = "Trial"
@@ -114,11 +124,16 @@ class DatasetPromoted:
     Operationally this records "we're claiming this is publication-
     grade and here's why". The audit trail is immutable: the WHY
     survives forever even if the Dataset is later discarded.
+
+    Fold-symmetry attribution (per [[project_fold_symmetry_design]]):
+      - `promoted_by: ActorId`: the envelope `principal_id` of the
+        promote-slice caller. Dataset stays fold-NEITHER on state.
     """
 
     dataset_id: UUID
     reason: str
     occurred_at: datetime
+    promoted_by: ActorId
 
 
 @dataclass(frozen=True)
@@ -135,11 +150,16 @@ class DatasetDiscarded:
     NOT capture the URI's deletion-time-state (operators may need
     to re-discover the original URI to re-run analysis chains); the
     URI lives on the prior DatasetRegistered event.
+
+    Fold-symmetry attribution (per [[project_fold_symmetry_design]]):
+      - `discarded_by: ActorId`: the envelope `principal_id` of the
+        discard-slice caller. Dataset stays fold-NEITHER on state.
     """
 
     dataset_id: UUID
     reason: str
     occurred_at: datetime
+    discarded_by: ActorId
 
 
 @dataclass(frozen=True)
@@ -164,11 +184,16 @@ class DatasetDemoted:
     prior promote-Decision). This event does NOT carry a Decision
     reference; the slice supports quick retraction during incident
     response without requiring a paired Decision first.
+
+    Fold-symmetry attribution (per [[project_fold_symmetry_design]]):
+      - `demoted_by: ActorId`: the envelope `principal_id` of the
+        demote-slice caller. Dataset stays fold-NEITHER on state.
     """
 
     dataset_id: UUID
     reason: str
     occurred_at: datetime
+    demoted_by: ActorId
 
 
 # Discriminated union of every event the Dataset aggregate emits.
@@ -201,6 +226,7 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
             subject_id=subject_id,
             derived_from=derived_from,
             occurred_at=occurred_at,
+            registered_by=registered_by,
             producing_run_end_state=producing_run_end_state,
             intent=intent,
             used_calibration_ids=used_calibration_ids,
@@ -224,6 +250,7 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 "subject_id": str(subject_id) if subject_id is not None else None,
                 "derived_from": sorted(str(d) for d in derived_from),
                 "occurred_at": occurred_at.isoformat(),
+                "registered_by": str(registered_by),
                 # additions:
                 "producing_run_end_state": producing_run_end_state,
                 "intent": intent,
@@ -231,23 +258,41 @@ def to_payload(event: DatasetEvent) -> dict[str, Any]:
                 # mirrors derived_from + Run.pinned_calibration_ids precedent).
                 "used_calibration_ids": sorted(str(c) for c in used_calibration_ids),
             }
-        case DatasetDiscarded(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+        case DatasetDiscarded(
+            dataset_id=dataset_id,
+            reason=reason,
+            occurred_at=occurred_at,
+            discarded_by=discarded_by,
+        ):
             return {
                 "dataset_id": str(dataset_id),
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
+                "discarded_by": str(discarded_by),
             }
-        case DatasetPromoted(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+        case DatasetPromoted(
+            dataset_id=dataset_id,
+            reason=reason,
+            occurred_at=occurred_at,
+            promoted_by=promoted_by,
+        ):
             return {
                 "dataset_id": str(dataset_id),
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
+                "promoted_by": str(promoted_by),
             }
-        case DatasetDemoted(dataset_id=dataset_id, reason=reason, occurred_at=occurred_at):
+        case DatasetDemoted(
+            dataset_id=dataset_id,
+            reason=reason,
+            occurred_at=occurred_at,
+            demoted_by=demoted_by,
+        ):
             return {
                 "dataset_id": str(dataset_id),
                 "reason": reason,
                 "occurred_at": occurred_at.isoformat(),
+                "demoted_by": str(demoted_by),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -284,6 +329,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     subject_id=UUID(raw_subject_id) if raw_subject_id is not None else None,
                     derived_from=frozenset(UUID(d) for d in payload["derived_from"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    registered_by=ActorId(UUID(payload["registered_by"])),
                     producing_run_end_state=payload.get("producing_run_end_state"),
                     intent=payload.get("intent", "Trial"),
                     used_calibration_ids=tuple(
@@ -299,6 +345,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    discarded_by=ActorId(UUID(payload["discarded_by"])),
                 ),
             )
         case "DatasetPromoted":
@@ -308,6 +355,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    promoted_by=ActorId(UUID(payload["promoted_by"])),
                 ),
             )
         case "DatasetDemoted":
@@ -317,6 +365,7 @@ def from_stored(stored: StoredEvent) -> DatasetEvent:
                     dataset_id=UUID(payload["dataset_id"]),
                     reason=payload["reason"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    demoted_by=ActorId(UUID(payload["demoted_by"])),
                 ),
             )
         case _:

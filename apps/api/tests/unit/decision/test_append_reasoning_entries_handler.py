@@ -31,6 +31,7 @@ from cora.decision.features.append_reasoning_entries import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 12, 12, 0, 0, tzinfo=UTC)
@@ -56,7 +57,7 @@ def _entry(**overrides: object) -> ReasoningEntryInput:
 async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RecipeApproval",
         choice="Approved",
         parent_id=None,

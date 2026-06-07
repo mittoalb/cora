@@ -6,7 +6,7 @@ Replay-safe at the evolver layer; set-once is enforced at the decider.
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -23,6 +23,9 @@ from cora.equipment.aggregates.fixture import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 pytestmark = pytest.mark.timeout(60, method="thread")
 
@@ -181,6 +184,7 @@ def test_fold_register_then_assign_persistent_id_yields_fixture_with_persistent_
                 slot_asset_bindings=frozenset(),
                 parameter_overrides={},
                 occurred_at=_NOW,
+                registered_by=_TEST_ACTOR_ID,
             ),
             FixturePersistentIdAssigned(
                 fixture_id=fixture_id,
@@ -212,6 +216,7 @@ def test_evolver_fixture_registered_defaults_persistent_id_to_none() -> None:
             slot_asset_bindings=frozenset(),
             parameter_overrides={},
             occurred_at=_NOW,
+            registered_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.persistent_id is None

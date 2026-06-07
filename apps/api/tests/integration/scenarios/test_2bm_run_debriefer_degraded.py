@@ -370,7 +370,7 @@ async def test_run_debrief_agent_fires_on_degraded_completion(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "DegradedCompletion"
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: Aerotech stream carries the degrade/restore pair -----
 

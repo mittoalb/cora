@@ -82,7 +82,7 @@ async def test_register_credential_writes_both_streams_atomically(
     assert credential.secret_ref == _SECRET_REF
     assert credential.public_material_ref == _PUBLIC_REF
     assert credential.expires_at == _EXPIRES_AT
-    assert credential.registered_by_actor_id == _PRINCIPAL_ID
+    assert credential.registered_by == _PRINCIPAL_ID
     assert credential.rotation_pending_secret_ref is None
     assert credential.rotation_pending_public_material_ref is None
 

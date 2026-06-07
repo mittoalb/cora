@@ -5,7 +5,7 @@ Single-source transition: `Republishing -> Live`. Strict-not-idempotent
 precedent): completing a republish on a Seal that is not in
 `Republishing` status raises `SealCannotCompleteRepublishingError`.
 
-`completed_by_actor_id` is handler-injected from the request envelope's
+`completed_by` is handler-injected from the request envelope's
 `principal_id` per the non-determinism principle (capture, don't
 recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -32,7 +32,6 @@ invoked here.
 """
 
 from datetime import datetime
-from uuid import UUID
 
 from cora.federation.aggregates.seal import (
     InvalidSealHeadHashError,
@@ -46,6 +45,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.complete_seal_republishing.command import (
     CompleteSealRepublishing,
 )
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -53,7 +53,7 @@ def decide(
     command: CompleteSealRepublishing,
     *,
     now: datetime,
-    completed_by_actor_id: UUID,
+    completed_by: ActorId,
 ) -> list[SealRepublishingCompleted]:
     """Decide the events produced by completing a Seal republish.
 
@@ -112,7 +112,7 @@ def decide(
             facility_id=state.facility_id,
             new_head_hash=new_head_hash,
             new_sequence_number=new_sequence_number,
-            completed_by_actor_id=completed_by_actor_id,
+            completed_by=completed_by,
             occurred_at=now,
         )
     ]

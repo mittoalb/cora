@@ -4,7 +4,7 @@ Pin the singleton-genesis guard, key-separation invariant via the
 shared helper, facility_id trim-before-capture, the genesis defaults
 (current_head_hash=None, current_sequence_number=0 land via the
 evolver not the event), purity (same inputs -> same outputs), and
-handler-injected `now` / `initialized_by_actor_id` capture per the
+handler-injected `now` / `initialized_by` capture per the
 non-determinism principle.
 
 Pass-3 wiring: the decider now consumes two `CredentialLookupResult`
@@ -34,11 +34,12 @@ from cora.federation.aggregates.seal import (
 )
 from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed101")
-_OTHER_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed102")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed101"))
+_OTHER_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed102"))
 _FACILITY_ID = "aps-2bm"
 _ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
@@ -91,7 +92,8 @@ def _existing_state() -> Seal:
         offline_credential_id=_OFFLINE_KEY_REF,
         current_head_hash=None,
         current_sequence_number=0,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
+        initialized_at=_NOW,
         status=SealStatus.LIVE,
     )
 
@@ -102,7 +104,7 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
     )
@@ -111,7 +113,7 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
     assert event.facility_id == _FACILITY_ID
     assert event.online_credential_id == _ONLINE_KEY_REF
     assert event.offline_credential_id == _OFFLINE_KEY_REF
-    assert event.initialized_by_actor_id == _PRINCIPAL_ID
+    assert event.initialized_by == _PRINCIPAL_ID
     assert event.occurred_at == _NOW
 
 
@@ -126,7 +128,7 @@ def test_initialize_seal_rejects_non_canonical_facility_id() -> None:
             state=None,
             command=_command(facility_id="  aps-2bm  "),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
         )
@@ -141,7 +143,7 @@ def test_initialize_seal_raises_already_exists_when_state_present() -> None:
             state=_existing_state(),
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
         )
@@ -155,7 +157,7 @@ def test_initialize_seal_rejects_empty_facility_id() -> None:
             state=None,
             command=_command(facility_id=""),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
         )
@@ -169,7 +171,7 @@ def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
             state=None,
             command=_command(facility_id="   "),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
         )
@@ -186,7 +188,7 @@ def test_initialize_seal_raises_collision_when_keys_equal() -> None:
             state=None,
             command=_command(online_credential_id=shared, offline_credential_id=shared),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
         )
@@ -209,7 +211,7 @@ def test_initialize_seal_rejects_non_canonical_before_collision_check() -> None:
                 offline_credential_id=shared,
             ),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
         )
@@ -228,7 +230,7 @@ def test_initialize_seal_accepts_distinct_keys() -> None:
             offline_credential_id=new_offline,
         ),
         now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(credential_id=new_online),
         offline_credential=_offline_cred(credential_id=new_offline),
     )
@@ -243,7 +245,7 @@ def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=online,
         offline_credential=offline,
     )
@@ -251,7 +253,7 @@ def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=online,
         offline_credential=offline,
     )
@@ -260,16 +262,16 @@ def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
 
 @pytest.mark.unit
 def test_initialize_seal_uses_handler_injected_actor_id_verbatim() -> None:
-    injected = uuid4()
+    injected = ActorId(uuid4())
     events = initialize_seal.decide(
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=injected,
+        initialized_by=injected,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
     )
-    assert events[0].initialized_by_actor_id == injected
+    assert events[0].initialized_by == injected
 
 
 @pytest.mark.unit
@@ -279,7 +281,7 @@ def test_initialize_seal_uses_handler_injected_now_verbatim() -> None:
         state=None,
         command=_command(),
         now=custom_now,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
     )
@@ -294,7 +296,7 @@ def test_initialize_seal_records_distinct_principals_independently() -> None:
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=_PRINCIPAL_ID,
+        initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
     )
@@ -302,12 +304,12 @@ def test_initialize_seal_records_distinct_principals_independently() -> None:
         state=None,
         command=_command(),
         now=_NOW,
-        initialized_by_actor_id=_OTHER_PRINCIPAL_ID,
+        initialized_by=_OTHER_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
     )
-    assert first[0].initialized_by_actor_id == _PRINCIPAL_ID
-    assert second[0].initialized_by_actor_id == _OTHER_PRINCIPAL_ID
+    assert first[0].initialized_by == _PRINCIPAL_ID
+    assert second[0].initialized_by == _OTHER_PRINCIPAL_ID
 
 
 @pytest.mark.unit
@@ -319,7 +321,7 @@ def test_initialize_seal_raises_not_found_when_online_credential_missing() -> No
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=None,
             offline_credential=_offline_cred(),
         )
@@ -334,7 +336,7 @@ def test_initialize_seal_raises_not_found_when_offline_credential_missing() -> N
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=None,
         )
@@ -349,7 +351,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_online_wrong_purpose() -> 
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(purpose=CredentialPurpose.SIGNING.value),
             offline_credential=_offline_cred(),
         )
@@ -368,7 +370,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_offline_wrong_purpose() ->
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value),
         )
@@ -387,7 +389,7 @@ def test_initialize_seal_raises_inactive_when_online_status_rotating() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(status=CredentialStatus.ROTATING.value),
             offline_credential=_offline_cred(),
         )
@@ -405,7 +407,7 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(status=CredentialStatus.REVOKED.value),
         )
@@ -424,7 +426,7 @@ def test_initialize_seal_rejects_online_credential_from_other_facility() -> None
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(facility_id="aps-32id"),
             offline_credential=_offline_cred(),
         )
@@ -442,7 +444,7 @@ def test_initialize_seal_rejects_offline_credential_from_other_facility() -> Non
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(facility_id="aps-32id"),
         )
@@ -463,7 +465,7 @@ def test_initialize_seal_rejects_when_both_credentials_from_other_facility() -> 
             state=None,
             command=_command(),
             now=_NOW,
-            initialized_by_actor_id=_PRINCIPAL_ID,
+            initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(facility_id="aps-32id"),
             offline_credential=_offline_cred(facility_id="aps-32id"),
         )

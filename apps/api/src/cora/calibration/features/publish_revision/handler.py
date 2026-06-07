@@ -213,7 +213,7 @@ def bind(deps: Kernel) -> Handler:
             canonical_bytes=canonicalized.bytes_,
             envelope=signature_envelope,
             published_at=now,
-            published_by_actor_id=principal_id,
+            published_by=principal_id,
             permit_abi_tier_floor=(
                 permit_result.abi_tier_floor if permit_result is not None else "Stable"
             ),
@@ -229,7 +229,7 @@ def bind(deps: Kernel) -> Handler:
             signature_kid=_extract_kid(signature_envelope),
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=principal_id,
+            published_by=principal_id,
         )
 
         assert permit_result is not None  # decide raises before this line if None
@@ -303,7 +303,7 @@ def _build_published_artifact(
     canonical_bytes: bytes,
     envelope: SignatureEnvelope,
     published_at: object,
-    published_by_actor_id: UUID,
+    published_by: UUID,
     permit_abi_tier_floor: str,
     canonicalization_version: str,
 ) -> PublishedArtifact:
@@ -319,7 +319,7 @@ def _build_published_artifact(
         published_at=published_at,
         expires_at=None,
         abi_tier=permit_abi_tier_floor,
-        dco_chain=(SignedOffBy(actor_id=published_by_actor_id, signed_at=published_at),),
+        dco_chain=(SignedOffBy(actor_id=published_by, signed_at=published_at),),
         schema_version=_SCHEMA_VERSION,
         canonicalization_version=canonicalization_version,
     )

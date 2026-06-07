@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.infrastructure.identifier import Identifier
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance import (
     AssetBinding,
@@ -355,12 +356,12 @@ def test_clearance_review_started_round_trip() -> None:
 
 @pytest.mark.unit
 def test_clearance_review_step_appended_round_trip() -> None:
-    actor_id = uuid4()
+    decided_by = ActorId(uuid4())
     original = ClearanceReviewStepAppended(
         clearance_id=_CLEARANCE_ID,
         step_index=2,
         role="ESH",
-        actor_id=actor_id,
+        decided_by=decided_by,
         decision="Approved",
         decided_at=_NOW,
         notes="LGTM",
@@ -368,7 +369,7 @@ def test_clearance_review_step_appended_round_trip() -> None:
     )
     payload = to_payload(original)
     assert payload["step_index"] == 2
-    assert payload["actor_id"] == str(actor_id)
+    assert payload["decided_by"] == str(decided_by)
     assert payload["decision"] == "Approved"
     assert payload["decided_at"] == _NOW.isoformat()
     assert from_stored(_stored("ClearanceReviewStepAppended", payload)) == original
@@ -380,7 +381,7 @@ def test_clearance_review_step_appended_round_trip_handles_none_notes() -> None:
         clearance_id=_CLEARANCE_ID,
         step_index=0,
         role="LocalContact",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="RequestedChanges",
         decided_at=_NOW,
         notes=None,

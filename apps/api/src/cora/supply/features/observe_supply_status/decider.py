@@ -27,6 +27,7 @@ payload for downstream audit ("which sensor said so").
 
 from datetime import datetime
 
+from cora.infrastructure.identity import MonitorSourceId
 from cora.supply.aggregates.supply import (
     MonitorTriggerNotPermittedError,
     Supply,
@@ -76,6 +77,7 @@ def decide(
     command: ObserveSupplyStatus,
     *,
     now: datetime,
+    triggered_by: MonitorSourceId,
 ) -> list[SupplyDegraded | SupplyMarkedUnavailable | SupplyMarkedRecovering]:
     """Decide the events produced by a Monitor-driven status observation.
 
@@ -90,6 +92,11 @@ def decide(
       - Source state must permit Recovering (Unavailable only)
         -> SupplyCannotMarkRecoveringError
       - Reason must be valid -> InvalidSupplyReasonError
+
+    `triggered_by` is the `MonitorSourceId` of the in-process adapter
+    (substream subscriber, EPICS PV listener, file watcher) whose
+    observation produced this command. Pairs with trigger="Monitor"
+    on the emitted event payload per [[project_fold_symmetry_design]].
     """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
@@ -110,6 +117,7 @@ def decide(
                 from_status=state.status.value,
                 reason=reason.value,
                 trigger=trigger,
+                triggered_by=triggered_by,
                 occurred_at=now,
                 monitor_ref=monitor_ref_str,
             )
@@ -124,6 +132,7 @@ def decide(
                 from_status=state.status.value,
                 reason=reason.value,
                 trigger=trigger,
+                triggered_by=triggered_by,
                 occurred_at=now,
                 monitor_ref=monitor_ref_str,
             )
@@ -138,6 +147,7 @@ def decide(
                 from_status=state.status.value,
                 reason=reason.value,
                 trigger=trigger,
+                triggered_by=triggered_by,
                 occurred_at=now,
                 monitor_ref=monitor_ref_str,
             )

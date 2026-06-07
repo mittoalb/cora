@@ -17,6 +17,7 @@ from cora.decision.features import rate_decision
 from cora.decision.features.rate_decision import RateDecision
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -45,7 +46,7 @@ def _build_deps(
 async def _seed_decision(store: InMemoryEventStore) -> None:
     genesis = DecisionRegistered(
         decision_id=_DECISION_ID,
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RunDebrief",
         choice="NominalCompletion",
         parent_id=None,
@@ -93,7 +94,7 @@ async def test_handler_appends_decision_rated_event() -> None:
     assert version == 2
     assert events[-1].event_type == "DecisionRated"
     assert events[-1].payload["rating"] == "useful"
-    assert events[-1].payload["rated_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rated_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit

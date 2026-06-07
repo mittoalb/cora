@@ -11,7 +11,7 @@ supersession can revise any aspect: text, workaround, severity,
 category, tags, expires_at, propagate_to_children. The parent-child
 link establishes the supersession chain.
 
-The child's `author_actor_id` is derived by the handler from the
+The child's `authored_by` is derived by the handler from the
 request envelope's `principal_id` (matching `register_caution`); the
 command intentionally omits the field so callers cannot spoof a
 different author at the API surface.
@@ -25,7 +25,7 @@ caution.
 
 The superseding actor's identity lives on the event envelope
 (`StoredEvent.principal_id`); no actor field on the command/event for
-the supersede event (the child genesis's `author_actor_id` is derived
+the supersede event (the child genesis's `authored_by` is derived
 by the handler from the same `principal_id` and lives on the child
 event payload for denorm convenience).
 """

@@ -57,6 +57,7 @@ def test_projection_metadata() -> None:
             "RunTruncated",
             "RunAddedToCampaign",
             "RunRemovedFromCampaign",
+            "RunAdjusted",
         }
     )
 

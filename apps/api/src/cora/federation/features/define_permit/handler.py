@@ -15,7 +15,7 @@ by the handler and used as the new Decision stream id.
 Idempotency-wrappable per the create-style convention; the
 `with_idempotency` wrap is applied at `wire.py`, not here.
 
-`defined_by_actor_id` is handler-injected from the request
+`defined_by` is handler-injected from the request
 envelope's `principal_id`; not on the command per the
 "no spoofable author" discipline that started with
 `register_caution`.
@@ -44,6 +44,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.define_permit.command import DefinePermit
 from cora.federation.features.define_permit.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -138,13 +139,13 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
-            defined_by_actor_id=principal_id,
+            defined_by=ActorId(principal_id),
         )
 
         decision_id = deps.id_generator.new_id()
         decision_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=principal_id,
+            decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
             choice=str(new_id),
             parent_id=None,

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.run.aggregates.run import (
     Run,
     RunName,
@@ -811,6 +812,7 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
         effective_parameters={"energy": 10.0},
     )
     later = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    actor = ActorId(uuid4())
     state = fold(
         [
             started,
@@ -819,6 +821,7 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
                 parameters_patch={"energy": 12.0},
                 effective_parameters={"energy": 12.0},
                 reason="x",
+                adjusted_by=actor,
                 occurred_at=later,
             ),
         ]
@@ -826,6 +829,7 @@ def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
     assert state is not None
     assert state.effective_parameters == {"energy": 12.0}
     assert state.last_adjusted_at == later
+    assert state.last_adjusted_by == actor
     assert state.adjustment_count == 1
     # Status preserved (steering orthogonal to lifecycle).
     assert state.status is RunStatus.RUNNING
@@ -852,6 +856,7 @@ def test_two_run_adjusted_events_increment_count_cumulatively() -> None:
                 parameters_patch={"a": 2},
                 effective_parameters={"a": 2},
                 reason="first",
+                adjusted_by=ActorId(uuid4()),
                 occurred_at=_NOW,
             ),
             RunAdjusted(
@@ -859,6 +864,7 @@ def test_two_run_adjusted_events_increment_count_cumulatively() -> None:
                 parameters_patch={"b": 3},
                 effective_parameters={"a": 2, "b": 3},
                 reason="second",
+                adjusted_by=ActorId(uuid4()),
                 occurred_at=_NOW,
             ),
         ]
@@ -880,6 +886,7 @@ def test_run_adjusted_on_empty_state_raises() -> None:
                 parameters_patch={"x": 1},
                 effective_parameters={"x": 1},
                 reason="x",
+                adjusted_by=ActorId(uuid4()),
                 occurred_at=_NOW,
             ),
         )
@@ -901,6 +908,7 @@ def test_held_then_resumed_preserves_adjustment_denorm() -> None:
         effective_parameters={"a": 1},
     )
     adjusted_at = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    actor = ActorId(uuid4())
     state = fold(
         [
             started,
@@ -909,6 +917,7 @@ def test_held_then_resumed_preserves_adjustment_denorm() -> None:
                 parameters_patch={"a": 2},
                 effective_parameters={"a": 2},
                 reason="first",
+                adjusted_by=actor,
                 occurred_at=adjusted_at,
             ),
             RunHeld(run_id=run_id, occurred_at=_NOW),
@@ -917,6 +926,7 @@ def test_held_then_resumed_preserves_adjustment_denorm() -> None:
     )
     assert state is not None
     assert state.last_adjusted_at == adjusted_at
+    assert state.last_adjusted_by == actor
     assert state.adjustment_count == 1
     assert state.effective_parameters == {"a": 2}
 
@@ -936,6 +946,7 @@ def test_each_terminal_preserves_adjustment_denorm(
 
     run_id = uuid4()
     adjusted_at = datetime(2026, 5, 14, 13, 0, 0, tzinfo=UTC)
+    actor = ActorId(uuid4())
     state = fold(
         [
             RunStarted(
@@ -950,6 +961,7 @@ def test_each_terminal_preserves_adjustment_denorm(
                 parameters_patch={"a": 1},
                 effective_parameters={"a": 1},
                 reason="adjust",
+                adjusted_by=actor,
                 occurred_at=adjusted_at,
             ),
             terminal_factory(run_id),
@@ -957,14 +969,15 @@ def test_each_terminal_preserves_adjustment_denorm(
     )
     assert state is not None
     assert state.last_adjusted_at == adjusted_at
+    assert state.last_adjusted_by == actor
     assert state.adjustment_count == 1
 
 
 @pytest.mark.unit
 def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
     """Pre-6j Runs have no RunAdjusted event in the stream. They MUST
-    fold cleanly with last_adjusted_at=None + adjustment_count=0 —
-    additive backward-compat contract."""
+    fold cleanly with last_adjusted_at=None + last_adjusted_by=None +
+    adjustment_count=0 — additive backward-compat contract."""
     run_id = uuid4()
     state = fold(
         [
@@ -980,6 +993,7 @@ def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
     )
     assert state is not None
     assert state.last_adjusted_at is None
+    assert state.last_adjusted_by is None
     assert state.adjustment_count == 0
 
 
@@ -1110,6 +1124,7 @@ def test_adjust_run_preserves_pinned_calibration_ids() -> None:
                 parameters_patch={"a": 1},
                 effective_parameters={"a": 1},
                 reason="adjust",
+                adjusted_by=ActorId(uuid4()),
                 occurred_at=_NOW,
             ),
         ]

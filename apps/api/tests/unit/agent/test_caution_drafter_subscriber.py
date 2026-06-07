@@ -348,7 +348,7 @@ async def test_apply_emits_caution_proposal_decision_on_run_aborted() -> None:
     assert decision.context.value == "CautionProposal"
     assert decision.choice.value == "ProposeCaution"
     assert decision.confidence == pytest.approx(0.72)
-    assert decision.actor_id == CAUTION_DRAFTER_AGENT_ID
+    assert decision.decided_by == CAUTION_DRAFTER_AGENT_ID
     assert decision.rule is not None
     assert decision.rule.value == "agent:CautionDrafter:v1"
     # The proposed_caution tuple round-trips through inputs.

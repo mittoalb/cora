@@ -139,7 +139,7 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
         row = await conn.fetchrow(
             """
             SELECT facility_id, current_head_hash, current_sequence_number,
-                   last_signed_by_actor_id, last_signed_at, status
+                   last_signed_by, last_signed_at, status
               FROM proj_federation_seal_summary
              WHERE facility_id = $1
             """,
@@ -149,6 +149,6 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
     assert row["facility_id"] == facility_id
     assert row["current_head_hash"] == _HEAD_HASH
     assert row["current_sequence_number"] == _SEQUENCE_NUMBER
-    assert row["last_signed_by_actor_id"] == _PRINCIPAL_ID
+    assert row["last_signed_by"] == _PRINCIPAL_ID
     assert row["last_signed_at"] == _SIGN_NOW
     assert row["status"] == SealStatus.LIVE.value

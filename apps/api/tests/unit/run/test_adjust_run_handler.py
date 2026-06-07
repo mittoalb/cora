@@ -270,6 +270,7 @@ async def test_handler_appends_run_adjusted_event_with_merged_snapshot() -> None
     assert adjusted.payload["parameters_patch"] == {"energy": 12.0}
     assert adjusted.payload["effective_parameters"] == {"energy": 12.0}
     assert adjusted.payload["reason"] == "re-center on detected feature"
+    assert adjusted.payload["adjusted_by"] == str(_PRINCIPAL_ID)
     assert adjusted.payload["decided_by_decision_id"] is None
 
 

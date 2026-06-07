@@ -150,7 +150,7 @@ def test_event_ahead_same_tx_emits_decision() -> None:
     )
 
     assert event.decision_id == _DECISION_ID
-    assert event.actor_id == _PRINCIPAL_ID
+    assert event.decided_by == _PRINCIPAL_ID
     assert event.context == DECISION_CONTEXT_REACTION_DISMISSAL
     assert event.choice == "EventDismissed"
     assert event.occurred_at == _NOW

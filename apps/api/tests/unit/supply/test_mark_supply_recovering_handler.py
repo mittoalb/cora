@@ -13,6 +13,7 @@ import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.supply.aggregates.supply import (
     SupplyCannotMarkRecoveringError,
@@ -32,6 +33,7 @@ _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _PRIOR = datetime(2026, 5, 14, 11, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = UUID("01900000-0000-7000-8000-000000005911")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_ACTOR_ID = ActorId(_PRINCIPAL_ID)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _TRANSITION_EVENT_ID = UUID("01900000-0000-7000-8000-000000005915")
 
@@ -45,6 +47,8 @@ async def _seed_unavailable_supply(store: InMemoryEventStore) -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_PRIOR,
             ),
             "RegisterSupply",
@@ -55,6 +59,7 @@ async def _seed_unavailable_supply(store: InMemoryEventStore) -> None:
                 from_status="Unknown",
                 reason="walkdown",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_PRIOR,
             ),
             "MarkSupplyAvailable",
@@ -65,6 +70,7 @@ async def _seed_unavailable_supply(store: InMemoryEventStore) -> None:
                 from_status="Available",
                 reason="beam dump",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_PRIOR,
             ),
             "MarkSupplyUnavailable",

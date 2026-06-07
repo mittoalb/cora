@@ -27,6 +27,7 @@ Append-only-into-tuple, no status change.
 from datetime import datetime
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotAppendReviewStepError,
@@ -116,7 +117,7 @@ def decide(
             clearance_id=state.id,
             step_index=command.step_index,
             role=role,
-            actor_id=command.actor_id,
+            decided_by=ActorId(command.actor_id),
             decision=command.decision,
             decided_at=command.decided_at,
             notes=notes,

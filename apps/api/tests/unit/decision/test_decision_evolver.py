@@ -11,6 +11,7 @@ from cora.decision.aggregates.decision import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
@@ -18,10 +19,10 @@ _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 @pytest.mark.unit
 def test_evolve_registered_creates_decision_with_required_fields() -> None:
     decision_id = uuid4()
-    actor_id = uuid4()
+    decided_by = ActorId(uuid4())
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=decided_by,
         context="RecipeApproval",
         choice="Approved",
         parent_id=None,
@@ -37,7 +38,8 @@ def test_evolve_registered_creates_decision_with_required_fields() -> None:
     )
     state = evolve(state=None, event=event)
     assert state.id == decision_id
-    assert state.actor_id == actor_id
+    assert state.decided_by == decided_by
+    assert state.decided_at == _NOW
     assert state.context.value == "RecipeApproval"
     assert state.choice.value == "Approved"
 
@@ -48,7 +50,7 @@ def test_evolve_registered_preserves_optional_fields() -> None:
     inputs = {"measured": 1.0, "limit": 2.0}
     event = DecisionRegistered(
         decision_id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="ProcedureExecution",
         choice="Pass",
         parent_id=parent_id,
@@ -84,7 +86,7 @@ def test_fold_empty_stream_returns_none() -> None:
 def test_fold_single_event_returns_decision() -> None:
     event = DecisionRegistered(
         decision_id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RunAbort",
         choice="Abort",
         parent_id=None,

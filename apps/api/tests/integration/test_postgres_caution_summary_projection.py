@@ -11,7 +11,7 @@ Pins:
                                  + last_status_changed_at
   - tags TEXT[] round-trip + GIN-index-backed filter
   - target_kind + target_id filter
-  - category / severity / min_severity / author_actor_id filters
+  - category / severity / min_severity / authored_by filters
   - status default ('Active') vs status='all' (full set incl. Superseded/Retired)
   - cursor pagination across multiple cautions
   - propagate_to_children stored as-is (no hierarchy walk; Watch item #8)
@@ -441,10 +441,10 @@ async def test_list_filters_by_category_severity_min_severity_author_and_tag(
     )
     assert {it.caution_id for it in page.items} == {caution_id}
 
-    # author_actor_id=<principal> -> all 3 rows (handler derives the
+    # authored_by=<principal> -> all 3 rows (handler derives the
     # author from the request envelope's principal_id).
     page = await list_cautions.bind(list_deps)(
-        ListCautions(author_actor_id=_PRINCIPAL_ID),
+        ListCautions(authored_by=_PRINCIPAL_ID),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

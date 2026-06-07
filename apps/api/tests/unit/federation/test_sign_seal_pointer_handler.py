@@ -5,7 +5,7 @@ rejection on non-Live source-states (Republishing), not-found on an
 unknown facility's Seal, head-hash validation propagation from the
 decider, strict-not-idempotent posture on monotonic-sequence replay,
 and the success path's event envelope shape (correlation_id,
-causation_id, and the `signed_by_actor_id` denorm on payload).
+causation_id, and the `signed_by` denorm on payload).
 """
 
 from datetime import UTC, datetime
@@ -94,7 +94,7 @@ async def test_sign_seal_pointer_handler_appends_event_to_live_seal() -> None:
     assert stored.payload["facility_id"] == _FACILITY_ID
     assert stored.payload["head_hash"] == _NEW_HEAD_HASH
     assert stored.payload["sequence_number"] == 1
-    assert stored.payload["signed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["signed_by"] == str(_PRINCIPAL_ID)
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
@@ -289,9 +289,9 @@ async def test_sign_seal_pointer_handler_denied_does_not_write_to_stream() -> No
 
 
 @pytest.mark.unit
-async def test_sign_seal_pointer_handler_records_signed_by_actor_id() -> None:
+async def test_sign_seal_pointer_handler_records_signed_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `signed_by_actor_id` on the emitted event, regardless of who
+    `signed_by` on the emitted event, regardless of who
     initialised the Seal."""
     store = InMemoryEventStore()
     await seed_live_seal(
@@ -311,7 +311,7 @@ async def test_sign_seal_pointer_handler_records_signed_by_actor_id() -> None:
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Seal", seal_stream_id(_FACILITY_ID))
-    assert events[-1].payload["signed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["signed_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit

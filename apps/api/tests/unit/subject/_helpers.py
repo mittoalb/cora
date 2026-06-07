@@ -18,6 +18,7 @@ from cora.equipment.aggregates.asset import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -47,6 +48,7 @@ async def seed_active_asset(
         level="Enterprise",
         parent_id=None,
         occurred_at=now,
+        commissioned_by=ActorId(uuid4()),
     )
     events = [
         to_new_event(

@@ -10,7 +10,7 @@ adds no value when the decider rejects replays.
 
 Delegates to `make_credential_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `rotation_completed_by_actor_id`.
+under `rotation_completed_by`.
 """
 
 from typing import Protocol
@@ -46,5 +46,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="CompleteCredentialRotation",
         log_prefix="complete_credential_rotation",
         decide_fn=decide,
-        actor_kwarg="rotation_completed_by_actor_id",
+        actor_kwarg="rotation_completed_by",
     )

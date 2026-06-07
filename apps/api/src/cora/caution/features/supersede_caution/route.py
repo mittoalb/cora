@@ -2,7 +2,7 @@
 
 Action endpoint at `POST /cautions/{parent_id}/supersede`.
 Body carries the child caution's full fields (target, category,
-severity, text, workaround, author_actor_id, tags, expires_at,
+severity, text, workaround, authored_by, tags, expires_at,
 propagate_to_children). Returns 201 + the new child's caution_id.
 
 Reuses `register_caution`'s discriminated-union `TargetDTO` since

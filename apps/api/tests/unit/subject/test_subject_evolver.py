@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectName,
@@ -26,6 +27,7 @@ from cora.subject.features import register_subject
 from cora.subject.features.register_subject import RegisterSubject
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000a55e")
 
 
@@ -38,7 +40,9 @@ def test_evolve_subject_registered_sets_status_to_received() -> None:
     subject_id = uuid4()
     state = evolve(
         None,
-        SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+        SubjectRegistered(
+            subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+        ),
     )
     assert state == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED
@@ -53,7 +57,13 @@ def test_fold_empty_event_list_returns_none() -> None:
 @pytest.mark.unit
 def test_fold_single_subject_registered_returns_subject() -> None:
     subject_id = uuid4()
-    state = fold([SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW)])
+    state = fold(
+        [
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            )
+        ]
+    )
     assert state == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED
     )
@@ -62,7 +72,11 @@ def test_fold_single_subject_registered_returns_subject() -> None:
 @pytest.mark.unit
 def test_fold_is_pure_same_input_same_output() -> None:
     subject_id = uuid4()
-    events = [SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW)]
+    events = [
+        SubjectRegistered(
+            subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+        )
+    ]
     assert fold(events) == fold(events)
 
 
@@ -72,7 +86,9 @@ def test_decider_and_evolver_round_trip() -> None:
     new_id = uuid4()
     command = RegisterSubject(name="  Sample-A1  ")  # whitespace exercises the VO trim
 
-    events = register_subject.decide(state=None, command=command, now=_NOW, new_id=new_id)
+    events = register_subject.decide(
+        state=None, command=command, now=_NOW, new_id=new_id, registered_by=_ACTOR
+    )
     rebuilt = fold(events)
 
     assert rebuilt == Subject(
@@ -92,7 +108,13 @@ def test_evolve_subject_mounted_flips_status_to_mounted() -> None:
     received = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RECEIVED)
     mounted = evolve(
         received,
-        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
+        SubjectMounted(
+            subject_id=subject_id,
+            asset_id=_ASSET_ID,
+            reason="",
+            occurred_at=_NOW,
+            mounted_by=_ACTOR,
+        ),
     )
     assert mounted == Subject(
         id=subject_id,
@@ -112,7 +134,13 @@ def test_evolve_subject_mounted_preserves_id_and_name() -> None:
     received = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.RECEIVED)
     mounted = evolve(
         received,
-        SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
+        SubjectMounted(
+            subject_id=subject_id,
+            asset_id=_ASSET_ID,
+            reason="",
+            occurred_at=_NOW,
+            mounted_by=_ACTOR,
+        ),
     )
     assert mounted.id == subject_id
     assert mounted.name == SubjectName("Original")
@@ -125,7 +153,13 @@ def test_evolve_subject_mounted_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
         evolve(
             None,
-            SubjectMounted(subject_id=uuid4(), asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
+            SubjectMounted(
+                subject_id=uuid4(),
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
         )
 
 
@@ -135,8 +169,16 @@ def test_fold_register_then_mount_yields_mounted_subject() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
         ]
     )
     assert state == Subject(
@@ -157,7 +199,9 @@ def test_evolve_subject_measured_flips_status_to_measured() -> None:
     from the event TYPE (same precedent as SubjectMounted)."""
     subject_id = uuid4()
     mounted = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED)
-    measured = evolve(mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW))
+    measured = evolve(
+        mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR)
+    )
     assert measured == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED
     )
@@ -167,7 +211,9 @@ def test_evolve_subject_measured_flips_status_to_measured() -> None:
 def test_evolve_subject_measured_preserves_id_and_name() -> None:
     subject_id = uuid4()
     mounted = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.MOUNTED)
-    measured = evolve(mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW))
+    measured = evolve(
+        mounted, SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR)
+    )
     assert measured.id == subject_id
     assert measured.name == SubjectName("Original")
 
@@ -177,7 +223,7 @@ def test_evolve_subject_measured_on_empty_state_raises() -> None:
     """SubjectMeasured before SubjectRegistered = corrupted stream.
     Fail loud rather than silently producing an empty subject."""
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW, measured_by=_ACTOR))
 
 
 @pytest.mark.unit
@@ -186,9 +232,17 @@ def test_fold_register_mount_measure_yields_measured_subject() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR),
         ]
     )
     assert state == Subject(
@@ -209,7 +263,9 @@ def test_evolve_subject_removed_from_mounted_flips_status_to_removed() -> None:
     status regardless of which source state preceded the event."""
     subject_id = uuid4()
     mounted = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MOUNTED)
-    removed = evolve(mounted, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    removed = evolve(
+        mounted, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR)
+    )
     assert removed == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
     )
@@ -222,7 +278,9 @@ def test_evolve_subject_removed_from_measured_flips_status_to_removed() -> None:
     evolver is caught."""
     subject_id = uuid4()
     measured = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.MEASURED)
-    removed = evolve(measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    removed = evolve(
+        measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR)
+    )
     assert removed == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED
     )
@@ -232,7 +290,9 @@ def test_evolve_subject_removed_from_measured_flips_status_to_removed() -> None:
 def test_evolve_subject_removed_preserves_id_and_name() -> None:
     subject_id = uuid4()
     measured = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.MEASURED)
-    removed = evolve(measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW))
+    removed = evolve(
+        measured, SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR)
+    )
     assert removed.id == subject_id
     assert removed.name == SubjectName("Original")
 
@@ -241,7 +301,7 @@ def test_evolve_subject_removed_preserves_id_and_name() -> None:
 def test_evolve_subject_removed_on_empty_state_raises() -> None:
     """SubjectRemoved before SubjectRegistered = corrupted stream."""
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW, removed_by=_ACTOR))
 
 
 @pytest.mark.unit
@@ -253,9 +313,17 @@ def test_fold_register_mount_remove_yields_removed_subject() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR),
         ]
     )
     assert state == Subject(
@@ -270,10 +338,18 @@ def test_fold_register_mount_measure_remove_yields_removed_subject() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
-            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR),
         ]
     )
     assert state == Subject(
@@ -291,7 +367,9 @@ def test_evolve_subject_returned_flips_status_to_returned() -> None:
     state change), no payload field."""
     subject_id = uuid4()
     removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
-    returned = evolve(removed, SubjectReturned(subject_id=subject_id, occurred_at=_NOW))
+    returned = evolve(
+        removed, SubjectReturned(subject_id=subject_id, occurred_at=_NOW, returned_by=_ACTOR)
+    )
     assert returned == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.RETURNED
     )
@@ -301,7 +379,9 @@ def test_evolve_subject_returned_flips_status_to_returned() -> None:
 def test_evolve_subject_stored_flips_status_to_stored() -> None:
     subject_id = uuid4()
     removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
-    stored = evolve(removed, SubjectStored(subject_id=subject_id, occurred_at=_NOW))
+    stored = evolve(
+        removed, SubjectStored(subject_id=subject_id, occurred_at=_NOW, stored_by=_ACTOR)
+    )
     assert stored == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.STORED
     )
@@ -313,7 +393,9 @@ def test_evolve_subject_discarded_flips_status_to_discarded() -> None:
     removed = Subject(id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.REMOVED)
     discarded = evolve(
         removed,
-        SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
+        SubjectDiscarded(
+            subject_id=subject_id, reason="contaminated", occurred_at=_NOW, discarded_by=_ACTOR
+        ),
     )
     assert discarded == Subject(
         id=subject_id, name=SubjectName("Sample-A1"), status=SubjectStatus.DISCARDED
@@ -329,9 +411,11 @@ def test_evolve_terminal_events_preserve_id_and_name() -> None:
     subject_id = uuid4()
     removed = Subject(id=subject_id, name=SubjectName("Original"), status=SubjectStatus.REMOVED)
     for event in (
-        SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
-        SubjectStored(subject_id=subject_id, occurred_at=_NOW),
-        SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
+        SubjectReturned(subject_id=subject_id, occurred_at=_NOW, returned_by=_ACTOR),
+        SubjectStored(subject_id=subject_id, occurred_at=_NOW, stored_by=_ACTOR),
+        SubjectDiscarded(
+            subject_id=subject_id, reason="contaminated", occurred_at=_NOW, discarded_by=_ACTOR
+        ),
     ):
         result = evolve(removed, event)
         assert result.id == subject_id
@@ -342,19 +426,24 @@ def test_evolve_terminal_events_preserve_id_and_name() -> None:
 def test_evolve_subject_returned_on_empty_state_raises() -> None:
     """Terminal events before SubjectRegistered = corrupted stream."""
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectReturned(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectReturned(subject_id=uuid4(), occurred_at=_NOW, returned_by=_ACTOR))
 
 
 @pytest.mark.unit
 def test_evolve_subject_stored_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectStored(subject_id=uuid4(), occurred_at=_NOW))
+        evolve(None, SubjectStored(subject_id=uuid4(), occurred_at=_NOW, stored_by=_ACTOR))
 
 
 @pytest.mark.unit
 def test_evolve_subject_discarded_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW))
+        evolve(
+            None,
+            SubjectDiscarded(
+                subject_id=uuid4(), reason="contaminated", occurred_at=_NOW, discarded_by=_ACTOR
+            ),
+        )
 
 
 @pytest.mark.unit
@@ -365,11 +454,19 @@ def test_fold_full_lifecycle_to_returned() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
-            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
-            SubjectReturned(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR),
+            SubjectReturned(subject_id=subject_id, occurred_at=_NOW, returned_by=_ACTOR),
         ]
     )
     assert state == Subject(
@@ -382,11 +479,19 @@ def test_fold_full_lifecycle_to_stored() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
-            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
-            SubjectStored(subject_id=subject_id, occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR),
+            SubjectStored(subject_id=subject_id, occurred_at=_NOW, stored_by=_ACTOR),
         ]
     )
     assert state == Subject(
@@ -399,11 +504,21 @@ def test_fold_full_lifecycle_to_discarded() -> None:
     subject_id = uuid4()
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
-            SubjectMounted(subject_id=subject_id, asset_id=_ASSET_ID, reason="", occurred_at=_NOW),
-            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW),
-            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW),
-            SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
+            SubjectMounted(
+                subject_id=subject_id,
+                asset_id=_ASSET_ID,
+                reason="",
+                occurred_at=_NOW,
+                mounted_by=_ACTOR,
+            ),
+            SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR),
+            SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR),
+            SubjectDiscarded(
+                subject_id=subject_id, reason="contaminated", occurred_at=_NOW, discarded_by=_ACTOR
+            ),
         ]
     )
     assert state == Subject(
@@ -433,6 +548,7 @@ def test_evolve_subject_dismounted_returns_to_received_with_no_asset() -> None:
             from_asset_id=_ASSET_ID,
             reason="run complete",
             occurred_at=_NOW,
+            dismounted_by=_ACTOR,
         ),
     )
     assert state.status is SubjectStatus.RECEIVED
@@ -455,6 +571,7 @@ def test_evolve_subject_dismounted_preserves_name() -> None:
             from_asset_id=_ASSET_ID,
             reason="x",
             occurred_at=_NOW,
+            dismounted_by=_ACTOR,
         ),
     )
     assert state.name == SubjectName("Sample-XYZ")
@@ -470,24 +587,29 @@ def test_fold_mount_dismount_remount_cycle_lands_at_second_asset() -> None:
     asset_b = UUID("01900000-0000-7000-8000-00000000b001")
     state = fold(
         [
-            SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW),
+            SubjectRegistered(
+                subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+            ),
             SubjectMounted(
                 subject_id=subject_id,
                 asset_id=asset_a,
                 reason="alignment",
                 occurred_at=_NOW,
+                mounted_by=_ACTOR,
             ),
             SubjectDismounted(
                 subject_id=subject_id,
                 from_asset_id=asset_a,
                 reason="moving",
                 occurred_at=_NOW,
+                dismounted_by=_ACTOR,
             ),
             SubjectMounted(
                 subject_id=subject_id,
                 asset_id=asset_b,
                 reason="loaded for scan",
                 occurred_at=_NOW,
+                mounted_by=_ACTOR,
             ),
         ]
     )

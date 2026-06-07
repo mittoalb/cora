@@ -1,7 +1,7 @@
 """Unit tests for the Asset aggregate's evolver."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -45,8 +45,18 @@ from cora.equipment.aggregates.asset.state import (
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identity import ActorId
 
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+
+
+def _extra_kwargs_for(transition: type) -> dict[str, object]:
+    """Inject required fold-symmetry attribution kwargs for transitions
+    that carry them. Returns {} for transitions without attribution."""
+    if transition is AssetDecommissioned:
+        return {"decommissioned_by": _TEST_ACTOR_ID}
+    return {}
 
 
 @pytest.mark.unit
@@ -65,6 +75,7 @@ def test_evolve_asset_registered_sets_lifecycle_to_commissioned() -> None:
             level="Site",
             parent_id=parent_id,
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state == Asset(
@@ -74,6 +85,7 @@ def test_evolve_asset_registered_sets_lifecycle_to_commissioned() -> None:
         parent_id=parent_id,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -89,6 +101,7 @@ def test_evolve_asset_registered_handles_enterprise_with_null_parent() -> None:
             level="Enterprise",
             parent_id=None,
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state == Asset(
@@ -98,6 +111,7 @@ def test_evolve_asset_registered_handles_enterprise_with_null_parent() -> None:
         parent_id=None,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -118,6 +132,7 @@ def test_evolve_reconstructs_level_from_payload_string() -> None:
                 level=level.value,
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
         )
         assert state.level is level
@@ -140,6 +155,7 @@ def test_fold_single_asset_registered_returns_asset() -> None:
                 level="Device",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             )
         ]
     )
@@ -150,6 +166,7 @@ def test_fold_single_asset_registered_returns_asset() -> None:
         parent_id=parent_id,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -164,6 +181,7 @@ def test_fold_is_pure_same_input_same_output() -> None:
             level="Site",
             parent_id=parent_id,
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         )
     ]
     assert fold(events) == fold(events)
@@ -175,7 +193,9 @@ def test_decider_and_evolver_round_trip_for_enterprise() -> None:
     to the expected state. Enterprise-level (the null-parent case)."""
     new_id = uuid4()
     command = RegisterAsset(name="  ANL  ", level=AssetLevel.ENTERPRISE, parent_id=None)
-    events = register_asset.decide(state=None, command=command, now=_NOW, new_id=new_id)
+    events = register_asset.decide(
+        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     rebuilt = fold(events)
     assert rebuilt == Asset(
         id=new_id,
@@ -184,6 +204,7 @@ def test_decider_and_evolver_round_trip_for_enterprise() -> None:
         parent_id=None,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -194,7 +215,9 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
     new_id = uuid4()
     parent_id = uuid4()
     command = RegisterAsset(name="Eiger-2X-9M", level=AssetLevel.DEVICE, parent_id=parent_id)
-    events = register_asset.decide(state=None, command=command, now=_NOW, new_id=new_id)
+    events = register_asset.decide(
+        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     rebuilt = fold(events)
     assert rebuilt == Asset(
         id=new_id,
@@ -203,6 +226,7 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
         parent_id=parent_id,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -275,6 +299,7 @@ def test_fold_register_then_activate_yields_active_asset() -> None:
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
         ]
@@ -298,7 +323,10 @@ def test_evolve_asset_decommissioned_from_commissioned_flips_to_decommissioned()
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.COMMISSIONED,
     )
-    decommed = evolve(commissioned, AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW))
+    decommed = evolve(
+        commissioned,
+        AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID),
+    )
     assert decommed.lifecycle is AssetLifecycle.DECOMMISSIONED
 
 
@@ -315,14 +343,22 @@ def test_evolve_asset_decommissioned_from_active_flips_to_decommissioned() -> No
         parent_id=uuid4(),
         lifecycle=AssetLifecycle.ACTIVE,
     )
-    decommed = evolve(active, AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW))
+    decommed = evolve(
+        active,
+        AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID),
+    )
     assert decommed.lifecycle is AssetLifecycle.DECOMMISSIONED
 
 
 @pytest.mark.unit
 def test_evolve_asset_decommissioned_on_empty_state_raises() -> None:
     with pytest.raises(ValueError, match="cannot be applied to empty state"):
-        evolve(None, AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW))
+        evolve(
+            None,
+            AssetDecommissioned(
+                asset_id=uuid4(), occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
+        )
 
 
 @pytest.mark.unit
@@ -339,9 +375,12 @@ def test_fold_register_activate_decommission_yields_decommissioned_asset() -> No
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None
@@ -364,8 +403,11 @@ def test_fold_register_decommission_yields_decommissioned_asset() -> None:
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None
@@ -485,6 +527,7 @@ def test_fold_register_then_relocate_yields_asset_with_new_parent() -> None:
                 level="Unit",
                 parent_id=old_parent,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetRelocated(
                 asset_id=asset_id,
@@ -515,6 +558,7 @@ def test_fold_register_activate_relocate_preserves_active_lifecycle() -> None:
                 level="Unit",
                 parent_id=old_parent,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetRelocated(
@@ -625,6 +669,7 @@ def test_fold_register_activate_enter_asset_maintenance_yields_maintenance_asset
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
@@ -647,6 +692,7 @@ def test_fold_register_activate_enter_exit_yields_active_asset() -> None:
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
@@ -672,10 +718,13 @@ def test_fold_register_activate_enter_decommission_yields_decommissioned_asset()
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None
@@ -697,6 +746,7 @@ def test_evolve_asset_registered_starts_with_empty_capabilities() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.family_ids == frozenset()
@@ -849,7 +899,7 @@ def test_evolve_lifecycle_transition_preserves_capabilities(
     )
     state = evolve(
         prior,
-        transition(asset_id=prior.id, occurred_at=_NOW),
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition)),
     )
     assert state.family_ids == frozenset({cap1, cap2})
 
@@ -896,6 +946,7 @@ def test_fold_register_add_remove_yields_empty_capabilities() -> None:
                 level="Unit",
                 parent_id=uuid4(),
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetFamilyAdded(asset_id=asset_id, family_id=cap1, occurred_at=_NOW),
             AssetFamilyRemoved(asset_id=asset_id, family_id=cap1, occurred_at=_NOW),
@@ -921,6 +972,7 @@ def test_evolve_asset_registered_defaults_condition_to_nominal() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.condition is AssetCondition.NOMINAL
@@ -1028,7 +1080,7 @@ def test_evolve_lifecycle_transition_preserves_condition(
     )
     state = evolve(
         prior,
-        transition(asset_id=prior.id, occurred_at=_NOW),
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition)),
     )
     assert state.condition is AssetCondition.FAULTED
 
@@ -1107,6 +1159,7 @@ def test_fold_register_then_fault_then_restore_round_trip() -> None:
                 level="Unit",
                 parent_id=uuid4(),
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetFaulted(asset_id=asset_id, reason="bad", occurred_at=_NOW),
             AssetRestored(asset_id=asset_id, reason="fixed", occurred_at=_NOW),
@@ -1131,6 +1184,7 @@ def test_evolve_asset_registered_defaults_settings_to_empty_dict() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.settings == {}
@@ -1221,7 +1275,9 @@ def test_evolve_lifecycle_transition_preserves_settings(
         ),
         settings={"energy": 30, "filter": "Cu"},
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        prior, transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition))
+    )
     assert state.settings == {"energy": 30, "filter": "Cu"}
 
 
@@ -1314,6 +1370,7 @@ def test_evolve_asset_registered_defaults_ports_to_empty_frozenset() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.ports == frozenset()
@@ -1444,6 +1501,7 @@ def test_fold_register_then_add_then_remove_yields_empty_ports() -> None:
                 level="Unit",
                 parent_id=uuid4(),
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetPortAdded(
                 asset_id=asset_id,
@@ -1474,6 +1532,7 @@ def test_evolve_register_with_drawing_carries_drawing_into_state() -> None:
             parent_id=uuid4(),
             occurred_at=_NOW,
             drawing=_SAMPLE_DRAWING,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.drawing == _SAMPLE_DRAWING
@@ -1489,6 +1548,7 @@ def test_evolve_register_without_drawing_yields_none() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.drawing is None
@@ -1527,7 +1587,9 @@ def test_evolve_lifecycle_transition_preserves_drawing(
         ),
         drawing=_SAMPLE_DRAWING,
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        prior, transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition))
+    )
     assert state.drawing == _SAMPLE_DRAWING
 
 
@@ -1580,7 +1642,10 @@ def test_evolve_mutation_preserves_drawing(
         parent_id=uuid4(),
         drawing=_SAMPLE_DRAWING,
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
     assert state.drawing == _SAMPLE_DRAWING
 
 
@@ -1639,6 +1704,7 @@ def test_evolve_register_with_model_id_carries_model_id_into_state() -> None:
             parent_id=uuid4(),
             occurred_at=_NOW,
             model_id=model_id,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.model_id == model_id
@@ -1656,6 +1722,7 @@ def test_evolve_register_without_model_id_yields_none() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.model_id is None
@@ -1697,7 +1764,9 @@ def test_evolve_lifecycle_transition_preserves_model_id(
         ),
         model_id=model_id,
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        prior, transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition))
+    )
     assert state.model_id == model_id
 
 
@@ -1755,7 +1824,10 @@ def test_evolve_mutation_preserves_model_id(
         parent_id=uuid4(),
         model_id=model_id,
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
     assert state.model_id == model_id
 
 
@@ -1815,11 +1887,14 @@ def test_fold_register_with_model_id_then_lifecycle_transitions_preserves_model_
                 parent_id=parent_id,
                 occurred_at=_NOW,
                 model_id=model_id,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None
@@ -1851,6 +1926,7 @@ def test_evolve_asset_registered_defaults_alternate_identifiers_to_empty_frozens
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.alternate_identifiers == frozenset()
@@ -1869,6 +1945,7 @@ def test_evolve_asset_registered_carries_alternate_identifiers_into_state() -> N
             parent_id=uuid4(),
             occurred_at=_NOW,
             alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B})
@@ -2065,7 +2142,9 @@ def test_evolve_lifecycle_transition_preserves_alternate_identifiers(
         ),
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW))
+    state = evolve(
+        prior, transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition))
+    )
     assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B})
 
 
@@ -2122,7 +2201,10 @@ def test_evolve_mutation_preserves_alternate_identifiers(
         parent_id=uuid4(),
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
     assert state.alternate_identifiers == frozenset({_SAMPLE_ALT_ID_A})
 
 
@@ -2179,6 +2261,7 @@ def test_fold_register_then_add_then_remove_yields_empty_alternate_identifiers()
                 level="Unit",
                 parent_id=uuid4(),
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetAlternateIdentifierAdded(
                 asset_id=asset_id,
@@ -2215,11 +2298,14 @@ def test_fold_register_with_seed_then_lifecycle_transitions_preserves_alternate_
                 parent_id=parent_id,
                 occurred_at=_NOW,
                 alternate_identifiers=seed,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetActivated(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
             AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None

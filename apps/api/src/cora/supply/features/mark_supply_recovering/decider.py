@@ -7,6 +7,7 @@ raises.
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyCannotMarkRecoveringError,
@@ -29,6 +30,7 @@ def decide(
     command: MarkSupplyRecovering,
     *,
     now: datetime,
+    triggered_by: ActorId,
 ) -> list[SupplyMarkedRecovering]:
     """Decide the events produced by marking a Supply Recovering.
 
@@ -38,6 +40,9 @@ def decide(
         -> SupplyCannotMarkRecoveringError
       - Reason must be valid -> InvalidSupplyReasonError
         (via SupplyReason VO)
+
+    `triggered_by` is the operator's `ActorId`. Monitor-driven
+    recovering transitions flow through `observe_supply_status`.
     """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
@@ -52,6 +57,7 @@ def decide(
             from_status=state.status.value,
             reason=reason.value,
             trigger=TriggerSource.OPERATOR.value,
+            triggered_by=triggered_by,
             occurred_at=now,
         )
     ]

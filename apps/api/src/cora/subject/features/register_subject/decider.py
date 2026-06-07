@@ -6,11 +6,19 @@ append. No I/O, no awaits, no side effects.
 
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports.
+
+`registered_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different registering actor; the
+fold-symmetry attribution half then lands on the event payload per
+[[project_fold_symmetry_design]]. Subject state itself stays
+fold-NEITHER (no actor folded onto the aggregate).
 """
 
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectAlreadyExistsError,
@@ -26,6 +34,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
+    registered_by: ActorId,
 ) -> list[SubjectRegistered]:
     """Decide the events produced by registering a new subject.
 
@@ -43,5 +52,6 @@ def decide(
             subject_id=new_id,
             name=name.value,
             occurred_at=now,
+            registered_by=registered_by,
         )
     ]

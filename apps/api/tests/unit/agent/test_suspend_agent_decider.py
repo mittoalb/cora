@@ -20,8 +20,10 @@ from cora.agent.aggregates.agent import (
 )
 from cora.agent.features.suspend_agent.command import SuspendAgent
 from cora.agent.features.suspend_agent.decider import decide
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
+_SUSPENDED_BY = ActorId(uuid4())
 
 
 def _agent(status: AgentStatus, *, agent_id: object | None = None) -> Agent:
@@ -42,10 +44,12 @@ def test_suspends_a_versioned_agent() -> None:
         state=agent,
         command=SuspendAgent(agent_id=agent.id, reason="cost overrun"),
         now=_NOW,
+        suspended_by=_SUSPENDED_BY,
     )
     assert len(events) == 1
     assert isinstance(events[0], AgentSuspended)
     assert events[0].reason == "cost overrun"
+    assert events[0].suspended_by == _SUSPENDED_BY
     assert events[0].occurred_at == _NOW
 
 
@@ -56,6 +60,7 @@ def test_not_found_when_state_is_none() -> None:
             state=None,
             command=SuspendAgent(agent_id=uuid4(), reason="x"),
             now=_NOW,
+            suspended_by=_SUSPENDED_BY,
         )
 
 
@@ -70,6 +75,7 @@ def test_cannot_suspend_from_non_versioned(status: AgentStatus) -> None:
             state=agent,
             command=SuspendAgent(agent_id=agent.id, reason="x"),
             now=_NOW,
+            suspended_by=_SUSPENDED_BY,
         )
 
 
@@ -80,6 +86,7 @@ def test_reason_trims_via_value_object() -> None:
         state=agent,
         command=SuspendAgent(agent_id=agent.id, reason="  output regression  "),
         now=_NOW,
+        suspended_by=_SUSPENDED_BY,
     )
     assert events[0].reason == "output regression"
 
@@ -92,6 +99,7 @@ def test_reason_empty_raises() -> None:
             state=agent,
             command=SuspendAgent(agent_id=agent.id, reason="   "),
             now=_NOW,
+            suspended_by=_SUSPENDED_BY,
         )
 
 
@@ -106,4 +114,5 @@ def test_reason_over_cap_raises() -> None:
                 reason="x" * (AGENT_SUSPENSION_REASON_MAX_LENGTH + 1),
             ),
             now=_NOW,
+            suspended_by=_SUSPENDED_BY,
         )

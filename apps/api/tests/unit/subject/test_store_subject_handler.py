@@ -113,6 +113,7 @@ async def test_handler_appends_subject_stored_event() -> None:
     assert stored.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "stored_by": str(_PRINCIPAL_ID),
     }
     assert stored.event_id == _STORE_EVENT_ID
     assert stored.metadata == {"command": "StoreSubject"}

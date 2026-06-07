@@ -8,7 +8,7 @@ Subscribed events:
                                          last_signed_at=NULL)
   - SealPointerSigned         -> UPDATE current_head_hash,
                                         current_sequence_number,
-                                        last_signed_by_actor_id,
+                                        last_signed_by,
                                         last_signed_at=signed_at
   - SealOnlineKeyRotated      -> UPDATE online_credential_id
   - SealRepublishingStarted   -> UPDATE status='Republishing'
@@ -45,7 +45,7 @@ INSERT INTO proj_federation_seal_summary
     (facility_id, seal_stream_id,
      online_credential_id, offline_credential_id,
      current_head_hash, current_sequence_number,
-     initialized_by_actor_id, last_signed_by_actor_id,
+     initialized_by, last_signed_by,
      status, initialized_at, last_signed_at)
 VALUES ($1, $2,
         $3, $4,
@@ -59,7 +59,7 @@ _UPDATE_POINTER_SIGNED_SQL = """
 UPDATE proj_federation_seal_summary
 SET current_head_hash = $2,
     current_sequence_number = $3,
-    last_signed_by_actor_id = $4,
+    last_signed_by = $4,
     last_signed_at = $5,
     updated_at = now()
 WHERE facility_id = $1
@@ -122,7 +122,7 @@ class SealSummaryProjection:
                     seal_stream_id(facility_id),
                     UUID(payload["online_credential_id"]),
                     UUID(payload["offline_credential_id"]),
-                    UUID(payload["initialized_by_actor_id"]),
+                    UUID(payload["initialized_by"]),
                     initialized_at,
                 )
             return
@@ -134,7 +134,7 @@ class SealSummaryProjection:
                 payload["facility_id"],
                 payload["head_hash"],
                 payload["sequence_number"],
-                UUID(payload["signed_by_actor_id"]),
+                UUID(payload["signed_by"]),
                 datetime.fromisoformat(payload["signed_at"]),
             )
             return

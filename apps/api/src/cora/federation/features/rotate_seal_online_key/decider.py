@@ -6,7 +6,7 @@ slot already holds raises `SealCannotRotateError` so the audit
 gesture stays meaningful (the offline-root authorises a real change
 each time).
 
-`rotated_by_actor_id` is handler-injected from the request envelope's
+`rotated_by` is handler-injected from the request envelope's
 `principal_id` (capture-don't-recompute) and stamped onto the emitted
 `SealOnlineKeyRotated` event for the audit denorm.
 
@@ -46,7 +46,6 @@ raises `SealKeyCollisionError` when `new_online_credential_id` would equal
 
 from dataclasses import replace
 from datetime import datetime
-from uuid import UUID
 
 from cora.federation.aggregates.credential import (
     CredentialNotFoundError,
@@ -67,6 +66,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.rotate_seal_online_key.command import (
     RotateSealOnlineKey,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 _ONLINE_SLOT = "online_credential_id"
@@ -77,7 +77,7 @@ def decide(
     command: RotateSealOnlineKey,
     *,
     now: datetime,
-    rotated_by_actor_id: UUID,
+    rotated_by: ActorId,
     new_online_credential: CredentialLookupResult | None,
 ) -> list[SealOnlineKeyRotated]:
     """Decide the events produced by rotating the Seal online key.
@@ -137,7 +137,7 @@ def decide(
             facility_id=state.facility_id,
             new_online_credential_id=command.new_online_credential_id,
             signed_by_offline_root=command.signed_by_offline_root,
-            rotated_by_actor_id=rotated_by_actor_id,
+            rotated_by=rotated_by,
             occurred_at=now,
         )
     ]

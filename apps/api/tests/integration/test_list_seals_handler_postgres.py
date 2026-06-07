@@ -207,8 +207,8 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
     assert item.offline_credential_id == offline_credential_id
     assert item.current_head_hash is None
     assert item.current_sequence_number == 0
-    assert item.initialized_by_actor_id == _PRINCIPAL_ID
-    assert item.last_signed_by_actor_id is None
+    assert item.initialized_by == _PRINCIPAL_ID
+    assert item.last_signed_by is None
     assert item.status == "Live"
     assert item.initialized_at == _NOW
     assert item.last_signed_at is None

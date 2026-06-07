@@ -1,6 +1,10 @@
 """Application handler for the `dismount_subject` slice.
 
-Update-style handler. Delegates to `make_subject_update_handler`.
+Built on the actor-stamping `make_subject_actor_update_handler`
+factory variant: the envelope's `principal_id` threads into the
+decider under `dismounted_by`, landing on
+`SubjectDismounted.dismounted_by` per
+[[project_fold_symmetry_design]].
 
 Not idempotency-wrapped: dismount is strict-not-idempotent at the
 decider (second call hits SubjectCannotDismountError because the
@@ -12,7 +16,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._subject_update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_actor_update_handler
 from cora.subject.features.dismount_subject.command import DismountSubject
 from cora.subject.features.dismount_subject.decider import decide
 
@@ -33,9 +37,10 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a dismount_subject handler closed over the shared deps."""
-    return make_subject_update_handler(
+    return make_subject_actor_update_handler(
         deps,
         command_name="DismountSubject",
         log_prefix="dismount_subject",
         decide_fn=decide,
+        actor_kwarg="dismounted_by",
     )

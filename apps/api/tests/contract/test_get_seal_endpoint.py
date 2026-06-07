@@ -75,10 +75,10 @@ def test_get_federation_seal_returns_200_with_full_state() -> None:
     assert body["status"] == "Live"
     # Path C timestamps are nullable on the wire; the in-memory test
     # mode lacks a configured pool so initialized_at / last_signed_at
-    # / last_signed_by_actor_id may be absent.
+    # / last_signed_by may be absent.
     assert "initialized_at" in body
     assert "last_signed_at" in body
-    assert "last_signed_by_actor_id" in body
+    assert "last_signed_by" in body
 
 
 @pytest.mark.contract

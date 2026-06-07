@@ -21,13 +21,11 @@ _NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 def test_credential_lifecycle_timestamps_is_immutable_dataclass() -> None:
     assert dataclasses.is_dataclass(CredentialLifecycleTimestamps)
     field_names = {f.name for f in dataclasses.fields(CredentialLifecycleTimestamps)}
-    assert field_names == {"registered_at", "rotation_started_at"}
+    assert field_names == {"rotation_started_at"}
 
     instance = CredentialLifecycleTimestamps(
-        registered_at=_NOW,
         rotation_started_at=None,
     )
-    assert instance.registered_at == _NOW
     assert instance.rotation_started_at is None
 
     with pytest.raises(dataclasses.FrozenInstanceError):

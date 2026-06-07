@@ -23,6 +23,10 @@ from cora.agent.aggregates.agent.state import (
     ModelRef,
     ToolName,
 )
+from cora.infrastructure.identity import ActorId
+
+_SUSPENDED_BY = ActorId(uuid4())
+_RESUMED_BY = ActorId(uuid4())
 
 _T0 = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _T1 = _T0 + timedelta(minutes=10)
@@ -132,11 +136,17 @@ def test_versioned_then_suspended_folds_to_suspended_state() -> None:
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
-    e3 = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_T2)
+    e3 = AgentSuspended(
+        agent_id=agent_id,
+        reason="cost overrun",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T2,
+    )
     state = fold([e1, e2, e3])
     assert state is not None
     assert state.status is AgentStatus.SUSPENDED
     assert state.suspended_at == _T2
+    assert state.suspended_by == _SUSPENDED_BY
     assert state.suspension_reason is not None
     assert state.suspension_reason.value == "cost overrun"
     # `versioned_at` was previously preserved here as an audit-trail
@@ -149,16 +159,27 @@ def test_suspended_then_resumed_folds_to_versioned_state() -> None:
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
-    e3 = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_T2)
-    e4 = AgentResumed(agent_id=agent_id, occurred_at=_T2 + timedelta(minutes=5))
+    e3 = AgentSuspended(
+        agent_id=agent_id,
+        reason="cost overrun",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T2,
+    )
+    e4 = AgentResumed(
+        agent_id=agent_id,
+        resumed_by=_RESUMED_BY,
+        occurred_at=_T2 + timedelta(minutes=5),
+    )
     state = fold([e1, e2, e3, e4])
     assert state is not None
     assert state.status is AgentStatus.VERSIONED
     # Resume preserves historical suspended_at + suspension_reason for audit.
     assert state.suspended_at == _T2
+    assert state.suspended_by == _SUSPENDED_BY
     assert state.suspension_reason is not None
     assert state.suspension_reason.value == "cost overrun"
     assert state.resumed_at == _T2 + timedelta(minutes=5)
+    assert state.resumed_by == _RESUMED_BY
 
 
 @pytest.mark.unit
@@ -167,7 +188,12 @@ def test_suspended_then_deprecated_folds_to_deprecated_state() -> None:
     agent_id = uuid4()
     e1 = _genesis(agent_id=agent_id)
     e2 = AgentVersioned(agent_id=agent_id, version="v1", occurred_at=_T1)
-    e3 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
+    e3 = AgentSuspended(
+        agent_id=agent_id,
+        reason="x",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T2,
+    )
     e4 = AgentDeprecated(
         agent_id=agent_id, reason="retired while paused", occurred_at=_T2 + timedelta(minutes=10)
     )
@@ -268,7 +294,12 @@ def test_suspended_preserves_unrelated_fields() -> None:
         daily_token_cap=500_000,
         occurred_at=_T1,
     )
-    e5 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
+    e5 = AgentSuspended(
+        agent_id=agent_id,
+        reason="x",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T2,
+    )
     state = fold([e1, e2, e3, e4, e5])
     assert state is not None
     assert state.tools == frozenset({ToolName("read_run")})
@@ -291,8 +322,17 @@ def test_resumed_preserves_unrelated_fields() -> None:
         daily_token_cap=500_000,
         occurred_at=_T1,
     )
-    e5 = AgentSuspended(agent_id=agent_id, reason="x", occurred_at=_T2)
-    e6 = AgentResumed(agent_id=agent_id, occurred_at=_T2 + timedelta(minutes=5))
+    e5 = AgentSuspended(
+        agent_id=agent_id,
+        reason="x",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T2,
+    )
+    e6 = AgentResumed(
+        agent_id=agent_id,
+        resumed_by=_RESUMED_BY,
+        occurred_at=_T2 + timedelta(minutes=5),
+    )
     state = fold([e1, e2, e3, e4, e5, e6])
     assert state is not None
     assert state.tools == frozenset({ToolName("read_run")})
@@ -343,14 +383,19 @@ def test_budget_revised_preserves_unrelated_fields() -> None:
 
 @pytest.mark.unit
 def test_suspended_applied_to_empty_state_raises() -> None:
-    e = AgentSuspended(agent_id=uuid4(), reason="x", occurred_at=_T0)
+    e = AgentSuspended(
+        agent_id=uuid4(),
+        reason="x",
+        suspended_by=_SUSPENDED_BY,
+        occurred_at=_T0,
+    )
     with pytest.raises(ValueError, match="AgentSuspended"):
         fold([e])
 
 
 @pytest.mark.unit
 def test_resumed_applied_to_empty_state_raises() -> None:
-    e = AgentResumed(agent_id=uuid4(), occurred_at=_T0)
+    e = AgentResumed(agent_id=uuid4(), resumed_by=_RESUMED_BY, occurred_at=_T0)
     with pytest.raises(ValueError, match="AgentResumed"):
         fold([e])
 

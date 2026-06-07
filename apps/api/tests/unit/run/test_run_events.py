@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.run.aggregates.run.events import (
     DecisionDebriefRequested,
@@ -900,11 +901,13 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
 
     run_id = uuid4()
     decision_id = uuid4()
+    actor_id = ActorId(uuid4())
     event = RunAdjusted(
         run_id=run_id,
         parameters_patch={"energy": 12.0},
         effective_parameters={"energy": 12.0, "exposure": 100},
         reason="re-center on ROI",
+        adjusted_by=actor_id,
         decided_by_decision_id=decision_id,
         occurred_at=_NOW,
     )
@@ -914,6 +917,7 @@ def test_to_payload_serializes_run_adjusted_with_decision_id() -> None:
         "parameters_patch": {"energy": 12.0},
         "effective_parameters": {"energy": 12.0, "exposure": 100},
         "reason": "re-center on ROI",
+        "adjusted_by": str(actor_id),
         "decided_by_decision_id": str(decision_id),
         "occurred_at": _NOW.isoformat(),
     }
@@ -930,6 +934,7 @@ def test_to_payload_serializes_run_adjusted_without_decision_id_as_null() -> Non
         parameters_patch={"a": 1},
         effective_parameters={"a": 1},
         reason="x",
+        adjusted_by=ActorId(uuid4()),
         occurred_at=_NOW,
     )
     assert to_payload(event)["decided_by_decision_id"] is None
@@ -944,6 +949,7 @@ def test_from_stored_rebuilds_run_adjusted_with_decision_id() -> None:
         parameters_patch={"energy": 12.0},
         effective_parameters={"energy": 12.0, "exposure": 100},
         reason="agent steering iteration 5",
+        adjusted_by=ActorId(uuid4()),
         decided_by_decision_id=uuid4(),
         occurred_at=_NOW,
     )
@@ -960,6 +966,7 @@ def test_from_stored_rebuilds_run_adjusted_without_decision_id() -> None:
         parameters_patch={"a": 1},
         effective_parameters={"a": 1},
         reason="x",
+        adjusted_by=ActorId(uuid4()),
         decided_by_decision_id=None,
         occurred_at=_NOW,
     )
@@ -975,6 +982,7 @@ def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -
     from cora.run.aggregates.run.events import RunAdjusted
 
     run_id = uuid4()
+    actor_id = uuid4()
     stored = _stored(
         "RunAdjusted",
         {
@@ -982,6 +990,7 @@ def test_from_stored_rebuilds_run_adjusted_with_missing_decision_key_as_none() -
             "parameters_patch": {"a": 1},
             "effective_parameters": {"a": 1},
             "reason": "x",
+            "adjusted_by": str(actor_id),
             # NOTE: no decided_by_decision_id key
             "occurred_at": _NOW.isoformat(),
         },

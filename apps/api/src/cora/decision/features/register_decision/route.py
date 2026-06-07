@@ -25,6 +25,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.handler import IdempotentHandler
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.routing import (
     ErrorResponse,
     get_correlation_id,
@@ -36,12 +37,12 @@ from cora.infrastructure.routing import (
 class RegisterDecisionRequest(BaseModel):
     """Body for `POST /decisions`."""
 
-    actor_id: UUID = Field(
+    decided_by: UUID = Field(
         ...,
         description=(
-            "WHO made the decision. Existence-checked; 404 if the Actor "
-            "doesn't exist. Decision can be made by any Actor including "
-            "Deactivated (historical fact still holds)."
+            "WHO made the decision (Actor.id). Existence-checked; 404 if "
+            "the Actor doesn't exist. Decision can be made by any Actor "
+            "including Deactivated (historical fact still holds)."
         ),
     )
     context: str = Field(
@@ -188,7 +189,7 @@ _ = DECISION_INPUTS_MAX_ENTRIES
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": ("Cross-aggregate reference does not exist: actor_id or parent_id."),
+            "description": ("Cross-aggregate reference does not exist: decided_by or parent_id."),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
@@ -219,7 +220,7 @@ async def post_decisions(
 ) -> RegisterDecisionResponse:
     decision_id = await handler(
         RegisterDecision(
-            actor_id=body.actor_id,
+            decided_by=ActorId(body.decided_by),
             context=body.context,
             choice=body.choice,
             parent_id=body.parent_id,

@@ -34,6 +34,7 @@ _DATASET_ID = UUID("01900000-0000-7000-8000-000000007e01")
 _PROMOTE_EVENT_ID = UUID("01900000-0000-7000-8000-000000007e02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_SEED_ACTOR_ID = UUID("01900000-0000-7000-8000-0000000000bb")
 
 
 async def _seed_registered(
@@ -45,6 +46,8 @@ async def _seed_registered(
     derived_from: frozenset[UUID] = frozenset(),
     intent: str = "Trial",
 ) -> None:
+    from cora.infrastructure.identity import ActorId
+
     event = DatasetRegistered(
         dataset_id=dataset_id,
         name="seed",
@@ -58,6 +61,7 @@ async def _seed_registered(
         subject_id=None,
         derived_from=derived_from,
         occurred_at=_NOW,
+        registered_by=ActorId(_SEED_ACTOR_ID),
         producing_run_end_state=producing_run_end_state,
         intent=intent,
     )
@@ -89,10 +93,13 @@ async def _seed_promoted(
         producing_run_id=producing_run_id,
         producing_run_end_state=producing_run_end_state,
     )
+    from cora.infrastructure.identity import ActorId
+
     promoted = DatasetPromoted(
         dataset_id=dataset_id,
         reason="initial promotion for tests",
         occurred_at=_NOW,
+        promoted_by=ActorId(_SEED_ACTOR_ID),
     )
     new_event = to_new_event(
         event_type=event_type_name(promoted),

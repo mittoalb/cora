@@ -85,6 +85,7 @@ async def test_handler_appends_asset_registered_event_to_store() -> None:
         "level": "Unit",
         "parent_id": str(_PARENT_ID),
         "occurred_at": _NOW.isoformat(),
+        "commissioned_by": str(_PRINCIPAL_ID),
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None

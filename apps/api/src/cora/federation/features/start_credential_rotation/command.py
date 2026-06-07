@@ -6,7 +6,7 @@ material that has already been provisioned in the SecretStore adapter
 (per AH#6 of [[project_federation_port_design]] Memo 1, raw secret
 bytes never cross this boundary). The invoking principal's id is
 supplied separately by the application handler at call time and
-stamped onto the emitted event as `rotation_started_by_actor_id`.
+stamped onto the emitted event as `rotation_started_by`.
 
 Strict-not-idempotent transition: starting a rotation against an
 already Rotating or Revoked credential raises

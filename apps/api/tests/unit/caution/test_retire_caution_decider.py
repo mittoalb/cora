@@ -20,9 +20,10 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features import retire_caution
 from cora.caution.features.retire_caution import RetireCaution
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-000000030001")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000030001"))
 _ASSET_ID = UUID("01900000-0000-7000-8000-000000030002")
 
 
@@ -34,7 +35,7 @@ def _existing(status: CautionStatus = CautionStatus.ACTIVE) -> Caution:
         severity=CautionSeverity.CAUTION,
         text=CautionText("some text"),
         workaround=CautionWorkaround("some workaround"),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         status=status,
     )
 

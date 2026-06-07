@@ -49,6 +49,7 @@ from cora.equipment.aggregates.family.events import (
     to_payload as family_to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports.event_store import EventStore
 from cora.recipe.aggregates.plan import (
@@ -131,6 +132,7 @@ async def _seed_asset(
             level="Device",
             parent_id=None,
             occurred_at=_NOW,
+            commissioned_by=ActorId(uuid4()),
         )
     ]
     for family_id in family_ids:

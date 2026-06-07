@@ -1,7 +1,7 @@
 """Unit tests for the Dataset event union: payload round-trip + discriminator."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -15,10 +15,15 @@ from cora.data.aggregates.dataset import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a1"))
+_DISCARDED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a2"))
+_PROMOTED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a3"))
+_DEMOTED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a4"))
 
 
 def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
@@ -53,6 +58,7 @@ def test_event_type_name_returns_class_name() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     assert event_type_name(event) == "DatasetRegistered"
 
@@ -73,6 +79,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload == {
@@ -86,6 +93,7 @@ def test_to_payload_serializes_all_fields_with_nulls_and_empties() -> None:
         "subject_id": None,
         "derived_from": [],
         "occurred_at": _NOW.isoformat(),
+        "registered_by": str(_REGISTERED_BY),
         "producing_run_end_state": None,
         "intent": "Trial",
         "used_calibration_ids": [],
@@ -113,6 +121,7 @@ def test_to_payload_sorts_set_semantic_fields_deterministically() -> None:
         subject_id=None,
         derived_from=frozenset({derived_a, derived_b, derived_c}),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload["encoding"]["conforms_to"] == ["https://a.example/", "https://b.example/"]
@@ -136,6 +145,7 @@ def test_to_payload_serializes_optional_refs_when_set() -> None:
         subject_id=subject_id,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload["producing_run_id"] == str(run_id)
@@ -162,6 +172,7 @@ def test_round_trip_through_stored_envelope() -> None:
         subject_id=subject_id,
         derived_from=frozenset({derived_id}),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     new_event = to_new_event(
         event_type=event_type_name(original),
@@ -240,6 +251,7 @@ def test_to_payload_includes_phase_7e_fields_when_set() -> None:
         occurred_at=_NOW,
         producing_run_end_state="Completed",
         intent="Trial",
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload["producing_run_end_state"] == "Completed"
@@ -263,6 +275,7 @@ def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
         "subject_id": None,
         "derived_from": [],
         "occurred_at": _NOW.isoformat(),
+        "registered_by": str(_REGISTERED_BY),
         # NOTE: producing_run_end_state + intent deliberately ABSENT
     }
     stored = StoredEvent(
@@ -291,19 +304,24 @@ def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
 
 @pytest.mark.unit
 def test_dataset_promoted_event_type_name() -> None:
-    event = DatasetPromoted(dataset_id=uuid4(), reason="passed review", occurred_at=_NOW)
+    event = DatasetPromoted(
+        dataset_id=uuid4(), reason="passed review", occurred_at=_NOW, promoted_by=_PROMOTED_BY
+    )
     assert event_type_name(event) == "DatasetPromoted"
 
 
 @pytest.mark.unit
 def test_dataset_promoted_to_payload_serializes_primitive_fields() -> None:
     dataset_id = uuid4()
-    event = DatasetPromoted(dataset_id=dataset_id, reason="passed review", occurred_at=_NOW)
+    event = DatasetPromoted(
+        dataset_id=dataset_id, reason="passed review", occurred_at=_NOW, promoted_by=_PROMOTED_BY
+    )
     payload = to_payload(event)
     assert payload == {
         "dataset_id": str(dataset_id),
         "reason": "passed review",
         "occurred_at": _NOW.isoformat(),
+        "promoted_by": str(_PROMOTED_BY),
     }
 
 
@@ -314,6 +332,7 @@ def test_dataset_promoted_round_trip_through_stored() -> None:
         dataset_id=uuid4(),
         reason="initial promotion",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     new_event = to_new_event(
         event_type=event_type_name(original),
@@ -348,19 +367,24 @@ def test_dataset_promoted_round_trip_through_stored() -> None:
 
 @pytest.mark.unit
 def test_dataset_demoted_event_type_name() -> None:
-    event = DatasetDemoted(dataset_id=uuid4(), reason="calibration error", occurred_at=_NOW)
+    event = DatasetDemoted(
+        dataset_id=uuid4(), reason="calibration error", occurred_at=_NOW, demoted_by=_DEMOTED_BY
+    )
     assert event_type_name(event) == "DatasetDemoted"
 
 
 @pytest.mark.unit
 def test_dataset_demoted_to_payload_serializes_primitive_fields() -> None:
     dataset_id = uuid4()
-    event = DatasetDemoted(dataset_id=dataset_id, reason="calibration error", occurred_at=_NOW)
+    event = DatasetDemoted(
+        dataset_id=dataset_id, reason="calibration error", occurred_at=_NOW, demoted_by=_DEMOTED_BY
+    )
     payload = to_payload(event)
     assert payload == {
         "dataset_id": str(dataset_id),
         "reason": "calibration error",
         "occurred_at": _NOW.isoformat(),
+        "demoted_by": str(_DEMOTED_BY),
     }
 
 
@@ -371,6 +395,7 @@ def test_dataset_demoted_round_trip_through_stored() -> None:
         dataset_id=uuid4(),
         reason="discovered calibration error",
         occurred_at=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     new_event = to_new_event(
         event_type=event_type_name(original),
@@ -424,9 +449,6 @@ def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:
 # ---------- DatasetRegistered.used_calibration_ids AsShot citation ----------
 
 
-from uuid import UUID  # noqa: E402
-
-
 @pytest.mark.unit
 def test_to_payload_serializes_used_calibration_ids_as_sorted_string_list() -> None:
     """The aggregate carries `tuple[UUID, ...]` for deterministic
@@ -452,6 +474,7 @@ def test_to_payload_serializes_used_calibration_ids_as_sorted_string_list() -> N
         derived_from=frozenset(),
         occurred_at=_NOW,
         used_calibration_ids=(cal_c, cal_a, cal_b),
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload["used_calibration_ids"] == sorted([str(cal_a), str(cal_b), str(cal_c)])
@@ -474,6 +497,7 @@ def test_to_payload_serializes_empty_used_calibration_ids_as_empty_list() -> Non
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     assert payload["used_calibration_ids"] == []
@@ -497,6 +521,7 @@ def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibratio
         "subject_id": None,
         "derived_from": [],
         "occurred_at": _NOW.isoformat(),
+        "registered_by": str(_REGISTERED_BY),
         "producing_run_end_state": None,
         "intent": "Trial",
         # NOTE: used_calibration_ids deliberately ABSENT
@@ -528,6 +553,7 @@ def test_used_calibration_ids_round_trip_through_stored_envelope() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         used_calibration_ids=(cal_b, cal_a),  # scrambled
+        registered_by=_REGISTERED_BY,
     )
     payload = to_payload(event)
     stored = _stored("DatasetRegistered", payload)
@@ -563,6 +589,7 @@ def test_used_calibration_ids_payload_bytes_are_order_independent() -> None:
             derived_from=frozenset(),
             occurred_at=_NOW,
             used_calibration_ids=used_calibration_ids,
+            registered_by=_REGISTERED_BY,
         )
 
     e1 = _build((cal_a, cal_b, cal_c))

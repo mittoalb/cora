@@ -12,7 +12,7 @@ Revoked permit raises) via `PermitCannotSuspendError` -> HTTP 409.
 ## Non-determinism
 
 `now` is injected by the handler ("capture, don't recompute" per
-[[project_non_determinism_principle]]). `suspended_by_actor_id` is
+[[project_non_determinism_principle]]). `suspended_by` is
 the invoking principal, passed by the handler at decide-time so the
 decider stays pure.
 """
@@ -35,7 +35,7 @@ def decide(
     command: SuspendPermit,
     *,
     now: datetime,
-    suspended_by_actor_id: UUID,
+    suspended_by: UUID,
 ) -> list[PermitSuspended]:
     """Decide the events produced by suspending an Active Permit.
 
@@ -51,7 +51,7 @@ def decide(
     return [
         PermitSuspended(
             permit_id=state.id,
-            suspended_by_actor_id=suspended_by_actor_id,
+            suspended_by=suspended_by,
             occurred_at=now,
             reason=command.reason,
         )

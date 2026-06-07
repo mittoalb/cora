@@ -21,10 +21,17 @@ log if invoked.
 `from_asset_id` is read from prior state's `mounted_on_asset_id`,
 guaranteed non-None when status is in {Mounted, Measured} per 4b's
 invariant (mount sets it; subsequent measure preserves it).
+
+`dismounted_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different dismounting actor; the
+fold-symmetry attribution half then lands on the event payload per
+[[project_fold_symmetry_design]].
 """
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotDismountError,
@@ -45,6 +52,7 @@ def decide(
     command: DismountSubject,
     *,
     now: datetime,
+    dismounted_by: ActorId,
 ) -> list[SubjectDismounted]:
     """Decide the events produced by dismounting an existing Subject."""
     if state is None:
@@ -64,5 +72,6 @@ def decide(
             from_asset_id=state.mounted_on_asset_id,
             reason=command.reason,
             occurred_at=now,
+            dismounted_by=dismounted_by,
         )
     ]

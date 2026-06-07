@@ -9,7 +9,7 @@ operator context survives on the immutable event log.
 
 The principal-id of the invoker is supplied separately by the
 application handler at call time and stamped onto the
-`CredentialRevoked` event as `revoked_by_actor_id`.
+`CredentialRevoked` event as `revoked_by`.
 
 Revoking is terminal: any non-Revoked status (Active, Rotating)
 transitions to Revoked. Strict-not-idempotent at the decider:

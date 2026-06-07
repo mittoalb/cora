@@ -18,13 +18,14 @@ from cora.caution.aggregates.caution import (
     serialize_target,
     to_payload,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _CAUTION_ID = UUID("01900000-0000-7000-8000-00000000b001")
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000b002")
 _PROCEDURE_ID = UUID("01900000-0000-7000-8000-00000000b003")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000b004")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000b004"))
 
 
 def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
@@ -125,7 +126,7 @@ def test_caution_registered_event_type_name() -> None:
         text="hexapod stalls below 0.5 mm/s",
         workaround="run at 0.6 mm/s",
         tags=frozenset({"low-speed-stall"}),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=None,
@@ -144,7 +145,7 @@ def test_caution_registered_to_payload_asset_target_tags_sorted() -> None:
         text="text",
         workaround="workaround",
         tags=frozenset({"zeta", "alpha", "mu"}),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=None,
@@ -158,7 +159,7 @@ def test_caution_registered_to_payload_asset_target_tags_sorted() -> None:
         "text": "text",
         "workaround": "workaround",
         "tags": ["alpha", "mu", "zeta"],
-        "author_actor_id": str(_AUTHOR_ID),
+        "authored_by": str(_AUTHOR_ID),
         "expires_at": None,
         "propagate_to_children": False,
         "parent_id": None,
@@ -176,7 +177,7 @@ def test_caution_registered_round_trip_asset_target() -> None:
         text="recalibrate after each downtime",
         workaround="run home script first",
         tags=frozenset({"calib", "downtime"}),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=None,
@@ -197,7 +198,7 @@ def test_caution_registered_round_trip_procedure_target_with_expires_at() -> Non
         text="skip step 4 on Tuesdays",
         workaround="manual override at step 5",
         tags=frozenset(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=expires,
         propagate_to_children=True,
         parent_id=None,
@@ -218,7 +219,7 @@ def test_caution_registered_round_trip_with_parent_id() -> None:
         text="updated text",
         workaround="updated workaround",
         tags=frozenset({"v2"}),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=parent_id,
@@ -335,7 +336,7 @@ def test_caution_registered_payload_carries_target_dict_shape() -> None:
         text="text",
         workaround="workaround",
         tags=frozenset(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=None,

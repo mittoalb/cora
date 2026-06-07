@@ -8,6 +8,7 @@ Phoebus latched-alarm precedent. Strict-not-idempotent.
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyCannotRestoreError,
@@ -30,6 +31,7 @@ def decide(
     command: RestoreSupply,
     *,
     now: datetime,
+    triggered_by: ActorId,
 ) -> list[SupplyRestored]:
     """Decide the events produced by restoring a Recovering Supply.
 
@@ -38,6 +40,10 @@ def decide(
       - Current status must be Recovering -> SupplyCannotRestoreError
       - Reason must be valid -> InvalidSupplyReasonError
         (via SupplyReason VO)
+
+    `triggered_by` is the operator's `ActorId`. Restore is operator-
+    only per the latched-alarm Anti-hook in [[project_supply_design]];
+    no Monitor or Auto counterpart.
     """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
@@ -52,6 +58,7 @@ def decide(
             from_status=state.status.value,
             reason=reason.value,
             trigger=TriggerSource.OPERATOR.value,
+            triggered_by=triggered_by,
             occurred_at=now,
         )
     ]

@@ -6,10 +6,10 @@ Optional `reason` body field flows through to the emitted
 `CredentialRotationAborted` event payload so operator context
 survives on the immutable event log. 204 No Content on success.
 
-The `aborted_by_actor_id` command field is supplied verbatim by
+The `aborted_by` command field is supplied verbatim by
 the route from the request envelope's `principal_id` (same actor
 the handler also stamps onto the emitted event's
-`rotation_aborted_by_actor_id` denorm).
+`rotation_aborted_by` denorm).
 """
 
 from typing import Annotated
@@ -98,7 +98,7 @@ async def post_credentials_rotation_abort(
     await handler(
         AbortCredentialRotation(
             credential_id=credential_id,
-            aborted_by_actor_id=principal_id,
+            aborted_by=principal_id,
             reason=body.reason,
         ),
         principal_id=principal_id,

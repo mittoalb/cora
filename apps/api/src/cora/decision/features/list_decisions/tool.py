@@ -17,7 +17,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 class DecisionSummaryRow(BaseModel):
     decision_id: UUID
-    actor_id: UUID
+    decided_by: UUID
     rule: str | None
     parent_id: UUID | None
     confidence: float | None
@@ -42,7 +42,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "Cursor-paginated list of decisions. Optional "
             "`confidence_band` filter accepts: Low, Medium, High, "
             "Certain. Optional `rule` filter narrows by "
-            "categorical rule label. Optional `actor_id` filter "
+            "categorical rule label. Optional `decided_by` filter "
             "narrows to Decisions made by one Actor. Optional "
             "`choice` filter narrows to one DecisionChoice value "
             "(e.g. NominalCompletion). Optional `exclude_choices` "
@@ -70,9 +70,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             str | None,
             Field(description="Optional decision-rule label filter."),
         ] = None,
-        actor_id: Annotated[
+        decided_by: Annotated[
             UUID | None,
-            Field(description="Optional Actor-id filter."),
+            Field(description="Optional Actor-id filter (filters by Decision.decided_by)."),
         ] = None,
         choice: Annotated[
             str | None,
@@ -96,7 +96,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 limit=limit,
                 confidence_band=confidence_band,
                 rule=rule,
-                actor_id=actor_id,
+                decided_by=decided_by,
                 choice=choice,
                 exclude_choices=tuple(exclude_choices) if exclude_choices else None,
             ),
@@ -108,7 +108,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 DecisionSummaryRow(
                     decision_id=item.decision_id,
-                    actor_id=item.actor_id,
+                    decided_by=item.decided_by,
                     rule=item.rule,
                     parent_id=item.parent_id,
                     confidence=item.confidence,

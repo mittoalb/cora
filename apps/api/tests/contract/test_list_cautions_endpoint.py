@@ -139,10 +139,10 @@ def test_get_cautions_accepts_target_id_filter(client: TestClient) -> None:
 
 
 @pytest.mark.contract
-def test_get_cautions_accepts_author_actor_id_filter(client: TestClient) -> None:
+def test_get_cautions_accepts_authored_by_filter(client: TestClient) -> None:
     author_id = uuid4()
     with client:
-        response = client.get(f"/cautions?author_actor_id={author_id}")
+        response = client.get(f"/cautions?authored_by={author_id}")
     assert response.status_code == 200
 
 

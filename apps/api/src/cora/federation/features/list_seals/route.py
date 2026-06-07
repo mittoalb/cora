@@ -42,8 +42,8 @@ class SealSummaryDTO(BaseModel):
     offline_credential_id: UUID
     current_head_hash: str | None = None
     current_sequence_number: int
-    initialized_by_actor_id: UUID
-    last_signed_by_actor_id: UUID | None = None
+    initialized_by: UUID
+    last_signed_by: UUID | None = None
     status: SealStatus
     initialized_at: datetime
     last_signed_at: datetime | None = None
@@ -116,8 +116,8 @@ async def list_seals(
                 offline_credential_id=item.offline_credential_id,
                 current_head_hash=item.current_head_hash,
                 current_sequence_number=item.current_sequence_number,
-                initialized_by_actor_id=item.initialized_by_actor_id,
-                last_signed_by_actor_id=item.last_signed_by_actor_id,
+                initialized_by=item.initialized_by,
+                last_signed_by=item.last_signed_by,
                 status=SealStatus(item.status),
                 initialized_at=item.initialized_at,
                 last_signed_at=item.last_signed_at,

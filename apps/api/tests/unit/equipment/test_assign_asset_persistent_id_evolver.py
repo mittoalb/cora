@@ -3,7 +3,7 @@ carry-forward matrix that pins every non-persistent-id transition
 preserves `persistent_id`."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -41,10 +41,20 @@ from cora.equipment.aggregates.asset import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 pytestmark = pytest.mark.timeout(60, method="thread")
 
 _NOW = datetime(2026, 6, 5, 12, 0, 0, tzinfo=UTC)
+
+
+def _extra_kwargs_for(transition: type) -> dict[str, object]:
+    if transition is AssetDecommissioned:
+        return {"decommissioned_by": _TEST_ACTOR_ID}
+    return {}
+
 
 _DOI = PersistentIdentifier(
     scheme=PersistentIdentifierScheme.DOI,
@@ -204,6 +214,7 @@ def test_fold_register_then_assign_persistent_id_yields_asset_with_persistent_id
                 level="Unit",
                 parent_id=parent_id,
                 occurred_at=_NOW,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
             AssetPersistentIdAssigned(
                 asset_id=asset_id,
@@ -232,6 +243,7 @@ def test_evolver_asset_registered_defaults_persistent_id_to_none() -> None:
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.persistent_id is None
@@ -316,7 +328,10 @@ def test_evolve_non_persistent_id_transition_preserves_persistent_id(
         lifecycle=_pick_lifecycle_for(transition),
         persistent_id=_DOI,
     )
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
     assert state.persistent_id == _DOI
 
 

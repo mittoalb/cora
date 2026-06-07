@@ -18,6 +18,7 @@ from cora.caution.features import retire_caution
 from cora.caution.features.retire_caution import RetireCaution
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -26,7 +27,7 @@ _CAUTION_ID = UUID("01900000-0000-7000-8000-000000040001")
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000040002")
 _RETIRED_EVENT_ID = UUID("01900000-0000-7000-8000-000000040003")
 _ASSET_ID = UUID("01900000-0000-7000-8000-000000040004")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-000000040005")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000040005"))
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
@@ -40,7 +41,7 @@ async def _seed(store: InMemoryEventStore) -> None:
         text="text",
         workaround="workaround",
         tags=frozenset(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=None,

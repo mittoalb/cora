@@ -86,12 +86,11 @@ async def test_get_credential_returns_view_with_projection_timestamps(
     assert view.credential.purpose is CredentialPurpose.SIGNING
     assert view.credential.status is CredentialStatus.ACTIVE
     assert view.credential.expires_at == _EXPIRES_AT
-    assert view.credential.registered_by_actor_id == _PRINCIPAL_ID
-    # Path C contract: timestamps land on the projection, not aggregate
-    # state. The genesis `occurred_at` flows into `registered_at`; the
-    # row has never rotated so `rotation_started_at` is None.
+    assert view.credential.registered_by == _PRINCIPAL_ID
+    # Path C reversal: `registered_at` now lives on Credential aggregate,
+    # while `rotation_started_at` still comes from the projection.
+    assert view.credential.registered_at == _NOW
     assert view.timestamps is not None
-    assert view.timestamps.registered_at == _NOW
     assert view.timestamps.rotation_started_at is None
 
 

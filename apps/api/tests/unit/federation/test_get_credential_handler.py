@@ -24,13 +24,14 @@ from cora.federation.features import get_credential
 from cora.federation.features.get_credential import GetCredential
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed301")
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed302")
-_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fed304")
+_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed304"))
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _SECRET_REF = "vault://kv/cora/federation/aps-2bm/signing#v1"
@@ -46,7 +47,7 @@ async def _seed(store: InMemoryEventStore) -> None:
         secret_ref=_SECRET_REF,
         public_material_ref=_PUBLIC_REF,
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_ACTOR_ID,
+        registered_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
     new_event = to_new_event(
@@ -86,7 +87,7 @@ async def test_handler_returns_credential_view_on_hit() -> None:
     assert view.credential.secret_ref == _SECRET_REF
     assert view.credential.public_material_ref == _PUBLIC_REF
     assert view.credential.expires_at == _EXPIRES_AT
-    assert view.credential.registered_by_actor_id == _ACTOR_ID
+    assert view.credential.registered_by == _ACTOR_ID
     assert view.credential.status == CredentialStatus.ACTIVE
     assert view.credential.rotation_pending_secret_ref is None
     assert view.credential.rotation_pending_public_material_ref is None

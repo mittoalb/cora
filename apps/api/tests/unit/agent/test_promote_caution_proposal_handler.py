@@ -49,6 +49,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -166,14 +167,14 @@ async def _seed_caution_proposal_decision(
     store: InMemoryEventStore,
     *,
     decision_id: UUID,
-    actor_id: UUID,
+    actor_id: ActorId,
     choice: str,
     inputs: dict[str, Any],
 ) -> None:
     """Append a CautionProposal Decision (genesis event) for the handler to load."""
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=actor_id,
         context=DECISION_CONTEXT_CAUTION_PROPOSAL,
         choice=choice,
         parent_id=None,
@@ -233,7 +234,7 @@ async def test_handler_promotes_via_register_for_propose_notice() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
@@ -277,7 +278,7 @@ async def test_handler_promotes_via_supersede_for_propose_supersede() -> None:
     proposed["supersedes_caution_id"] = str(prior_caution_id)
 
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
@@ -326,13 +327,13 @@ async def test_handler_rejects_wrong_context() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     # Seed CautionDrafter so the provenance gate passes; the decider's
     # context check is the assertion under test here.
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=actor_id,
         context=DECISION_CONTEXT_RUN_DEBRIEF,
         choice="NominalCompletion",
         parent_id=None,
@@ -378,7 +379,7 @@ async def test_handler_rejects_no_action_choice() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
@@ -403,7 +404,7 @@ async def test_handler_rejects_malformed_proposed_caution() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
@@ -433,7 +434,7 @@ async def test_handler_denied_does_not_write_caution() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store, deny=True)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
     await _seed_caution_proposal_decision(
         store,
@@ -468,7 +469,7 @@ async def test_handler_rejects_decision_from_unregistered_actor() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()  # NO _seed_caution_drafter_agent call
+    actor_id = ActorId(uuid4())  # NO _seed_caution_drafter_agent call
     await _seed_caution_proposal_decision(
         store,
         decision_id=decision_id,
@@ -499,7 +500,7 @@ async def test_handler_rejects_decision_from_wrong_agent_kind() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebriefer")
     await _seed_caution_proposal_decision(
         store,
@@ -528,7 +529,7 @@ async def test_handler_gate_fires_before_decider_validation() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     await _seed_non_caution_drafter_agent(store, agent_id=actor_id, kind="RunDebriefer")
     await _seed_caution_proposal_decision(
         store,
@@ -603,7 +604,7 @@ async def test_handler_raises_caution_not_found_when_supersede_parent_missing() 
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     decision_id = uuid4()
-    actor_id = uuid4()
+    actor_id = ActorId(uuid4())
     missing_parent_id = uuid4()
     await _seed_caution_drafter_agent(store, agent_id=actor_id)
 

@@ -42,6 +42,8 @@ async def test_register_supply_persists_event_to_postgres(
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
+        "trigger": "Operator",
+        "triggered_by": str(_PRINCIPAL_ID),
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

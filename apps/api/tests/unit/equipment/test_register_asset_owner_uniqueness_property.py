@@ -5,7 +5,7 @@ share a name (Lock 6).
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from hypothesis import given
@@ -22,6 +22,10 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.decider import decide as register_decide
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _PRINTABLE = st.characters(min_codepoint=0x21, max_codepoint=0x7E)
 _NAME_STR = st.text(alphabet=_PRINTABLE, min_size=1, max_size=ASSET_OWNER_NAME_MAX_LENGTH)
@@ -70,7 +74,15 @@ def test_register_asset_rejects_payload_with_any_duplicate_owner_name_holds(
     )
     if has_duplicate:
         with pytest.raises(AssetOwnerAlreadyPresentError):
-            register_decide(state=None, command=command, now=_NOW, new_id=uuid4())
+            register_decide(
+                state=None,
+                command=command,
+                now=_NOW,
+                new_id=uuid4(),
+                commissioned_by=_TEST_ACTOR_ID,
+            )
     else:
-        events = register_decide(state=None, command=command, now=_NOW, new_id=uuid4())
+        events = register_decide(
+            state=None, command=command, now=_NOW, new_id=uuid4(), commissioned_by=_TEST_ACTOR_ID
+        )
         assert events[0].owners == owner_set

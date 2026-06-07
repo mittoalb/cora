@@ -24,7 +24,7 @@ Carries the caller-controlled fields for registering a new Credential:
     not. When set, must lie strictly after the server's now.
 
 Server-side concerns (new credential id, wall-clock timestamp,
-correlation id, per-event ids, `registered_by_actor_id`) are injected
+correlation id, per-event ids, `registered_by`) are injected
 by the handler from infrastructure ports / the request envelope.
 """
 

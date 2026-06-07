@@ -9,12 +9,15 @@ connection (mirrors `test_asset_summary_projection.py` precedent).
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from cora.equipment.projections.asset import AssetSummaryProjection
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _ASSET_ID = uuid4()
 _PARENT_ID = uuid4()
@@ -50,6 +53,7 @@ async def test_projection_writes_owners_on_register() -> None:
             "level": "Unit",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "owners": [
                 {
                     "name": "HZB",
@@ -90,6 +94,7 @@ async def test_projection_omits_owners_defaults_to_empty_list_on_register() -> N
             "level": "Unit",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     await proj.apply(event, conn)
@@ -112,6 +117,7 @@ async def test_projection_sorts_owners_by_name_ascending_on_register() -> None:
             "level": "Unit",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "owners": [
                 {"name": "HZB", "contact": None, "identifier": None, "identifier_type": None},
                 {"name": "APS", "contact": None, "identifier": None, "identifier_type": None},

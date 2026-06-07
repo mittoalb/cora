@@ -66,6 +66,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identity import ActorId
 
 CAUTION_TEXT_MAX_LENGTH = 2000
 CAUTION_WORKAROUND_MAX_LENGTH = 2000
@@ -417,12 +418,10 @@ class Caution:
     EHS corpus). Default `False`. When True (today: hint-only;
     11b-b projection walks Asset.parent_id downward at query time).
 
-    `author_actor_id` is the operator who originally registered the
-    caution (or its supersession ancestor's child genesis). Denorm
-    convenience for projection queries ('cautions I authored'); the
-    `StoredEvent.principal_id` envelope still carries the writing actor
-    for every event, including supersede/retire (whose actor may
-    differ from the original author).
+    `authored_by`: genesis author identity, inherited unchanged
+    through CautionSuperseded and CautionRetired; the superseding /
+    retiring actor lives on the envelope (`StoredEvent.principal_id`)
+    per Path C.
     """
 
     id: UUID
@@ -431,7 +430,7 @@ class Caution:
     severity: CautionSeverity
     text: CautionText
     workaround: CautionWorkaround
-    author_actor_id: UUID
+    authored_by: ActorId
     tags: frozenset[CautionTag] = field(default_factory=frozenset[CautionTag])
     expires_at: datetime | None = None
     propagate_to_children: bool = False

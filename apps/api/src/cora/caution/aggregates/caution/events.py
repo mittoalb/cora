@@ -23,7 +23,7 @@ for deterministic payload bytes), reconstructed into
 `expires_at` is `datetime | None`; ISO-8601 string in the payload or
 `None`.
 
-`author_actor_id` lives on both the genesis payload (denorm convenience
+`authored_by` lives on both the genesis payload (denorm convenience
 for projection queries) and the `StoredEvent.principal_id` envelope
 (at register time they are equal; at supersede/retire time the
 envelope-only convention applies, mirroring 11a-c-1 precedent).
@@ -52,6 +52,7 @@ from cora.caution.aggregates.caution.state import (
     ProcedureTarget,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -124,7 +125,7 @@ class CautionRegistered:
     via the VO constructor (which re-trims and re-length-checks, but
     that's harmless on already-validated input).
 
-    `author_actor_id` lives on the payload for denorm convenience; the
+    `authored_by` lives on the payload for denorm convenience; the
     envelope's `principal_id` carries the same value at register time
     (and may differ at supersede-child time if the supersede actor
     is not the original author, which is allowed).
@@ -137,7 +138,7 @@ class CautionRegistered:
     text: str
     workaround: str
     tags: frozenset[str]
-    author_actor_id: UUID
+    authored_by: ActorId
     expires_at: datetime | None
     propagate_to_children: bool
     parent_id: UUID | None
@@ -205,7 +206,7 @@ def to_payload(event: CautionEvent) -> dict[str, Any]:
             text=text,
             workaround=workaround,
             tags=tags,
-            author_actor_id=author_actor_id,
+            authored_by=authored_by,
             expires_at=expires_at,
             propagate_to_children=propagate_to_children,
             parent_id=parent_id,
@@ -219,7 +220,7 @@ def to_payload(event: CautionEvent) -> dict[str, Any]:
                 "text": text,
                 "workaround": workaround,
                 "tags": sorted(tags),
-                "author_actor_id": str(author_actor_id),
+                "authored_by": str(authored_by),
                 "expires_at": expires_at.isoformat() if expires_at is not None else None,
                 "propagate_to_children": propagate_to_children,
                 "parent_id": (str(parent_id) if parent_id is not None else None),
@@ -283,7 +284,7 @@ def from_stored(stored: StoredEvent) -> CautionEvent:
                     text=payload["text"],
                     workaround=payload["workaround"],
                     tags=frozenset(payload["tags"]),
-                    author_actor_id=UUID(payload["author_actor_id"]),
+                    authored_by=ActorId(UUID(payload["authored_by"])),
                     expires_at=(
                         datetime.fromisoformat(expires_at_raw)
                         if expires_at_raw is not None

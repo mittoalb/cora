@@ -46,6 +46,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
+from cora.infrastructure.identity import ActorId
 
 AGENT_KIND_MAX_LENGTH = 100
 AGENT_NAME_MAX_LENGTH = 100
@@ -798,3 +799,11 @@ class Agent:
     suspended_at: datetime | None = None
     resumed_at: datetime | None = None
     suspension_reason: AgentSuspensionReason | None = None
+    # Fold-symmetry attribution halves paired with the suspended_at /
+    # resumed_at lifecycle stamps per [[project_fold_symmetry_design]].
+    # `suspended_by` is folded from `AgentSuspended.suspended_by` (the
+    # principal that issued the suspend_agent command); `resumed_by`
+    # from `AgentResumed.resumed_by`. Default-None so the additive-
+    # state pattern keeps legacy reconstruction paths clean.
+    suspended_by: ActorId | None = None
+    resumed_by: ActorId | None = None

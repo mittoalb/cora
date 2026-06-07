@@ -10,7 +10,7 @@ survives on the immutable event log.
 
 The invoking principal's id is supplied separately by the
 application handler at call time (envelope `principal_id` denorms
-to `rotation_aborted_by_actor_id` on the emitted event).
+to `rotation_aborted_by` on the emitted event).
 
 Strict-not-idempotent transition: aborting a rotation on a
 credential that is not in `Rotating` status raises
@@ -33,5 +33,5 @@ class AbortCredentialRotation:
     """
 
     credential_id: UUID
-    aborted_by_actor_id: UUID
+    aborted_by: UUID
     reason: str | None = None

@@ -8,6 +8,12 @@ a `Versioned` / `Defined` / `Deprecated` Agent raises
 
   - State must not be None -> `AgentNotFoundError`
   - Current status must be `Suspended` -> `AgentCannotResumeError`
+
+`resumed_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different resuming actor; the
+fold-symmetry attribution half then lands on both the event payload
+and Agent aggregate state per [[project_fold_symmetry_design]].
 """
 
 from datetime import datetime
@@ -20,6 +26,7 @@ from cora.agent.aggregates.agent import (
     AgentStatus,
 )
 from cora.agent.features.resume_agent.command import ResumeAgent
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -27,6 +34,7 @@ def decide(
     command: ResumeAgent,
     *,
     now: datetime,
+    resumed_by: ActorId,
 ) -> list[AgentResumed]:
     """Decide the events produced by resuming an Agent.
 
@@ -42,6 +50,7 @@ def decide(
     return [
         AgentResumed(
             agent_id=state.id,
+            resumed_by=resumed_by,
             occurred_at=now,
         )
     ]

@@ -63,6 +63,7 @@ from cora.data.features.promote_dataset.command import PromoteDataset
 from cora.data.features.promote_dataset.context import DatasetPromotionContext
 from cora.data.features.promote_dataset.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -159,7 +160,13 @@ def bind(deps: Kernel) -> Handler:
 
         context = DatasetPromotionContext(derived_from=derived_from_loaded)
 
-        domain_events = decide(state=state, command=command, context=context, now=now)
+        domain_events = decide(
+            state=state,
+            command=command,
+            context=context,
+            now=now,
+            promoted_by=ActorId(principal_id),
+        )
 
         new_events = [
             to_new_event(

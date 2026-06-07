@@ -3,7 +3,7 @@
 Covers the authz denial path (no event written), strict-not-idempotent
 posture on re-suspend, FSM precondition rejection on Defined / Revoked,
 not-found on an unknown permit, and the success path's event envelope
-shape (correlation_id, causation_id, and the suspended_by_actor_id
+shape (correlation_id, causation_id, and the suspended_by
 denorm on payload).
 """
 
@@ -31,6 +31,7 @@ from cora.federation.features import suspend_permit
 from cora.federation.features.suspend_permit import SuspendPermit
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import (
@@ -91,7 +92,7 @@ async def test_suspend_permit_handler_appends_event_to_active_permit() -> None:
     assert version == 3
     stored = events[-1]
     assert stored.event_type == "PermitSuspended"
-    assert stored.payload["suspended_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["suspended_by"] == str(_PRINCIPAL_ID)
     assert stored.payload["permit_id"] == str(_PERMIT_ID)
     assert stored.payload["reason"] == "peer paused outbound"
     assert stored.correlation_id == _CORRELATION_ID
@@ -235,7 +236,7 @@ async def test_suspend_permit_handler_raises_cannot_suspend_when_revoked() -> No
     )
     revoked = PermitRevoked(
         permit_id=_PERMIT_ID,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
         occurred_at=_T2,
     )
     await store.append(
@@ -317,11 +318,11 @@ async def test_suspend_permit_handler_denied_does_not_write_to_stream() -> None:
 
 
 @pytest.mark.unit
-async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id() -> None:
+async def test_suspend_permit_handler_records_principal_as_suspended_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `suspended_by_actor_id` on the emitted event (audit anchor for the
+    `suspended_by` on the emitted event (audit anchor for the
     operator gesture)."""
-    other_actor_id = UUID("01900000-0000-7000-8000-000000aa0001")
+    other_actor_id = ActorId(UUID("01900000-0000-7000-8000-000000aa0001"))
     store = InMemoryEventStore()
     # Seed an Active permit defined BY a different actor; the suspender
     # should still be recorded as the invoking principal.
@@ -334,7 +335,7 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=other_actor_id,
+        defined_by=other_actor_id,
         terms=OutboundTerms(
             scopes=frozenset({ScopeRef(kind="dataset", name="alpha")}),
             read_scope=ReadScope.READ_ALL_ARTIFACTS,
@@ -363,7 +364,7 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id
 
     activated = PermitActivated(
         permit_id=_PERMIT_ID,
-        activated_by_actor_id=other_actor_id,
+        activated_by=other_actor_id,
         occurred_at=_T1,
     )
     await store.append(
@@ -391,4 +392,4 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by_actor_id
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Permit", _PERMIT_ID)
-    assert events[-1].payload["suspended_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["suspended_by"] == str(_PRINCIPAL_ID)

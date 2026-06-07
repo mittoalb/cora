@@ -87,6 +87,7 @@ async def test_return_subject_persists_event_to_postgres(
     assert returned.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "returned_by": str(_PRINCIPAL_ID),
     }
     assert returned.correlation_id == _CORRELATION_ID
     assert returned.causation_id is None

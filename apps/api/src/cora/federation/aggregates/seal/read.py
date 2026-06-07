@@ -35,7 +35,7 @@ from cora.infrastructure.ports import EventStore
 _STREAM_TYPE = "Seal"
 
 _SELECT_TIMESTAMPS_SQL = """
-SELECT initialized_at, last_signed_at, last_signed_by_actor_id
+SELECT last_signed_at, last_signed_by
 FROM proj_federation_seal_summary
 WHERE facility_id = $1
 """
@@ -43,21 +43,20 @@ WHERE facility_id = $1
 
 @dataclass(frozen=True)
 class SealLifecycleTimestamps:
-    """Observed wall-clock timestamps for Seal lifecycle events.
+    """Observed wall-clock metadata for the most recent signing.
 
     Sourced from `proj_federation_seal_summary`, not from aggregate
-    state. `initialized_at` is set once on `SealInitialized`
-    (the envelope `occurred_at` of the genesis event).
-    `last_signed_at` and `last_signed_by_actor_id` are `None` until
-    the first `SealPointerSigned`; thereafter they reflect the
-    most recent signing's `signed_at` payload and `signed_by_actor_id`
-    (signing wall-clock may legitimately differ from event envelope
+    state. `last_signed_at` and `last_signed_by` are `None` until
+    the first `SealPointerSigned`; thereafter they reflect the most
+    recent signing's `signed_at` payload and `signed_by` (signing
+    wall-clock may legitimately differ from event envelope
     `occurred_at`, mirroring Calibration `established_at`).
+    `initialized_at` was hoisted onto the aggregate per the
+    fold-symmetry Path C reversal; read it from `Seal.initialized_at`.
     """
 
-    initialized_at: datetime
     last_signed_at: datetime | None
-    last_signed_by_actor_id: UUID | None
+    last_signed_by: UUID | None
 
 
 async def load_seal(event_store: EventStore, stream_id: UUID) -> Seal | None:
@@ -84,7 +83,6 @@ async def load_seal_timestamps(
     if row is None:
         return None
     return SealLifecycleTimestamps(
-        initialized_at=row["initialized_at"],
         last_signed_at=row["last_signed_at"],
-        last_signed_by_actor_id=row["last_signed_by_actor_id"],
+        last_signed_by=row["last_signed_by"],
     )

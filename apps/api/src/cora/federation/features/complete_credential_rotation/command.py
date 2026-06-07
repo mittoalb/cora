@@ -3,7 +3,7 @@
 `credential_id` is the target Credential aggregate. The invoking
 principal's id is supplied separately by the application handler at
 call time (envelope `principal_id` denorms to
-`rotation_completed_by_actor_id` on the emitted event).
+`rotation_completed_by` on the emitted event).
 
 Strict-not-idempotent transition: completing a rotation on a credential
 that is not in `Rotating` status raises `CredentialCannotRotateError`

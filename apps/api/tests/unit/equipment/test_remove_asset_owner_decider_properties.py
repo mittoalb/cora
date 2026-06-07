@@ -5,7 +5,7 @@ fold preserves owners set membership.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from hypothesis import given
@@ -30,6 +30,10 @@ from cora.equipment.features.add_asset_owner import AddAssetOwner
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.decider import decide as register_decide
 from cora.equipment.features.remove_asset_owner import RemoveAssetOwner
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _PRINTABLE = st.characters(min_codepoint=0x21, max_codepoint=0x7E)
 _NAME = st.text(alphabet=_PRINTABLE, min_size=1, max_size=ASSET_OWNER_NAME_MAX_LENGTH).map(
@@ -74,6 +78,7 @@ def test_add_then_remove_owner_is_identity_holds(owner: AssetOwner) -> None:
         command=RegisterAsset(name="X", level=AssetLevel.UNIT, parent_id=parent_id),
         now=_NOW,
         new_id=asset_id,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     state = evolve(None, registered_events[0])
 
@@ -124,6 +129,7 @@ def test_register_asset_with_owner_set_then_extract_preserves_set_holds(
         ),
         now=_NOW,
         new_id=asset_id,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     assert isinstance(events[0], AssetRegistered)
     state = evolve(None, events[0])

@@ -7,7 +7,7 @@ transition slices:
 
     cmd = abort_credential_rotation.AbortCredentialRotation(
         credential_id=...,
-        aborted_by_actor_id=...,
+        aborted_by=...,
         reason=None,
     )
     handler = abort_credential_rotation.bind(deps)

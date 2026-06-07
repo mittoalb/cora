@@ -73,7 +73,7 @@ def test_full_fsm_walk_to_active_via_rest() -> None:
         assert r.status_code == 204
         body = client.get(f"/clearances/{cid}").json()
         assert body["status"] == "Approved"
-        # GET response no longer surfaces last_reviewed_by_actor_id (aggregate
+        # GET response no longer surfaces last_reviewed_by (aggregate
         # drops the field per #19 cleanup); list_clearances still does via the
         # projection's envelope-sourced denorm column.
 

@@ -8,7 +8,7 @@ command slices:
     cmd = register_caution.RegisterCaution(target=..., category=...,
                                            severity=..., text="...",
                                            workaround="...",
-                                           author_actor_id=...)
+                                           authored_by=...)
     handler = register_caution.bind(deps)
     caution_id = await handler(cmd, principal_id=..., correlation_id=...)
 """

@@ -20,8 +20,8 @@ Carries caller-controlled inputs for defining a new Calibration:
     only collapses to None at the slice boundary.
 
 Server-side concerns (new aggregate id, wall-clock timestamp,
-correlation id, per-event ids, defined_by_actor_id) are injected by
-the handler from infrastructure ports / the request envelope.
+correlation id, per-event ids, defined_by) are injected by the
+handler from infrastructure ports / the request envelope.
 """
 
 from dataclasses import dataclass

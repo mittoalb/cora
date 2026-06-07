@@ -66,6 +66,7 @@ async def test_mount_subject_persists_event_to_postgres(
         "asset_id": str(asset_id),
         "reason": "",
         "occurred_at": _NOW.isoformat(),
+        "mounted_by": str(_PRINCIPAL_ID),
     }
     assert mounted.correlation_id == _CORRELATION_ID
     assert mounted.causation_id is None

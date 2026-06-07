@@ -32,6 +32,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -48,7 +49,7 @@ class SealInitialized:
     facility_id: str
     online_credential_id: UUID
     offline_credential_id: UUID
-    initialized_by_actor_id: UUID
+    initialized_by: ActorId
     occurred_at: datetime
 
 
@@ -71,7 +72,7 @@ class SealPointerSigned:
     head_hash: str
     sequence_number: int
     signed_at: datetime
-    signed_by_actor_id: UUID
+    signed_by: ActorId
     occurred_at: datetime
 
 
@@ -93,7 +94,7 @@ class SealOnlineKeyRotated:
     facility_id: str
     new_online_credential_id: UUID
     signed_by_offline_root: bool
-    rotated_by_actor_id: UUID
+    rotated_by: ActorId
     occurred_at: datetime
 
 
@@ -107,7 +108,7 @@ class SealRepublishingStarted:
     """
 
     facility_id: str
-    started_by_actor_id: UUID
+    started_by: ActorId
     occurred_at: datetime
     reason: str | None = None
 
@@ -124,7 +125,7 @@ class SealRepublishingCompleted:
     facility_id: str
     new_head_hash: str
     new_sequence_number: int
-    completed_by_actor_id: UUID
+    completed_by: ActorId
     occurred_at: datetime
 
 
@@ -149,14 +150,14 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             facility_id=facility_id,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
-            initialized_by_actor_id=initialized_by_actor_id,
+            initialized_by=initialized_by,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
                 "online_credential_id": str(online_credential_id),
                 "offline_credential_id": str(offline_credential_id),
-                "initialized_by_actor_id": str(initialized_by_actor_id),
+                "initialized_by": str(initialized_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealPointerSigned(
@@ -164,7 +165,7 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             head_hash=head_hash,
             sequence_number=sequence_number,
             signed_at=signed_at,
-            signed_by_actor_id=signed_by_actor_id,
+            signed_by=signed_by,
             occurred_at=occurred_at,
         ):
             return {
@@ -172,32 +173,32 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
                 "head_hash": head_hash,
                 "sequence_number": sequence_number,
                 "signed_at": signed_at.isoformat(),
-                "signed_by_actor_id": str(signed_by_actor_id),
+                "signed_by": str(signed_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealOnlineKeyRotated(
             facility_id=facility_id,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=signed_by_offline_root,
-            rotated_by_actor_id=rotated_by_actor_id,
+            rotated_by=rotated_by,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
                 "new_online_credential_id": str(new_online_credential_id),
                 "signed_by_offline_root": signed_by_offline_root,
-                "rotated_by_actor_id": str(rotated_by_actor_id),
+                "rotated_by": str(rotated_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealRepublishingStarted(
             facility_id=facility_id,
-            started_by_actor_id=started_by_actor_id,
+            started_by=started_by,
             occurred_at=occurred_at,
             reason=reason,
         ):
             return {
                 "facility_id": facility_id,
-                "started_by_actor_id": str(started_by_actor_id),
+                "started_by": str(started_by),
                 "occurred_at": occurred_at.isoformat(),
                 "reason": reason,
             }
@@ -205,14 +206,14 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             facility_id=facility_id,
             new_head_hash=new_head_hash,
             new_sequence_number=new_sequence_number,
-            completed_by_actor_id=completed_by_actor_id,
+            completed_by=completed_by,
             occurred_at=occurred_at,
         ):
             return {
                 "facility_id": facility_id,
                 "new_head_hash": new_head_hash,
                 "new_sequence_number": new_sequence_number,
-                "completed_by_actor_id": str(completed_by_actor_id),
+                "completed_by": str(completed_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case _:  # pragma: no cover
@@ -235,7 +236,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                     facility_id=payload["facility_id"],
                     online_credential_id=UUID(payload["online_credential_id"]),
                     offline_credential_id=UUID(payload["offline_credential_id"]),
-                    initialized_by_actor_id=UUID(payload["initialized_by_actor_id"]),
+                    initialized_by=ActorId(UUID(payload["initialized_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -247,7 +248,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                     head_hash=payload["head_hash"],
                     sequence_number=payload["sequence_number"],
                     signed_at=datetime.fromisoformat(payload["signed_at"]),
-                    signed_by_actor_id=UUID(payload["signed_by_actor_id"]),
+                    signed_by=ActorId(UUID(payload["signed_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -258,7 +259,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                     facility_id=payload["facility_id"],
                     new_online_credential_id=UUID(payload["new_online_credential_id"]),
                     signed_by_offline_root=payload["signed_by_offline_root"],
-                    rotated_by_actor_id=UUID(payload["rotated_by_actor_id"]),
+                    rotated_by=ActorId(UUID(payload["rotated_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -267,7 +268,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                 "SealRepublishingStarted",
                 lambda: SealRepublishingStarted(
                     facility_id=payload["facility_id"],
-                    started_by_actor_id=UUID(payload["started_by_actor_id"]),
+                    started_by=ActorId(UUID(payload["started_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
                 ),
@@ -279,7 +280,7 @@ def from_stored(stored: StoredEvent) -> SealEvent:
                     facility_id=payload["facility_id"],
                     new_head_hash=payload["new_head_hash"],
                     new_sequence_number=payload["new_sequence_number"],
-                    completed_by_actor_id=UUID(payload["completed_by_actor_id"]),
+                    completed_by=ActorId(UUID(payload["completed_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )

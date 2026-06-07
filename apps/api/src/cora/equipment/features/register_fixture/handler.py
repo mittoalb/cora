@@ -40,6 +40,7 @@ from cora.equipment.features.register_fixture.context import RegisterFixtureCont
 from cora.equipment.features.register_fixture.decider import decide
 from cora.equipment.projections.asset_location import load_asset_location
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -190,6 +191,7 @@ def bind(deps: Kernel) -> Handler:
             context=context,
             now=now,
             new_id=new_id,
+            registered_by=ActorId(principal_id),
         )
 
         new_events = [

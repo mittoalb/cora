@@ -117,6 +117,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=prior.suspended_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=prior.resumed_by,
             )
         case AgentDeprecated(reason=reason, occurred_at=_):
             prior = require_state(state, "AgentDeprecated")
@@ -141,12 +143,16 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=prior.suspended_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=prior.resumed_by,
             )
-        case AgentSuspended(reason=reason, occurred_at=occurred_at):
+        case AgentSuspended(reason=reason, suspended_by=suspended_by, occurred_at=occurred_at):
             prior = require_state(state, "AgentSuspended")
             # `suspended_at` + `suspension_reason` STAY on state:
             # suspension_reason is invariant-bearing (decider-relevant),
-            # so its paired timestamp does too.
+            # so its paired timestamp does too. `suspended_by` is the
+            # fold-symmetry attribution half paired with `suspended_at`
+            # per [[project_fold_symmetry_design]].
             return Agent(
                 id=prior.id,
                 kind=prior.kind,
@@ -164,8 +170,10 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=occurred_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=AgentSuspensionReason(reason),
+                suspended_by=suspended_by,
+                resumed_by=prior.resumed_by,
             )
-        case AgentResumed(occurred_at=occurred_at):
+        case AgentResumed(resumed_by=resumed_by, occurred_at=occurred_at):
             prior = require_state(state, "AgentResumed")
             return Agent(
                 id=prior.id,
@@ -183,13 +191,17 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 budget=prior.budget,
                 # `suspended_at` is preserved as historical audit trail
                 # (the agent WAS suspended at that time); `resumed_at`
-                # marks the return-to-Versioned moment.
+                # marks the return-to-Versioned moment. `resumed_by` is
+                # the fold-symmetry attribution half paired with
+                # `resumed_at` per [[project_fold_symmetry_design]].
                 suspended_at=prior.suspended_at,
                 resumed_at=occurred_at,
                 # `suspension_reason` is preserved as historical context
                 # for the same audit-trail reason. A future re-suspension
                 # overwrites it with the fresh reason.
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=resumed_by,
             )
         case AgentToolGranted(tool_name=tool_name, occurred_at=_):
             prior = require_state(state, "AgentToolGranted")
@@ -210,6 +222,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=prior.suspended_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=prior.resumed_by,
             )
         case AgentToolRevoked(tool_name=tool_name, occurred_at=_):
             prior = require_state(state, "AgentToolRevoked")
@@ -230,6 +244,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=prior.suspended_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=prior.resumed_by,
             )
         case AgentBudgetRevised(
             monthly_usd_cap=monthly_usd_cap,
@@ -254,6 +270,8 @@ def evolve(state: Agent | None, event: AgentEvent) -> Agent:
                 suspended_at=prior.suspended_at,
                 resumed_at=prior.resumed_at,
                 suspension_reason=prior.suspension_reason,
+                suspended_by=prior.suspended_by,
+                resumed_by=prior.resumed_by,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

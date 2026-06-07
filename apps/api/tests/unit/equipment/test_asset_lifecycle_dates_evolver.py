@@ -27,7 +27,7 @@ arm is added without a matching parametrize entry here.
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -63,7 +63,9 @@ from cora.equipment.aggregates.asset import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
 
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 _COMMISSIONED_AT = datetime(2024, 5, 15, 9, 30, 0, tzinfo=UTC)
 _DECOMMISSIONED_AT = datetime(2026, 4, 1, 14, 0, 0, tzinfo=UTC)
 _NOW = datetime(2026, 6, 5, 12, 0, 0, tzinfo=UTC)
@@ -245,6 +247,7 @@ def test_evolve_asset_registered_sets_commissioned_at_from_occurred_at() -> None
             level="Unit",
             parent_id=uuid4(),
             occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.commissioned_at == _NOW
@@ -264,8 +267,11 @@ def test_evolve_asset_decommissioned_sets_decommissioned_at_and_preserves_commis
                 level="Unit",
                 parent_id=uuid4(),
                 occurred_at=_COMMISSIONED_AT,
+                commissioned_by=_TEST_ACTOR_ID,
             ),
-            AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
         ]
     )
     assert state is not None

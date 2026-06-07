@@ -5,7 +5,7 @@ Single-source transition: `Active -> Rotating`. Strict-not-idempotent
 starting a rotation against an already Rotating or Revoked credential
 raises `CredentialCannotRotateError`.
 
-`rotation_started_by_actor_id` is handler-injected from the request
+`rotation_started_by` is handler-injected from the request
 envelope's `principal_id` per the non-determinism principle (capture,
 don't recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -43,7 +43,7 @@ def decide(
     command: StartCredentialRotation,
     *,
     now: datetime,
-    rotation_started_by_actor_id: UUID,
+    rotation_started_by: UUID,
 ) -> list[CredentialRotationStarted]:
     """Decide the events produced by starting a rotation on an Active credential.
 
@@ -80,7 +80,7 @@ def decide(
             credential_id=state.id,
             pending_secret_ref=pending_secret_ref,
             pending_public_material_ref=pending_public_material_ref,
-            rotation_started_by_actor_id=rotation_started_by_actor_id,
+            rotation_started_by=rotation_started_by,
             occurred_at=now,
         )
     ]

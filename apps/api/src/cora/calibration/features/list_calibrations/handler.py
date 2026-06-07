@@ -27,6 +27,7 @@ from uuid import UUID
 
 from cora.calibration.errors import UnauthorizedError
 from cora.calibration.features.list_calibrations.query import ListCalibrations
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.list_query import (
     ColumnInFilter,
@@ -47,7 +48,7 @@ class CalibrationSummaryItem:
     description: str | None
     defined_at: datetime
     last_revised_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: ActorId
     revision_count: int
     latest_revision_status: str | None
     latest_revision_source_kind: str | None
@@ -76,7 +77,7 @@ class Handler(Protocol):
 
 _SELECT_COLUMNS = (
     "calibration_id, target_id, quantity, operating_point, "
-    "description, defined_at, last_revised_at, defined_by_actor_id, "
+    "description, defined_at, last_revised_at, defined_by, "
     "revision_count, latest_revision_status, latest_revision_source_kind"
 )
 
@@ -90,7 +91,7 @@ def _row_to_item(row: Any) -> CalibrationSummaryItem:
         description=(str(row["description"]) if row["description"] is not None else None),
         defined_at=row["defined_at"],
         last_revised_at=row["last_revised_at"],
-        defined_by_actor_id=row["defined_by_actor_id"],
+        defined_by=ActorId(row["defined_by"]),
         revision_count=int(row["revision_count"]),
         latest_revision_status=(
             str(row["latest_revision_status"])

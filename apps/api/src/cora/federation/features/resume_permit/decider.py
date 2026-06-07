@@ -14,7 +14,7 @@ emit different event types (`PermitActivated` vs `PermitResumed`).
   - State must not be None (permit must exist) -> PermitNotFoundError
   - Current status must be `Suspended` -> PermitCannotResumeError
 
-The handler-injected `resumed_by_actor_id` denorms the principal-id
+The handler-injected `resumed_by` denorms the principal-id
 on the emitted event payload per the Calibration / Clearance
 precedent.
 """
@@ -37,7 +37,7 @@ def decide(
     command: ResumePermit,
     *,
     now: datetime,
-    resumed_by_actor_id: UUID,
+    resumed_by: UUID,
 ) -> list[PermitResumed]:
     """Decide the events produced by resuming a Suspended Permit.
 
@@ -53,7 +53,7 @@ def decide(
     return [
         PermitResumed(
             permit_id=state.id,
-            resumed_by_actor_id=resumed_by_actor_id,
+            resumed_by=resumed_by,
             occurred_at=now,
         )
     ]

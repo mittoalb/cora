@@ -30,6 +30,7 @@ from cora.decision.features.list_decisions import ListDecisions
 from cora.decision.features.list_decisions import bind as bind_list
 from cora.decision.features.register_decision import RegisterDecision
 from cora.decision.features.register_decision import bind as bind_register
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
@@ -105,7 +106,7 @@ async def test_every_band_value_writes_a_check_constraint_accepted_string(
         deps = _build_deps(db_pool, [decision_id, event_id])
         decision_ids[label] = await bind_register(deps)(
             RegisterDecision(
-                actor_id=actor_id_holder[0],
+                decided_by=ActorId(actor_id_holder[0]),
                 context="RecipeApproval",
                 choice=f"approve-{label}",
                 confidence=confidence,
@@ -121,7 +122,7 @@ async def test_every_band_value_writes_a_check_constraint_accepted_string(
     deps_none = _build_deps(db_pool, [none_id, none_event])
     decision_ids["none"] = await bind_register(deps_none)(
         RegisterDecision(
-            actor_id=actor_id_holder[0],
+            decided_by=ActorId(actor_id_holder[0]),
             context="RecipeApproval",
             choice="approve-no-confidence",
         ),
@@ -168,7 +169,7 @@ async def test_confidence_band_filter_narrows_results(
     deps_high = _build_deps(db_pool, [high_id, uuid4()])
     await bind_register(deps_high)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RecipeApproval",
             choice="approve",
             confidence=0.80,
@@ -181,7 +182,7 @@ async def test_confidence_band_filter_narrows_results(
     deps_low = _build_deps(db_pool, [low_id, uuid4()])
     await bind_register(deps_low)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RecipeApproval",
             choice="reject",
             confidence=0.10,
@@ -229,7 +230,7 @@ async def test_choice_filter_narrows_to_one_choice_value(
     deps_nominal = _build_deps(db_pool, [nominal_id, uuid4()])
     await bind_register(deps_nominal)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RunDebrief",
             choice="NominalCompletion",
             confidence=0.92,
@@ -242,7 +243,7 @@ async def test_choice_filter_narrows_to_one_choice_value(
     deps_conflicted = _build_deps(db_pool, [conflicted_id, uuid4()])
     await bind_register(deps_conflicted)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RunDebrief",
             choice="DebriefConflicted",
         ),
@@ -290,7 +291,7 @@ async def test_exclude_choices_filter_drops_audit_only_rows_from_analytic_query(
     deps_a = _build_deps(db_pool, [nominal_id_a, uuid4()])
     await bind_register(deps_a)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RunDebrief",
             choice="NominalCompletion",
             confidence=0.90,
@@ -303,7 +304,7 @@ async def test_exclude_choices_filter_drops_audit_only_rows_from_analytic_query(
     deps_b = _build_deps(db_pool, [nominal_id_b, uuid4()])
     await bind_register(deps_b)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RunDebrief",
             choice="DegradedCompletion",
             confidence=0.55,
@@ -316,7 +317,7 @@ async def test_exclude_choices_filter_drops_audit_only_rows_from_analytic_query(
     deps_conf_a = _build_deps(db_pool, [debrief_conflicted_id, uuid4()])
     await bind_register(deps_conf_a)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="RunDebrief",
             choice="DebriefConflicted",
         ),
@@ -328,7 +329,7 @@ async def test_exclude_choices_filter_drops_audit_only_rows_from_analytic_query(
     deps_conf_b = _build_deps(db_pool, [caution_conflicted_id, uuid4()])
     await bind_register(deps_conf_b)(
         RegisterDecision(
-            actor_id=actor_real_id,
+            decided_by=ActorId(actor_real_id),
             context="CautionProposal",
             choice="CautionDraftConflicted",
         ),
@@ -393,7 +394,7 @@ async def test_cursor_walks_pages(db_pool: asyncpg.Pool) -> None:
         deps = _build_deps(db_pool, [dec_id, uuid4()])
         await bind_register(deps)(
             RegisterDecision(
-                actor_id=actor_id_holder[0],
+                decided_by=ActorId(actor_id_holder[0]),
                 context="RecipeApproval",
                 choice=f"approve-{i}",
                 confidence=0.50,

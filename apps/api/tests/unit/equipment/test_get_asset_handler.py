@@ -29,6 +29,7 @@ from cora.equipment.features.get_asset import GetAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.relocate_asset import RelocateAsset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import DenyAllAuthorize as _DenyAllAuthorize
 from tests.unit._helpers import RecordingAuthorize as _RecordingAuthorize
@@ -78,6 +79,7 @@ async def test_handler_returns_asset_for_known_id() -> None:
         parent_id=_PARENT_ID,
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
+        commissioned_by=ActorId(_PRINCIPAL_ID),
     )
 
 

@@ -21,10 +21,10 @@ producing arm for the choice/reasoning fields.
 **Critical invariant**: every transition arm MUST carry every
 core Decision field through from prior state, and either preserve
 or rewrite `logbooks` deliberately. Constructing `Decision(id=...,
-actor_id=..., context=..., choice=...)` without explicitly
-passing the additive fields would silently WIPE them to defaults
-(None / empty tuple / empty dict). Aligned to explicit construction
-post-domain-audit to match the documented pattern in
+decided_by=..., decided_at=..., context=..., choice=...)` without
+explicitly passing the additive fields would silently WIPE them to
+defaults (None / empty tuple / empty dict). Aligned to explicit
+construction post-domain-audit to match the documented pattern in
 Asset/Plan/Method/Practice/Family/Subject evolvers.
 
 Defensive guards: both logbook arms raise on `state is None`
@@ -63,7 +63,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
     match event:
         case DecisionRegistered(
             decision_id=decision_id,
-            actor_id=actor_id,
+            decided_by=decided_by,
             context=context,
             choice=choice,
             parent_id=parent_id,
@@ -75,13 +75,15 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
             alternatives=alternatives,
             inputs=inputs,
             reasoning_signature=reasoning_signature,
+            occurred_at=occurred_at,
         ):
             _ = state  # DecisionRegistered is the genesis event; prior state ignored.
             # Shallow-copy the inputs payload dict into state so
             # mutating either side can't alias the other (B1 defence).
             return Decision(
                 id=decision_id,
-                actor_id=actor_id,
+                decided_by=decided_by,
+                decided_at=occurred_at,
                 context=DecisionContext(context),
                 choice=DecisionChoice(choice),
                 parent_id=parent_id,
@@ -101,7 +103,8 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 raise DecisionLogbookAlreadyOpenError(prior.id, kind, existing)
             return Decision(
                 id=prior.id,
-                actor_id=prior.actor_id,
+                decided_by=prior.decided_by,
+                decided_at=prior.decided_at,
                 context=prior.context,
                 choice=prior.choice,
                 parent_id=prior.parent_id,
@@ -126,7 +129,8 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 raise DecisionLogbookNotOpenError(prior.id, logbook_id)
             return Decision(
                 id=prior.id,
-                actor_id=prior.actor_id,
+                decided_by=prior.decided_by,
+                decided_at=prior.decided_at,
                 context=prior.context,
                 choice=prior.choice,
                 parent_id=prior.parent_id,
@@ -144,14 +148,14 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
         case DecisionRated(
             rating=rating,
             comment=comment,
-            rated_by_actor_id=rated_by_actor_id,
+            rated_by=rated_by,
             rated_at=rated_at,
         ):
             prior = require_state(state, "DecisionRated")
             # Latest-per-actor wins: if a prior rating exists for the
             # same actor, the new one overwrites IFF rated_at is later
             # (defensive: out-of-order replay must not regress state).
-            existing = prior.ratings.get(rated_by_actor_id)
+            existing = prior.ratings.get(rated_by)
             if existing is not None and existing.rated_at >= rated_at:
                 # Replay observed an older event after a newer one (rare
                 # but possible during projection rebuild). Keep newer.
@@ -159,7 +163,8 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
             new_record = DecisionRatingRecord(rating=rating, comment=comment, rated_at=rated_at)
             return Decision(
                 id=prior.id,
-                actor_id=prior.actor_id,
+                decided_by=prior.decided_by,
+                decided_at=prior.decided_at,
                 context=prior.context,
                 choice=prior.choice,
                 parent_id=prior.parent_id,
@@ -172,7 +177,7 @@ def evolve(state: Decision | None, event: DecisionEvent) -> Decision:
                 inputs=prior.inputs,
                 reasoning_signature=prior.reasoning_signature,
                 logbooks=prior.logbooks,
-                ratings={**prior.ratings, rated_by_actor_id: new_record},
+                ratings={**prior.ratings, rated_by: new_record},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

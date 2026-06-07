@@ -36,6 +36,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports import (
     FakeLLM,
     FakeLLMResponse,
@@ -188,7 +189,7 @@ async def test_handler_writes_decision_on_success() -> None:
     assert decision is not None
     assert decision.context.value == DECISION_CONTEXT_RUN_DEBRIEF
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
     assert decision.parent_id is None
     # inputs carries the trigger discriminator so projection
     # consumers can distinguish on-demand vs auto-fired Decisions.
@@ -468,7 +469,7 @@ async def _seed_foreign_context_decision(
 
     domain_event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=uuid4(),  # some other actor
+        decided_by=ActorId(uuid4()),  # some other actor
         context="OtherAgent",
         choice="SomeChoice",
         parent_id=None,

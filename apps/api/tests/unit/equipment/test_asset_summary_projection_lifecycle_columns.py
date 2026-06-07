@@ -10,12 +10,15 @@ Per section 10 of project_asset_persistent_id_design.
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from cora.equipment.projections.asset import AssetSummaryProjection
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _ASSET_ID = uuid4()
 _PARENT_ID = uuid4()
@@ -55,6 +58,7 @@ async def test_projection_writes_commissioned_at_on_register() -> None:
             "level": "Unit",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     await proj.apply(event, conn)
@@ -74,7 +78,11 @@ async def test_projection_writes_decommissioned_at_on_decommission() -> None:
     conn = AsyncMock()
     event = _stored(
         "AssetDecommissioned",
-        {"asset_id": str(_ASSET_ID), "occurred_at": _LATER.isoformat()},
+        {
+            "asset_id": str(_ASSET_ID),
+            "occurred_at": _LATER.isoformat(),
+            "decommissioned_by": str(_TEST_ACTOR_ID),
+        },
     )
     await proj.apply(event, conn)
     args = conn.execute.await_args

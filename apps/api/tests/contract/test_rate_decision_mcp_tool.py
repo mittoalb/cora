@@ -16,7 +16,7 @@ def _seed_decision_via_rest(client: TestClient) -> str:
     decision = client.post(
         "/decisions",
         json={
-            "actor_id": actor.json()["actor_id"],
+            "decided_by": actor.json()["actor_id"],
             "context": "RunDebrief",
             "choice": "NominalCompletion",
         },

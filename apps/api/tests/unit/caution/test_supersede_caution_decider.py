@@ -33,10 +33,11 @@ from cora.caution.features.supersede_caution import (
     CautionSupersessionContext,
     SupersedeCaution,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _ASSET_ID = UUID("01900000-0000-7000-8000-000000010001")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-000000010002")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000010002"))
 
 
 def _parent(
@@ -51,7 +52,7 @@ def _parent(
         severity=CautionSeverity.CAUTION,
         text=CautionText("original text"),
         workaround=CautionWorkaround("original workaround"),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         status=status,
     )
 
@@ -88,7 +89,7 @@ def test_decide_emits_parent_superseded_and_child_registered() -> None:
         context=ctx,
         now=_NOW,
         new_id=new_id,
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
 
     assert len(result.parent_events) == 1
@@ -119,7 +120,7 @@ def test_decide_child_target_is_required_to_match_parent_target() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -135,7 +136,7 @@ def test_decide_rejects_cross_kind_target_mismatch() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -155,7 +156,7 @@ def test_decide_rejects_when_parent_not_active(status: CautionStatus) -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -171,7 +172,7 @@ def test_decide_rejects_empty_child_text() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -188,7 +189,7 @@ def test_decide_rejects_empty_child_workaround() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -205,7 +206,7 @@ def test_decide_rejects_past_expires_at() -> None:
             context=ctx,
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -221,7 +222,7 @@ def test_decide_carries_future_expires_at_on_child() -> None:
         context=ctx,
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert result.child_events[0].expires_at == future
 
@@ -241,7 +242,7 @@ def test_decide_state_arg_is_ignored() -> None:
         context=ctx,
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert len(result.parent_events) == 1
     assert len(result.child_events) == 1

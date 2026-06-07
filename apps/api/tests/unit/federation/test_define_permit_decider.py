@@ -28,10 +28,11 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import define_permit
 from cora.federation.features.define_permit import DefinePermit
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed001")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed001"))
 _PERMIT_ID = UUID("01900000-0000-7000-8000-000000fed002")
 _NEW_ID = UUID("01900000-0000-7000-8000-000000fed003")
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed004")
@@ -83,7 +84,8 @@ def _existing_state() -> Permit:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
+        defined_at=_NOW,
         status=PermitStatus.DEFINED,
         terms=_outbound_terms(),
     )
@@ -96,7 +98,7 @@ def test_define_permit_emits_event_for_valid_outbound_command() -> None:
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -108,7 +110,7 @@ def test_define_permit_emits_event_for_valid_outbound_command() -> None:
     assert event.allowed_artifact_kinds == frozenset({"dataset"})
     assert event.abi_tier_floor is AbiTier.STABLE
     assert event.expires_at == _EXPIRES_AT
-    assert event.defined_by_actor_id == _PRINCIPAL_ID
+    assert event.defined_by == _PRINCIPAL_ID
     assert isinstance(event.terms, OutboundTerms)
     assert event.occurred_at == _NOW
 
@@ -120,7 +122,7 @@ def test_define_permit_emits_event_for_valid_inbound_command() -> None:
         command=_command(direction=Direction.INBOUND, terms=_inbound_terms()),
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -135,7 +137,7 @@ def test_define_permit_trims_peer_facility_id() -> None:
         command=_command(peer_facility_id="  aps-2bm  "),
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert events[0].peer_facility_id == "aps-2bm"
 
@@ -148,7 +150,7 @@ def test_define_permit_rejects_when_state_already_exists() -> None:
             command=_command(),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -160,7 +162,7 @@ def test_define_permit_rejects_empty_peer_facility_id() -> None:
             command=_command(peer_facility_id=""),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -172,7 +174,7 @@ def test_define_permit_rejects_whitespace_only_peer_facility_id() -> None:
             command=_command(peer_facility_id="   "),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -184,7 +186,7 @@ def test_define_permit_rejects_expires_at_in_the_past() -> None:
             command=_command(expires_at=datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -197,7 +199,7 @@ def test_define_permit_rejects_expires_at_equal_to_now() -> None:
             command=_command(expires_at=_NOW),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -209,7 +211,7 @@ def test_define_permit_rejects_empty_allowed_credential_ids() -> None:
             command=_command(allowed_credential_ids=frozenset[str]()),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -221,7 +223,7 @@ def test_define_permit_rejects_empty_allowed_payload_types() -> None:
             command=_command(allowed_payload_types=frozenset[str]()),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -233,7 +235,7 @@ def test_define_permit_rejects_whitespace_only_allowed_payload_type_entry() -> N
             command=_command(allowed_payload_types=frozenset({"application/json", "   "})),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -245,7 +247,7 @@ def test_define_permit_rejects_empty_allowed_artifact_kinds() -> None:
             command=_command(allowed_artifact_kinds=frozenset[str]()),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -257,7 +259,7 @@ def test_define_permit_rejects_whitespace_only_allowed_artifact_kind_entry() -> 
             command=_command(allowed_artifact_kinds=frozenset({"dataset", "   "})),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -269,7 +271,7 @@ def test_define_permit_rejects_outbound_direction_with_inbound_terms() -> None:
             command=_command(direction=Direction.OUTBOUND, terms=_inbound_terms()),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -281,7 +283,7 @@ def test_define_permit_rejects_inbound_direction_with_outbound_terms() -> None:
             command=_command(direction=Direction.INBOUND, terms=_outbound_terms()),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -293,7 +295,7 @@ def test_define_permit_rejects_outbound_terms_with_empty_scopes() -> None:
             command=_command(terms=_outbound_terms(scopes=frozenset())),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -311,7 +313,7 @@ def test_define_permit_rejects_outbound_terms_collapse_matrix() -> None:
             ),
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -322,14 +324,14 @@ def test_define_permit_is_pure_same_inputs_same_outputs() -> None:
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     second = define_permit.decide(
         state=None,
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -343,6 +345,6 @@ def test_define_permit_is_immune_to_uuid4_stub() -> None:
         command=_command(),
         now=_NOW,
         new_id=new_id,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert events[0].permit_id == new_id

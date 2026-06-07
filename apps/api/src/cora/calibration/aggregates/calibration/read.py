@@ -11,11 +11,12 @@ mirrors `load_caution` / `load_clearance` / `load_asset`. Used by the
 pre-loads the target Calibration before the decider).
 
 `CalibrationLifecycleTimestamps` + `load_calibration_timestamps`
-mirror the Method / Plan / Family Path C precedent
-(`project_template_aggregate_timestamps`): lifecycle bookkeeping
-timestamps live on the projection, not on the aggregate state, and
-read-side surfaces compose Calibration + timestamps into a view
-DTO at the handler layer.
+surface the projection-only `last_revised_at`. Per
+[[project_fold_symmetry_design]], `defined_at` is folded back onto
+aggregate state to pair with the folded `defined_by` attribution,
+so this DTO no longer carries it. `last_revised_at` stays on the
+projection because its per-revision attribution sits on
+`CalibrationRevision.established_by`, not on the parent aggregate.
 """
 
 from dataclasses import dataclass
@@ -32,7 +33,7 @@ from cora.infrastructure.ports import EventStore
 _STREAM_TYPE = "Calibration"
 
 _SELECT_TIMESTAMPS_SQL = """
-SELECT defined_at, last_revised_at
+SELECT last_revised_at
 FROM proj_calibration_summary
 WHERE calibration_id = $1
 """
@@ -40,16 +41,15 @@ WHERE calibration_id = $1
 
 @dataclass(frozen=True)
 class CalibrationLifecycleTimestamps:
-    """Observed wall-clock timestamps for Calibration lifecycle events.
+    """Projection-sourced lifecycle timestamps for a Calibration.
 
-    Sourced from `proj_calibration_summary`, not from aggregate
-    state. `defined_at` is set once on `CalibrationDefined` (the
-    envelope `occurred_at` of the genesis event); `last_revised_at`
-    seeds to the same value and is bumped to each revision's
-    `established_at` on every `CalibrationRevisionAppended`.
+    `last_revised_at` seeds to the same value as `defined_at` at
+    genesis and is bumped to each revision's `established_at` on
+    every `CalibrationRevisionAppended`. `defined_at` itself is
+    now folded onto aggregate state per the fold-symmetry rule and
+    is not carried on this DTO.
     """
 
-    defined_at: datetime
     last_revised_at: datetime
 
 
@@ -64,7 +64,7 @@ async def load_calibration_timestamps(
     pool: asyncpg.Pool,
     calibration_id: UUID,
 ) -> CalibrationLifecycleTimestamps | None:
-    """Read the lifecycle-timestamp pair from the projection.
+    """Read `last_revised_at` from the projection.
 
     Contract: `pool` MUST be a live asyncpg pool — None-check belongs
     to the caller, not this function (mirrors `load_method_timestamps`).
@@ -77,6 +77,5 @@ async def load_calibration_timestamps(
     if row is None:
         return None
     return CalibrationLifecycleTimestamps(
-        defined_at=row["defined_at"],
         last_revised_at=row["last_revised_at"],
     )

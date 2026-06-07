@@ -13,7 +13,7 @@ def _seed_decision(client: TestClient) -> str:
     actor_id = client.post("/actors", json={"name": "Test Actor"}).json()["actor_id"]
     return client.post(
         "/decisions",
-        json={"actor_id": actor_id, "context": "RecipeApproval", "choice": "Approved"},
+        json={"decided_by": actor_id, "context": "RecipeApproval", "choice": "Approved"},
     ).json()["decision_id"]
 
 

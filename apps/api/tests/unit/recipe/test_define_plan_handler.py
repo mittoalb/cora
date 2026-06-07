@@ -45,6 +45,7 @@ from cora.equipment.aggregates.family.events import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.recipe import RecipeHandlers, UnauthorizedError, wire_recipe
 from cora.recipe.aggregates.capability import (
     CapabilityCode,
@@ -273,6 +274,7 @@ async def _seed_asset(
         level=AssetLevel.DEVICE,
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     await _append(
         store,
@@ -297,7 +299,9 @@ async def _seed_asset(
         )
         version += 1
     if decommissioned:
-        dc_event = AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+        dc_event = AssetDecommissioned(
+            asset_id=asset_id, occurred_at=_NOW, decommissioned_by=ActorId(uuid4())
+        )
         await _append(
             store,
             stream_type="Asset",

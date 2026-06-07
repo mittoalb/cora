@@ -22,6 +22,7 @@ from cora.calibration.features.publish_revision import (
     decide,
 )
 from cora.federation.aggregates.permit.events import PublicationReceiptRecorded
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.federation import (
     DsseStaticJwksEnvelope,
     PermitLookupResult,
@@ -33,7 +34,7 @@ _PERMIT_ID = UUID("11111111-1111-1111-1111-111111111111")
 _RECEIPT_ID = UUID("22222222-2222-2222-2222-222222222222")
 _CALIBRATION_ID = UUID("33333333-3333-3333-3333-333333333333")
 _REVISION_ID = UUID("44444444-4444-4444-4444-444444444444")
-_PRINCIPAL_ID = UUID("55555555-5555-5555-5555-555555555555")
+_PRINCIPAL_ID = ActorId(UUID("55555555-5555-5555-5555-555555555555"))
 
 
 def _revision(
@@ -45,9 +46,9 @@ def _revision(
         revision_id=revision_id,
         value={"value": 1.0},
         status=CalibrationStatus.VERIFIED,
-        source=AssertedSource(actor_id=uuid4()),
+        source=AssertedSource(asserted_by=ActorId(uuid4())),
         established_at=_NOW,
-        established_by_actor_id=_PRINCIPAL_ID,
+        established_by=_PRINCIPAL_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
         content_hash=content_hash,
@@ -65,7 +66,8 @@ def _calibration(
         operating_point={},
         description=None,
         revisions=(_revision(),) if revisions is None else revisions,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_at=_NOW,
+        defined_by=_PRINCIPAL_ID,
     )
 
 
@@ -109,7 +111,7 @@ def _call_decide(**overrides: Any) -> PublishRevisionEvents:
         "signature_kid": "kid-A",
         "receipt_id": _RECEIPT_ID,
         "now": _NOW,
-        "published_by_actor_id": _PRINCIPAL_ID,
+        "published_by": _PRINCIPAL_ID,
     }
     kwargs.update(overrides)
     return decide(state, command, **kwargs)
@@ -128,7 +130,7 @@ def test_decide_happy_path_emits_calibration_and_permit_events() -> None:
     assert calibration_event.signing_version == "cora/v1"
     assert calibration_event.signature_bytes_hex == "deadbeef"
     assert calibration_event.signature_kid == "kid-A"
-    assert calibration_event.published_by_actor_id == _PRINCIPAL_ID
+    assert calibration_event.published_by == _PRINCIPAL_ID
     assert calibration_event.publication_status == "Live"
     assert calibration_event.published_at == _NOW
     assert calibration_event.occurred_at == _NOW

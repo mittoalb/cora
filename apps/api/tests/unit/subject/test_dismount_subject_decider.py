@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotDismountError,
@@ -17,6 +18,7 @@ from cora.subject.features import dismount_subject
 from cora.subject.features.dismount_subject import DismountSubject
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 
 
 def _subject(
@@ -40,6 +42,7 @@ def test_decide_emits_subject_dismounted_from_mounted() -> None:
         state=state,
         command=DismountSubject(subject_id=state.id, reason="run complete"),
         now=_NOW,
+        dismounted_by=_ACTOR,
     )
     assert events == [
         SubjectDismounted(
@@ -47,6 +50,7 @@ def test_decide_emits_subject_dismounted_from_mounted() -> None:
             from_asset_id=asset_id,
             reason="run complete",
             occurred_at=_NOW,
+            dismounted_by=_ACTOR,
         )
     ]
 
@@ -61,6 +65,7 @@ def test_decide_emits_subject_dismounted_from_measured() -> None:
         state=state,
         command=DismountSubject(subject_id=state.id, reason="moving to detector"),
         now=_NOW,
+        dismounted_by=_ACTOR,
     )
     assert len(events) == 1
     assert events[0].from_asset_id == asset_id
@@ -75,6 +80,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
             state=None,
             command=DismountSubject(subject_id=target_id, reason="x"),
             now=_NOW,
+            dismounted_by=_ACTOR,
         )
     assert exc_info.value.subject_id == target_id
 
@@ -102,6 +108,7 @@ def test_decide_raises_cannot_dismount_for_disallowed_states(
             state=state,
             command=DismountSubject(subject_id=state.id, reason="x"),
             now=_NOW,
+            dismounted_by=_ACTOR,
         )
     assert exc_info.value.current_status is current
 
@@ -114,6 +121,7 @@ def test_decide_error_message_lists_both_allowed_source_states() -> None:
             state=state,
             command=DismountSubject(subject_id=state.id, reason="x"),
             now=_NOW,
+            dismounted_by=_ACTOR,
         )
     msg = str(exc_info.value)
     assert "Mounted" in msg
@@ -124,6 +132,6 @@ def test_decide_error_message_lists_both_allowed_source_states() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.MOUNTED)
     command = DismountSubject(subject_id=state.id, reason="x")
-    first = dismount_subject.decide(state=state, command=command, now=_NOW)
-    second = dismount_subject.decide(state=state, command=command, now=_NOW)
+    first = dismount_subject.decide(state=state, command=command, now=_NOW, dismounted_by=_ACTOR)
+    second = dismount_subject.decide(state=state, command=command, now=_NOW, dismounted_by=_ACTOR)
     assert first == second

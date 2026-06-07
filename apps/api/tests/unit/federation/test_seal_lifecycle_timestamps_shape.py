@@ -24,24 +24,20 @@ def test_seal_lifecycle_timestamps_is_immutable_dataclass() -> None:
     assert dataclasses.is_dataclass(SealLifecycleTimestamps)
     field_names = {f.name for f in dataclasses.fields(SealLifecycleTimestamps)}
     assert field_names == {
-        "initialized_at",
         "last_signed_at",
-        "last_signed_by_actor_id",
+        "last_signed_by",
     }
 
     instance = SealLifecycleTimestamps(
-        initialized_at=_NOW,
         last_signed_at=None,
-        last_signed_by_actor_id=None,
+        last_signed_by=None,
     )
-    assert instance.initialized_at == _NOW
     assert instance.last_signed_at is None
-    assert instance.last_signed_by_actor_id is None
+    assert instance.last_signed_by is None
 
     populated = SealLifecycleTimestamps(
-        initialized_at=_NOW,
         last_signed_at=_NOW,
-        last_signed_by_actor_id=uuid4(),
+        last_signed_by=uuid4(),
     )
     with pytest.raises(dataclasses.FrozenInstanceError):
         populated.last_signed_at = _NOW  # type: ignore[misc]

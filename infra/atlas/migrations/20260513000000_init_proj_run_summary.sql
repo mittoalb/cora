@@ -28,16 +28,22 @@
 -- Mutable read model. cora_app gets full DML.
 
 CREATE TABLE proj_run_summary (
-    run_id         UUID        PRIMARY KEY,
-    name           TEXT        NOT NULL,
-    plan_id        UUID        NOT NULL,
-    subject_id     UUID,
-    raid           TEXT,
-    status         TEXT        NOT NULL CHECK (
+    run_id            UUID        PRIMARY KEY,
+    name              TEXT        NOT NULL,
+    plan_id           UUID        NOT NULL,
+    subject_id        UUID,
+    raid              TEXT,
+    status            TEXT        NOT NULL CHECK (
         status IN ('Running', 'Held', 'Completed', 'Aborted', 'Stopped', 'Truncated')
     ),
-    created_at     TIMESTAMPTZ NOT NULL,
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    -- Fold-symmetry pair (see [[project_fold_symmetry_design]]):
+    -- last_adjusted_by carries the ActorId folded from
+    -- RunAdjusted.adjusted_by. Mirrors the aggregate state's
+    -- attribution half; NULL until the first RunAdjusted lands and
+    -- overwritten on each subsequent adjust.
+    last_adjusted_by  UUID,
+    created_at        TIMESTAMPTZ NOT NULL,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX proj_run_summary_keyset_idx

@@ -64,7 +64,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         await handler(
             AbortCredentialRotation(
                 credential_id=credential_id,
-                aborted_by_actor_id=principal_id,
+                aborted_by=principal_id,
                 reason=reason,
             ),
             principal_id=principal_id,

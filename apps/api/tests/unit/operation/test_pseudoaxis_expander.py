@@ -28,6 +28,7 @@ from cora.equipment.aggregates.asset.events import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.operation._pseudoaxis_expander import expand_pseudoaxis_steps
 from cora.operation.conductor import (
     ActionStep,
@@ -69,6 +70,7 @@ async def _seed_pseudoaxis_asset(
         level="Device",
         parent_id=UUID("01900000-0000-7000-8000-00000000b000"),
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     family_added = AssetFamilyAdded(
         asset_id=asset_id,

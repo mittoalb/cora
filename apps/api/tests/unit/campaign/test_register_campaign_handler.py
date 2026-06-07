@@ -128,7 +128,7 @@ async def test_handler_serializes_tags_sorted() -> None:
 async def test_handler_passes_through_lead_actor_id_distinct_from_principal() -> None:
     """Campaign keeps `lead_actor_id` on the command surface; the
     handler does NOT derive it from envelope (unlike Caution's
-    author_actor_id)."""
+    authored_by)."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     handler = register_campaign.bind(deps)

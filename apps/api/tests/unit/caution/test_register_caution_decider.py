@@ -22,10 +22,11 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features import register_caution
 from cora.caution.features.register_caution import RegisterCaution
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000e001")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000e002")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000e002"))
 
 
 def _command(**overrides: object) -> RegisterCaution:
@@ -48,7 +49,7 @@ def test_decide_emits_caution_registered_when_stream_is_empty() -> None:
         command=_command(),
         now=_NOW,
         new_id=new_id,
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events == [
         CautionRegistered(
@@ -59,7 +60,7 @@ def test_decide_emits_caution_registered_when_stream_is_empty() -> None:
             text="hexapod stalls below 0.5 mm/s",
             workaround="run at 0.6 mm/s",
             tags=frozenset(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
             expires_at=None,
             propagate_to_children=False,
             parent_id=None,
@@ -73,7 +74,7 @@ def test_decide_top_level_register_has_no_parent_id() -> None:
     """Anti-hook discipline: top-level registers always have parent_id=None;
     supersession-child genesis is the only path that sets it."""
     events = register_caution.decide(
-        state=None, command=_command(), now=_NOW, new_id=uuid4(), author_actor_id=_AUTHOR_ID
+        state=None, command=_command(), now=_NOW, new_id=uuid4(), authored_by=_AUTHOR_ID
     )
     assert events[0].parent_id is None
 
@@ -86,7 +87,7 @@ def test_decide_carries_procedure_target() -> None:
         command=_command(target=ProcedureTarget(procedure_id=procedure_id)),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].target == ProcedureTarget(procedure_id=procedure_id)
 
@@ -98,7 +99,7 @@ def test_decide_trims_text_and_workaround() -> None:
         command=_command(text="  stalls  ", workaround="  go faster  "),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].text == "stalls"
     assert events[0].workaround == "go faster"
@@ -111,7 +112,7 @@ def test_decide_trims_tags() -> None:
         command=_command(tags=frozenset({"  motion  ", "  electrical  "})),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].tags == frozenset({"motion", "electrical"})
 
@@ -123,7 +124,7 @@ def test_decide_accepts_empty_tags() -> None:
         command=_command(tags=frozenset[str]()),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].tags == frozenset()
 
@@ -137,11 +138,11 @@ def test_decide_rejects_existing_state() -> None:
         severity=CautionSeverity.CAUTION,
         text=CautionText("existing"),
         workaround=CautionWorkaround("workaround"),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     with pytest.raises(CautionAlreadyExistsError) as exc_info:
         register_caution.decide(
-            state=existing, command=_command(), now=_NOW, new_id=uuid4(), author_actor_id=_AUTHOR_ID
+            state=existing, command=_command(), now=_NOW, new_id=uuid4(), authored_by=_AUTHOR_ID
         )
     assert exc_info.value.caution_id == existing.id
 
@@ -154,7 +155,7 @@ def test_decide_rejects_empty_text() -> None:
             command=_command(text="   "),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -166,7 +167,7 @@ def test_decide_rejects_too_long_text() -> None:
             command=_command(text="a" * 2001),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -179,7 +180,7 @@ def test_decide_rejects_empty_workaround() -> None:
             command=_command(workaround="   "),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -191,7 +192,7 @@ def test_decide_rejects_too_long_workaround() -> None:
             command=_command(workaround="a" * 2001),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -203,7 +204,7 @@ def test_decide_rejects_too_long_tag() -> None:
             command=_command(tags=frozenset({"a" * 51})),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -215,7 +216,7 @@ def test_decide_rejects_whitespace_only_tag() -> None:
             command=_command(tags=frozenset({"   "})),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -228,7 +229,7 @@ def test_decide_rejects_past_expires_at() -> None:
             command=_command(expires_at=past),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -241,7 +242,7 @@ def test_decide_rejects_expires_at_equal_to_now() -> None:
             command=_command(expires_at=_NOW),
             now=_NOW,
             new_id=uuid4(),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
         )
 
 
@@ -253,7 +254,7 @@ def test_decide_accepts_future_expires_at() -> None:
         command=_command(expires_at=future),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].expires_at == future
 
@@ -265,7 +266,7 @@ def test_decide_accepts_none_expires_at() -> None:
         command=_command(expires_at=None),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].expires_at is None
 
@@ -277,7 +278,7 @@ def test_decide_carries_propagate_to_children_when_set() -> None:
         command=_command(propagate_to_children=True),
         now=_NOW,
         new_id=uuid4(),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
     )
     assert events[0].propagate_to_children is True
 
@@ -287,9 +288,9 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     new_id = uuid4()
     command = _command()
     first = register_caution.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, author_actor_id=_AUTHOR_ID
+        state=None, command=command, now=_NOW, new_id=new_id, authored_by=_AUTHOR_ID
     )
     second = register_caution.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, author_actor_id=_AUTHOR_ID
+        state=None, command=command, now=_NOW, new_id=new_id, authored_by=_AUTHOR_ID
     )
     assert first == second

@@ -75,6 +75,7 @@ async def test_remove_subject_persists_event_from_mounted_state(
     assert removed.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "removed_by": str(_PRINCIPAL_ID),
     }
     assert removed.event_id == remove_event_id
     assert removed.metadata == {"command": "RemoveSubject"}

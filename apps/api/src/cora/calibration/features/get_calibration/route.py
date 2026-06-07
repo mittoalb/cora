@@ -50,7 +50,7 @@ class RevisionResponse(BaseModel):
         ),
     )
     established_at: datetime
-    established_by_actor_id: UUID
+    established_by: UUID
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
 
@@ -62,11 +62,10 @@ class CalibrationResponse(BaseModel):
     the wire format from the domain model so the two can evolve
     independently.
 
-    Per Path C, `defined_at` / `last_revised_at` are projection-
-    sourced (not aggregate state) and therefore nullable on the
-    wire: the projection may transiently lag behind the event store,
-    or the deps may lack a configured pool (in-memory test mode).
-    Mirrors the Method / Plan / Family read DTOs.
+    `defined_at` is folded onto state per the fold-symmetry rule;
+    `last_revised_at` remains projection-sourced and nullable on the
+    wire (the projection may transiently lag behind the event store,
+    or the deps may lack a configured pool in in-memory test mode).
     """
 
     id: UUID
@@ -75,9 +74,9 @@ class CalibrationResponse(BaseModel):
     operating_point: dict[str, Any]
     description: str | None
     revisions: list[RevisionResponse]
-    defined_at: datetime | None = None
+    defined_at: datetime
     last_revised_at: datetime | None = None
-    defined_by_actor_id: UUID
+    defined_by: UUID
 
 
 def _revision_response_from_state(revision: CalibrationRevision) -> RevisionResponse:
@@ -87,7 +86,7 @@ def _revision_response_from_state(revision: CalibrationRevision) -> RevisionResp
         status=revision.status,
         source=dto_from_source(revision.source),
         established_at=revision.established_at,
-        established_by_actor_id=revision.established_by_actor_id,
+        established_by=revision.established_by,
         decided_by_decision_id=revision.decided_by_decision_id,
         supersedes_revision_id=revision.supersedes_revision_id,
     )
@@ -95,7 +94,6 @@ def _revision_response_from_state(revision: CalibrationRevision) -> RevisionResp
 
 def _response_from_view(
     calibration: Calibration,
-    defined_at: datetime | None,
     last_revised_at: datetime | None,
 ) -> CalibrationResponse:
     return CalibrationResponse(
@@ -105,9 +103,9 @@ def _response_from_view(
         operating_point=calibration.operating_point,
         description=calibration.description,
         revisions=[_revision_response_from_state(r) for r in calibration.revisions],
-        defined_at=defined_at,
+        defined_at=calibration.defined_at,
         last_revised_at=last_revised_at,
-        defined_by_actor_id=calibration.defined_by_actor_id,
+        defined_by=calibration.defined_by,
     )
 
 
@@ -154,6 +152,5 @@ async def get_calibrations(
         )
     return _response_from_view(
         view.calibration,
-        view.timestamps.defined_at if view.timestamps is not None else None,
         view.timestamps.last_revised_at if view.timestamps is not None else None,
     )

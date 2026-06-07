@@ -4,7 +4,7 @@
 `limit`, `target_kind`, `target_id`, `category`, `severity` (one
 or more; multi-value), `min_severity` (Notice<Caution<Warning
 ladder convenience), `status` (one or more; multi-value; plus the
-`all` sentinel that disables the filter), `tag`, `author_actor_id`.
+`all` sentinel that disables the filter), `tag`, `authored_by`.
 
 ## Status default + 'all' sentinel
 
@@ -172,7 +172,7 @@ class CautionSummaryDTO(BaseModel):
     severity: CautionSeverity
     text: str = Field(..., max_length=CAUTION_TEXT_MAX_LENGTH)
     workaround: str = Field(..., max_length=CAUTION_WORKAROUND_MAX_LENGTH)
-    author_actor_id: UUID
+    authored_by: UUID
     tags: list[str] = Field(default_factory=list[str])
     expires_at: datetime | None = None
     propagate_to_children: bool = False
@@ -293,7 +293,7 @@ async def list_cautions(
             ),
         ),
     ] = None,
-    author_actor_id: Annotated[
+    authored_by: Annotated[
         UUID | None,
         Query(description="Optional author filter ('cautions I authored')."),
     ] = None,
@@ -310,7 +310,7 @@ async def list_cautions(
             severities=severities,
             statuses=statuses,
             tag=tag,
-            author_actor_id=author_actor_id,
+            authored_by=authored_by,
         ),
         principal_id=principal_id,
         correlation_id=cid,
@@ -325,7 +325,7 @@ async def list_cautions(
                 severity=CautionSeverity(item.severity),
                 text=item.text,
                 workaround=item.workaround,
-                author_actor_id=item.author_actor_id,
+                authored_by=item.authored_by,
                 tags=item.tags,
                 expires_at=item.expires_at,
                 propagate_to_children=item.propagate_to_children,

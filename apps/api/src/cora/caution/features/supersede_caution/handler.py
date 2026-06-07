@@ -34,6 +34,7 @@ from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.context import CautionSupersessionContext
 from cora.caution.features.supersede_caution.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -134,7 +135,7 @@ def bind(deps: Kernel) -> Handler:
             context=context,
             now=now,
             new_id=new_id,
-            author_actor_id=principal_id,
+            authored_by=ActorId(principal_id),
         )
 
         parent_new_events = [

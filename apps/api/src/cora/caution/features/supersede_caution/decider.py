@@ -18,7 +18,7 @@ decider exactly.
     target.
 
 The superseding actor's id lives on the envelope; the decider neither
-reads nor writes it. The child's `author_actor_id` IS carried on the
+reads nor writes it. The child's `authored_by` IS carried on the
 genesis event payload (denorm convenience).
 """
 
@@ -39,6 +39,7 @@ from cora.caution.aggregates.caution import (
 )
 from cora.caution.features.supersede_caution.command import SupersedeCaution
 from cora.caution.features.supersede_caution.context import CautionSupersessionContext
+from cora.infrastructure.identity import ActorId
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ def decide(
     context: CautionSupersessionContext,
     now: datetime,
     new_id: UUID,
-    author_actor_id: UUID,
+    authored_by: ActorId,
 ) -> SupersessionEvents:
     """Decide the parent+child events produced by superseding an Active caution.
 
@@ -86,7 +87,7 @@ def decide(
     because the child is being created here). The parent's state lives
     in `context.parent`.
 
-    `author_actor_id` is handler-injected from the request envelope's
+    `authored_by` is handler-injected from the request envelope's
     `principal_id`; the command surface omits it (mirroring
     `register_caution`) so callers cannot spoof a different author.
     """
@@ -120,7 +121,7 @@ def decide(
             text=text.value,
             workaround=workaround.value,
             tags=frozenset(t.value for t in tags),
-            author_actor_id=author_actor_id,
+            authored_by=authored_by,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
             parent_id=parent.id,

@@ -21,6 +21,7 @@ from cora.equipment.aggregates.asset.events import (
 from cora.equipment.aggregates.asset.events import event_type_name as asset_event_type_name
 from cora.equipment.aggregates.asset.events import to_payload as asset_to_payload
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.recipe.aggregates.plan import Wire, load_plan
 from cora.recipe.aggregates.plan.events import (
@@ -58,6 +59,7 @@ async def _seed_asset_with_port(
         level="Device",
         parent_id=None,
         occurred_at=_NOW,
+        commissioned_by=ActorId(uuid4()),
     )
     add_port = AssetPortAdded(
         asset_id=asset_id,

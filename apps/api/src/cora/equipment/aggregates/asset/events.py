@@ -78,6 +78,7 @@ from cora.equipment.aggregates.asset.state import (
     PersistentIdentifierScheme,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -171,6 +172,7 @@ class AssetRegistered:
     level: str  # AssetLevel.value; carried as primitive in the payload
     parent_id: UUID | None
     occurred_at: datetime
+    commissioned_by: ActorId
     drawing: Drawing | None = None
     model_id: UUID | None = None
     # Parametrized default_factory for the empty frozenset trick used
@@ -204,10 +206,15 @@ class AssetDecommissioned:
     evolver sets the new lifecycle regardless of which source state
     the asset came from; the decider's source-state guard is what
     enforces the multi-source restriction at command time.
+
+    `decommissioned_by` records the principal that issued the
+    decommission_asset command; folded onto `Asset.decommissioned_by`
+    by the evolver per [[project-fold-symmetry-design]].
     """
 
     asset_id: UUID
     occurred_at: datetime
+    decommissioned_by: ActorId
 
 
 @dataclass(frozen=True)
@@ -622,6 +629,7 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             level=level,
             parent_id=parent_id,
             occurred_at=occurred_at,
+            commissioned_by=commissioned_by,
             drawing=drawing,
             model_id=model_id,
             alternate_identifiers=alternate_identifiers,
@@ -633,6 +641,7 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "level": level,
                 "parent_id": str(parent_id) if parent_id is not None else None,
                 "occurred_at": occurred_at.isoformat(),
+                "commissioned_by": str(commissioned_by),
             }
             if drawing is not None:
                 payload["drawing"] = {
@@ -672,10 +681,15 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case AssetDecommissioned(asset_id=asset_id, occurred_at=occurred_at):
+        case AssetDecommissioned(
+            asset_id=asset_id,
+            occurred_at=occurred_at,
+            decommissioned_by=decommissioned_by,
+        ):
             return {
                 "asset_id": str(asset_id),
                 "occurred_at": occurred_at.isoformat(),
+                "decommissioned_by": str(decommissioned_by),
             }
         case AssetRelocated(
             asset_id=asset_id,
@@ -902,6 +916,7 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     level=payload["level"],
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    commissioned_by=ActorId(UUID(payload["commissioned_by"])),
                     drawing=drawing,
                     model_id=model_id,
                     alternate_identifiers=alternate_identifiers,
@@ -927,6 +942,7 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 lambda: AssetDecommissioned(
                     asset_id=UUID(payload["asset_id"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    decommissioned_by=ActorId(UUID(payload["decommissioned_by"])),
                 ),
             )
         case "AssetRelocated":

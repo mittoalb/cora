@@ -2,7 +2,7 @@
 
 Pin the not-found guard, the single-source FSM precondition
 (`Suspended` only), the strict-not-idempotent posture (rejects every
-non-Suspended status), envelope passthrough (resumed_by_actor_id +
+non-Suspended status), envelope passthrough (resumed_by +
 occurred_at), idempotency under repeated inputs, and reproducibility
 of the handler-injected payload. Slice-level integration (handler ->
 event-store -> projection) is covered by the integration suite.
@@ -28,11 +28,12 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import resume_permit
 from cora.federation.features.resume_permit import ResumePermit
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed001")
 _PERMIT_ID = UUID("01900000-0000-7000-8000-000000fed002")
-_DEFINING_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed003")
+_DEFINING_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed003"))
 _EXPIRES_AT = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
 
 
@@ -54,7 +55,8 @@ def _existing_permit(*, status: PermitStatus) -> Permit:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_DEFINING_PRINCIPAL_ID,
+        defined_by=_DEFINING_PRINCIPAL_ID,
+        defined_at=_NOW,
         status=status,
         terms=_terms(),
     )
@@ -70,28 +72,28 @@ def test_resume_permit_emits_event_for_suspended_permit() -> None:
         state=_existing_permit(status=PermitStatus.SUSPENDED),
         command=_command(),
         now=_NOW,
-        resumed_by_actor_id=_PRINCIPAL_ID,
+        resumed_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, PermitResumed)
     assert event.permit_id == _PERMIT_ID
-    assert event.resumed_by_actor_id == _PRINCIPAL_ID
+    assert event.resumed_by == _PRINCIPAL_ID
     assert event.occurred_at == _NOW
 
 
 @pytest.mark.unit
-def test_resume_permit_captures_resumed_by_actor_id_from_principal() -> None:
-    """Handler-injected resumed_by_actor_id rides verbatim onto the event."""
+def test_resume_permit_captures_resumed_by_from_principal() -> None:
+    """Handler-injected resumed_by rides verbatim onto the event."""
     other_principal = UUID("01900000-0000-7000-8000-000000fedaaa")
     events = resume_permit.decide(
         state=_existing_permit(status=PermitStatus.SUSPENDED),
         command=_command(),
         now=_NOW,
-        resumed_by_actor_id=other_principal,
+        resumed_by=other_principal,
     )
-    assert events[0].resumed_by_actor_id == other_principal
-    assert events[0].resumed_by_actor_id != _DEFINING_PRINCIPAL_ID
+    assert events[0].resumed_by == other_principal
+    assert events[0].resumed_by != _DEFINING_PRINCIPAL_ID
 
 
 @pytest.mark.unit
@@ -101,7 +103,7 @@ def test_resume_permit_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            resumed_by_actor_id=_PRINCIPAL_ID,
+            resumed_by=_PRINCIPAL_ID,
         )
 
 
@@ -113,7 +115,7 @@ def test_resume_permit_rejects_when_status_is_defined() -> None:
             state=_existing_permit(status=PermitStatus.DEFINED),
             command=_command(),
             now=_NOW,
-            resumed_by_actor_id=_PRINCIPAL_ID,
+            resumed_by=_PRINCIPAL_ID,
         )
 
 
@@ -125,7 +127,7 @@ def test_resume_permit_rejects_when_status_is_active_strict_not_idempotent() -> 
             state=_existing_permit(status=PermitStatus.ACTIVE),
             command=_command(),
             now=_NOW,
-            resumed_by_actor_id=_PRINCIPAL_ID,
+            resumed_by=_PRINCIPAL_ID,
         )
 
 
@@ -137,7 +139,7 @@ def test_resume_permit_rejects_when_status_is_revoked() -> None:
             state=_existing_permit(status=PermitStatus.REVOKED),
             command=_command(),
             now=_NOW,
-            resumed_by_actor_id=_PRINCIPAL_ID,
+            resumed_by=_PRINCIPAL_ID,
         )
 
 
@@ -147,12 +149,12 @@ def test_resume_permit_is_pure_same_inputs_same_outputs() -> None:
         state=_existing_permit(status=PermitStatus.SUSPENDED),
         command=_command(),
         now=_NOW,
-        resumed_by_actor_id=_PRINCIPAL_ID,
+        resumed_by=_PRINCIPAL_ID,
     )
     second = resume_permit.decide(
         state=_existing_permit(status=PermitStatus.SUSPENDED),
         command=_command(),
         now=_NOW,
-        resumed_by_actor_id=_PRINCIPAL_ID,
+        resumed_by=_PRINCIPAL_ID,
     )
     assert first == second

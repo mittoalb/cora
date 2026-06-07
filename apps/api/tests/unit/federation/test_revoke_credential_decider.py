@@ -5,7 +5,7 @@ Rotating) -> Revoked. Strict-not-idempotent: re-revoking an already-
 Revoked credential raises `CredentialCannotRevokeError` per the
 `revoke_permit` / `deregister_supply` precedent.
 
-`revoked_by_actor_id` is handler-injected from the request envelope's
+`revoked_by` is handler-injected from the request envelope's
 `principal_id` (capture-don't-recompute) and stamped onto the emitted
 `CredentialRevoked` event as the audit denorm.
 
@@ -30,13 +30,14 @@ from cora.federation.aggregates.credential import (
 )
 from cora.federation.features import revoke_credential
 from cora.federation.features.revoke_credential import RevokeCredential
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed101")
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed102")
 _OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fed103")
-_REGISTERED_BY = UUID("01900000-0000-7000-8000-000000fed199")
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fed199"))
 
 
 def _credential(
@@ -53,7 +54,8 @@ def _credential(
         secret_ref="vault://current/v1",
         public_material_ref="vault://current/pub/v1",
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_REGISTERED_BY,
+        registered_by=_REGISTERED_BY,
+        registered_at=_NOW,
         rotation_pending_secret_ref=pending_secret_ref,
         rotation_pending_public_material_ref=pending_public_material_ref,
         status=status,
@@ -88,12 +90,12 @@ def test_revoke_credential_emits_event_from_any_non_revoked_status(
         state=state,
         command=_command(),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert events == [
         CredentialRevoked(
             credential_id=_CREDENTIAL_ID,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
             reason=None,
         )
@@ -109,7 +111,7 @@ def test_revoke_credential_rejects_when_already_revoked() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
         )
     assert exc_info.value.credential_id == _CREDENTIAL_ID
 
@@ -122,22 +124,22 @@ def test_revoke_credential_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            revoked_by_actor_id=_PRINCIPAL_ID,
+            revoked_by=_PRINCIPAL_ID,
         )
     assert exc_info.value.credential_id == _CREDENTIAL_ID
 
 
 @pytest.mark.unit
-def test_revoke_credential_captures_handler_injected_revoked_by_actor_id() -> None:
-    """`revoked_by_actor_id` is captured verbatim from the handler, not recomputed."""
+def test_revoke_credential_captures_handler_injected_revoked_by() -> None:
+    """`revoked_by` is captured verbatim from the handler, not recomputed."""
     arbitrary_principal = uuid4()
     events = revoke_credential.decide(
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(),
         now=_NOW,
-        revoked_by_actor_id=arbitrary_principal,
+        revoked_by=arbitrary_principal,
     )
-    assert events[0].revoked_by_actor_id == arbitrary_principal
+    assert events[0].revoked_by == arbitrary_principal
 
 
 @pytest.mark.unit
@@ -148,7 +150,7 @@ def test_revoke_credential_uses_supplied_now_for_occurred_at() -> None:
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(),
         now=custom_now,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -158,10 +160,10 @@ def test_revoke_credential_is_pure_same_inputs_same_outputs() -> None:
     state = _credential(CredentialStatus.ACTIVE)
     command = _command()
     first = revoke_credential.decide(
-        state=state, command=command, now=_NOW, revoked_by_actor_id=_PRINCIPAL_ID
+        state=state, command=command, now=_NOW, revoked_by=_PRINCIPAL_ID
     )
     second = revoke_credential.decide(
-        state=state, command=command, now=_NOW, revoked_by_actor_id=_PRINCIPAL_ID
+        state=state, command=command, now=_NOW, revoked_by=_PRINCIPAL_ID
     )
     assert first == second
 
@@ -175,7 +177,7 @@ def test_revoke_credential_flows_reason_onto_event_payload() -> None:
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(reason="compromised secret being retired"),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -191,7 +193,7 @@ def test_revoke_credential_defaults_reason_to_none_when_omitted() -> None:
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -207,9 +209,9 @@ def test_revoke_credential_actor_id_independent_of_registered_by() -> None:
         state=_credential(CredentialStatus.ACTIVE),
         command=_command(),
         now=_NOW,
-        revoked_by_actor_id=_OTHER_ACTOR_ID,
+        revoked_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].revoked_by_actor_id == _OTHER_ACTOR_ID
+    assert events[0].revoked_by == _OTHER_ACTOR_ID
 
 
 @pytest.mark.unit
@@ -220,6 +222,6 @@ def test_revoke_credential_does_not_mint_new_id() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        revoked_by_actor_id=_PRINCIPAL_ID,
+        revoked_by=_PRINCIPAL_ID,
     )
     assert events[0].credential_id == state.id

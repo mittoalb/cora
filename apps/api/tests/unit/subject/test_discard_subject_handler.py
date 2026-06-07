@@ -114,6 +114,7 @@ async def test_handler_appends_subject_discarded_event() -> None:
         "subject_id": str(subject_id),
         "reason": "contaminated; biohazard incinerator",
         "occurred_at": _NOW.isoformat(),
+        "discarded_by": str(_PRINCIPAL_ID),
     }
     assert discarded.event_id == _DISCARD_EVENT_ID
     assert discarded.metadata == {"command": "DiscardSubject"}

@@ -44,3 +44,8 @@ class AdjustRun:
     parameters_patch: dict[str, Any]
     reason: str
     decided_by_decision_id: UUID | None = None
+    # NOTE: `adjusted_by: ActorId` is NOT carried on the command. It is
+    # threaded by the handler from its `principal_id` parameter and
+    # passed to the decider as a keyword argument (mirrors the
+    # transport-layer attribution convention; principal identity is
+    # determined by the bearer-auth middleware, not the client body).

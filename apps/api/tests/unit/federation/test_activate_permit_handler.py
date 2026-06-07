@@ -77,7 +77,7 @@ async def test_activate_permit_handler_appends_event_for_defined_permit() -> Non
     assert version == 2
     assert events[-1].event_type == "PermitActivated"
     assert events[-1].payload["permit_id"] == str(_PERMIT_ID)
-    assert events[-1].payload["activated_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["activated_by"] == str(_PRINCIPAL_ID)
     assert events[-1].correlation_id == _CORRELATION_ID
     assert events[-1].causation_id is None
 

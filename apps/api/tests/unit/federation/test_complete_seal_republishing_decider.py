@@ -4,7 +4,7 @@ Pin the FSM single-source guard (Republishing is the only legal
 source), the not-found branch, the optional head-pointer pairing
 invariant, the sequence-number monotonicity invariant when the head
 pointer is supplied, the no-prior-head guard when omitted, purity,
-and the handler-injected `completed_by_actor_id` / `now` capture per
+and the handler-injected `completed_by` / `now` capture per
 the non-determinism principle (capture, don't recompute).
 """
 
@@ -26,11 +26,12 @@ from cora.federation.features import complete_seal_republishing
 from cora.federation.features.complete_seal_republishing import (
     CompleteSealRepublishing,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fec001")
-_OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fec002")
-_INITIALIZED_BY = UUID("01900000-0000-7000-8000-000000fec099")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec001"))
+_OTHER_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec002"))
+_INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 _ONLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0b1")
 _FACILITY_ID = "aps-2bm"
@@ -50,7 +51,8 @@ def _seal(
         offline_credential_id=_OFFLINE_KEY,
         current_head_hash=current_head_hash,
         current_sequence_number=current_sequence_number,
-        initialized_by_actor_id=_INITIALIZED_BY,
+        initialized_by=_INITIALIZED_BY,
+        initialized_at=_NOW,
         status=status,
     )
 
@@ -74,14 +76,14 @@ def test_complete_seal_republishing_emits_event_when_state_is_republishing() -> 
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     assert events == [
         SealRepublishingCompleted(
             facility_id=_FACILITY_ID,
             new_head_hash=_NEW_HEAD_HASH,
             new_sequence_number=6,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
         )
     ]
@@ -94,7 +96,7 @@ def test_complete_seal_republishing_raises_not_found_when_state_is_none() -> Non
             state=None,
             command=_command(),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
 
 
@@ -107,7 +109,7 @@ def test_complete_seal_republishing_raises_cannot_complete_when_live() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.current_status is SealStatus.LIVE
@@ -121,7 +123,7 @@ def test_complete_seal_republishing_reuses_prior_head_when_pair_omitted() -> Non
         state=state,
         command=_command(new_head_hash=None, new_sequence_number=None),
         now=_NOW,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     assert events[0].new_head_hash == _PRIOR_HEAD_HASH
@@ -137,7 +139,7 @@ def test_complete_seal_republishing_rejects_head_without_sequence() -> None:
             state=state,
             command=_command(new_head_hash=_NEW_HEAD_HASH, new_sequence_number=None),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert "together or omitted together" in exc.value.reason
 
@@ -151,7 +153,7 @@ def test_complete_seal_republishing_rejects_sequence_without_head() -> None:
             state=state,
             command=_command(new_head_hash=None, new_sequence_number=6),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert "together or omitted together" in exc.value.reason
 
@@ -165,7 +167,7 @@ def test_complete_seal_republishing_raises_sequence_regression_on_equal_sequence
             state=state,
             command=_command(new_head_hash=_NEW_HEAD_HASH, new_sequence_number=6),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.prior_sequence_number == 6
     assert exc.value.proposed_sequence_number == 6
@@ -180,7 +182,7 @@ def test_complete_seal_republishing_raises_sequence_regression_on_lower_sequence
             state=state,
             command=_command(new_head_hash=_NEW_HEAD_HASH, new_sequence_number=4),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.prior_sequence_number == 10
     assert exc.value.proposed_sequence_number == 4
@@ -195,7 +197,7 @@ def test_complete_seal_republishing_rejects_omission_when_prior_head_is_none() -
             state=state,
             command=_command(new_head_hash=None, new_sequence_number=None),
             now=_NOW,
-            completed_by_actor_id=_PRINCIPAL_ID,
+            completed_by=_PRINCIPAL_ID,
         )
     assert "current_head_hash is None" in exc.value.reason
 
@@ -207,13 +209,13 @@ def test_complete_seal_republishing_is_pure_same_inputs_same_outputs() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     second = complete_seal_republishing.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -227,9 +229,9 @@ def test_complete_seal_republishing_uses_handler_injected_actor_id_verbatim() ->
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=injected,
+        completed_by=ActorId(injected),
     )
-    assert events[0].completed_by_actor_id == injected
+    assert events[0].completed_by == injected
 
 
 @pytest.mark.unit
@@ -241,7 +243,7 @@ def test_complete_seal_republishing_uses_handler_injected_now_verbatim() -> None
         state=state,
         command=_command(),
         now=custom_now,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -254,10 +256,10 @@ def test_complete_seal_republishing_actor_id_independent_of_initialized_by() -> 
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=_OTHER_ACTOR_ID,
+        completed_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].completed_by_actor_id == _OTHER_ACTOR_ID
-    assert state.initialized_by_actor_id == _INITIALIZED_BY
+    assert events[0].completed_by == _OTHER_ACTOR_ID
+    assert state.initialized_by == _INITIALIZED_BY
 
 
 @pytest.mark.unit
@@ -268,6 +270,6 @@ def test_complete_seal_republishing_reuses_facility_id_from_state() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        completed_by_actor_id=_PRINCIPAL_ID,
+        completed_by=_PRINCIPAL_ID,
     )
     assert events[0].facility_id == state.facility_id

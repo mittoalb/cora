@@ -22,11 +22,18 @@ Cross-aggregate validation pattern per CONTRIBUTING.md: the handler
 pre-loads the Asset (existence check raises Equipment's
 `AssetNotFoundError` -> 404); the decider stays pure and validates
 the Asset's lifecycle as plain data.
+
+`mounted_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different mounting actor; the
+fold-symmetry attribution half then lands on the event payload per
+[[project_fold_symmetry_design]].
 """
 
 from datetime import datetime
 
 from cora.equipment.aggregates.asset import AssetLifecycle
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotMountError,
@@ -45,6 +52,7 @@ def decide(
     *,
     context: MountSubjectContext,
     now: datetime,
+    mounted_by: ActorId,
 ) -> list[SubjectMounted]:
     """Decide the events produced by mounting an existing subject."""
     if state is None:
@@ -63,5 +71,6 @@ def decide(
             asset_id=context.asset.id,
             reason=command.reason,
             occurred_at=now,
+            mounted_by=mounted_by,
         )
     ]

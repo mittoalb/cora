@@ -3,7 +3,7 @@ list of cautions from the `proj_caution_summary` projection.
 
 Seven optional filters in canonical form:
 
-  - target_kind / target_id / category / tag / author_actor_id
+  - target_kind / target_id / category / tag / authored_by
     (single-value, exact-match)
   - severities (list of acceptable severity values; None == no filter)
   - statuses (list of acceptable status values; None == no filter)
@@ -84,5 +84,5 @@ class ListCautions:
     tag: str | None = None
     """Optional tag filter; matches any caution whose `tags` array contains this value."""
 
-    author_actor_id: UUID | None = None
+    authored_by: UUID | None = None
     """Optional author filter (operator dashboard 'cautions I authored')."""

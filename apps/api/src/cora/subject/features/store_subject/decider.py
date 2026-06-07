@@ -7,6 +7,12 @@ Terminal disposition: `Removed -> Stored`. Single-source guard
 Strict semantics, not idempotent: re-storing an already-`Stored`
 subject raises rather than no-op.
 
+`stored_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different storing actor; the
+fold-symmetry attribution half then lands on the event payload per
+[[project_fold_symmetry_design]].
+
 Invariants:
   - State must not be None -> SubjectNotFoundError
   - State.status must be `Removed` -> SubjectCannotStoreError(current_status=...)
@@ -14,6 +20,7 @@ Invariants:
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotStoreError,
@@ -29,10 +36,11 @@ def decide(
     command: StoreSubject,
     *,
     now: datetime,
+    stored_by: ActorId,
 ) -> list[SubjectStored]:
     """Decide the events produced by storing an existing subject."""
     if state is None:
         raise SubjectNotFoundError(command.subject_id)
     if state.status is not SubjectStatus.REMOVED:
         raise SubjectCannotStoreError(state.id, current_status=state.status)
-    return [SubjectStored(subject_id=state.id, occurred_at=now)]
+    return [SubjectStored(subject_id=state.id, occurred_at=now, stored_by=stored_by)]

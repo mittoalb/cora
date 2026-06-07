@@ -60,8 +60,12 @@ from cora.equipment.features import get_asset_pidinst
 from cora.equipment.features.get_asset_pidinst import GetAssetPidinst
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _NOW = datetime(2025, 4, 15, 9, 30, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
@@ -104,6 +108,7 @@ async def _seed_asset_registered(
         occurred_at=_NOW,
         model_id=model_id,
         owners=owners,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=event_type_name(registered),

@@ -63,6 +63,7 @@ from cora.data.aggregates.dataset import (
 from cora.data.aggregates.dataset.state import Dataset
 from cora.data.features.register_dataset.command import RegisterDataset
 from cora.data.features.register_dataset.context import DatasetRegistrationContext
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -72,6 +73,7 @@ def decide(
     context: DatasetRegistrationContext,
     now: datetime,
     new_id: UUID,
+    registered_by: ActorId,
 ) -> list[DatasetRegistered]:
     """Decide the events produced by registering a new Dataset.
 
@@ -180,6 +182,7 @@ def decide(
             subject_id=command.subject_id,
             derived_from=derived_from,
             occurred_at=now,
+            registered_by=registered_by,
             producing_run_end_state=producing_run_end_state,
             # intent defaults to "Trial" on the dataclass; promotion is a
             # separate explicit slice (promote_dataset).

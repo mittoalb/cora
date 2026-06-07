@@ -53,7 +53,7 @@ async def test_handler_returns_seal_view_on_hit() -> None:
     assert view.seal.facility_id == _FACILITY_ID
     assert view.seal.current_sequence_number == 0
     assert view.seal.current_head_hash is None
-    assert view.seal.initialized_by_actor_id == _PRINCIPAL_ID
+    assert view.seal.initialized_by == _PRINCIPAL_ID
     # No pool in this in-memory test, so projection-sourced timestamps
     # are absent. Pin the contract: the handler returns SealView with
     # timestamps=None rather than failing.

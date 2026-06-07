@@ -21,6 +21,7 @@ from cora.data.errors import UnauthorizedError
 from cora.data.features.discard_dataset.command import DiscardDataset
 from cora.data.features.discard_dataset.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -93,7 +94,9 @@ def bind(deps: Kernel) -> Handler:
         history: list[DatasetEvent] = [from_stored(s) for s in stored]
         state = fold(history)
 
-        domain_events = decide(state=state, command=command, now=now)
+        domain_events = decide(
+            state=state, command=command, now=now, discarded_by=ActorId(principal_id)
+        )
 
         new_events = [
             to_new_event(

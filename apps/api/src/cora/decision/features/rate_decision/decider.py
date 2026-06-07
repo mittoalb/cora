@@ -10,7 +10,7 @@ evolver folds latest-per-actor wins, and the audit trail keeps all
 events. Operators can change their mind; the projection reflects
 the latest opinion.
 
-`now` and `rated_by_actor_id` are injected by the application
+`now` and `rated_by` are injected by the application
 handler from the Clock port and request envelope's `principal_id`.
 
 ## Validation
@@ -26,7 +26,6 @@ explicit validation needed here.
 """
 
 from datetime import datetime
-from uuid import UUID
 
 from cora.decision.aggregates.decision import (
     Decision,
@@ -35,6 +34,7 @@ from cora.decision.aggregates.decision import (
     validate_decision_rating_comment,
 )
 from cora.decision.features.rate_decision.command import RateDecision
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -42,7 +42,7 @@ def decide(
     command: RateDecision,
     *,
     now: datetime,
-    rated_by_actor_id: UUID,
+    rated_by: ActorId,
 ) -> list[DecisionRated]:
     """Decide the events produced by rating an existing Decision.
 
@@ -72,7 +72,7 @@ def decide(
             decision_id=state.id,
             rating=command.rating,
             comment=comment,
-            rated_by_actor_id=rated_by_actor_id,
+            rated_by=rated_by,
             rated_at=now,
             occurred_at=now,
             confidence_at_rating=state.confidence,

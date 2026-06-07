@@ -31,6 +31,7 @@ from cora.equipment.aggregates.fixture.state import (
     SlotAssetBinding,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -65,6 +66,7 @@ class FixtureRegistered:
     slot_asset_bindings: frozenset[SlotAssetBinding]
     parameter_overrides: dict[str, Any]
     occurred_at: datetime
+    registered_by: ActorId
 
 
 @dataclass(frozen=True)
@@ -111,6 +113,7 @@ def to_payload(event: FixtureEvent) -> dict[str, Any]:
             slot_asset_bindings=slot_asset_bindings,
             parameter_overrides=parameter_overrides,
             occurred_at=occurred_at,
+            registered_by=registered_by,
         ):
             return {
                 "fixture_id": str(fixture_id),
@@ -123,6 +126,7 @@ def to_payload(event: FixtureEvent) -> dict[str, Any]:
                 ),
                 "parameter_overrides": parameter_overrides,
                 "occurred_at": occurred_at.isoformat(),
+                "registered_by": str(registered_by),
             }
         case FixturePersistentIdAssigned(
             fixture_id=fixture_id,
@@ -157,6 +161,7 @@ def from_stored(stored: StoredEvent) -> FixtureEvent:
                     ),
                     parameter_overrides=payload["parameter_overrides"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    registered_by=ActorId(UUID(payload["registered_by"])),
                 )
 
             return deserialize_or_raise("FixtureRegistered", _build)

@@ -47,7 +47,7 @@ class ReviewStepResponse(BaseModel):
 
     step_index: int
     role: str
-    actor_id: UUID
+    decided_by: UUID
     decision: str
     decided_at: datetime
     notes: str | None = None
@@ -86,7 +86,7 @@ def _review_step_to_response(step: ReviewStep) -> ReviewStepResponse:
     return ReviewStepResponse(
         step_index=step.step_index,
         role=step.role,
-        actor_id=step.actor_id,
+        decided_by=step.decided_by,
         decision=step.decision,
         decided_at=step.decided_at,
         notes=step.notes,

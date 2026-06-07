@@ -25,12 +25,13 @@ from cora.calibration.aggregates.calibration import (
     serialize_source,
     to_payload,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _CALIBRATION_ID = UUID("01900000-0000-7000-8000-000000ca0001")
 _SUBSYSTEM_ID = UUID("01900000-0000-7000-8000-000000ca0002")
-_ACTOR_ID = UUID("01900000-0000-7000-8000-000000ca0003")
+_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000ca0003"))
 _PROCEDURE_ID = UUID("01900000-0000-7000-8000-000000ca0004")
 _DATASET_ID = UUID("01900000-0000-7000-8000-000000ca0005")
 _REVISION_ID = UUID("01900000-0000-7000-8000-000000ca0006")
@@ -63,7 +64,7 @@ def test_serialize_source_for_measured() -> None:
     assert payload == {
         "source_procedure_id": str(_PROCEDURE_ID),
         "source_dataset_id": None,
-        "source_actor_id": None,
+        "asserted_by": None,
     }
 
 
@@ -73,17 +74,17 @@ def test_serialize_source_for_computed() -> None:
     assert payload == {
         "source_procedure_id": None,
         "source_dataset_id": str(_DATASET_ID),
-        "source_actor_id": None,
+        "asserted_by": None,
     }
 
 
 @pytest.mark.unit
 def test_serialize_source_for_asserted() -> None:
-    payload = serialize_source(AssertedSource(actor_id=_ACTOR_ID))
+    payload = serialize_source(AssertedSource(asserted_by=_ACTOR_ID))
     assert payload == {
         "source_procedure_id": None,
         "source_dataset_id": None,
-        "source_actor_id": str(_ACTOR_ID),
+        "asserted_by": str(_ACTOR_ID),
     }
 
 
@@ -92,7 +93,7 @@ def test_deserialize_source_round_trips_each_arm() -> None:
     for source in [
         MeasuredSource(procedure_id=_PROCEDURE_ID),
         ComputedSource(dataset_id=_DATASET_ID),
-        AssertedSource(actor_id=_ACTOR_ID),
+        AssertedSource(asserted_by=_ACTOR_ID),
     ]:
         assert deserialize_source(serialize_source(source)) == source
 
@@ -105,7 +106,7 @@ def test_deserialize_source_rejects_all_null() -> None:
             {
                 "source_procedure_id": None,
                 "source_dataset_id": None,
-                "source_actor_id": None,
+                "asserted_by": None,
             }
         )
 
@@ -118,7 +119,7 @@ def test_deserialize_source_rejects_multiple_non_null() -> None:
             {
                 "source_procedure_id": str(_PROCEDURE_ID),
                 "source_dataset_id": str(_DATASET_ID),
-                "source_actor_id": None,
+                "asserted_by": None,
             }
         )
 
@@ -134,7 +135,7 @@ def test_event_type_name_for_calibration_defined() -> None:
         quantity="rotation_center",
         operating_point={"energy": 25, "optics_config": "5x"},
         description=None,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
     assert event_type_name(event) == "CalibrationDefined"
@@ -148,18 +149,18 @@ def test_to_payload_serializes_calibration_defined_to_primitives() -> None:
         quantity="rotation_center",
         operating_point={"energy": 25, "optics_config": "5x"},
         description="vessel-A bakeout pre-scan",
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
-    # Path C: no `defined_at` field on the V2 payload; the projection
-    # derives it from envelope `occurred_at`.
+    # `defined_at` is folded from envelope `occurred_at` at the evolver;
+    # the wire payload carries `defined_by` + `occurred_at` only.
     assert to_payload(event) == {
         "calibration_id": str(_CALIBRATION_ID),
         "target_id": str(_SUBSYSTEM_ID),
         "quantity": "rotation_center",
         "operating_point": {"energy": 25, "optics_config": "5x"},
         "description": "vessel-A bakeout pre-scan",
-        "defined_by_actor_id": str(_ACTOR_ID),
+        "defined_by": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),
     }
 
@@ -172,7 +173,7 @@ def test_calibration_defined_round_trips_through_event_log() -> None:
         quantity="rotation_center",
         operating_point={"energy": 25, "optics_config": "5x"},
         description=None,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
     stored = _stored("CalibrationDefined", to_payload(original))
@@ -191,9 +192,9 @@ def test_to_payload_serializes_revision_appended_with_measured_source() -> None:
         status=CalibrationStatus.PROVISIONAL,
         source_procedure_id=_PROCEDURE_ID,
         source_dataset_id=None,
-        source_actor_id=None,
+        asserted_by=None,
         established_at=_NOW,
-        established_by_actor_id=_ACTOR_ID,
+        established_by=_ACTOR_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
         occurred_at=_NOW,
@@ -201,7 +202,7 @@ def test_to_payload_serializes_revision_appended_with_measured_source() -> None:
     payload = to_payload(event)
     assert payload["source_procedure_id"] == str(_PROCEDURE_ID)
     assert payload["source_dataset_id"] is None
-    assert payload["source_actor_id"] is None
+    assert payload["asserted_by"] is None
     assert payload["status"] == "Provisional"  # status serializes as enum.value
 
 
@@ -214,9 +215,9 @@ def test_revision_appended_round_trips_with_decision_link() -> None:
         status=CalibrationStatus.VERIFIED,
         source_procedure_id=None,
         source_dataset_id=_DATASET_ID,
-        source_actor_id=None,
+        asserted_by=None,
         established_at=_NOW,
-        established_by_actor_id=_ACTOR_ID,
+        established_by=_ACTOR_ID,
         decided_by_decision_id=_DECISION_ID,
         supersedes_revision_id=uuid4(),
         occurred_at=_NOW,
@@ -235,9 +236,9 @@ def test_event_type_name_for_calibration_revision_appended() -> None:
         status=CalibrationStatus.PROVISIONAL,
         source_procedure_id=_PROCEDURE_ID,
         source_dataset_id=None,
-        source_actor_id=None,
+        asserted_by=None,
         established_at=_NOW,
-        established_by_actor_id=_ACTOR_ID,
+        established_by=_ACTOR_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
         occurred_at=_NOW,

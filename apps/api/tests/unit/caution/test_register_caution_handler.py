@@ -85,9 +85,9 @@ async def test_handler_appends_caution_registered_event_to_store() -> None:
     assert stored.payload["severity"] == "Caution"
     assert stored.payload["text"] == "hexapod stalls below 0.5 mm/s"
     assert stored.payload["workaround"] == "run at 0.6 mm/s"
-    # Handler derives author_actor_id from the request envelope's principal_id;
+    # Handler derives authored_by from the request envelope's principal_id;
     # the command surface no longer carries an author field.
-    assert stored.payload["author_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["authored_by"] == str(_PRINCIPAL_ID)
     assert stored.payload["propagate_to_children"] is False
     assert stored.payload["parent_id"] is None
     assert stored.correlation_id == _CORRELATION_ID

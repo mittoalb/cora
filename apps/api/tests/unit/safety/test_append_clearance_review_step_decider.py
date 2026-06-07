@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotAppendReviewStepError,
@@ -68,7 +69,7 @@ def test_decide_emits_review_step_recorded_at_index_zero() -> None:
             clearance_id=state.id,
             step_index=0,
             role="BeamlineScientist",
-            actor_id=actor,
+            decided_by=ActorId(actor),
             decision="Approved",
             decided_at=_DECIDED,
             notes="LGTM",
@@ -82,7 +83,7 @@ def test_decide_appends_at_correct_index_when_chain_has_prior_steps() -> None:
     prior = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="Approved",
         decided_at=_DECIDED,
     )
@@ -260,7 +261,7 @@ def test_decide_rejects_decided_at_earlier_than_prior_step() -> None:
     prior = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="Approved",
         decided_at=prior_decided,
     )
@@ -288,7 +289,7 @@ def test_decide_accepts_decided_at_equal_to_prior_step() -> None:
     prior = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="Approved",
         decided_at=prior_decided,
     )

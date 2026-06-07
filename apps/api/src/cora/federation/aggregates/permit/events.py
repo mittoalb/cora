@@ -45,6 +45,7 @@ from cora.federation.aggregates.permit.state import (
     ScopeRef,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 
@@ -126,7 +127,7 @@ class PermitDefined:
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: ActorId
     terms: OutboundTerms | InboundTerms
     occurred_at: datetime
 
@@ -134,14 +135,14 @@ class PermitDefined:
 @dataclass(frozen=True, slots=True)
 class PermitActivated:
     permit_id: UUID
-    activated_by_actor_id: UUID
+    activated_by: UUID
     occurred_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
 class PermitSuspended:
     permit_id: UUID
-    suspended_by_actor_id: UUID
+    suspended_by: UUID
     occurred_at: datetime
     reason: str | None = None
 
@@ -149,14 +150,14 @@ class PermitSuspended:
 @dataclass(frozen=True, slots=True)
 class PermitResumed:
     permit_id: UUID
-    resumed_by_actor_id: UUID
+    resumed_by: UUID
     occurred_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
 class PermitRevoked:
     permit_id: UUID
-    revoked_by_actor_id: UUID
+    revoked_by: UUID
     occurred_at: datetime
     reason: str | None = None
 
@@ -221,7 +222,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
             allowed_artifact_kinds=allowed_artifact_kinds,
             abi_tier_floor=abi_tier_floor,
             expires_at=expires_at,
-            defined_by_actor_id=defined_by_actor_id,
+            defined_by=defined_by,
             terms=terms,
             occurred_at=occurred_at,
         ):
@@ -234,51 +235,51 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
                 "allowed_artifact_kinds": sorted(allowed_artifact_kinds),
                 "abi_tier_floor": abi_tier_floor.value,
                 "expires_at": expires_at.isoformat(),
-                "defined_by_actor_id": str(defined_by_actor_id),
+                "defined_by": str(defined_by),
                 "terms": serialize_terms(terms),
                 "occurred_at": occurred_at.isoformat(),
             }
         case PermitActivated(
             permit_id=permit_id,
-            activated_by_actor_id=activated_by_actor_id,
+            activated_by=activated_by,
             occurred_at=occurred_at,
         ):
             return {
                 "permit_id": str(permit_id),
-                "activated_by_actor_id": str(activated_by_actor_id),
+                "activated_by": str(activated_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case PermitSuspended(
             permit_id=permit_id,
-            suspended_by_actor_id=suspended_by_actor_id,
+            suspended_by=suspended_by,
             occurred_at=occurred_at,
             reason=reason,
         ):
             return {
                 "permit_id": str(permit_id),
-                "suspended_by_actor_id": str(suspended_by_actor_id),
+                "suspended_by": str(suspended_by),
                 "occurred_at": occurred_at.isoformat(),
                 "reason": reason,
             }
         case PermitResumed(
             permit_id=permit_id,
-            resumed_by_actor_id=resumed_by_actor_id,
+            resumed_by=resumed_by,
             occurred_at=occurred_at,
         ):
             return {
                 "permit_id": str(permit_id),
-                "resumed_by_actor_id": str(resumed_by_actor_id),
+                "resumed_by": str(resumed_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case PermitRevoked(
             permit_id=permit_id,
-            revoked_by_actor_id=revoked_by_actor_id,
+            revoked_by=revoked_by,
             occurred_at=occurred_at,
             reason=reason,
         ):
             return {
                 "permit_id": str(permit_id),
-                "revoked_by_actor_id": str(revoked_by_actor_id),
+                "revoked_by": str(revoked_by),
                 "occurred_at": occurred_at.isoformat(),
                 "reason": reason,
             }
@@ -329,7 +330,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                     allowed_artifact_kinds=frozenset(payload["allowed_artifact_kinds"]),
                     abi_tier_floor=AbiTier(payload["abi_tier_floor"]),
                     expires_at=datetime.fromisoformat(payload["expires_at"]),
-                    defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
+                    defined_by=ActorId(UUID(payload["defined_by"])),
                     terms=deserialize_terms(payload["terms"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
@@ -340,7 +341,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                 "PermitActivated",
                 lambda: PermitActivated(
                     permit_id=UUID(payload["permit_id"]),
-                    activated_by_actor_id=UUID(payload["activated_by_actor_id"]),
+                    activated_by=UUID(payload["activated_by"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -349,7 +350,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                 "PermitSuspended",
                 lambda: PermitSuspended(
                     permit_id=UUID(payload["permit_id"]),
-                    suspended_by_actor_id=UUID(payload["suspended_by_actor_id"]),
+                    suspended_by=UUID(payload["suspended_by"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
                 ),
@@ -359,7 +360,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                 "PermitResumed",
                 lambda: PermitResumed(
                     permit_id=UUID(payload["permit_id"]),
-                    resumed_by_actor_id=UUID(payload["resumed_by_actor_id"]),
+                    resumed_by=UUID(payload["resumed_by"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -368,7 +369,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                 "PermitRevoked",
                 lambda: PermitRevoked(
                     permit_id=UUID(payload["permit_id"]),
-                    revoked_by_actor_id=UUID(payload["revoked_by_actor_id"]),
+                    revoked_by=UUID(payload["revoked_by"]),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
                 ),

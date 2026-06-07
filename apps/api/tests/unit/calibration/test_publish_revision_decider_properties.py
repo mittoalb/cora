@@ -3,7 +3,7 @@
 Cross-BC federation decider. Pure shape:
 
     decide(state, command, *, permit_result, signature_envelope,
-           signature_kid, receipt_id, now, published_by_actor_id)
+           signature_kid, receipt_id, now, published_by)
         -> PublishRevisionEvents
 
 Universal claims pinned here:
@@ -51,6 +51,7 @@ from cora.calibration.features.publish_revision import (
     PublishCalibrationRevision,
     decide,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.federation import (
     DsseStaticJwksEnvelope,
     PermitLookupResult,
@@ -72,15 +73,15 @@ def _revision(
     revision_id: UUID,
     content_hash: str | None,
     established_at: datetime,
-    established_by_actor_id: UUID,
+    established_by: ActorId,
 ) -> CalibrationRevision:
     return CalibrationRevision(
         revision_id=revision_id,
         value={"value": 1.0},
         status=CalibrationStatus.VERIFIED,
-        source=AssertedSource(actor_id=uuid4()),
+        source=AssertedSource(asserted_by=ActorId(uuid4())),
         established_at=established_at,
-        established_by_actor_id=established_by_actor_id,
+        established_by=established_by,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
         content_hash=content_hash,
@@ -91,7 +92,8 @@ def _calibration(
     *,
     calibration_id: UUID,
     revisions: tuple[CalibrationRevision, ...],
-    actor_id: UUID,
+    actor_id: ActorId,
+    defined_at: datetime,
 ) -> Calibration:
     return Calibration(
         id=calibration_id,
@@ -100,7 +102,8 @@ def _calibration(
         operating_point={},
         description=None,
         revisions=revisions,
-        defined_by_actor_id=actor_id,
+        defined_at=defined_at,
+        defined_by=actor_id,
     )
 
 
@@ -157,7 +160,7 @@ def test_decide_with_no_calibration_always_raises_not_found(
             signature_kid="kid",
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=actor_id,
+            published_by=actor_id,
         )
 
 
@@ -194,10 +197,11 @@ def test_decide_with_unknown_revision_always_raises_revision_not_found(
                 revision_id=known_revision_id,
                 content_hash=content_hash,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -215,7 +219,7 @@ def test_decide_with_unknown_revision_always_raises_revision_not_found(
             signature_kid="kid",
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=actor_id,
+            published_by=actor_id,
         )
 
 
@@ -247,10 +251,11 @@ def test_decide_with_legacy_revision_always_raises_cannot_publish(
                 revision_id=revision_id,
                 content_hash=None,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -268,7 +273,7 @@ def test_decide_with_legacy_revision_always_raises_cannot_publish(
             signature_kid="kid",
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=actor_id,
+            published_by=actor_id,
         )
 
 
@@ -302,10 +307,11 @@ def test_decide_with_inactive_permit_always_raises_permit_not_active(
                 revision_id=revision_id,
                 content_hash=content_hash,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -323,7 +329,7 @@ def test_decide_with_inactive_permit_always_raises_permit_not_active(
             signature_kid="kid",
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=actor_id,
+            published_by=actor_id,
         )
 
 
@@ -356,10 +362,11 @@ def test_decide_with_missing_permit_always_raises_permit_not_active(
                 revision_id=revision_id,
                 content_hash=content_hash,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -375,7 +382,7 @@ def test_decide_with_missing_permit_always_raises_permit_not_active(
             signature_kid="kid",
             receipt_id=receipt_id,
             now=now,
-            published_by_actor_id=actor_id,
+            published_by=actor_id,
         )
 
 
@@ -419,10 +426,11 @@ def test_decide_happy_path_emits_event_pair_with_injected_fields(
                 revision_id=revision_id,
                 content_hash=content_hash,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -437,7 +445,7 @@ def test_decide_happy_path_emits_event_pair_with_injected_fields(
         signature_kid=signature_kid,
         receipt_id=receipt_id,
         now=now,
-        published_by_actor_id=actor_id,
+        published_by=actor_id,
     )
 
     pub = result.calibration_event
@@ -451,7 +459,7 @@ def test_decide_happy_path_emits_event_pair_with_injected_fields(
     assert pub.receipt_id == receipt_id
     assert pub.published_at == now
     assert pub.occurred_at == now
-    assert pub.published_by_actor_id == actor_id
+    assert pub.published_by == actor_id
     assert pub.publication_status == "Live"
 
     rec = result.permit_event
@@ -500,10 +508,11 @@ def test_decide_is_pure_same_inputs_yield_same_events(
                 revision_id=revision_id,
                 content_hash=content_hash,
                 established_at=now,
-                established_by_actor_id=actor_id,
+                established_by=ActorId(actor_id),
             ),
         ),
-        actor_id=actor_id,
+        actor_id=ActorId(actor_id),
+        defined_at=now,
     )
     command = PublishCalibrationRevision(
         calibration_id=calibration_id,
@@ -518,7 +527,7 @@ def test_decide_is_pure_same_inputs_yield_same_events(
         signature_kid="kid",
         receipt_id=receipt_id,
         now=now,
-        published_by_actor_id=actor_id,
+        published_by=actor_id,
     )
     second = decide(
         state,
@@ -528,7 +537,7 @@ def test_decide_is_pure_same_inputs_yield_same_events(
         signature_kid="kid",
         receipt_id=receipt_id,
         now=now,
-        published_by_actor_id=actor_id,
+        published_by=actor_id,
     )
     assert first.calibration_event == second.calibration_event
     assert first.permit_event == second.permit_event

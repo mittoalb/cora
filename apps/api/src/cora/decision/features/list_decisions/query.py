@@ -4,7 +4,7 @@ list of decisions from the projection.
 Three optional filters: confidence_band (Low / Medium / High /
 Certain — denormalized from the stored confidence float at INSERT
 time per the ConfidenceBand stance), rule (filter
-by categorical rule label from cora.decision.catalog), actor_id
+by categorical rule label from cora.decision.catalog), decided_by
 (who decided). Cursor encodes (created_at, decision_id).
 """
 
@@ -35,8 +35,8 @@ class ListDecisions:
     (per cora.decision.catalog). Decisions with `rule=None`
     are NOT returned when this filter is set."""
 
-    actor_id: UUID | None = None
-    """Optional `actor_id` filter: returns Decisions made by the
+    decided_by: UUID | None = None
+    """Optional `decided_by` filter: returns Decisions made by the
     given Actor. Pass `None` (omit) for "any Actor"."""
 
     choice: str | None = None

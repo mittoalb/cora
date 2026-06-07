@@ -10,7 +10,7 @@ HTTP-layer caching adds no value for transitions.
 
 Delegates to `make_permit_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `activated_by_actor_id`.
+under `activated_by`.
 """
 
 from typing import Protocol
@@ -44,5 +44,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="ActivatePermit",
         log_prefix="activate_permit",
         decide_fn=decide,
-        actor_kwarg="activated_by_actor_id",
+        actor_kwarg="activated_by",
     )

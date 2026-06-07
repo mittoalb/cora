@@ -32,13 +32,15 @@ DecisionUpdated / DecisionRevoked / DecisionCorrected event.
 
 ## PROV-AGENT field-name alignment (gate-review L13)
 
-  - `actor_id` ↔ `prov:wasAssociatedWith.agent`
+  - `decided_by` ↔ `prov:wasAssociatedWith.agent`
   - `parent_id` ↔ `prov:wasInformedBy`
   - `occurred_at` ↔ `prov:atTime`
 
 PROV-O export at the API boundary lands when first consumer asks
 (deferred-with-trigger); the in-domain payload stays on these
-primitives.
+primitives. The PROV-O alias mapping
+(`decided_by -> prov:wasAssociatedWith.agent`) is performed in the
+edge serializer when that adapter ships, not on the in-domain payload.
 """
 
 from dataclasses import dataclass
@@ -52,6 +54,7 @@ from cora.decision.aggregates.decision.state import (
     DecisionRating,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -60,13 +63,13 @@ from cora.infrastructure.ports.event_store import StoredEvent
 class DecisionRegistered:
     """A new Decision was registered.
 
-    All fields except `id`, `actor_id`, `context`, `choice`, and
+    All fields except `id`, `decided_by`, `context`, `choice`, and
     `occurred_at` are optional. `override_kind` requires `parent_id`
     (enforced at the decider).
     """
 
     decision_id: UUID
-    actor_id: UUID
+    decided_by: ActorId
     context: str
     choice: str
     parent_id: UUID | None
@@ -152,7 +155,7 @@ class DecisionRated:
     [[project-non-determinism-principle]]).
 
     The rating actor's identity lives on the payload as
-    `rated_by_actor_id` for denorm convenience; the
+    `rated_by` for denorm convenience; the
     `StoredEvent.principal_id` envelope carries the same value at
     write time (every rating is self-recorded; no spoof path).
     """
@@ -160,7 +163,7 @@ class DecisionRated:
     decision_id: UUID
     rating: DecisionRating
     comment: str | None
-    rated_by_actor_id: UUID
+    rated_by: ActorId
     rated_at: datetime
     occurred_at: datetime
     confidence_at_rating: float | None
@@ -177,11 +180,19 @@ def event_type_name(event: DecisionEvent) -> str:
 
 
 def to_payload(event: DecisionEvent) -> dict[str, Any]:
-    """Serialize a Decision event to a JSON-friendly dict for jsonb."""
+    """Serialize a Decision event to a JSON-friendly dict for jsonb.
+
+    In-domain payload uses CORA primitives (`decided_by`, `parent_id`,
+    `occurred_at`). The PROV-O alias mapping
+    (`decided_by -> prov:wasAssociatedWith.agent`,
+    `parent_id -> prov:wasInformedBy`, `occurred_at -> prov:atTime`)
+    lives at the RDF serializer edge (PROV-O export adapter), not here;
+    this keeps the BC boundary stable when PROV consumers land.
+    """
     match event:
         case DecisionRegistered(
             decision_id=decision_id,
-            actor_id=actor_id,
+            decided_by=decided_by,
             context=context,
             choice=choice,
             parent_id=parent_id,
@@ -197,7 +208,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
         ):
             return {
                 "decision_id": str(decision_id),
-                "actor_id": str(actor_id),
+                "decided_by": str(decided_by),
                 "context": context,
                 "choice": choice,
                 "parent_id": str(parent_id) if parent_id is not None else None,
@@ -242,7 +253,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
             decision_id=decision_id,
             rating=rating,
             comment=comment,
-            rated_by_actor_id=rated_by_actor_id,
+            rated_by=rated_by,
             rated_at=rated_at,
             occurred_at=occurred_at,
             confidence_at_rating=confidence_at_rating,
@@ -251,7 +262,7 @@ def to_payload(event: DecisionEvent) -> dict[str, Any]:
                 "decision_id": str(decision_id),
                 "rating": rating.value,
                 "comment": comment,
-                "rated_by_actor_id": str(rated_by_actor_id),
+                "rated_by": str(rated_by),
                 "rated_at": rated_at.isoformat(),
                 "occurred_at": occurred_at.isoformat(),
                 "confidence_at_rating": confidence_at_rating,
@@ -272,7 +283,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                 raw_conf_source = payload["confidence_source"]
                 return DecisionRegistered(
                     decision_id=UUID(payload["decision_id"]),
-                    actor_id=UUID(payload["actor_id"]),
+                    decided_by=ActorId(UUID(payload["decided_by"])),
                     context=payload["context"],
                     choice=payload["choice"],
                     parent_id=UUID(raw_parent) if raw_parent is not None else None,
@@ -321,7 +332,7 @@ def from_stored(stored: StoredEvent) -> DecisionEvent:
                     decision_id=UUID(payload["decision_id"]),
                     rating=DecisionRating(payload["rating"]),
                     comment=payload.get("comment"),
-                    rated_by_actor_id=UUID(payload["rated_by_actor_id"]),
+                    rated_by=ActorId(UUID(payload["rated_by"])),
                     rated_at=rated_at,
                     occurred_at=(
                         datetime.fromisoformat(occurred_at_raw)

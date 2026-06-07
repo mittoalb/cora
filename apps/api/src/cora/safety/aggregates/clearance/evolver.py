@@ -97,7 +97,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
         case ClearanceReviewStepAppended(
             step_index=step_index,
             role=role,
-            actor_id=actor_id,
+            decided_by=decided_by,
             decision=decision,
             decided_at=decided_at,
             notes=notes,
@@ -106,7 +106,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             new_step = ReviewStep(
                 step_index=step_index,
                 role=role,
-                actor_id=actor_id,
+                decided_by=decided_by,
                 decision=decision,
                 decided_at=decided_at,
                 notes=notes,

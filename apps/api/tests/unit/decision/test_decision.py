@@ -1,5 +1,6 @@
 """Unit tests for Decision aggregate state, value objects, and domain errors."""
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -39,6 +40,7 @@ from cora.decision.aggregates.decision import (
     validate_reasoning_signature,
 )
 from cora.decision.errors import OverrideKindRequiresParentError
+from cora.infrastructure.identity import ActorId
 
 # ---------- DecisionChoice / DecisionContext / DecisionRule ----------
 
@@ -311,7 +313,8 @@ def test_validate_reasoning_signature_rejects_too_long() -> None:
 def test_decision_default_optionals_are_none_or_empty() -> None:
     d = Decision(
         id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
+        decided_at=datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC),
         context=DecisionContext("RecipeApproval"),
         choice=DecisionChoice("Approved"),
     )
@@ -346,11 +349,11 @@ def test_decision_not_found_error_carries_decision_id() -> None:
 
 
 @pytest.mark.unit
-def test_decider_actor_missing_error_carries_actor_id() -> None:
-    actor_id = uuid4()
-    err = DeciderActorNotFoundError(actor_id)
-    assert err.actor_id == actor_id
-    assert str(actor_id) in str(err)
+def test_decider_actor_missing_error_carries_decided_by() -> None:
+    decided_by = uuid4()
+    err = DeciderActorNotFoundError(decided_by)
+    assert err.decided_by == decided_by
+    assert str(decided_by) in str(err)
 
 
 @pytest.mark.unit

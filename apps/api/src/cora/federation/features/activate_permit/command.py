@@ -2,7 +2,7 @@
 
 `permit_id` is the target Permit aggregate. The invoking principal's
 id is supplied separately by the application handler at call time
-(envelope `principal_id` denorms to `activated_by_actor_id` on the
+(envelope `principal_id` denorms to `activated_by` on the
 emitted event).
 
 Strict-not-idempotent transition: re-activating an already-Active

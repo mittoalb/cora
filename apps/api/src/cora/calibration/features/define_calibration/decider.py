@@ -33,7 +33,7 @@ Initial revision list is empty; the genesis event carries identity +
 operating_point + description only. Revisions arrive via subsequent
 `append_calibration_revision` slice calls.
 
-`defined_by_actor_id` is handler-injected from the request envelope's
+`defined_by` is handler-injected from the request envelope's
 `principal_id` (not on the command). At define time author and
 principal are equal by construction.
 """
@@ -52,6 +52,7 @@ from cora.calibration.aggregates.calibration import (
 )
 from cora.calibration.features.define_calibration.command import DefineCalibration
 from cora.calibration.quantities import get_operating_point_schema
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
 
 
@@ -61,7 +62,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-    defined_by_actor_id: UUID,
+    defined_by: ActorId,
 ) -> list[CalibrationDefined]:
     """Decide the events produced by defining a new Calibration.
 
@@ -94,7 +95,7 @@ def decide(
             quantity=command.quantity.value,
             operating_point=command.operating_point,
             description=trimmed_description,
-            defined_by_actor_id=defined_by_actor_id,
+            defined_by=defined_by,
             occurred_at=now,
         )
     ]

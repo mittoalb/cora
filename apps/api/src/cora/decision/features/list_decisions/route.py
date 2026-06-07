@@ -1,6 +1,6 @@
 """HTTP route for the `list_decisions` query slice.
 
-`GET /decisions?cursor=...&confidence_band=Certain&rule=auto-accept&actor_id=<uuid>`
+`GET /decisions?cursor=...&confidence_band=Certain&rule=auto-accept&decided_by=<uuid>`
 returns `{"items": [...], "next_cursor": "..." | null}`.
 """
 
@@ -25,7 +25,7 @@ class DecisionSummaryDTO(BaseModel):
     """One decision in a paginated list."""
 
     decision_id: UUID
-    actor_id: UUID
+    decided_by: UUID
     rule: str | None
     parent_id: UUID | None
     confidence: float | None
@@ -95,9 +95,9 @@ async def list_decisions(
         str | None,
         Query(description="Optional categorical decision-rule label filter."),
     ] = None,
-    actor_id: Annotated[
+    decided_by: Annotated[
         UUID | None,
-        Query(description="Optional Actor-id filter."),
+        Query(description="Optional Actor-id filter (filters by Decision.decided_by)."),
     ] = None,
     choice: Annotated[
         str | None,
@@ -127,7 +127,7 @@ async def list_decisions(
             limit=limit,
             confidence_band=confidence_band,
             rule=rule,
-            actor_id=actor_id,
+            decided_by=decided_by,
             choice=choice,
             exclude_choices=tuple(exclude_choices) if exclude_choices else None,
         ),
@@ -139,7 +139,7 @@ async def list_decisions(
         items=[
             DecisionSummaryDTO(
                 decision_id=item.decision_id,
-                actor_id=item.actor_id,
+                decided_by=item.decided_by,
                 rule=item.rule,
                 parent_id=item.parent_id,
                 confidence=item.confidence,

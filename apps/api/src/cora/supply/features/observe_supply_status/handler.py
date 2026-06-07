@@ -19,8 +19,18 @@ from uuid import UUID
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.supply._supply_update_handler import make_supply_update_handler
+from cora.supply.aggregates.supply import TriggeredBy
 from cora.supply.features.observe_supply_status.command import ObserveSupplyStatus
 from cora.supply.features.observe_supply_status.decider import decide
+
+
+def _monitor_triggered_by(command: ObserveSupplyStatus, _principal_id: UUID) -> TriggeredBy:
+    """Monitor-triggered slices pull MonitorSourceId from the command,
+    not from the request principal. The in-process adapter that drove
+    the observation owns the attribution; the request principal is
+    typically a service account whose identity is incidental.
+    """
+    return command.monitor_source_id
 
 
 class Handler(Protocol):
@@ -44,4 +54,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="ObserveSupplyStatus",
         log_prefix="observe_supply_status",
         decide_fn=decide,
+        triggered_by_fn=_monitor_triggered_by,
     )

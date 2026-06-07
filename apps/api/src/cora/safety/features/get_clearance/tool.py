@@ -40,7 +40,7 @@ from cora.safety.features.get_clearance.query import GetClearance
 class ReviewStepOutput(BaseModel):
     step_index: int
     role: str
-    actor_id: UUID
+    decided_by: UUID
     decision: str
     decided_at: datetime
     notes: str | None = None
@@ -69,7 +69,7 @@ def _review_step_to_output(step: ReviewStep) -> ReviewStepOutput:
     return ReviewStepOutput(
         step_index=step.step_index,
         role=step.role,
-        actor_id=step.actor_id,
+        decided_by=step.decided_by,
         decision=step.decision,
         decided_at=step.decided_at,
         notes=step.notes,

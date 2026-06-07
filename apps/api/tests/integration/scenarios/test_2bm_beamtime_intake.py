@@ -60,7 +60,7 @@ but no Devices are registered.
     intake; the operator (who has CORA credentials) registers the
     PI on their behalf. Per Campaign command-shape lock,
     `lead_actor_id` stays on the command (intentionally different
-    from Caution's envelope-derived `author_actor_id`) so the
+    from Caution's envelope-derived `authored_by`) so the
     operator can assign a PI lead distinct from themselves.
   - **`dmagic` external integration is out-of-scope today.** The
     real beamtime intake fetches proposal metadata from APS

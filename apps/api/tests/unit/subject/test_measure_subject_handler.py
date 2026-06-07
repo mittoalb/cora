@@ -102,6 +102,7 @@ async def test_handler_appends_subject_measured_event() -> None:
     assert measured.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "measured_by": str(_PRINCIPAL_ID),
     }
     assert measured.event_id == _MEASURE_EVENT_ID
     assert measured.metadata == {"command": "MeasureSubject"}

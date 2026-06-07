@@ -4,7 +4,7 @@ Covers the authz denial path (no event written), strict-not-idempotent
 posture on re-abort (Active source-state rejection after a successful
 abort), FSM precondition rejection on Active / Revoked, not-found on
 an unknown credential, and the success path's event envelope shape
-(correlation_id, causation_id, and the `rotation_aborted_by_actor_id`
+(correlation_id, causation_id, and the `rotation_aborted_by`
 denorm on payload).
 """
 
@@ -61,7 +61,7 @@ def _build_deps(
 def _command(reason: str | None = "peer refused new material") -> AbortCredentialRotation:
     return AbortCredentialRotation(
         credential_id=_CREDENTIAL_ID,
-        aborted_by_actor_id=_PRINCIPAL_ID,
+        aborted_by=_PRINCIPAL_ID,
         reason=reason,
     )
 
@@ -91,7 +91,7 @@ async def test_abort_credential_rotation_handler_appends_event_to_rotating_crede
     assert version == 3
     stored = events[-1]
     assert stored.event_type == "CredentialRotationAborted"
-    assert stored.payload["rotation_aborted_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["rotation_aborted_by"] == str(_PRINCIPAL_ID)
     assert stored.payload["credential_id"] == str(_CREDENTIAL_ID)
     assert stored.payload["reason"] == "peer refused new material"
     assert stored.correlation_id == _CORRELATION_ID
@@ -300,9 +300,9 @@ async def test_abort_credential_rotation_handler_denied_does_not_write_to_stream
 
 
 @pytest.mark.unit
-async def test_abort_credential_rotation_handler_records_principal_as_aborted_by_actor_id() -> None:
+async def test_abort_credential_rotation_handler_records_principal_as_aborted_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `rotation_aborted_by_actor_id` on the emitted event (audit anchor
+    `rotation_aborted_by` on the emitted event (audit anchor
     for the operator gesture), regardless of who started the
     rotation."""
     store = InMemoryEventStore()
@@ -327,4 +327,4 @@ async def test_abort_credential_rotation_handler_records_principal_as_aborted_by
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert events[-1].payload["rotation_aborted_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rotation_aborted_by"] == str(_PRINCIPAL_ID)

@@ -2,7 +2,7 @@
 matrix that pins every non-owner transition preserves `owners`."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -36,8 +36,17 @@ from cora.equipment.aggregates.asset import (
     AssetSettingsUpdated,
     evolve,
 )
+from cora.infrastructure.identity import ActorId
 
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 _NOW = datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC)
+
+
+def _extra_kwargs_for(transition: type) -> dict[str, object]:
+    if transition is AssetDecommissioned:
+        return {"decommissioned_by": _TEST_ACTOR_ID}
+    return {}
+
 
 _OWNER_A = AssetOwner(
     name=AssetOwnerName("HZB"),
@@ -69,6 +78,7 @@ def test_evolver_applies_asset_registered_with_owners_to_state() -> None:
             parent_id=uuid4(),
             occurred_at=_NOW,
             owners=frozenset({_OWNER_A}),
+            commissioned_by=_TEST_ACTOR_ID,
         ),
     )
     assert state.owners == frozenset({_OWNER_A})
@@ -236,7 +246,10 @@ def test_evolve_non_owner_transition_preserves_owners(
     frozenset default."""
     _ = name
     prior = _prior(lifecycle=_pick_lifecycle_for(transition))
-    state = evolve(prior, transition(asset_id=prior.id, occurred_at=_NOW, **kwargs))
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
     assert state.owners == frozenset({_OWNER_A, _OWNER_B})
 
 

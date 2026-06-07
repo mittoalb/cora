@@ -29,10 +29,12 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class GetCredentialOutput(BaseModel):
     """Structured output of the `get_credential` MCP tool.
 
-    Per Path C, `registered_at` / `rotation_started_at` are
-    projection-sourced (not aggregate state) and nullable on the
-    wire when the projection lags or the deps lack a pool (in-memory
-    test mode). Mirrors the REST `CredentialResponse` shape.
+    `registered_at` and `registered_by` are sourced from aggregate
+    state (folded from the genesis envelope per the fold-symmetry
+    Path C reversal); `rotation_started_at` is projection-sourced
+    and nullable when the projection lags or the deps lack a pool
+    (in-memory test mode). Mirrors the REST `CredentialResponse`
+    shape.
     """
 
     id: UUID
@@ -42,17 +44,16 @@ class GetCredentialOutput(BaseModel):
     secret_ref: str
     public_material_ref: str | None
     expires_at: datetime | None
-    registered_by_actor_id: UUID
+    registered_by: UUID
+    registered_at: datetime
     rotation_pending_secret_ref: str | None
     rotation_pending_public_material_ref: str | None
     status: CredentialStatus
-    registered_at: datetime | None = None
     rotation_started_at: datetime | None = None
 
 
 def _output_from_view(
     credential: Credential,
-    registered_at: datetime | None,
     rotation_started_at: datetime | None,
 ) -> GetCredentialOutput:
     return GetCredentialOutput(
@@ -63,11 +64,11 @@ def _output_from_view(
         secret_ref=credential.secret_ref,
         public_material_ref=credential.public_material_ref,
         expires_at=credential.expires_at,
-        registered_by_actor_id=credential.registered_by_actor_id,
+        registered_by=credential.registered_by,
+        registered_at=credential.registered_at,
         rotation_pending_secret_ref=credential.rotation_pending_secret_ref,
         rotation_pending_public_material_ref=credential.rotation_pending_public_material_ref,
         status=credential.status,
-        registered_at=registered_at,
         rotation_started_at=rotation_started_at,
     )
 
@@ -104,6 +105,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             return None
         return _output_from_view(
             view.credential,
-            view.timestamps.registered_at if view.timestamps is not None else None,
             view.timestamps.rotation_started_at if view.timestamps is not None else None,
         )

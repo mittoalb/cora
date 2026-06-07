@@ -70,7 +70,7 @@ async def test_handler_accepts_combined_filters() -> None:
         ListDecisions(
             confidence_band="Certain",
             rule="auto-accept",
-            actor_id=uuid4(),
+            decided_by=uuid4(),
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

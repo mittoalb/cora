@@ -43,7 +43,7 @@ class PermitSummaryItem:
     allowed_artifact_kinds: list[Any]
     abi_tier_floor: str
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: UUID
     status: str
     terms_kind: str
     defined_at: datetime
@@ -77,7 +77,7 @@ class Handler(Protocol):
 _SELECT_COLUMNS = (
     "permit_id, peer_facility_id, direction, "
     "allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds, "
-    "abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind, "
+    "abi_tier_floor, expires_at, defined_by, status, terms_kind, "
     "defined_at, activated_at, suspended_at, resumed_at, revoked_at"
 )
 
@@ -92,7 +92,7 @@ def _row_to_item(row: Any) -> PermitSummaryItem:
         allowed_artifact_kinds=list(row["allowed_artifact_kinds"]),
         abi_tier_floor=str(row["abi_tier_floor"]),
         expires_at=row["expires_at"],
-        defined_by_actor_id=row["defined_by_actor_id"],
+        defined_by=row["defined_by"],
         status=str(row["status"]),
         terms_kind=str(row["terms_kind"]),
         defined_at=row["defined_at"],

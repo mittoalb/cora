@@ -45,7 +45,7 @@ _log = get_logger(__name__)
 _SELECT_PERMIT_SQL = """
 SELECT permit_id, peer_facility_id, direction,
        allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds,
-       abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
+       abi_tier_floor, expires_at, defined_by, status, terms_kind,
        read_scope, onward_action_scope, scopes,
        accepted_canonicalization_versions, required_receipt_kinds,
        publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
@@ -73,7 +73,7 @@ class PermitView:
     allowed_artifact_kinds: list[str]
     abi_tier_floor: str
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: UUID
     status: str
     terms_kind: str
     read_scope: str | None
@@ -116,7 +116,7 @@ def _row_to_view(row: Any) -> PermitView:
         allowed_artifact_kinds=_jsonb_to_list(row["allowed_artifact_kinds"]) or [],
         abi_tier_floor=row["abi_tier_floor"],
         expires_at=row["expires_at"],
-        defined_by_actor_id=row["defined_by_actor_id"],
+        defined_by=row["defined_by"],
         status=row["status"],
         terms_kind=row["terms_kind"],
         read_scope=row["read_scope"],

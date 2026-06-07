@@ -39,11 +39,13 @@ class CredentialResponse(BaseModel):
     `rotation_pending_*_ref` are OPAQUE pointers (URI / KMS ARN /
     vault path), never raw secret material.
 
-    Per Path C, `registered_at` / `rotation_started_at` are
-    projection-sourced (not aggregate state) and therefore nullable
-    on the wire: the projection may transiently lag behind the event
-    store, or the deps may lack a configured pool (in-memory test
-    mode). Mirrors the Calibration / Method / Plan read DTOs.
+    `registered_at` and `registered_by` are sourced from aggregate
+    state (folded from the genesis envelope per the fold-symmetry
+    Path C reversal); `rotation_started_at` is projection-sourced
+    and therefore nullable on the wire because the projection may
+    transiently lag behind the event store, or the deps may lack a
+    configured pool (in-memory test mode). Mirrors the Calibration /
+    Method / Plan read DTOs.
     """
 
     id: UUID
@@ -53,17 +55,16 @@ class CredentialResponse(BaseModel):
     secret_ref: str
     public_material_ref: str | None
     expires_at: datetime | None
-    registered_by_actor_id: UUID
+    registered_by: UUID
+    registered_at: datetime
     rotation_pending_secret_ref: str | None
     rotation_pending_public_material_ref: str | None
     status: CredentialStatus
-    registered_at: datetime | None = None
     rotation_started_at: datetime | None = None
 
 
 def _response_from_view(
     credential: Credential,
-    registered_at: datetime | None,
     rotation_started_at: datetime | None,
 ) -> CredentialResponse:
     return CredentialResponse(
@@ -74,11 +75,11 @@ def _response_from_view(
         secret_ref=credential.secret_ref,
         public_material_ref=credential.public_material_ref,
         expires_at=credential.expires_at,
-        registered_by_actor_id=credential.registered_by_actor_id,
+        registered_by=credential.registered_by,
+        registered_at=credential.registered_at,
         rotation_pending_secret_ref=credential.rotation_pending_secret_ref,
         rotation_pending_public_material_ref=credential.rotation_pending_public_material_ref,
         status=credential.status,
-        registered_at=registered_at,
         rotation_started_at=rotation_started_at,
     )
 
@@ -130,6 +131,5 @@ async def get_federation_credential(
         )
     return _response_from_view(
         view.credential,
-        view.timestamps.registered_at if view.timestamps is not None else None,
         view.timestamps.rotation_started_at if view.timestamps is not None else None,
     )

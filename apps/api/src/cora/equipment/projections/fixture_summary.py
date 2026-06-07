@@ -29,8 +29,8 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_FIXTURE_SQL = """
 INSERT INTO proj_equipment_fixture_summary
     (fixture_id, assembly_id, assembly_content_hash, surface_id,
-     binding_count, override_count, created_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+     binding_count, override_count, registered_by, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (fixture_id) DO NOTHING
 """
 
@@ -75,6 +75,7 @@ class FixtureSummaryProjection:
                     UUID(str(payload["surface_id"])),
                     len(bindings),
                     len(overrides),
+                    UUID(str(payload["registered_by"])),
                     datetime.fromisoformat(str(payload["occurred_at"])),
                 )
             case "FixturePersistentIdAssigned":

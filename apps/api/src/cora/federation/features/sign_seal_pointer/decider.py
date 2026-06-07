@@ -6,7 +6,7 @@ idempotent (matches the Calibration / Clearance / Supply / Permit
 precedent): signing from a non-Live posture raises
 `SealCannotSignError`.
 
-`signed_by_actor_id` and `now` are handler-injected per the non-
+`signed_by` and `now` are handler-injected per the non-
 determinism principle (capture, don't recompute); the decider is pure:
 state + command + injected non-determinism in, events out. The
 `signed_at` payload field on the emitted event reuses `now` so the
@@ -26,7 +26,6 @@ captured (mirrors Calibration revision `established_at`).
 """
 
 from datetime import datetime
-from uuid import UUID
 
 from cora.federation.aggregates.seal import (
     InvalidSealHeadHashError,
@@ -38,6 +37,7 @@ from cora.federation.aggregates.seal import (
     SealStatus,
 )
 from cora.federation.features.sign_seal_pointer.command import SignSealPointer
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -45,7 +45,7 @@ def decide(
     command: SignSealPointer,
     *,
     now: datetime,
-    signed_by_actor_id: UUID,
+    signed_by: ActorId,
 ) -> list[SealPointerSigned]:
     """Decide the events produced by signing a new head pointer on a Live Seal.
 
@@ -82,7 +82,7 @@ def decide(
             head_hash=head_hash,
             sequence_number=command.new_sequence_number,
             signed_at=now,
-            signed_by_actor_id=signed_by_actor_id,
+            signed_by=signed_by,
             occurred_at=now,
         )
     ]

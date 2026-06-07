@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
     Supply,
@@ -23,6 +24,7 @@ from cora.supply.features.mark_supply_recovering import MarkSupplyRecovering
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = uuid4()
+_ACTOR_ID = ActorId(uuid4())
 
 
 def _supply(status: SupplyStatus) -> Supply:
@@ -41,6 +43,7 @@ def test_decide_emits_event_from_unavailable() -> None:
         state=_supply(SupplyStatus.UNAVAILABLE),
         command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="beam returning"),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events == [
         SupplyMarkedRecovering(
@@ -48,6 +51,7 @@ def test_decide_emits_event_from_unavailable() -> None:
             from_status="Unavailable",
             reason="beam returning",
             trigger="Operator",
+            triggered_by=_ACTOR_ID,
             occurred_at=_NOW,
         )
     ]
@@ -71,6 +75,7 @@ def test_decide_rejects_from_any_non_unavailable_status(
             state=_supply(current_status),
             command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="r"),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )
     assert exc_info.value.current_status == current_status
 
@@ -82,6 +87,7 @@ def test_decide_rejects_when_supply_not_found() -> None:
             state=None,
             command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="r"),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )
 
 
@@ -91,6 +97,7 @@ def test_decide_trims_reason() -> None:
         state=_supply(SupplyStatus.UNAVAILABLE),
         command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="  beam returning  "),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events[0].reason == "beam returning"
 
@@ -101,6 +108,7 @@ def test_decide_hardcodes_trigger_to_operator() -> None:
         state=_supply(SupplyStatus.UNAVAILABLE),
         command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="r"),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events[0].trigger == "Operator"
 
@@ -112,4 +120,5 @@ def test_decide_rejects_empty_reason() -> None:
             state=_supply(SupplyStatus.UNAVAILABLE),
             command=MarkSupplyRecovering(supply_id=_SUPPLY_ID, reason="   "),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )

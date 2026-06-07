@@ -33,6 +33,7 @@ from cora.decision.aggregates.decision import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -42,7 +43,7 @@ _NOW = datetime(2026, 5, 12, 12, 0, 0, tzinfo=UTC)
 def _registered(decision_id: UUID | None = None) -> DecisionRegistered:
     return DecisionRegistered(
         decision_id=decision_id or uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RecipeApproval",
         choice="Approved",
         parent_id=None,
@@ -65,7 +66,8 @@ def _registered(decision_id: UUID | None = None) -> DecisionRegistered:
 def test_decision_logbooks_field_defaults_to_empty_dict() -> None:
     d = Decision(
         id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
+        decided_at=_NOW,
         context=DecisionContext("RecipeApproval"),
         choice=DecisionChoice("Approved"),
     )

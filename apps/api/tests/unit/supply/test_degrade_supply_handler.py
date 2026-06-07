@@ -12,6 +12,7 @@ import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.supply.aggregates.supply import (
     SupplyCannotDegradeError,
@@ -33,6 +34,7 @@ _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000005712")
 _MARK_AVAILABLE_EVENT_ID = UUID("01900000-0000-7000-8000-000000005713")
 _DEGRADE_EVENT_ID = UUID("01900000-0000-7000-8000-000000005714")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_ACTOR_ID = ActorId(_PRINCIPAL_ID)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -43,6 +45,8 @@ async def _seed_available_supply(store: InMemoryEventStore) -> None:
         scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2",
+        trigger="Operator",
+        triggered_by=_ACTOR_ID,
         occurred_at=_PRIOR,
     )
     mark = SupplyMarkedAvailable(
@@ -50,6 +54,7 @@ async def _seed_available_supply(store: InMemoryEventStore) -> None:
         from_status="Unknown",
         reason="walkdown",
         trigger="Operator",
+        triggered_by=_ACTOR_ID,
         occurred_at=_PRIOR,
     )
     for ev, eid, cmd in [
@@ -110,6 +115,7 @@ async def test_handler_appends_supply_degraded_event() -> None:
         "from_status": "Available",
         "reason": "half-current",
         "trigger": "Operator",
+        "triggered_by": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),
     }
 

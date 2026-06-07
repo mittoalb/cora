@@ -41,7 +41,7 @@ _INSERT_PERMIT_SQL = """
 INSERT INTO proj_federation_permit_summary
     (permit_id, peer_facility_id, direction,
      allowed_credential_ids, allowed_payload_types, allowed_artifact_kinds,
-     abi_tier_floor, expires_at, defined_by_actor_id, status, terms_kind,
+     abi_tier_floor, expires_at, defined_by, status, terms_kind,
      read_scope, onward_action_scope, scopes,
      accepted_canonicalization_versions, required_receipt_kinds,
      publisher_grant_correlation_handle, inbound_allowed_artifact_kinds,
@@ -163,7 +163,7 @@ class PermitSummaryProjection:
                     json.dumps(payload["allowed_artifact_kinds"]),
                     payload["abi_tier_floor"],
                     datetime.fromisoformat(payload["expires_at"]),
-                    UUID(payload["defined_by_actor_id"]),
+                    UUID(payload["defined_by"]),
                     terms_cols["terms_kind"],
                     terms_cols["read_scope"],
                     terms_cols["onward_action_scope"],

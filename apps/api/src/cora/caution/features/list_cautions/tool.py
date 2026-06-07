@@ -122,7 +122,7 @@ class CautionSummaryRow(BaseModel):
     severity: CautionSeverity
     text: str = Field(..., max_length=CAUTION_TEXT_MAX_LENGTH)
     workaround: str = Field(..., max_length=CAUTION_WORKAROUND_MAX_LENGTH)
-    author_actor_id: UUID
+    authored_by: UUID
     tags: list[str] = Field(default_factory=list[str])
     expires_at: datetime | None = None
     propagate_to_children: bool = False
@@ -154,7 +154,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "ladder; cannot be combined with severity), `status` (one or "
             "more values; defaults to ['Active']; pass ['all'] to "
             "include every status), `tag` (exact match in the tags "
-            "array), `author_actor_id`. Pass `cursor` from a previous "
+            "array), `authored_by`. Pass `cursor` from a previous "
             "page's `next_cursor` to fetch the next page."
         ),
     )
@@ -217,7 +217,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 description="Optional tag filter (exact match in the tags array).",
             ),
         ] = None,
-        author_actor_id: Annotated[
+        authored_by: Annotated[
             UUID | None,
             Field(description="Optional author filter."),
         ] = None,
@@ -235,7 +235,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 severities=resolved_severities,
                 statuses=resolved_statuses,
                 tag=tag,
-                author_actor_id=author_actor_id,
+                authored_by=authored_by,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
@@ -250,7 +250,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     severity=CautionSeverity(item.severity),
                     text=item.text,
                     workaround=item.workaround,
-                    author_actor_id=item.author_actor_id,
+                    authored_by=item.authored_by,
                     tags=item.tags,
                     expires_at=item.expires_at,
                     propagate_to_children=item.propagate_to_children,

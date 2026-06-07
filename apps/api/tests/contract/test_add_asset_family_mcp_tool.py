@@ -28,6 +28,7 @@ from cora.equipment.aggregates.model.state import (
     ManufacturerName,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 _SEED_NOW = datetime(2026, 5, 10, 11, 0, 0, tzinfo=UTC)
@@ -90,6 +91,7 @@ async def _seed_asset_bound_to_model(
         parent_id=uuid4(),
         occurred_at=_SEED_NOW,
         model_id=model_id,
+        commissioned_by=ActorId(uuid4()),
     )
     new_event = to_new_event(
         event_type=asset_event_type_name(registered),

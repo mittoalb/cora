@@ -83,6 +83,7 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.logbook import LogbookSchema
 from cora.infrastructure.ports.event_store import StoredEvent
 
@@ -452,6 +453,12 @@ class RunAdjusted:
     RunTruncateReason shape; same future-additive structured-taxonomy
     posture (the three documented re-evaluation triggers carry over).
 
+    `adjusted_by` is the ActorId of the principal who issued the
+    adjust command. Folded onto `Run.last_adjusted_by` paired with
+    `last_adjusted_at` per the fold-symmetry rule
+    ([[project_fold_symmetry_design]]). Threaded from the handler's
+    `principal_id` parameter; never derived inside the decider.
+
     `decided_by_decision_id` (optional) is the domain-meaningful
     Decision-causation link to the Decision BC record that justified
     this adjustment. Maps to `prov:wasInformedBy` at the future PROV-O
@@ -477,6 +484,7 @@ class RunAdjusted:
     parameters_patch: dict[str, Any]
     effective_parameters: dict[str, Any]
     reason: str
+    adjusted_by: ActorId
     occurred_at: datetime
     decided_by_decision_id: UUID | None = None
 
@@ -647,6 +655,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
             parameters_patch=parameters_patch,
             effective_parameters=effective_parameters,
             reason=reason,
+            adjusted_by=adjusted_by,
             decided_by_decision_id=decided_by_decision_id,
             occurred_at=occurred_at,
         ):
@@ -655,6 +664,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 "parameters_patch": parameters_patch,
                 "effective_parameters": effective_parameters,
                 "reason": reason,
+                "adjusted_by": str(adjusted_by),
                 "decided_by_decision_id": (
                     str(decided_by_decision_id) if decided_by_decision_id is not None else None
                 ),
@@ -843,12 +853,16 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 # callers omitting the key (None semantically) deserialize
                 # as decided_by_decision_id=None. `parameters_patch` and
                 # `effective_parameters` are always carried (never optional).
+                # `adjusted_by` is REQUIRED per the fold-symmetry rule
+                # (pre-pilot rename; legacy streams pre-date the field but
+                # dev DBs are wiped on migration run).
                 raw_decision_id = payload.get("decided_by_decision_id")
                 return RunAdjusted(
                     run_id=UUID(payload["run_id"]),
                     parameters_patch=payload["parameters_patch"],
                     effective_parameters=payload["effective_parameters"],
                     reason=payload["reason"],
+                    adjusted_by=ActorId(UUID(payload["adjusted_by"])),
                     decided_by_decision_id=(
                         UUID(raw_decision_id) if raw_decision_id is not None else None
                     ),

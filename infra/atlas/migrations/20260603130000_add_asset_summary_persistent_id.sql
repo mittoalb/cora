@@ -43,5 +43,7 @@
 
 ALTER TABLE proj_equipment_asset_summary
     ADD COLUMN commissioned_at TIMESTAMPTZ NULL,
+    ADD COLUMN commissioned_by UUID NULL,
     ADD COLUMN decommissioned_at TIMESTAMPTZ NULL,
+    ADD COLUMN decommissioned_by UUID NULL,
     ADD COLUMN persistent_id JSONB NULL DEFAULT NULL;

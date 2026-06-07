@@ -12,7 +12,7 @@ generated inputs:
   - expires_at <= now always raises InvalidPermitScopeError.
   - Direction.OUTBOUND with InboundTerms (and vice versa) always
     raises InvalidPermitScopeError.
-  - Pure: same (state, command, now, new_id, defined_by_actor_id)
+  - Pure: same (state, command, now, new_id, defined_by)
     returns the same events.
 """
 
@@ -40,6 +40,7 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import define_permit
 from cora.federation.features.define_permit import DefinePermit
+from cora.infrastructure.identity import ActorId
 from tests._strategies import aware_datetimes, printable_ascii_text
 
 if TYPE_CHECKING:
@@ -100,7 +101,8 @@ def _existing_permit(permit_id: UUID, actor_id: UUID) -> Permit:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=datetime(2027, 1, 1, tzinfo=UTC),
-        defined_by_actor_id=actor_id,
+        defined_by=ActorId(actor_id),
+        defined_at=datetime(2026, 1, 1, tzinfo=UTC),
         status=PermitStatus.DEFINED,
         terms=_outbound_terms(),
     )
@@ -145,13 +147,13 @@ def test_define_permit_emits_exactly_one_event_with_injected_fields(
         command=command,
         now=now,
         new_id=new_id,
-        defined_by_actor_id=actor_id,
+        defined_by=ActorId(actor_id),
     )
     assert len(events) == 1
     event = events[0]
     assert event.permit_id == new_id
     assert event.occurred_at == now
-    assert event.defined_by_actor_id == actor_id
+    assert event.defined_by == actor_id
     assert event.peer_facility_id == peer_facility_id
     assert event.direction is Direction.OUTBOUND
     assert event.terms == terms
@@ -197,7 +199,7 @@ def test_define_permit_on_existing_state_always_raises_already_exists(
             command=command,
             now=now,
             new_id=new_id,
-            defined_by_actor_id=actor_id,
+            defined_by=ActorId(actor_id),
         )
     assert exc.value.permit_id == existing_id
 
@@ -243,7 +245,7 @@ def test_define_permit_with_expired_at_in_past_always_raises_invalid_scope(
             command=command,
             now=now,
             new_id=new_id,
-            defined_by_actor_id=actor_id,
+            defined_by=ActorId(actor_id),
         )
 
 
@@ -294,7 +296,7 @@ def test_define_permit_with_direction_mismatched_terms_always_raises(
             command=command,
             now=now,
             new_id=new_id,
-            defined_by_actor_id=actor_id,
+            defined_by=ActorId(actor_id),
         )
 
 
@@ -333,9 +335,9 @@ def test_define_permit_is_pure_same_input_same_output(
         terms=_outbound_terms(),
     )
     first = define_permit.decide(
-        state=None, command=command, now=now, new_id=new_id, defined_by_actor_id=actor_id
+        state=None, command=command, now=now, new_id=new_id, defined_by=ActorId(actor_id)
     )
     second = define_permit.decide(
-        state=None, command=command, now=now, new_id=new_id, defined_by_actor_id=actor_id
+        state=None, command=command, now=now, new_id=new_id, defined_by=ActorId(actor_id)
     )
     assert first == second

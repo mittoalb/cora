@@ -5,7 +5,7 @@ rejection on non-Active source-states (Rotating / Revoked), not-found
 on an unknown credential, ref-shape validation propagation from the
 decider, strict-not-idempotent posture on replay against a now-
 Rotating credential, and the success path's event envelope shape
-(correlation_id, causation_id, and the `rotation_started_by_actor_id`
+(correlation_id, causation_id, and the `rotation_started_by`
 denorm on payload).
 """
 
@@ -104,7 +104,7 @@ async def test_start_credential_rotation_handler_appends_event_to_active_credent
     assert stored.payload["credential_id"] == str(_CREDENTIAL_ID)
     assert stored.payload["pending_secret_ref"] == _PENDING_SECRET_REF
     assert stored.payload["pending_public_material_ref"] == _PENDING_PUBLIC_REF
-    assert stored.payload["rotation_started_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["rotation_started_by"] == str(_PRINCIPAL_ID)
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
@@ -330,9 +330,9 @@ async def test_start_credential_rotation_handler_denied_does_not_write_to_stream
 
 
 @pytest.mark.unit
-async def test_start_credential_rotation_handler_records_rotation_started_by_actor_id() -> None:
+async def test_start_credential_rotation_handler_records_rotation_started_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `rotation_started_by_actor_id` on the emitted event, regardless of
+    `rotation_started_by` on the emitted event, regardless of
     who registered the credential."""
     store = InMemoryEventStore()
     await seed_active_credential(
@@ -353,7 +353,7 @@ async def test_start_credential_rotation_handler_records_rotation_started_by_act
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert events[-1].payload["rotation_started_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rotation_started_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit

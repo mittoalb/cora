@@ -17,7 +17,7 @@ id.
 Idempotency-wrappable per the create-style convention; the
 `with_idempotency` wrap is applied at `wire.py`, not here.
 
-`registered_by_actor_id` is handler-injected from the request
+`registered_by` is handler-injected from the request
 envelope's `principal_id`; not on the command per the
 "no spoofable author" discipline that started with
 `register_caution`.
@@ -53,6 +53,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.register_credential.command import RegisterCredential
 from cora.federation.features.register_credential.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -148,13 +149,13 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
-            registered_by_actor_id=principal_id,
+            registered_by=ActorId(principal_id),
         )
 
         decision_id = deps.id_generator.new_id()
         decision_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=principal_id,
+            decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
             choice=str(new_id),
             parent_id=None,

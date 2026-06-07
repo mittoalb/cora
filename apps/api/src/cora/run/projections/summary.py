@@ -2,7 +2,8 @@
 into the `proj_run_summary` read model that backs `GET /runs`.
 
 Subscribed events (genesis + 6 lifecycle transitions + 2 cross-
-aggregate membership transitions):
+aggregate membership transitions + 1 attribution-stamping
+transition):
   - RunStarted             -> INSERT (status=Running, name + plan_id +
                                       subject_id? + raid? +
                                       override_parameters_present +
@@ -18,6 +19,10 @@ aggregate membership transitions):
                               (post-hoc add via add_run_to_campaign)
   - RunRemovedFromCampaign -> UPDATE campaign_id = NULL
                               (remove via remove_run_from_campaign)
+  - RunAdjusted            -> UPDATE last_adjusted_by = $2
+                              (overwrite-on-each-adjust; mirrors the
+                              aggregate-state attribution-half per
+                              [[project_fold_symmetry_design]])
 
 All branches idempotent. Genesis-event payload values (plan_id,
 subject_id, raid, override_parameters_present, pinned_calibration_ids)
@@ -79,6 +84,12 @@ SET campaign_id = $2, updated_at = now()
 WHERE run_id = $1
 """
 
+_UPDATE_LAST_ADJUSTED_BY_SQL = """
+UPDATE proj_run_summary
+SET last_adjusted_by = $2, updated_at = now()
+WHERE run_id = $1
+"""
+
 _EVENT_TO_STATUS = {
     "RunHeld": "Held",
     "RunResumed": "Running",
@@ -104,6 +115,7 @@ class RunSummaryProjection:
             "RunTruncated",
             "RunAddedToCampaign",
             "RunRemovedFromCampaign",
+            "RunAdjusted",
         }
     )
 
@@ -153,6 +165,13 @@ class RunSummaryProjection:
                 _UPDATE_CAMPAIGN_SQL,
                 UUID(event.payload["run_id"]),
                 None,
+            )
+            return
+        if event.event_type == "RunAdjusted":
+            await conn.execute(
+                _UPDATE_LAST_ADJUSTED_BY_SQL,
+                UUID(event.payload["run_id"]),
+                UUID(event.payload["adjusted_by"]),
             )
             return
         new_status = _EVENT_TO_STATUS.get(event.event_type)

@@ -30,6 +30,7 @@ trigger=Monitor; the same applies to Auto-restore (Watch item 1).
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyCannotMarkAvailableError,
@@ -47,6 +48,7 @@ def decide(
     command: MarkSupplyAvailable,
     *,
     now: datetime,
+    triggered_by: ActorId,
 ) -> list[SupplyMarkedAvailable]:
     """Decide the events produced by marking a registered Supply Available.
 
@@ -56,6 +58,11 @@ def decide(
         -> SupplyCannotMarkAvailableError
       - Reason must be valid -> InvalidSupplyReasonError
         (via SupplyReason VO)
+
+    `triggered_by` is the operator's `ActorId` (operator-only slice;
+    Monitor first-observation is fenced per Anti-hook 2 in
+    [[project_supply_design]]). Folded onto the event payload alongside
+    trigger="Operator" per [[project_fold_symmetry_design]].
     """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
@@ -71,6 +78,7 @@ def decide(
             from_status=state.status.value,
             reason=reason.value,
             trigger=TriggerSource.OPERATOR.value,
+            triggered_by=triggered_by,
             occurred_at=now,
         )
     ]

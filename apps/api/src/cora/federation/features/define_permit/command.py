@@ -21,7 +21,7 @@ Carries the caller-controlled fields for defining a new Permit:
     polymorphism precedent.
 
 Server-side concerns (new permit id, wall-clock timestamp,
-correlation id, per-event ids, `defined_by_actor_id`) are injected
+correlation id, per-event ids, `defined_by`) are injected
 by the handler from infrastructure ports / the request envelope.
 """
 

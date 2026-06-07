@@ -36,6 +36,7 @@ from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
 from cora.infrastructure.identifier import Identifier
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.safety.aggregates.clearance.hazard_classification import (
     GHSPictogram,
@@ -121,7 +122,7 @@ class ClearanceReviewStepAppended:
     clearance_id: UUID
     step_index: int
     role: str
-    actor_id: UUID
+    decided_by: ActorId
     decision: str
     decided_at: datetime
     notes: str | None
@@ -138,7 +139,7 @@ class ClearanceApproved:
     Approving actor's identity lives on the envelope (`StoredEvent.
     principal_id`), not the payload, per cross-BC `RunAborted` /
     `ProcedureAborted` precedent. The projection reads the envelope
-    at apply time to populate `last_reviewed_by_actor_id`.
+    at apply time to populate `last_reviewed_by`.
     """
 
     clearance_id: UUID
@@ -466,7 +467,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
             clearance_id=cid,
             step_index=step_index,
             role=role,
-            actor_id=actor_id,
+            decided_by=decided_by,
             decision=decision,
             decided_at=decided_at,
             notes=notes,
@@ -476,7 +477,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
                 "clearance_id": str(cid),
                 "step_index": step_index,
                 "role": role,
-                "actor_id": str(actor_id),
+                "decided_by": str(decided_by),
                 "decision": decision,
                 "decided_at": decided_at.isoformat(),
                 "notes": notes,
@@ -596,7 +597,7 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                     clearance_id=UUID(payload["clearance_id"]),
                     step_index=payload["step_index"],
                     role=payload["role"],
-                    actor_id=UUID(payload["actor_id"]),
+                    decided_by=ActorId(UUID(payload["decided_by"])),
                     decision=payload["decision"],
                     decided_at=datetime.fromisoformat(payload["decided_at"]),
                     notes=payload.get("notes"),

@@ -107,6 +107,7 @@ async def test_handler_appends_subject_mounted_event() -> None:
         "asset_id": str(asset_id),
         "reason": "",
         "occurred_at": _NOW.isoformat(),
+        "mounted_by": str(_PRINCIPAL_ID),
     }
     assert mounted.event_id == _MOUNT_EVENT_ID
     assert mounted.metadata == {"command": "MountSubject"}

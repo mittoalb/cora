@@ -23,6 +23,7 @@ from cora.decision.aggregates.decision import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 _T0 = datetime(2026, 5, 17, 10, 0, 0, tzinfo=UTC)
@@ -60,7 +61,7 @@ async def _seed_caution_proposal_decision(
     actor_id = CAUTION_DRAFTER_AGENT_ID
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=ActorId(actor_id),
         context=DECISION_CONTEXT_CAUTION_PROPOSAL,
         choice=choice,
         parent_id=None,

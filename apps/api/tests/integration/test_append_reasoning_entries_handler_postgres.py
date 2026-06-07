@@ -32,6 +32,7 @@ from cora.decision.features.append_reasoning_entries import (
 )
 from cora.decision.features.register_decision import RegisterDecision
 from cora.decision.features.register_decision import bind as bind_register_decision
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.integration._helpers import build_postgres_deps, make_pg_profile_store
 
@@ -78,7 +79,7 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
     stream, both rows landed in entries_decision_reasonings with
     typed columns + jsonb intact, and a follow-up append on the
     same Decision skips the open + appends to the same logbook."""
-    actor_id = UUID("01900000-0000-7000-8000-000000088a01")
+    actor_id = ActorId(UUID("01900000-0000-7000-8000-000000088a01"))
     actor_event_id = UUID("01900000-0000-7000-8000-000000088a02")
     decision_id = UUID("01900000-0000-7000-8000-000000088b01")
     decision_event_id = UUID("01900000-0000-7000-8000-000000088b02")
@@ -110,7 +111,7 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
     # Seed Decision.
     returned_decision_id = await bind_register_decision(deps)(
         RegisterDecision(
-            actor_id=actor_id,
+            decided_by=actor_id,
             context="RecipeApproval",
             choice="Approved",
             parent_id=None,
@@ -255,7 +256,7 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
     db_pool: asyncpg.Pool,
 ) -> None:
     """ON CONFLICT (event_id) DO NOTHING: producer retry is no-op."""
-    actor_id = UUID("01900000-0000-7000-8000-000000089a01")
+    actor_id = ActorId(UUID("01900000-0000-7000-8000-000000089a01"))
     actor_event_id = UUID("01900000-0000-7000-8000-000000089a02")
     decision_id = UUID("01900000-0000-7000-8000-000000089b01")
     decision_event_id = UUID("01900000-0000-7000-8000-000000089b02")
@@ -270,7 +271,7 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
     )
     await bind_register_decision(deps)(
         RegisterDecision(
-            actor_id=actor_id,
+            decided_by=actor_id,
             context="RecipeApproval",
             choice="Approved",
             parent_id=None,

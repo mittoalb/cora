@@ -3,7 +3,7 @@
 Reads `proj_caution_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Seven
 optional filters: five scalar (`target_kind` / `target_id` /
-`category` / `tag` / `author_actor_id`) plus two set-membership
+`category` / `tag` / `authored_by`) plus two set-membership
 over scalar columns (`severities` matches `severity`, `statuses`
 matches `status`). Cursor pagination on `(registered_at, caution_id)`.
 
@@ -57,7 +57,7 @@ class CautionSummaryItem:
     severity: str
     text: str
     workaround: str
-    author_actor_id: UUID
+    authored_by: UUID
     tags: list[str]
     expires_at: datetime | None
     propagate_to_children: bool
@@ -92,7 +92,7 @@ class Handler(Protocol):
 
 _SELECT_COLUMNS = (
     "caution_id, target_kind, target_id, category, severity, text, workaround, "
-    "author_actor_id, tags, expires_at, propagate_to_children, "
+    "authored_by, tags, expires_at, propagate_to_children, "
     "status, parent_id, superseded_by_caution_id, retired_reason, "
     "registered_at, last_status_changed_at"
 )
@@ -107,7 +107,7 @@ def _row_to_item(row: Any) -> CautionSummaryItem:
         severity=str(row["severity"]),
         text=str(row["text"]),
         workaround=str(row["workaround"]),
-        author_actor_id=row["author_actor_id"],
+        authored_by=row["authored_by"],
         tags=list(row["tags"]),
         expires_at=row["expires_at"],
         propagate_to_children=bool(row["propagate_to_children"]),
@@ -128,7 +128,7 @@ def _log_fields(query: ListCautions) -> dict[str, Any]:
         "severities": list(query.severities) if query.severities else None,
         "statuses": list(query.statuses) if query.statuses else None,
         "tag": query.tag,
-        "author_actor_id": (str(query.author_actor_id) if query.author_actor_id else None),
+        "authored_by": (str(query.authored_by) if query.authored_by else None),
     }
 
 
@@ -150,7 +150,7 @@ def bind(deps: Kernel) -> Handler:
             ColumnInFilter(attr="severities", column="severity"),
             ColumnInFilter(attr="statuses", column="status"),
             ArrayContainsFilter(attr="tag", column="tags"),
-            ScalarFilter(attr="author_actor_id"),
+            ScalarFilter(attr="authored_by"),
         ],
         row_to_item=_row_to_item,
         item_cursor_at=lambda item: item.registered_at,

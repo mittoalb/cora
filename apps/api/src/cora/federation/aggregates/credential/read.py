@@ -13,10 +13,12 @@ before the decider).
 
 `CredentialLifecycleTimestamps` + `load_credential_timestamps`
 mirror the Calibration / Method / Plan Path C precedent
-(`project_template_aggregate_timestamps`): lifecycle bookkeeping
-timestamps live on the projection, not on the aggregate state, and
+(`project_template_aggregate_timestamps`): the rotation-window
+timestamp lives on the projection, not on the aggregate state, and
 read-side surfaces compose Credential + timestamps into a view
-DTO at the handler layer.
+DTO at the handler layer. Per the Path C reversal locked in
+[[project_fold_symmetry_design]], `registered_at` no longer lives on
+the VO: callers read it directly from `Credential.registered_at`.
 """
 
 from dataclasses import dataclass
@@ -33,7 +35,7 @@ from cora.infrastructure.ports import EventStore
 _STREAM_TYPE = "Credential"
 
 _SELECT_TIMESTAMPS_SQL = """
-SELECT registered_at, rotation_started_at
+SELECT rotation_started_at
 FROM proj_federation_credential_summary
 WHERE credential_id = $1
 """
@@ -41,17 +43,17 @@ WHERE credential_id = $1
 
 @dataclass(frozen=True)
 class CredentialLifecycleTimestamps:
-    """Observed wall-clock timestamps for Credential lifecycle events.
+    """Observed wall-clock timestamps for the rotation lifecycle.
 
-    Sourced from `proj_federation_credential_summary`, not from aggregate state.
-    `registered_at` is set once on `CredentialRegistered` (the envelope
-    `occurred_at` of the genesis event). `rotation_started_at` tracks
-    the most recent `CredentialRotationStarted` envelope `occurred_at`
-    and is cleared on rotation completion or abort, so the projection
-    column is nullable.
+    Sourced from `proj_federation_credential_summary`, not from
+    aggregate state. `rotation_started_at` tracks the most recent
+    `CredentialRotationStarted` envelope `occurred_at` and is cleared
+    on rotation completion or abort, so the projection column is
+    nullable. `registered_at` is no longer carried here per the
+    fold-symmetry Path C reversal; read it from
+    `Credential.registered_at` instead.
     """
 
-    registered_at: datetime
     rotation_started_at: datetime | None
 
 
@@ -79,6 +81,5 @@ async def load_credential_timestamps(
     if row is None:
         return None
     return CredentialLifecycleTimestamps(
-        registered_at=row["registered_at"],
         rotation_started_at=row["rotation_started_at"],
     )

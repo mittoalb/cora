@@ -5,7 +5,7 @@ rejection on Live source-state, not-found on an unknown Seal,
 strict-not-idempotent posture on replay against a now-Live Seal, the
 pairing-invariant and sequence-regression decider rejections
 propagated through the handler, and the success path's event envelope
-shape (correlation_id, causation_id, and the `completed_by_actor_id`
+shape (correlation_id, causation_id, and the `completed_by`
 denorm on payload). The Seal is a per-facility singleton; the handler
 derives the stream UUID deterministically via the canonical
 `seal_stream_id` helper, so handler tests load the stream via the same
@@ -109,7 +109,7 @@ async def test_complete_seal_republishing_handler_appends_event_to_republishing_
     assert stored.payload["facility_id"] == _FACILITY_ID
     assert stored.payload["new_head_hash"] == _NEW_HEAD_HASH
     assert stored.payload["new_sequence_number"] == 1
-    assert stored.payload["completed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["completed_by"] == str(_PRINCIPAL_ID)
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
 
@@ -325,9 +325,9 @@ async def test_complete_seal_republishing_handler_denied_does_not_write_to_strea
 
 
 @pytest.mark.unit
-async def test_complete_seal_republishing_handler_records_completed_by_actor_id() -> None:
+async def test_complete_seal_republishing_handler_records_completed_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `completed_by_actor_id` on the emitted event, regardless of who
+    `completed_by` on the emitted event, regardless of who
     initialized the Seal or started the republish."""
     store = InMemoryEventStore()
     stream_id = _seal_stream_id()
@@ -350,7 +350,7 @@ async def test_complete_seal_republishing_handler_records_completed_by_actor_id(
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Seal", stream_id)
-    assert events[-1].payload["completed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["completed_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit

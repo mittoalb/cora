@@ -6,7 +6,7 @@ re-revoking an already-Revoked permit raises
 `PermitCannotRevokeError` (HTTP 409) per the same convention as
 `deregister_supply` / `mark_supply_available`.
 
-`revoked_by_actor_id` is handler-injected from the request envelope's
+`revoked_by` is handler-injected from the request envelope's
 `principal_id` (capture-don't-recompute) and stamped onto the
 emitted `PermitRevoked` event for the audit denorm.
 
@@ -34,7 +34,7 @@ def decide(
     command: RevokePermit,
     *,
     now: datetime,
-    revoked_by_actor_id: UUID,
+    revoked_by: UUID,
 ) -> list[PermitRevoked]:
     """Decide the events produced by revoking a Permit.
 
@@ -51,7 +51,7 @@ def decide(
     return [
         PermitRevoked(
             permit_id=state.id,
-            revoked_by_actor_id=revoked_by_actor_id,
+            revoked_by=revoked_by,
             occurred_at=now,
             reason=command.reason,
         )

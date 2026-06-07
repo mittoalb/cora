@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
     Supply,
@@ -20,6 +21,7 @@ from cora.supply.features.mark_supply_available import MarkSupplyAvailable
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = uuid4()
+_ACTOR_ID = ActorId(uuid4())
 
 
 def _supply(status: SupplyStatus = SupplyStatus.UNKNOWN) -> Supply:
@@ -38,6 +40,7 @@ def test_decide_emits_supply_marked_available_when_unknown() -> None:
         state=_supply(SupplyStatus.UNKNOWN),
         command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="operator walkdown"),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events == [
         SupplyMarkedAvailable(
@@ -45,6 +48,7 @@ def test_decide_emits_supply_marked_available_when_unknown() -> None:
             from_status="Unknown",
             reason="operator walkdown",
             trigger="Operator",
+            triggered_by=_ACTOR_ID,
             occurred_at=_NOW,
         )
     ]
@@ -56,6 +60,7 @@ def test_decide_trims_reason() -> None:
         state=_supply(SupplyStatus.UNKNOWN),
         command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="  control room confirms  "),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events[0].reason == "control room confirms"
 
@@ -67,8 +72,10 @@ def test_decide_hardcodes_trigger_to_operator() -> None:
         state=_supply(SupplyStatus.UNKNOWN),
         command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="r"),
         now=_NOW,
+        triggered_by=_ACTOR_ID,
     )
     assert events[0].trigger == "Operator"
+    assert events[0].triggered_by == _ACTOR_ID
 
 
 @pytest.mark.unit
@@ -78,6 +85,7 @@ def test_decide_rejects_when_supply_not_found() -> None:
             state=None,
             command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="r"),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )
     assert exc_info.value.supply_id == _SUPPLY_ID
 
@@ -100,6 +108,7 @@ def test_decide_rejects_when_status_is_not_unknown(current_status: SupplyStatus)
             state=_supply(current_status),
             command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="r"),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )
     assert exc_info.value.current_status == current_status
 
@@ -111,6 +120,7 @@ def test_decide_rejects_empty_reason() -> None:
             state=_supply(SupplyStatus.UNKNOWN),
             command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="   "),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )
 
 
@@ -121,4 +131,5 @@ def test_decide_rejects_too_long_reason() -> None:
             state=_supply(SupplyStatus.UNKNOWN),
             command=MarkSupplyAvailable(supply_id=_SUPPLY_ID, reason="a" * 501),
             now=_NOW,
+            triggered_by=_ACTOR_ID,
         )

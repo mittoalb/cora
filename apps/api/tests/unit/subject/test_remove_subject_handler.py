@@ -132,6 +132,7 @@ async def test_handler_appends_subject_removed_event_from_mounted() -> None:
     assert removed.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "removed_by": str(_PRINCIPAL_ID),
     }
     # Skipping measure means the third id from the FixedIdGenerator
     # (intended for SubjectMeasured) is consumed by SubjectRemoved.

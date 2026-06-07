@@ -15,7 +15,7 @@ ExternalRefBinding entries are returned only when filters other than
 Fetch by id via `get_clearance` when ExternalRefBinding inspection is
 required.
 
-**Reviewers chain is NOT in the response** (`last_reviewed_by_actor_id`
+**Reviewers chain is NOT in the response** (`last_reviewed_by`
 is the only reviewer field surfaced; the full review_steps tuple lives on
 the aggregate stream). Fetch by id via `get_clearance` when the chain
 is needed.
@@ -83,7 +83,7 @@ class ClearanceSummaryDTO(BaseModel):
     registered_at: datetime
     last_status_changed_at: datetime | None = None
     last_status_reason: str | None = None
-    last_reviewed_by_actor_id: UUID | None = None
+    last_reviewed_by: UUID | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     next_review_due_at: datetime | None = None
@@ -210,7 +210,7 @@ async def list_clearances(
                 registered_at=item.registered_at,
                 last_status_changed_at=item.last_status_changed_at,
                 last_status_reason=item.last_status_reason,
-                last_reviewed_by_actor_id=item.last_reviewed_by_actor_id,
+                last_reviewed_by=item.last_reviewed_by,
                 valid_from=item.valid_from,
                 valid_until=item.valid_until,
                 next_review_due_at=item.next_review_due_at,

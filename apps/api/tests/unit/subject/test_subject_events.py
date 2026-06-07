@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.subject.aggregates.subject.events import (
     SubjectDiscarded,
@@ -21,6 +22,7 @@ from cora.subject.aggregates.subject.events import (
 )
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 
 
 def _stored(
@@ -29,7 +31,7 @@ def _stored(
     *,
     stream_id: object | None = None,
 ) -> StoredEvent:
-    """Build a StoredEvent shell — only event_type + payload are read by from_stored."""
+    """Build a StoredEvent shell -- only event_type + payload are read by from_stored."""
     return StoredEvent(
         position=1,
         event_id=uuid4(),
@@ -48,18 +50,23 @@ def _stored(
 
 @pytest.mark.unit
 def test_event_type_name_returns_class_name() -> None:
-    event = SubjectRegistered(subject_id=uuid4(), name="Sample-A1", occurred_at=_NOW)
+    event = SubjectRegistered(
+        subject_id=uuid4(), name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+    )
     assert event_type_name(event) == "SubjectRegistered"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_registered_to_primitives() -> None:
     subject_id = uuid4()
-    event = SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW)
+    event = SubjectRegistered(
+        subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+    )
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "name": "Sample-A1",
         "occurred_at": _NOW.isoformat(),
+        "registered_by": str(_ACTOR),
     }
 
 
@@ -72,16 +79,21 @@ def test_from_stored_rebuilds_subject_registered() -> None:
             "subject_id": str(subject_id),
             "name": "Sample-A1",
             "occurred_at": _NOW.isoformat(),
+            "registered_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectRegistered(subject_id=subject_id, name="Sample-A1", occurred_at=_NOW)
+    assert rebuilt == SubjectRegistered(
+        subject_id=subject_id, name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+    )
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips() -> None:
     """Round-trip safety net: the (de)serialization pair must be each other's inverse."""
-    original = SubjectRegistered(subject_id=uuid4(), name="Sample-A1", occurred_at=_NOW)
+    original = SubjectRegistered(
+        subject_id=uuid4(), name="Sample-A1", occurred_at=_NOW, registered_by=_ACTOR
+    )
     stored = _stored("SubjectRegistered", to_payload(original))
     assert from_stored(stored) == original
 
@@ -99,13 +111,15 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_mounted_class_name() -> None:
-    event = SubjectMounted(subject_id=uuid4(), asset_id=uuid4(), reason="", occurred_at=_NOW)
+    event = SubjectMounted(
+        subject_id=uuid4(), asset_id=uuid4(), reason="", occurred_at=_NOW, mounted_by=_ACTOR
+    )
     assert event_type_name(event) == "SubjectMounted"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_mounted_to_primitives() -> None:
-    """Status NOT in payload — event type encodes the state change.
+    """Status NOT in payload -- event type encodes the state change.
     `asset_id` IS in payload (load-bearing for "where is sample X?"
     downstream queries). `reason` (4f) IS in payload."""
     subject_id = uuid4()
@@ -115,12 +129,14 @@ def test_to_payload_serializes_subject_mounted_to_primitives() -> None:
         asset_id=asset_id,
         reason="loaded for run 1234",
         occurred_at=_NOW,
+        mounted_by=_ACTOR,
     )
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "asset_id": str(asset_id),
         "reason": "loaded for run 1234",
         "occurred_at": _NOW.isoformat(),
+        "mounted_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
 
@@ -136,6 +152,7 @@ def test_from_stored_rebuilds_subject_mounted() -> None:
             "asset_id": str(asset_id),
             "reason": "loaded for run 1234",
             "occurred_at": _NOW.isoformat(),
+            "mounted_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
@@ -144,6 +161,7 @@ def test_from_stored_rebuilds_subject_mounted() -> None:
         asset_id=asset_id,
         reason="loaded for run 1234",
         occurred_at=_NOW,
+        mounted_by=_ACTOR,
     )
 
 
@@ -160,6 +178,7 @@ def test_from_stored_rebuilds_subject_mounted_with_empty_reason_for_pre_4f_event
             "asset_id": str(asset_id),
             # reason key intentionally absent
             "occurred_at": _NOW.isoformat(),
+            "mounted_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
@@ -169,7 +188,9 @@ def test_from_stored_rebuilds_subject_mounted_with_empty_reason_for_pre_4f_event
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_mounted() -> None:
-    original = SubjectMounted(subject_id=uuid4(), asset_id=uuid4(), reason="", occurred_at=_NOW)
+    original = SubjectMounted(
+        subject_id=uuid4(), asset_id=uuid4(), reason="", occurred_at=_NOW, mounted_by=_ACTOR
+    )
     stored = _stored("SubjectMounted", to_payload(original))
     assert from_stored(stored) == original
 
@@ -179,7 +200,7 @@ def test_to_payload_then_from_stored_round_trips_for_subject_mounted() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_measured_class_name() -> None:
-    event = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW, measured_by=_ACTOR)
     assert event_type_name(event) == "SubjectMeasured"
 
 
@@ -189,10 +210,11 @@ def test_to_payload_serializes_subject_measured_to_primitives() -> None:
     convention as SubjectMounted; pinned per-event-class so an additive
     payload field on Measured is a deliberate change."""
     subject_id = uuid4()
-    event = SubjectMeasured(subject_id=subject_id, occurred_at=_NOW)
+    event = SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "measured_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
 
@@ -205,15 +227,16 @@ def test_from_stored_rebuilds_subject_measured() -> None:
         {
             "subject_id": str(subject_id),
             "occurred_at": _NOW.isoformat(),
+            "measured_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectMeasured(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectMeasured(subject_id=subject_id, occurred_at=_NOW, measured_by=_ACTOR)
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_measured() -> None:
-    original = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectMeasured(subject_id=uuid4(), occurred_at=_NOW, measured_by=_ACTOR)
     stored = _stored("SubjectMeasured", to_payload(original))
     assert from_stored(stored) == original
 
@@ -223,21 +246,22 @@ def test_to_payload_then_from_stored_round_trips_for_subject_measured() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_removed_class_name() -> None:
-    event = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW, removed_by=_ACTOR)
     assert event_type_name(event) == "SubjectRemoved"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_removed_to_primitives() -> None:
-    """Status NOT in payload — multi-source-to-single-target transitions
+    """Status NOT in payload -- multi-source-to-single-target transitions
     are still encoded by event TYPE alone. The decider's source-state
     guard is what enforces Mounted | Measured at command time; the
     event itself doesn't need to record where it came from."""
     subject_id = uuid4()
-    event = SubjectRemoved(subject_id=subject_id, occurred_at=_NOW)
+    event = SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "removed_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
     assert "from_status" not in to_payload(event)
@@ -251,15 +275,16 @@ def test_from_stored_rebuilds_subject_removed() -> None:
         {
             "subject_id": str(subject_id),
             "occurred_at": _NOW.isoformat(),
+            "removed_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectRemoved(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectRemoved(subject_id=subject_id, occurred_at=_NOW, removed_by=_ACTOR)
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_removed() -> None:
-    original = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectRemoved(subject_id=uuid4(), occurred_at=_NOW, removed_by=_ACTOR)
     stored = _stored("SubjectRemoved", to_payload(original))
     assert from_stored(stored) == original
 
@@ -269,20 +294,21 @@ def test_to_payload_then_from_stored_round_trips_for_subject_removed() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_returned_class_name() -> None:
-    event = SubjectReturned(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectReturned(subject_id=uuid4(), occurred_at=_NOW, returned_by=_ACTOR)
     assert event_type_name(event) == "SubjectReturned"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_returned_to_primitives() -> None:
-    """Status NOT in payload — terminal disposition events still
+    """Status NOT in payload -- terminal disposition events still
     encode the state change by event TYPE alone, same as the
     earlier transitions."""
     subject_id = uuid4()
-    event = SubjectReturned(subject_id=subject_id, occurred_at=_NOW)
+    event = SubjectReturned(subject_id=subject_id, occurred_at=_NOW, returned_by=_ACTOR)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "returned_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
 
@@ -295,15 +321,16 @@ def test_from_stored_rebuilds_subject_returned() -> None:
         {
             "subject_id": str(subject_id),
             "occurred_at": _NOW.isoformat(),
+            "returned_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectReturned(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectReturned(subject_id=subject_id, occurred_at=_NOW, returned_by=_ACTOR)
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_returned() -> None:
-    original = SubjectReturned(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectReturned(subject_id=uuid4(), occurred_at=_NOW, returned_by=_ACTOR)
     stored = _stored("SubjectReturned", to_payload(original))
     assert from_stored(stored) == original
 
@@ -313,17 +340,18 @@ def test_to_payload_then_from_stored_round_trips_for_subject_returned() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_stored_class_name() -> None:
-    event = SubjectStored(subject_id=uuid4(), occurred_at=_NOW)
+    event = SubjectStored(subject_id=uuid4(), occurred_at=_NOW, stored_by=_ACTOR)
     assert event_type_name(event) == "SubjectStored"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_stored_to_primitives() -> None:
     subject_id = uuid4()
-    event = SubjectStored(subject_id=subject_id, occurred_at=_NOW)
+    event = SubjectStored(subject_id=subject_id, occurred_at=_NOW, stored_by=_ACTOR)
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "stored_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
 
@@ -336,15 +364,16 @@ def test_from_stored_rebuilds_subject_stored() -> None:
         {
             "subject_id": str(subject_id),
             "occurred_at": _NOW.isoformat(),
+            "stored_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == SubjectStored(subject_id=subject_id, occurred_at=_NOW)
+    assert rebuilt == SubjectStored(subject_id=subject_id, occurred_at=_NOW, stored_by=_ACTOR)
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_stored() -> None:
-    original = SubjectStored(subject_id=uuid4(), occurred_at=_NOW)
+    original = SubjectStored(subject_id=uuid4(), occurred_at=_NOW, stored_by=_ACTOR)
     stored = _stored("SubjectStored", to_payload(original))
     assert from_stored(stored) == original
 
@@ -354,18 +383,26 @@ def test_to_payload_then_from_stored_round_trips_for_subject_stored() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_subject_discarded_class_name() -> None:
-    event = SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW)
+    event = SubjectDiscarded(
+        subject_id=uuid4(), reason="contaminated", occurred_at=_NOW, discarded_by=_ACTOR
+    )
     assert event_type_name(event) == "SubjectDiscarded"
 
 
 @pytest.mark.unit
 def test_to_payload_serializes_subject_discarded_to_primitives() -> None:
     subject_id = uuid4()
-    event = SubjectDiscarded(subject_id=subject_id, reason="contaminated", occurred_at=_NOW)
+    event = SubjectDiscarded(
+        subject_id=subject_id,
+        reason="contaminated",
+        occurred_at=_NOW,
+        discarded_by=_ACTOR,
+    )
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "reason": "contaminated",
         "occurred_at": _NOW.isoformat(),
+        "discarded_by": str(_ACTOR),
     }
     assert "status" not in to_payload(event)
 
@@ -379,17 +416,26 @@ def test_from_stored_rebuilds_subject_discarded() -> None:
             "subject_id": str(subject_id),
             "reason": "contaminated",
             "occurred_at": _NOW.isoformat(),
+            "discarded_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
     assert rebuilt == SubjectDiscarded(
-        subject_id=subject_id, reason="contaminated", occurred_at=_NOW
+        subject_id=subject_id,
+        reason="contaminated",
+        occurred_at=_NOW,
+        discarded_by=_ACTOR,
     )
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_subject_discarded() -> None:
-    original = SubjectDiscarded(subject_id=uuid4(), reason="contaminated", occurred_at=_NOW)
+    original = SubjectDiscarded(
+        subject_id=uuid4(),
+        reason="contaminated",
+        occurred_at=_NOW,
+        discarded_by=_ACTOR,
+    )
     stored = _stored("SubjectDiscarded", to_payload(original))
     assert from_stored(stored) == original
 
@@ -400,7 +446,11 @@ def test_to_payload_then_from_stored_round_trips_for_subject_discarded() -> None
 @pytest.mark.unit
 def test_event_type_name_returns_subject_dismounted_class_name() -> None:
     event = SubjectDismounted(
-        subject_id=uuid4(), from_asset_id=uuid4(), reason="x", occurred_at=_NOW
+        subject_id=uuid4(),
+        from_asset_id=uuid4(),
+        reason="x",
+        occurred_at=_NOW,
+        dismounted_by=_ACTOR,
     )
     assert event_type_name(event) == "SubjectDismounted"
 
@@ -414,12 +464,14 @@ def test_to_payload_serializes_subject_dismounted() -> None:
         from_asset_id=asset_id,
         reason="run complete",
         occurred_at=_NOW,
+        dismounted_by=_ACTOR,
     )
     assert to_payload(event) == {
         "subject_id": str(subject_id),
         "from_asset_id": str(asset_id),
         "reason": "run complete",
         "occurred_at": _NOW.isoformat(),
+        "dismounted_by": str(_ACTOR),
     }
 
 
@@ -434,6 +486,7 @@ def test_from_stored_rebuilds_subject_dismounted() -> None:
             "from_asset_id": str(asset_id),
             "reason": "moving to next stage",
             "occurred_at": _NOW.isoformat(),
+            "dismounted_by": str(_ACTOR),
         },
     )
     rebuilt = from_stored(stored)
@@ -442,13 +495,18 @@ def test_from_stored_rebuilds_subject_dismounted() -> None:
         from_asset_id=asset_id,
         reason="moving to next stage",
         occurred_at=_NOW,
+        dismounted_by=_ACTOR,
     )
 
 
 @pytest.mark.unit
 def test_round_trip_for_subject_dismounted() -> None:
     original = SubjectDismounted(
-        subject_id=uuid4(), from_asset_id=uuid4(), reason="x", occurred_at=_NOW
+        subject_id=uuid4(),
+        from_asset_id=uuid4(),
+        reason="x",
+        occurred_at=_NOW,
+        dismounted_by=_ACTOR,
     )
     stored = _stored("SubjectDismounted", to_payload(original))
     assert from_stored(stored) == original

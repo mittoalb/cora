@@ -4,27 +4,27 @@ into the `proj_safety_clearance_summary` read model that backs
 
 Subscribed events:
   - ClearanceRegistered          -> INSERT (status='Defined', last_status_*=NULL,
-                                            last_reviewed_by_actor_id=NULL)
+                                            last_reviewed_by=NULL)
   - ClearanceSubmitted           -> UPDATE status='Submitted'   + status-change ts
   - ClearanceReviewStarted       -> UPDATE status='UnderReview' + status-change ts
   - ClearanceReviewStepAppended  -> NO-OP (review_steps chain lives on aggregate
                                            stream only; not surfaced in list view)
   - ClearanceApproved            -> UPDATE status='Approved'
                                           + status-change ts
-                                          + last_reviewed_by_actor_id (read from
+                                          + last_reviewed_by (read from
                                             StoredEvent.principal_id envelope)
                                           + valid_from / valid_until (if provided)
   - ClearanceRejected            -> UPDATE status='Rejected'
                                           + status-change ts
                                           + last_status_reason
-                                          + last_reviewed_by_actor_id (read from
+                                          + last_reviewed_by (read from
                                             StoredEvent.principal_id envelope)
   - ClearanceActivated           -> UPDATE status='Active'     + status-change ts
 
-The Approved/Rejected arms denormalize `last_reviewed_by_actor_id`
+The Approved/Rejected arms denormalize `last_reviewed_by`
 from the event envelope (`StoredEvent.principal_id`) rather than the
 payload. The aggregate state itself no longer carries
-`last_reviewed_by_actor_id` (per actor-id-duplication cleanup in
+`last_reviewed_by` (per actor-id-duplication cleanup in
 11a-c-1); the projection column remains for list-view queries.
 
 11a-c will add `ClearanceExpired` and `ClearanceSuperseded` arms; the
@@ -53,7 +53,7 @@ INSERT INTO proj_safety_clearance_summary
      risk_band,
      subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids,
      parent_id, registered_at,
-     last_status_changed_at, last_status_reason, last_reviewed_by_actor_id,
+     last_status_changed_at, last_status_reason, last_reviewed_by,
      valid_from, valid_until, next_review_due_at)
 VALUES ($1, $2, $3, $4, $5, 'Defined',
         $6,
@@ -84,7 +84,7 @@ _UPDATE_APPROVED_SQL = """
 UPDATE proj_safety_clearance_summary
 SET status = 'Approved',
     last_status_changed_at = $2,
-    last_reviewed_by_actor_id = $3,
+    last_reviewed_by = $3,
     valid_from = COALESCE($4, valid_from),
     valid_until = COALESCE($5, valid_until),
     updated_at = now()
@@ -96,7 +96,7 @@ UPDATE proj_safety_clearance_summary
 SET status = 'Rejected',
     last_status_changed_at = $2,
     last_status_reason = $3,
-    last_reviewed_by_actor_id = $4,
+    last_reviewed_by = $4,
     updated_at = now()
 WHERE clearance_id = $1
 """

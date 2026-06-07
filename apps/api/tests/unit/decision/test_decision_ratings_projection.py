@@ -47,7 +47,7 @@ def _decision_rated_event(
             "decision_id": str(_DECISION_ID),
             "rating": rating,
             "comment": comment,
-            "rated_by_actor_id": str(_RATER_ID),
+            "rated_by": str(_RATER_ID),
             "rated_at": _T0.isoformat(),
             "occurred_at": _T0.isoformat(),
             "confidence_at_rating": confidence,
@@ -79,8 +79,8 @@ async def test_apply_upserts_rating_with_payload_borne_confidence() -> None:
     assert args is not None
     sql = args.args[0]
     assert "INSERT INTO proj_decision_ratings" in sql
-    assert "ON CONFLICT (decision_id, rated_by_actor_id) DO UPDATE" in sql
-    # Args (positional): decision_id, rated_by_actor_id, rating, comment, rated_at, confidence
+    assert "ON CONFLICT (decision_id, rated_by) DO UPDATE" in sql
+    # Args (positional): decision_id, rated_by, rating, comment, rated_at, confidence
     assert args.args[1] == _DECISION_ID
     assert args.args[2] == _RATER_ID
     assert args.args[3] == "useful"
@@ -130,7 +130,7 @@ async def test_apply_missing_confidence_field_falls_back_to_none() -> None:
             "decision_id": str(_DECISION_ID),
             "rating": "useful",
             "comment": None,
-            "rated_by_actor_id": str(_RATER_ID),
+            "rated_by": str(_RATER_ID),
             "rated_at": _T0.isoformat(),
             "occurred_at": _T0.isoformat(),
             # No "confidence_at_rating"

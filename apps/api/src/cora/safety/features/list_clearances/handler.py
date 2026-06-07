@@ -50,7 +50,7 @@ class ClearanceSummaryItem:
     registered_at: datetime
     last_status_changed_at: datetime | None
     last_status_reason: str | None
-    last_reviewed_by_actor_id: UUID | None
+    last_reviewed_by: UUID | None
     valid_from: datetime | None
     valid_until: datetime | None
     next_review_due_at: datetime | None
@@ -81,7 +81,7 @@ _SELECT_COLUMNS = (
     "clearance_id, kind, facility_asset_id, title, external_id, status, risk_band, "
     "subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids, "
     "parent_id, registered_at, "
-    "last_status_changed_at, last_status_reason, last_reviewed_by_actor_id, "
+    "last_status_changed_at, last_status_reason, last_reviewed_by, "
     "valid_from, valid_until, next_review_due_at"
 )
 
@@ -105,7 +105,7 @@ def _row_to_item(row: Any) -> ClearanceSummaryItem:
         last_status_reason=(
             str(row["last_status_reason"]) if row["last_status_reason"] is not None else None
         ),
-        last_reviewed_by_actor_id=row["last_reviewed_by_actor_id"],
+        last_reviewed_by=row["last_reviewed_by"],
         valid_from=row["valid_from"],
         valid_until=row["valid_until"],
         next_review_due_at=row["next_review_due_at"],

@@ -39,6 +39,7 @@ from cora.decision.features.rate_decision import RateDecision
 from cora.decision.features.register_decision import RegisterDecision
 from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -89,7 +90,7 @@ async def test_rate_decision_end_to_end_persists_and_projects(
 
     decision_id = await register_decision.bind(deps)(
         RegisterDecision(
-            actor_id=actor_id,
+            decided_by=ActorId(actor_id),
             context="RunDebrief",
             choice="NominalCompletion",
             confidence=0.82,
@@ -127,7 +128,7 @@ async def test_rate_decision_end_to_end_persists_and_projects(
             """
             SELECT rating, comment, confidence_at_rating
               FROM proj_decision_ratings
-             WHERE decision_id = $1 AND rated_by_actor_id = $2
+             WHERE decision_id = $1 AND rated_by = $2
             """,
             decision_id,
             _PRINCIPAL_ID,
@@ -152,7 +153,7 @@ async def test_rerating_same_decision_updates_projection_in_place(
 
     decision_id = await register_decision.bind(deps)(
         RegisterDecision(
-            actor_id=actor_id,
+            decided_by=ActorId(actor_id),
             context="RunDebrief",
             choice="NominalCompletion",
         ),
@@ -190,13 +191,13 @@ async def test_rerating_same_decision_updates_projection_in_place(
     await _drain(db_pool)
 
     # Projection has exactly one row, with the latest rating AND
-    # the original rated_by_actor_id (gate-review test-coverage P1-2:
+    # the original rated_by (gate-review test-coverage P1-2:
     # pin the composite-PK identity rather than implicitly trusting
     # the SELECT filter).
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT rating, comment, rated_by_actor_id
+            SELECT rating, comment, rated_by
               FROM proj_decision_ratings
              WHERE decision_id = $1
             """,
@@ -205,7 +206,7 @@ async def test_rerating_same_decision_updates_projection_in_place(
     assert len(rows) == 1
     assert rows[0]["rating"] == "useful"
     assert rows[0]["comment"] == "on second look this was right"
-    assert rows[0]["rated_by_actor_id"] == _PRINCIPAL_ID
+    assert rows[0]["rated_by"] == _PRINCIPAL_ID
 
     # Stream has both rating events (audit trail).
     events, version = await deps.event_store.load("Decision", decision_id)

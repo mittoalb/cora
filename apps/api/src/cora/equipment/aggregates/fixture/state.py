@@ -28,6 +28,7 @@ from typing import Any
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import PersistentIdentifier
+from cora.infrastructure.identity import ActorId
 
 
 @dataclass(frozen=True)
@@ -71,6 +72,12 @@ class Fixture:
     )
     parameter_overrides: dict[str, Any] = field(default_factory=dict[str, Any])
     registered_at: datetime | None = None
+    # Fold-symmetry attribution paired with `registered_at` per
+    # [[project-fold-symmetry-design]]. `registered_by` is folded from
+    # `FixtureRegistered.registered_by` (the principal that issued the
+    # register_fixture command). Default-None so legacy streams fold
+    # cleanly via the additive-state pattern.
+    registered_by: ActorId | None = None
     # PIDINST v1.0 Property 1 persistent identifier (DOI or Handle).
     # Data-substrate field landed ahead of the write path (mirrors slice
     # E.1's Asset.commissioned_at pattern). Reads None at end-of-fold

@@ -36,7 +36,7 @@ class RevisionOutput(BaseModel):
         ..., discriminator="kind"
     )
     established_at: datetime
-    established_by_actor_id: UUID
+    established_by: UUID
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
 
@@ -44,10 +44,10 @@ class RevisionOutput(BaseModel):
 class GetCalibrationOutput(BaseModel):
     """Structured output of the `get_calibration` MCP tool.
 
-    Per Path C, `defined_at` / `last_revised_at` are projection-
-    sourced (not aggregate state) and nullable on the wire when
-    the projection lags or the deps lack a pool (in-memory test
-    mode). Mirrors the REST `CalibrationResponse` shape.
+    `defined_at` is folded on the aggregate per the fold-symmetry rule;
+    `last_revised_at` remains projection-sourced and nullable on the
+    wire when the projection lags or the deps lack a pool (in-memory
+    test mode). Mirrors the REST `CalibrationResponse` shape.
     """
 
     id: UUID
@@ -56,9 +56,9 @@ class GetCalibrationOutput(BaseModel):
     operating_point: dict[str, Any]
     description: str | None
     revisions: list[RevisionOutput]
-    defined_at: datetime | None = None
+    defined_at: datetime
     last_revised_at: datetime | None = None
-    defined_by_actor_id: UUID
+    defined_by: UUID
 
 
 def _revision_output(revision: CalibrationRevision) -> RevisionOutput:
@@ -68,7 +68,7 @@ def _revision_output(revision: CalibrationRevision) -> RevisionOutput:
         status=revision.status,
         source=dto_from_source(revision.source),
         established_at=revision.established_at,
-        established_by_actor_id=revision.established_by_actor_id,
+        established_by=revision.established_by,
         decided_by_decision_id=revision.decided_by_decision_id,
         supersedes_revision_id=revision.supersedes_revision_id,
     )
@@ -76,7 +76,6 @@ def _revision_output(revision: CalibrationRevision) -> RevisionOutput:
 
 def _output_from_view(
     calibration: Calibration,
-    defined_at: datetime | None,
     last_revised_at: datetime | None,
 ) -> GetCalibrationOutput:
     return GetCalibrationOutput(
@@ -86,9 +85,9 @@ def _output_from_view(
         operating_point=calibration.operating_point,
         description=calibration.description,
         revisions=[_revision_output(r) for r in calibration.revisions],
-        defined_at=defined_at,
+        defined_at=calibration.defined_at,
         last_revised_at=last_revised_at,
-        defined_by_actor_id=calibration.defined_by_actor_id,
+        defined_by=calibration.defined_by,
     )
 
 
@@ -122,6 +121,5 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             return None
         return _output_from_view(
             view.calibration,
-            view.timestamps.defined_at if view.timestamps is not None else None,
             view.timestamps.last_revised_at if view.timestamps is not None else None,
         )

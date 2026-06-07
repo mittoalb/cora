@@ -14,6 +14,7 @@ from cora.decision.aggregates.decision import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -39,7 +40,7 @@ def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
 def _registered(**overrides: Any) -> DecisionRegistered:
     base: dict[str, Any] = {
         "decision_id": uuid4(),
-        "actor_id": uuid4(),
+        "decided_by": ActorId(uuid4()),
         "context": "RecipeApproval",
         "choice": "Approved",
         "parent_id": None,
@@ -65,11 +66,11 @@ def test_event_type_name_returns_class_name() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_minimal_event() -> None:
     decision_id = uuid4()
-    actor_id = uuid4()
-    payload = to_payload(_registered(decision_id=decision_id, actor_id=actor_id))
+    decided_by = ActorId(uuid4())
+    payload = to_payload(_registered(decision_id=decision_id, decided_by=decided_by))
     assert payload == {
         "decision_id": str(decision_id),
-        "actor_id": str(actor_id),
+        "decided_by": str(decided_by),
         "context": "RecipeApproval",
         "choice": "Approved",
         "parent_id": None,
@@ -95,12 +96,12 @@ def test_to_payload_preserves_alternatives_order() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_full_event() -> None:
     decision_id = uuid4()
-    actor_id = uuid4()
+    decided_by = ActorId(uuid4())
     parent_id = uuid4()
     inputs = {"measured_value": 1.234, "limit": 1.5}
     event = _registered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=decided_by,
         parent_id=parent_id,
         override_kind="exception",
         rule="iso17025:7.1.3:simple_acceptance",
@@ -189,9 +190,9 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 def test_round_trip_preserves_uuid_field_types() -> None:
     """UUID fields survive str/UUID conversion through jsonb."""
     decision_id = UUID("01900000-0000-7000-8000-000000099001")
-    actor_id = UUID("01900000-0000-7000-8000-000000099002")
+    decided_by = ActorId(UUID("01900000-0000-7000-8000-000000099002"))
     parent_id = UUID("01900000-0000-7000-8000-000000099003")
-    original = _registered(decision_id=decision_id, actor_id=actor_id, parent_id=parent_id)
+    original = _registered(decision_id=decision_id, decided_by=decided_by, parent_id=parent_id)
     new_event = to_new_event(
         event_type=event_type_name(original),
         payload=to_payload(original),
@@ -219,7 +220,7 @@ def test_round_trip_preserves_uuid_field_types() -> None:
     rebuilt = from_stored(stored)
     assert isinstance(rebuilt, DecisionRegistered)
     assert rebuilt.decision_id == decision_id
-    assert rebuilt.actor_id == actor_id
+    assert rebuilt.decided_by == decided_by
     assert rebuilt.parent_id == parent_id
 
 

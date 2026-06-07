@@ -9,7 +9,7 @@ HTTP-layer caching adds no value when the decider rejects replays.
 
 Delegates to `make_permit_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `revoked_by_actor_id`.
+under `revoked_by`.
 """
 
 from typing import Protocol
@@ -43,5 +43,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="RevokePermit",
         log_prefix="revoke_permit",
         decide_fn=decide,
-        actor_kwarg="revoked_by_actor_id",
+        actor_kwarg="revoked_by",
     )

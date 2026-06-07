@@ -21,6 +21,7 @@ from cora.data.features import discard_dataset
 from cora.data.features.discard_dataset import DiscardDataset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
@@ -29,6 +30,7 @@ _DATASET_ID = UUID("01900000-0000-7000-8000-000000007b01")
 _DISCARD_EVENT_ID = UUID("01900000-0000-7000-8000-000000007b02")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_SEED_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-0000000000bb"))
 
 
 async def _seed_registered(store: InMemoryEventStore, dataset_id: UUID) -> None:
@@ -45,6 +47,7 @@ async def _seed_registered(store: InMemoryEventStore, dataset_id: UUID) -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_SEED_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=event_type_name(event),
@@ -93,6 +96,7 @@ async def test_handler_appends_discarded_with_trimmed_reason() -> None:
         "dataset_id": str(_DATASET_ID),
         "reason": "bytes purged from S3 per request",
         "occurred_at": _NOW.isoformat(),
+        "discarded_by": str(_PRINCIPAL_ID),
     }
 
 

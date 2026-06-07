@@ -70,6 +70,7 @@ async def test_measure_subject_persists_event_to_postgres(
     assert measured.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "measured_by": str(_PRINCIPAL_ID),
     }
     assert measured.correlation_id == _CORRELATION_ID
     assert measured.causation_id is None

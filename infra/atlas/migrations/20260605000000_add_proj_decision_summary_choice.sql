@@ -26,7 +26,7 @@
 --
 -- ## Index
 --
--- `(actor_id, choice)` supports the analytic shape "count by choice
+-- `(decided_by, choice)` supports the analytic shape "count by choice
 -- for a given agent" (e.g., RunDebriefer's NoAction rate is the
 -- denominator excluding `DebriefConflicted` rows). Composite over
 -- two single-column indexes because both columns ride together in
@@ -54,5 +54,5 @@ SET choice = COALESCE(
 
 ALTER TABLE proj_decision_summary ALTER COLUMN choice SET NOT NULL;
 
-CREATE INDEX proj_decision_summary_actor_choice_idx
-    ON proj_decision_summary (actor_id, choice);
+CREATE INDEX proj_decision_summary_decided_by_choice_idx
+    ON proj_decision_summary (decided_by, choice);

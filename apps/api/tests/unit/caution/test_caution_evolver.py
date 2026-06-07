@@ -21,10 +21,11 @@ from cora.caution.aggregates.caution import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _CAUTION_ID = UUID("01900000-0000-7000-8000-00000000d001")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000d002")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000d002"))
 _ASSET_ID = UUID("01900000-0000-7000-8000-00000000d003")
 _PROCEDURE_ID = UUID("01900000-0000-7000-8000-00000000d004")
 
@@ -42,7 +43,7 @@ def _genesis(
         text="hexapod stalls below 0.5 mm/s",
         workaround="run at 0.6 mm/s",
         tags=frozenset({"low-speed-stall"}),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         expires_at=None,
         propagate_to_children=False,
         parent_id=parent_id,
@@ -68,7 +69,7 @@ def test_fold_genesis_lands_in_active() -> None:
         severity=CautionSeverity.CAUTION,
         text=CautionText("hexapod stalls below 0.5 mm/s"),
         workaround=CautionWorkaround("run at 0.6 mm/s"),
-        author_actor_id=_AUTHOR_ID,
+        authored_by=_AUTHOR_ID,
         tags=frozenset({CautionTag("low-speed-stall")}),
         expires_at=None,
         propagate_to_children=False,

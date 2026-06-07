@@ -4,7 +4,7 @@ Carries the caller-controlled fields: the target `decision_id`, the
 closed `rating` value (useful / misleading / ignored), and an
 optional free-form `comment`.
 
-`rated_by_actor_id` is intentionally NOT on the command: the handler
+`rated_by` is intentionally NOT on the command: the handler
 derives it from the authenticated `principal_id` envelope and passes
 it as a keyword-only argument to the decider. Same author-spoofing-
 closed convention as `register_caution.author_actor_id` (11b-a

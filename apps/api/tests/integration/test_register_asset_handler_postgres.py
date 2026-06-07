@@ -76,6 +76,7 @@ async def test_register_asset_persists_enterprise_root_to_postgres(
         "level": "Enterprise",
         "parent_id": None,
         "occurred_at": _NOW.isoformat(),
+        "commissioned_by": str(_PRINCIPAL_ID),
     }
     assert stored.event_id == event_id
 

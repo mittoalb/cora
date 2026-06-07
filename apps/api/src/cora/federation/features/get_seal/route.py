@@ -5,11 +5,13 @@ hit, 404 on miss. The Seal is a per-facility singleton keyed on the
 human-readable `facility_id` (str); there is no separate seal_id in
 the URL.
 
-Per Path C, `initialized_at` / `last_signed_at` /
-`last_signed_by_actor_id` are projection-sourced (not aggregate state)
-and therefore nullable on the wire: the projection may transiently lag
-behind the event store, or the deps may lack a configured pool
-(in-memory test mode). Mirrors the Calibration / Credential read DTOs.
+`initialized_at` and `initialized_by` are sourced from aggregate
+state (folded from the genesis envelope per the fold-symmetry Path C
+reversal). `last_signed_at` and `last_signed_by` remain projection-
+sourced (not aggregate state) and therefore nullable on the wire: the
+projection may transiently lag behind the event store, or the deps
+may lack a configured pool (in-memory test mode). Mirrors the
+Calibration / Credential read DTOs.
 """
 
 from datetime import datetime
@@ -43,18 +45,17 @@ class SealResponse(BaseModel):
     offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
-    initialized_by_actor_id: UUID
+    initialized_by: UUID
+    initialized_at: datetime
     status: SealStatus
-    initialized_at: datetime | None = None
     last_signed_at: datetime | None = None
-    last_signed_by_actor_id: UUID | None = None
+    last_signed_by: UUID | None = None
 
 
 def _response_from_view(
     seal: Seal,
-    initialized_at: datetime | None,
     last_signed_at: datetime | None,
-    last_signed_by_actor_id: UUID | None,
+    last_signed_by: UUID | None,
 ) -> SealResponse:
     return SealResponse(
         facility_id=seal.facility_id,
@@ -62,11 +63,11 @@ def _response_from_view(
         offline_credential_id=seal.offline_credential_id,
         current_head_hash=seal.current_head_hash,
         current_sequence_number=seal.current_sequence_number,
-        initialized_by_actor_id=seal.initialized_by_actor_id,
+        initialized_by=seal.initialized_by,
+        initialized_at=seal.initialized_at,
         status=seal.status,
-        initialized_at=initialized_at,
         last_signed_at=last_signed_at,
-        last_signed_by_actor_id=last_signed_by_actor_id,
+        last_signed_by=last_signed_by,
     )
 
 
@@ -123,7 +124,6 @@ async def get_federation_seal(
         )
     return _response_from_view(
         view.seal,
-        view.timestamps.initialized_at if view.timestamps is not None else None,
         view.timestamps.last_signed_at if view.timestamps is not None else None,
-        view.timestamps.last_signed_by_actor_id if view.timestamps is not None else None,
+        view.timestamps.last_signed_by if view.timestamps is not None else None,
     )

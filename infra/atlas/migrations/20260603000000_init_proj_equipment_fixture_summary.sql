@@ -45,6 +45,7 @@ CREATE TABLE proj_equipment_fixture_summary (
     surface_id              UUID        NOT NULL,
     binding_count           INTEGER     NOT NULL,
     override_count          INTEGER     NOT NULL,
+    registered_by           UUID        NULL,
     created_at              TIMESTAMPTZ NOT NULL,
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );

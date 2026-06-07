@@ -32,7 +32,7 @@
 
 CREATE TABLE proj_decision_summary (
     decision_id      UUID        PRIMARY KEY,
-    actor_id         UUID        NOT NULL,
+    decided_by       UUID        NOT NULL,
     decision_rule    TEXT,
     parent_id        UUID,
     confidence       DOUBLE PRECISION,
@@ -47,8 +47,8 @@ CREATE TABLE proj_decision_summary (
 CREATE INDEX proj_decision_summary_keyset_idx
     ON proj_decision_summary (created_at, decision_id);
 
-CREATE INDEX proj_decision_summary_actor_idx
-    ON proj_decision_summary (actor_id);
+CREATE INDEX proj_decision_summary_decided_by_idx
+    ON proj_decision_summary (decided_by);
 
 CREATE INDEX proj_decision_summary_rule_idx
     ON proj_decision_summary (decision_rule)

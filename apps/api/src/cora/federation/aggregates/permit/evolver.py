@@ -42,8 +42,9 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
             allowed_artifact_kinds=allowed_artifact_kinds,
             abi_tier_floor=abi_tier_floor,
             expires_at=expires_at,
-            defined_by_actor_id=defined_by_actor_id,
+            defined_by=defined_by,
             terms=terms,
+            occurred_at=occurred_at,
         ):
             _ = state
             return Permit(
@@ -55,7 +56,8 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
                 allowed_artifact_kinds=allowed_artifact_kinds,
                 abi_tier_floor=abi_tier_floor,
                 expires_at=expires_at,
-                defined_by_actor_id=defined_by_actor_id,
+                defined_by=defined_by,
+                defined_at=occurred_at,
                 status=PermitStatus.DEFINED,
                 terms=terms,
             )
@@ -88,7 +90,8 @@ def _replace_status(prior: Permit, new_status: PermitStatus) -> Permit:
         allowed_artifact_kinds=prior.allowed_artifact_kinds,
         abi_tier_floor=prior.abi_tier_floor,
         expires_at=prior.expires_at,
-        defined_by_actor_id=prior.defined_by_actor_id,
+        defined_by=prior.defined_by,
+        defined_at=prior.defined_at,
         status=new_status,
         terms=prior.terms,
     )

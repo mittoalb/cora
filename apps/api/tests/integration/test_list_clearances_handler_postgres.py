@@ -257,7 +257,7 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     assert item.status == "Approved"
     assert item.valid_from == valid_from
     assert item.valid_until == valid_until
-    assert item.last_reviewed_by_actor_id == _PRINCIPAL_ID
+    assert item.last_reviewed_by == _PRINCIPAL_ID
 
 
 @pytest.mark.integration

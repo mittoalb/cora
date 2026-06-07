@@ -70,7 +70,7 @@ CREATE TABLE proj_calibration_summary (
     description                 TEXT,
     defined_at                  TIMESTAMPTZ NOT NULL,
     last_revised_at             TIMESTAMPTZ NOT NULL,
-    defined_by_actor_id         UUID        NOT NULL,
+    defined_by                  UUID        NOT NULL,
     revision_count              INTEGER     NOT NULL DEFAULT 0
         CHECK (revision_count >= 0),
     latest_revision_status      TEXT        CHECK (

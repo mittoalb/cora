@@ -22,7 +22,7 @@ matching the `CalibrationSource` discriminated union.
 ```json
 {"kind": "Measured", "procedure_id": "<uuid>"}
 {"kind": "Computed", "dataset_id": "<uuid>"}
-{"kind": "Asserted", "actor_id": "<uuid>"}
+{"kind": "Asserted", "asserted_by": "<uuid>"}
 ```
 
 The wire uses a tagged `{kind, ...}` envelope (Caution / Safety
@@ -51,6 +51,7 @@ from cora.calibration.aggregates.calibration import (
     ComputedSource,
     MeasuredSource,
 )
+from cora.infrastructure.identity import ActorId
 
 
 class SourceMeasuredDTO(BaseModel):
@@ -80,7 +81,7 @@ class SourceAssertedDTO(BaseModel):
     """Wire shape for an Asserted source (operator-typed value)."""
 
     kind: Literal["Asserted"]
-    actor_id: UUID = Field(
+    asserted_by: UUID = Field(
         ...,
         description=(
             "Actor id who asserted the value. Usually equals the request "
@@ -105,8 +106,8 @@ def source_from_dto(
             return MeasuredSource(procedure_id=procedure_id)
         case SourceComputedDTO(dataset_id=dataset_id):
             return ComputedSource(dataset_id=dataset_id)
-        case SourceAssertedDTO(actor_id=actor_id):
-            return AssertedSource(actor_id=actor_id)
+        case SourceAssertedDTO(asserted_by=asserted_by):
+            return AssertedSource(asserted_by=ActorId(asserted_by))
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(dto)
 
@@ -120,8 +121,8 @@ def dto_from_source(
             return SourceMeasuredDTO(kind="Measured", procedure_id=procedure_id)
         case ComputedSource(dataset_id=dataset_id):
             return SourceComputedDTO(kind="Computed", dataset_id=dataset_id)
-        case AssertedSource(actor_id=actor_id):
-            return SourceAssertedDTO(kind="Asserted", actor_id=actor_id)
+        case AssertedSource(asserted_by=asserted_by):
+            return SourceAssertedDTO(kind="Asserted", asserted_by=asserted_by)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(source)
 

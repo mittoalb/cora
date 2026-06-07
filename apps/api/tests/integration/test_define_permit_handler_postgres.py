@@ -142,7 +142,7 @@ async def test_define_permit_projection_lands_row(
         row = await conn.fetchrow(
             """
             SELECT permit_id, peer_facility_id, direction, status, terms_kind,
-                   abi_tier_floor, defined_by_actor_id, defined_at,
+                   abi_tier_floor, defined_by, defined_at,
                    activated_at, suspended_at, resumed_at, revoked_at
               FROM proj_federation_permit_summary
              WHERE permit_id = $1
@@ -156,7 +156,7 @@ async def test_define_permit_projection_lands_row(
     assert row["status"] == PermitStatus.DEFINED.value
     assert row["terms_kind"] == "Outbound"
     assert row["abi_tier_floor"] == AbiTier.STABLE.value
-    assert row["defined_by_actor_id"] == _PRINCIPAL_ID
+    assert row["defined_by"] == _PRINCIPAL_ID
     assert row["defined_at"] == _NOW
     assert row["activated_at"] is None
     assert row["suspended_at"] is None

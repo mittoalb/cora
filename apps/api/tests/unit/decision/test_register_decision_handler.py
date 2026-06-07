@@ -30,6 +30,7 @@ from cora.decision.features import register_decision
 from cora.decision.features.register_decision import RegisterDecision
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -41,7 +42,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 def _good_command(**overrides: Any) -> RegisterDecision:
     base: dict[str, Any] = {
-        "actor_id": uuid4(),
+        "decided_by": ActorId(uuid4()),
         "context": "RecipeApproval",
         "choice": "Approved",
         "parent_id": None,
@@ -77,7 +78,7 @@ async def _seed_actor(store: InMemoryEventStore, actor_id: UUID) -> None:
 async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RecipeApproval",
         choice="Approved",
         parent_id=None,
@@ -115,7 +116,7 @@ async def test_handler_returns_new_decision_id_on_success() -> None:
     await _seed_actor(store, actor_id)
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     decision_id = await register_decision.bind(deps)(
-        _good_command(actor_id=actor_id),
+        _good_command(decided_by=ActorId(actor_id)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -129,7 +130,7 @@ async def test_handler_appends_decision_registered_event() -> None:
     await _seed_actor(store, actor_id)
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
-        _good_command(actor_id=actor_id, choice="Conditionally approved"),
+        _good_command(decided_by=ActorId(actor_id), choice="Conditionally approved"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -140,7 +141,7 @@ async def test_handler_appends_decision_registered_event() -> None:
     assert registered.event_id == _REG_EVENT_ID
     assert registered.metadata == {"command": "RegisterDecision"}
     assert registered.payload["choice"] == "Conditionally approved"
-    assert registered.payload["actor_id"] == str(actor_id)
+    assert registered.payload["decided_by"] == str(actor_id)
 
 
 @pytest.mark.unit
@@ -151,7 +152,7 @@ async def test_handler_propagates_causation_id() -> None:
     await _seed_actor(store, actor_id)
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
-        _good_command(actor_id=actor_id),
+        _good_command(decided_by=ActorId(actor_id)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -173,7 +174,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     )
     with pytest.raises(UnauthorizedError) as exc_info:
         await register_decision.bind(deny_deps)(
-            _good_command(actor_id=actor_id),
+            _good_command(decided_by=ActorId(actor_id)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -191,11 +192,11 @@ async def test_handler_raises_actor_not_found_when_actor_missing() -> None:
     missing_actor = uuid4()
     with pytest.raises(DeciderActorNotFoundError) as exc_info:
         await register_decision.bind(deps)(
-            _good_command(actor_id=missing_actor),
+            _good_command(decided_by=ActorId(missing_actor)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert exc_info.value.actor_id == missing_actor
+    assert exc_info.value.decided_by == missing_actor
 
 
 @pytest.mark.unit
@@ -207,7 +208,11 @@ async def test_handler_raises_parent_not_found_when_parent_missing() -> None:
     missing_parent = uuid4()
     with pytest.raises(DecisionParentNotFoundError) as exc_info:
         await register_decision.bind(deps)(
-            _good_command(actor_id=actor_id, parent_id=missing_parent, override_kind="correction"),
+            _good_command(
+                decided_by=ActorId(actor_id),
+                parent_id=missing_parent,
+                override_kind="correction",
+            ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -224,7 +229,7 @@ async def test_handler_loads_existing_parent_and_appends_with_link() -> None:
     deps = build_deps(ids=[_DECISION_ID, _REG_EVENT_ID], now=_NOW, event_store=store)
     await register_decision.bind(deps)(
         _good_command(
-            actor_id=actor_id,
+            decided_by=ActorId(actor_id),
             parent_id=parent_id,
             override_kind="correction",
             choice="Re-approved with conditions",

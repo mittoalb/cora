@@ -59,14 +59,17 @@ level `_value_types.py` helper once a second symbol fires rule-of-three.
 
 ## Path C lifecycle bookkeeping
 
-Per [[project_template_aggregate_timestamps]] the lifecycle bookkeeping
-timestamps (`defined_at`, `activated_at`, `suspended_at`,
-`resumed_at`, `revoked_at`) do NOT live on aggregate state; they are
-derived at projection-apply time from each event's envelope
-`occurred_at`. `expires_at` STAYS on state: it is a contractual upper
-bound, domain-meaningful, and not envelope-derivable.
-`defined_by_actor_id` STAYS on state as identity denorm per the
-Calibration / Clearance / Caution precedent.
+Per [[project_template_aggregate_timestamps]] the transition
+lifecycle timestamps (`activated_at`, `suspended_at`, `resumed_at`,
+`revoked_at`) do NOT live on aggregate state; they are derived at
+projection-apply time from each event's envelope `occurred_at`.
+`expires_at` STAYS on state: it is a contractual upper bound,
+domain-meaningful, and not envelope-derivable. `defined_at` also
+STAYS on state per the fold-symmetry rule
+[[project_fold_symmetry_design]]: the `PermitDefined.occurred_at`
+fold pairs with the `defined_by` attribution fold on the genesis
+arm. `defined_by` is type-annotated as `ActorId` so the
+fold-symmetry fitness test detects attribution fields structurally.
 
 ## Errors
 
@@ -82,6 +85,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
+
+from cora.infrastructure.identity import ActorId
 
 
 class AbiTier(StrEnum):
@@ -255,8 +260,9 @@ class Permit:
     either side of the relationship.
 
     `expires_at` is the contractual upper bound; not envelope-
-    derivable, stays on state. `defined_by_actor_id` denorms the
-    genesis principal.
+    derivable, stays on state. `defined_by` denorms the genesis
+    principal and pairs with `defined_at` (folded from the
+    `PermitDefined` envelope) per fold-symmetry.
     """
 
     id: UUID
@@ -267,7 +273,8 @@ class Permit:
     allowed_artifact_kinds: frozenset[str]
     abi_tier_floor: AbiTier
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: ActorId
+    defined_at: datetime
     status: PermitStatus
     terms: OutboundTerms | InboundTerms
 

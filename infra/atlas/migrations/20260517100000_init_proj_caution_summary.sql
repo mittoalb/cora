@@ -4,7 +4,7 @@
 -- `proj_caution_summary` read model used by the `list_cautions` slice
 -- for `GET /cautions` keyset-paginated list endpoint with optional
 -- target_kind / target_id / category / severity / min_severity / status /
--- tag / author_actor_id filters.
+-- tag / authored_by filters.
 --
 -- Naming: the table contains rows for every lifecycle state (Active,
 -- Superseded, Retired); the partial `..._target_active_idx` carries
@@ -78,7 +78,7 @@ CREATE TABLE proj_caution_summary (
     ),
     text                      TEXT        NOT NULL,
     workaround                TEXT        NOT NULL,
-    author_actor_id           UUID        NOT NULL,
+    authored_by           UUID        NOT NULL,
     tags                      TEXT[]      NOT NULL DEFAULT '{}',
     expires_at                TIMESTAMPTZ,
     propagate_to_children     BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -114,7 +114,7 @@ CREATE INDEX proj_caution_summary_tags_gin_idx
 
 -- "Cautions I authored" filter (operator dashboard).
 CREATE INDEX proj_caution_summary_author_idx
-    ON proj_caution_summary (author_actor_id);
+    ON proj_caution_summary (authored_by);
 
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON proj_caution_summary TO cora_app;

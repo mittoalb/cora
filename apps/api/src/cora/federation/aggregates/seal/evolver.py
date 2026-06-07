@@ -56,7 +56,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
             facility_id=facility_id,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
-            initialized_by_actor_id=initialized_by_actor_id,
+            initialized_by=initialized_by,
+            occurred_at=occurred_at,
         ):
             _ = state  # SealInitialized is the genesis event; prior state ignored
             return Seal(
@@ -65,7 +66,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
                 offline_credential_id=offline_credential_id,
                 current_head_hash=None,
                 current_sequence_number=0,
-                initialized_by_actor_id=initialized_by_actor_id,
+                initialized_by=initialized_by,
+                initialized_at=occurred_at,
                 status=SealStatus.LIVE,
             )
         case SealPointerSigned(
@@ -79,7 +81,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=head_hash,
                 current_sequence_number=sequence_number,
-                initialized_by_actor_id=prior.initialized_by_actor_id,
+                initialized_by=prior.initialized_by,
+                initialized_at=prior.initialized_at,
                 status=SealStatus.LIVE,
             )
         case SealOnlineKeyRotated(new_online_credential_id=new_online_credential_id):
@@ -90,7 +93,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
                 current_sequence_number=prior.current_sequence_number,
-                initialized_by_actor_id=prior.initialized_by_actor_id,
+                initialized_by=prior.initialized_by,
+                initialized_at=prior.initialized_at,
                 status=SealStatus.LIVE,
             )
         case SealRepublishingStarted():
@@ -101,7 +105,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
                 current_sequence_number=prior.current_sequence_number,
-                initialized_by_actor_id=prior.initialized_by_actor_id,
+                initialized_by=prior.initialized_by,
+                initialized_at=prior.initialized_at,
                 status=SealStatus.REPUBLISHING,
             )
         case SealRepublishingCompleted(
@@ -115,7 +120,8 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=new_head_hash,
                 current_sequence_number=new_sequence_number,
-                initialized_by_actor_id=prior.initialized_by_actor_id,
+                initialized_by=prior.initialized_by,
+                initialized_at=prior.initialized_at,
                 status=SealStatus.LIVE,
             )
         case _:  # pragma: no cover

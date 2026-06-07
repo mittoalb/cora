@@ -30,6 +30,7 @@ from cora.federation.adapters.in_memory_permit_lookup import InMemoryPermitLooku
 from cora.federation.adapters.in_memory_publish_port import InMemoryPublishPort
 from cora.federation.adapters.in_memory_signature_port import InMemorySignaturePort
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports.event_store import StreamAppend
 from tests.unit._helpers import build_deps
@@ -38,7 +39,7 @@ _NOW = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 _PEER = "aps-2bm"
 _CALIBRATION_ID = UUID("33333333-3333-3333-3333-333333333333")
 _REVISION_ID = UUID("44444444-4444-4444-4444-444444444444")
-_PRINCIPAL_ID = UUID("55555555-5555-5555-5555-555555555555")
+_PRINCIPAL_ID = ActorId(UUID("55555555-5555-5555-5555-555555555555"))
 _TARGET_ID = UUID("88888888-8888-8888-8888-888888888888")
 _CORRELATION_ID = UUID("99999999-9999-9999-9999-999999999999")
 _PERMIT_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -56,7 +57,7 @@ async def _seed_calibration(
         quantity="rotation_center_pixels",
         operating_point={},
         description=None,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
         occurred_at=_NOW,
     )
     appended = CalibrationRevisionAppended(
@@ -66,9 +67,9 @@ async def _seed_calibration(
         status=CalibrationStatus.VERIFIED,
         source_procedure_id=None,
         source_dataset_id=None,
-        source_actor_id=uuid4(),
+        asserted_by=ActorId(uuid4()),
         established_at=_NOW,
-        established_by_actor_id=_PRINCIPAL_ID,
+        established_by=_PRINCIPAL_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
         occurred_at=_NOW,
@@ -175,7 +176,7 @@ async def test_handler_happy_path_returns_receipt_id_and_writes_both_streams() -
     assert publication_events[0].payload["outbound_permit_id"] == str(_PERMIT_ID)
     assert publication_events[0].payload["publication_status"] == "Live"
     assert publication_events[0].payload["receipt_id"] == str(receipt_id)
-    assert publication_events[0].payload["published_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert publication_events[0].payload["published_by"] == str(_PRINCIPAL_ID)
 
     permit_events, _ = await deps.event_store.load("Permit", _PERMIT_ID)
     recorded = [e for e in permit_events if e.event_type == "PublicationReceiptRecorded"]

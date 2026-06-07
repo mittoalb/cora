@@ -14,7 +14,7 @@ Permit:
     locate the matching outbound Permit.
 
 Server-side concerns (signature envelope, receipt id, published_at
-timestamp, published_by_actor_id) are injected by the handler from
+timestamp, published_by) are injected by the handler from
 infrastructure ports + the request envelope; the decider takes them
 as separate parameters so the command DTO stays narrow.
 """

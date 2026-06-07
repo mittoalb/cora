@@ -11,7 +11,7 @@ from cora.api.main import create_app
 
 def _good_body(actor_id: str, **overrides: Any) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "actor_id": actor_id,
+        "decided_by": actor_id,
         "context": "RecipeApproval",
         "choice": "Approved",
     }
@@ -58,7 +58,7 @@ def test_post_decisions_round_trips_into_get_response() -> None:
     assert get.status_code == 200
     body = get.json()
     assert body["id"] == decision_id
-    assert body["actor_id"] == actor_id
+    assert body["decided_by"] == actor_id
     assert body["context"] == "RecipeApproval"
     assert body["choice"] == "Conditionally approved with re-test required"
     assert body["rule"] == "iso17025:7.1.3:simple_acceptance"
@@ -111,7 +111,7 @@ def test_post_decisions_returns_404_when_actor_does_not_exist() -> None:
     with TestClient(create_app()) as client:
         response = client.post("/decisions", json=_good_body(missing))
     assert response.status_code == 404
-    assert "actor_id" in response.json()["detail"]
+    assert "decided_by" in response.json()["detail"]
 
 
 @pytest.mark.contract

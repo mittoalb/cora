@@ -21,6 +21,7 @@ from cora.agent.aggregates.agent.events import (
     to_payload,
 )
 from cora.agent.aggregates.agent.state import ModelRef
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
@@ -277,17 +278,29 @@ def test_round_trip_agent_deprecated() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_agent_suspended() -> None:
     agent_id = uuid4()
-    e = AgentSuspended(agent_id=agent_id, reason="cost overrun", occurred_at=_NOW)
+    suspended_by = ActorId(uuid4())
+    e = AgentSuspended(
+        agent_id=agent_id,
+        reason="cost overrun",
+        suspended_by=suspended_by,
+        occurred_at=_NOW,
+    )
     assert to_payload(e) == {
         "agent_id": str(agent_id),
         "reason": "cost overrun",
+        "suspended_by": str(suspended_by),
         "occurred_at": _NOW.isoformat(),
     }
 
 
 @pytest.mark.unit
 def test_round_trip_agent_suspended() -> None:
-    original = AgentSuspended(agent_id=uuid4(), reason="x", occurred_at=_NOW)
+    original = AgentSuspended(
+        agent_id=uuid4(),
+        reason="x",
+        suspended_by=ActorId(uuid4()),
+        occurred_at=_NOW,
+    )
     stored = _stored("AgentSuspended", to_payload(original))
     assert from_stored(stored) == original
 
@@ -295,16 +308,22 @@ def test_round_trip_agent_suspended() -> None:
 @pytest.mark.unit
 def test_to_payload_serializes_agent_resumed() -> None:
     agent_id = uuid4()
-    e = AgentResumed(agent_id=agent_id, occurred_at=_NOW)
+    resumed_by = ActorId(uuid4())
+    e = AgentResumed(agent_id=agent_id, resumed_by=resumed_by, occurred_at=_NOW)
     assert to_payload(e) == {
         "agent_id": str(agent_id),
+        "resumed_by": str(resumed_by),
         "occurred_at": _NOW.isoformat(),
     }
 
 
 @pytest.mark.unit
 def test_round_trip_agent_resumed() -> None:
-    original = AgentResumed(agent_id=uuid4(), occurred_at=_NOW)
+    original = AgentResumed(
+        agent_id=uuid4(),
+        resumed_by=ActorId(uuid4()),
+        occurred_at=_NOW,
+    )
     stored = _stored("AgentResumed", to_payload(original))
     assert from_stored(stored) == original
 

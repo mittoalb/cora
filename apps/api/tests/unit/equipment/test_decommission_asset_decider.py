@@ -34,6 +34,9 @@ from cora.equipment.features.decommission_asset import (
     DecommissionAsset,
     DecommissionAssetContext,
 )
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _EMPTY_CONTEXT = DecommissionAssetContext(currently_installed_at_mount_id=None)
@@ -80,8 +83,11 @@ def test_decide_emits_asset_decommissioned_for_each_allowed_source_lifecycle(
         command=DecommissionAsset(asset_id=state.id),
         context=_EMPTY_CONTEXT,
         now=_NOW,
+        decommissioned_by=_TEST_ACTOR_ID,
     )
-    assert events == [AssetDecommissioned(asset_id=state.id, occurred_at=_NOW)]
+    assert events == [
+        AssetDecommissioned(asset_id=state.id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID)
+    ]
 
 
 @pytest.mark.unit
@@ -93,6 +99,7 @@ def test_decide_raises_asset_not_found_when_state_is_none() -> None:
             command=DecommissionAsset(asset_id=target_id),
             context=_EMPTY_CONTEXT,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == target_id
 
@@ -121,6 +128,7 @@ def test_decide_raises_cannot_decommission_for_every_disallowed_source(
             command=DecommissionAsset(asset_id=state.id),
             context=_EMPTY_CONTEXT,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == state.id
     assert exc_info.value.current_lifecycle is current
@@ -139,6 +147,7 @@ def test_decide_error_message_lists_all_three_allowed_source_lifecycles() -> Non
             command=DecommissionAsset(asset_id=state.id),
             context=_EMPTY_CONTEXT,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
     msg = str(exc_info.value)
     assert "Decommissioned" in msg
@@ -164,6 +173,7 @@ def test_decide_raises_has_fixture_binding_when_fixture_id_non_none() -> None:
             command=DecommissionAsset(asset_id=state.id),
             context=_EMPTY_CONTEXT,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == state.id
     assert exc_info.value.fixture_id == fixture_id
@@ -185,6 +195,7 @@ def test_decide_raises_is_installed_when_currently_at_mount_non_none() -> None:
             command=DecommissionAsset(asset_id=state.id),
             context=context,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == state.id
     assert exc_info.value.mount_id == mount_id
@@ -206,6 +217,7 @@ def test_decide_fixture_binding_guard_fires_before_mount_installed_guard() -> No
             command=DecommissionAsset(asset_id=state.id),
             context=context,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
 
 
@@ -224,6 +236,7 @@ def test_decide_cross_aggregate_guards_fire_before_lifecycle_guard() -> None:
             command=DecommissionAsset(asset_id=state.id),
             context=_EMPTY_CONTEXT,
             now=_NOW,
+            decommissioned_by=_TEST_ACTOR_ID,
         )
 
 
@@ -232,9 +245,17 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _asset(lifecycle=AssetLifecycle.ACTIVE)
     command = DecommissionAsset(asset_id=state.id)
     first = decommission_asset.decide(
-        state=state, command=command, context=_EMPTY_CONTEXT, now=_NOW
+        state=state,
+        command=command,
+        context=_EMPTY_CONTEXT,
+        now=_NOW,
+        decommissioned_by=_TEST_ACTOR_ID,
     )
     second = decommission_asset.decide(
-        state=state, command=command, context=_EMPTY_CONTEXT, now=_NOW
+        state=state,
+        command=command,
+        context=_EMPTY_CONTEXT,
+        now=_NOW,
+        decommissioned_by=_TEST_ACTOR_ID,
     )
     assert first == second

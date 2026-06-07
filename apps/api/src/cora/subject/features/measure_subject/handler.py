@@ -1,8 +1,9 @@
 """Application handler for the `measure_subject` slice.
 
-Update-style handler. Canonical body lives in
-`cora.subject._subject_update_handler.make_subject_update_handler`; this
-module is a thin slice-specific bind.
+Built on the actor-stamping `make_subject_actor_update_handler`
+factory variant: the envelope's `principal_id` threads into the
+decider under `measured_by`, landing on `SubjectMeasured.measured_by`
+per [[project_fold_symmetry_design]].
 
 Not idempotency-wrapped: update-style commands are inherently
 domain-idempotent (second call hits `SubjectCannotMeasureError`).
@@ -13,7 +14,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._subject_update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_actor_update_handler
 from cora.subject.features.measure_subject.command import MeasureSubject
 from cora.subject.features.measure_subject.decider import decide
 
@@ -34,9 +35,10 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a measure_subject handler closed over the shared deps."""
-    return make_subject_update_handler(
+    return make_subject_actor_update_handler(
         deps,
         command_name="MeasureSubject",
         log_prefix="measure_subject",
         decide_fn=decide,
+        actor_kwarg="measured_by",
     )

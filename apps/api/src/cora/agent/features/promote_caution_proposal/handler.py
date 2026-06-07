@@ -86,6 +86,7 @@ from cora.caution.aggregates.caution import (
 from cora.caution.aggregates.caution.evolver import fold
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -183,17 +184,17 @@ def bind(deps: Kernel) -> Handler:
         # raises DecisionNotFoundError; we only gate when the Decision
         # actually exists.
         if decision is not None:
-            producer = await load_agent(deps.event_store, decision.actor_id)
+            producer = await load_agent(deps.event_store, decision.decided_by)
             producer_kind = producer.kind.value if producer is not None else None
             if producer is None or producer_kind != CAUTION_DRAFTER_AGENT_KIND:
                 log.info(
                     "promote_caution_proposal.provenance_failed",
-                    decision_actor_id=str(decision.actor_id),
+                    decision_decided_by=str(decision.decided_by),
                     observed_kind=producer_kind,
                 )
                 raise DecisionNotEmittedByCautionDrafterError(
                     decision_id=command.decision_id,
-                    actor_id=decision.actor_id,
+                    actor_id=decision.decided_by,
                     observed_kind=producer_kind,
                 )
 
@@ -250,7 +251,7 @@ def bind(deps: Kernel) -> Handler:
                 text=text.value,
                 workaround=workaround.value,
                 tags=tags,
-                author_actor_id=principal_id,
+                authored_by=ActorId(principal_id),
                 expires_at=expires_at,
                 propagate_to_children=False,
                 parent_id=parent.id,
@@ -309,7 +310,7 @@ def bind(deps: Kernel) -> Handler:
                 text=text.value,
                 workaround=workaround.value,
                 tags=tags,
-                author_actor_id=principal_id,
+                authored_by=ActorId(principal_id),
                 expires_at=expires_at,
                 propagate_to_children=False,
                 parent_id=None,

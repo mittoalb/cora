@@ -10,7 +10,7 @@ loaded version, not zero; the Decision stream is fresh (expected
 version zero).
 
 Longhand update handler (mirrors `revoke_permit`): the decider needs
-handler-injected `revoked_by_actor_id` to stamp the audit denorm onto
+handler-injected `revoked_by` to stamp the audit denorm onto
 `CredentialRevoked`, so this slice cannot use the
 `make_update_handler` factory (which only forwards `state`, `command`,
 `now`). The longhand body wraps the same load-authorize-fold-decide-
@@ -52,6 +52,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.revoke_credential.command import RevokeCredential
 from cora.federation.features.revoke_credential.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -130,13 +131,13 @@ def bind(deps: Kernel) -> Handler:
             state=state,
             command=command,
             now=now,
-            revoked_by_actor_id=principal_id,
+            revoked_by=principal_id,
         )
 
         decision_id = deps.id_generator.new_id()
         decision_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=principal_id,
+            decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
             choice=str(command.credential_id),
             parent_id=None,

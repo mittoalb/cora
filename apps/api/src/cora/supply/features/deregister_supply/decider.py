@@ -7,6 +7,7 @@ re-deregistering an already-Decommissioned supply raises.
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyCannotDeregisterError,
@@ -24,6 +25,7 @@ def decide(
     command: DeregisterSupply,
     *,
     now: datetime,
+    triggered_by: ActorId,
 ) -> list[SupplyDeregistered]:
     """Decide the events produced by deregistering a Supply.
 
@@ -33,6 +35,11 @@ def decide(
         SupplyCannotDeregisterError
       - Reason must be valid -> InvalidSupplyReasonError
         (via SupplyReason VO)
+
+    `triggered_by` is the operator's `ActorId`. Deregistration is
+    operator-only per [[project_deregister_supply_design]]; no
+    Monitor or Auto counterpart (no substream or timer should ever
+    auto-decommission a Supply).
     """
     if state is None:
         raise SupplyNotFoundError(command.supply_id)
@@ -47,6 +54,7 @@ def decide(
             from_status=state.status.value,
             reason=reason.value,
             trigger=TriggerSource.OPERATOR.value,
+            triggered_by=triggered_by,
             occurred_at=now,
         )
     ]

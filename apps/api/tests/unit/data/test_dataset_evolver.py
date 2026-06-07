@@ -6,7 +6,7 @@ locks the genesis arm's shape.
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -21,9 +21,14 @@ from cora.data.aggregates.dataset import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a1"))
+_DISCARDED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a2"))
+_PROMOTED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a3"))
+_DEMOTED_BY = ActorId(UUID("01900000-0000-7000-8000-0000000000a4"))
 
 
 @pytest.mark.unit
@@ -42,6 +47,7 @@ def test_evolve_registered_creates_dataset_with_registered_status() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.id == dataset_id
@@ -76,6 +82,7 @@ def test_evolve_preserves_optional_refs() -> None:
         subject_id=subject_id,
         derived_from=frozenset({derived}),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.producing_run_id == run_id
@@ -104,6 +111,7 @@ def test_fold_single_register_event_returns_dataset() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     state = fold([event])
     assert state is not None
@@ -129,6 +137,7 @@ def test_evolve_registered_defaults_intent_to_trial() -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.intent is Intent.TRIAL
@@ -153,6 +162,7 @@ def test_evolve_registered_captures_producing_run_end_state_when_provided() -> N
         derived_from=frozenset(),
         occurred_at=_NOW,
         producing_run_end_state="Completed",
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.producing_run_end_state == "Completed"
@@ -175,6 +185,7 @@ def _registered_event() -> DatasetRegistered:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
 
 
@@ -186,6 +197,7 @@ def test_evolve_promoted_flips_intent_to_production() -> None:
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     state = fold([register, promoted])
     assert state is not None
@@ -203,11 +215,13 @@ def test_evolve_discarded_after_promoted_preserves_intent() -> None:
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     discarded = DatasetDiscarded(
         dataset_id=register.dataset_id,
         reason="bytes purged",
         occurred_at=_NOW,
+        discarded_by=_DISCARDED_BY,
     )
     state = fold([register, promoted, discarded])
     assert state is not None
@@ -224,6 +238,7 @@ def test_evolve_promoted_raises_on_empty_state() -> None:
         dataset_id=uuid4(),
         reason="trying",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     with pytest.raises(ValueError, match="DatasetPromoted"):
         evolve(state=None, event=promoted)
@@ -237,11 +252,13 @@ def test_evolve_demoted_flips_intent_to_retracted() -> None:
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     demoted = DatasetDemoted(
         dataset_id=register.dataset_id,
         reason="calibration error",
         occurred_at=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     state = fold([register, promoted, demoted])
     assert state is not None
@@ -260,16 +277,19 @@ def test_evolve_discarded_after_demoted_preserves_intent() -> None:
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     demoted = DatasetDemoted(
         dataset_id=register.dataset_id,
         reason="calibration error",
         occurred_at=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     discarded = DatasetDiscarded(
         dataset_id=register.dataset_id,
         reason="bytes purged after retraction",
         occurred_at=_NOW,
+        discarded_by=_DISCARDED_BY,
     )
     state = fold([register, promoted, demoted, discarded])
     assert state is not None
@@ -284,6 +304,7 @@ def test_evolve_demoted_raises_on_empty_state() -> None:
         dataset_id=uuid4(),
         reason="trying",
         occurred_at=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     with pytest.raises(ValueError, match="DatasetDemoted"):
         evolve(state=None, event=demoted)
@@ -311,16 +332,19 @@ def test_demote_preserves_used_calibration_ids_asshot_invariant() -> None:
         producing_run_end_state=None,
         intent="Trial",
         used_calibration_ids=(revision_id,),
+        registered_by=_REGISTERED_BY,
     )
     promoted = DatasetPromoted(
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     demoted = DatasetDemoted(
         dataset_id=register.dataset_id,
         reason="calibration error",
         occurred_at=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     state = fold([register, promoted, demoted])
     assert state is not None
@@ -348,11 +372,13 @@ def test_evolve_discarded_preserves_producing_run_end_state() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         producing_run_end_state="Completed",
+        registered_by=_REGISTERED_BY,
     )
     discarded = DatasetDiscarded(
         dataset_id=register.dataset_id,
         reason="bytes purged",
         occurred_at=_NOW,
+        discarded_by=_DISCARDED_BY,
     )
     state = fold([register, discarded])
     assert state is not None
@@ -381,11 +407,13 @@ def test_evolve_promoted_preserves_producing_run_end_state() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         producing_run_end_state="Completed",
+        registered_by=_REGISTERED_BY,
     )
     promoted = DatasetPromoted(
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     state = fold([register, promoted])
     assert state is not None
@@ -420,6 +448,7 @@ def test_register_genesis_populates_used_calibration_ids_as_frozenset() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         used_calibration_ids=(cal_a, cal_b),
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.used_calibration_ids == frozenset({cal_a, cal_b})
@@ -445,6 +474,7 @@ def test_legacy_pre_12c_register_folds_with_empty_used_calibration_ids() -> None
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_REGISTERED_BY,
     )
     state = evolve(state=None, event=event)
     assert state.used_calibration_ids == frozenset()
@@ -472,11 +502,13 @@ def test_discard_preserves_used_calibration_ids_asshot_invariant() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         used_calibration_ids=(cal_a, cal_b),
+        registered_by=_REGISTERED_BY,
     )
     discarded = DatasetDiscarded(
         dataset_id=register.dataset_id,
         reason="bytes purged",
         occurred_at=_NOW,
+        discarded_by=_DISCARDED_BY,
     )
     state = fold([register, discarded])
     assert state is not None
@@ -505,11 +537,13 @@ def test_promote_preserves_used_calibration_ids_asshot_invariant() -> None:
         derived_from=frozenset(),
         occurred_at=_NOW,
         used_calibration_ids=(cal_a,),
+        registered_by=_REGISTERED_BY,
     )
     promoted = DatasetPromoted(
         dataset_id=register.dataset_id,
         reason="passed review",
         occurred_at=_NOW,
+        promoted_by=_PROMOTED_BY,
     )
     state = fold([register, promoted])
     assert state is not None

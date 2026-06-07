@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.run.aggregates.run import (
     InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
@@ -25,6 +26,7 @@ from cora.run.features.adjust_run import RunAdjustContext, decide
 from cora.run.features.adjust_run.command import AdjustRun
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(UUID("01900000-0000-7000-8000-0000000000ac"))
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
 
 
@@ -77,7 +79,7 @@ def test_decide_emits_run_adjusted_for_valid_patch_against_schema() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
 
     assert len(events) == 1
     event = events[0]
@@ -85,6 +87,7 @@ def test_decide_emits_run_adjusted_for_valid_patch_against_schema() -> None:
     assert event.parameters_patch == {"energy": 12.0}
     assert event.effective_parameters == {"energy": 12.0, "exposure": 100}
     assert event.reason == "narrow ROI"
+    assert event.adjusted_by == _ACTOR
     assert event.decided_by_decision_id is None
     assert event.occurred_at == _NOW
 
@@ -101,7 +104,7 @@ def test_decide_threads_decision_id_through_to_event() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert events[0].decided_by_decision_id == decision_id
 
 
@@ -116,7 +119,7 @@ def test_decide_accepts_held_state() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert len(events) == 1
 
 
@@ -132,7 +135,7 @@ def test_decide_skips_schema_validation_when_schemaless() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert events[0].effective_parameters == {"undeclared_key": "any value"}
 
 
@@ -147,7 +150,7 @@ def test_decide_preserves_prior_keys_untouched_by_patch() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     merged = events[0].effective_parameters
     assert merged == {"energy": 12.0, "exposure": 100, "rotation": 180.0}
 
@@ -163,7 +166,7 @@ def test_decide_clears_key_when_patch_value_is_null() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert events[0].effective_parameters == {"energy": 10.0}
 
 
@@ -192,7 +195,7 @@ def test_decide_raises_cannot_adjust_for_terminal_states(
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
     with pytest.raises(RunCannotAdjustError) as exc_info:
-        decide(state=state, command=cmd, context=ctx, now=_NOW)
+        decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert exc_info.value.run_id == state.id
     assert exc_info.value.current_status is bad_status
 
@@ -211,7 +214,7 @@ def test_decide_raises_run_not_found_when_state_is_none() -> None:
     ctx = RunAdjustContext(run=placeholder, method_parameters_schema=None)
 
     with pytest.raises(RunNotFoundError) as exc_info:
-        decide(state=None, command=cmd, context=ctx, now=_NOW)
+        decide(state=None, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert exc_info.value.run_id == cmd.run_id
 
 
@@ -226,7 +229,7 @@ def test_decide_raises_invalid_patch_for_empty_patch() -> None:
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
     with pytest.raises(InvalidRunAdjustPatchError):
-        decide(state=state, command=cmd, context=ctx, now=_NOW)
+        decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
 
 
 @pytest.mark.unit
@@ -240,7 +243,7 @@ def test_decide_raises_invalid_schema_for_post_merge_violation() -> None:
     ctx = RunAdjustContext(run=state, method_parameters_schema=_energy_schema())
 
     with pytest.raises(InvalidRunAdjustSchemaError):
-        decide(state=state, command=cmd, context=ctx, now=_NOW)
+        decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
 
 
 @pytest.mark.unit
@@ -254,7 +257,7 @@ def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
     with pytest.raises(InvalidRunAdjustReasonError):
-        decide(state=state, command=cmd, context=ctx, now=_NOW)
+        decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
 
 
 @pytest.mark.unit
@@ -268,7 +271,7 @@ def test_decide_raises_invalid_reason_for_too_long() -> None:
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
     with pytest.raises(InvalidRunAdjustReasonError):
-        decide(state=state, command=cmd, context=ctx, now=_NOW)
+        decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
 
 
 @pytest.mark.unit
@@ -281,7 +284,7 @@ def test_decide_trims_reason_before_event_emission() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert events[0].reason == "re-centering"
 
 
@@ -299,7 +302,7 @@ def test_decide_accepts_reason_at_exactly_max_length() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert len(events) == 1
     assert events[0].reason == "x" * 500
 
@@ -315,7 +318,7 @@ def test_decide_accepts_reason_at_exactly_one_char() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert len(events) == 1
     assert events[0].reason == "x"
 
@@ -332,7 +335,7 @@ def test_decide_adds_new_key_when_patch_introduces_one() -> None:
     )
     ctx = RunAdjustContext(run=state, method_parameters_schema=None)
 
-    events = decide(state=state, command=cmd, context=ctx, now=_NOW)
+    events = decide(state=state, command=cmd, context=ctx, adjusted_by=_ACTOR, now=_NOW)
     assert events[0].effective_parameters == {"a": 1, "b": 2}
 
 

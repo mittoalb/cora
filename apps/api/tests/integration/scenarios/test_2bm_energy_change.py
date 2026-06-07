@@ -118,6 +118,7 @@ from cora.decision.features.register_decision import RegisterDecision
 from cora.decision.features.register_decision import bind as bind_register_decision
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
+from cora.infrastructure.identity import ActorId
 from cora.recipe.features.define_method import DefineMethod
 from cora.recipe.features.define_method import bind as bind_define_method
 from cora.recipe.features.define_plan import DefinePlan
@@ -497,7 +498,7 @@ async def test_energy_change_plays_out_end_to_end(
 
     await bind_register_decision(deps)(
         RegisterDecision(
-            actor_id=_PRINCIPAL_ID,
+            decided_by=ActorId(_PRINCIPAL_ID),
             context="EnergyChange",
             choice="switch_to_30_keV",
             reasoning=(
@@ -586,7 +587,7 @@ async def test_energy_change_plays_out_end_to_end(
     assert decision is not None
     assert decision.context.value == "EnergyChange"
     assert decision.choice.value == "switch_to_30_keV"
-    assert decision.actor_id == _PRINCIPAL_ID
+    assert decision.decided_by == _PRINCIPAL_ID
     assert decision.confidence_source is DecisionConfidenceSource.SELF_REPORTED
     assert decision.confidence == 0.9
     assert len(decision.alternatives) == 3

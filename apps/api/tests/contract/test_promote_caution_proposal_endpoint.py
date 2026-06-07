@@ -40,6 +40,7 @@ from cora.decision.aggregates.decision import (
     to_payload,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 
 _T0 = datetime(2026, 5, 17, 10, 0, 0, tzinfo=UTC)
 _ASSET_ID = UUID("01900000-0000-7000-8000-000000000aaa")
@@ -79,7 +80,7 @@ async def _seed_caution_proposal_decision(
     actor_id = CAUTION_DRAFTER_AGENT_ID
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=ActorId(actor_id),
         context=context,
         choice=choice,
         parent_id=None,

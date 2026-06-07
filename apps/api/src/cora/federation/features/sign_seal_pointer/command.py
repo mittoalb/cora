@@ -9,7 +9,7 @@ exceed `state.current_sequence_number` via
 
 The invoking principal's id is supplied separately by the application
 handler at call time and stamped onto the emitted event as
-`signed_by_actor_id`. The wall-clock `signed_at` payload field is
+`signed_by`. The wall-clock `signed_at` payload field is
 captured by the handler from `deps.clock.now()` per the non-determinism
 principle (capture, don't recompute).
 

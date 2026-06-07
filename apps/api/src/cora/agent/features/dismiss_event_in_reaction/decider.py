@@ -35,6 +35,7 @@ from cora.decision.aggregates.decision.events import DecisionRegistered
 from cora.decision.aggregates.decision.state import (
     DECISION_CONTEXT_REACTION_DISMISSAL,
 )
+from cora.infrastructure.identity import ActorId
 
 _REASON_MIN_LENGTH = 1
 _REASON_MAX_LENGTH = 500
@@ -122,7 +123,7 @@ def decide(
 
     return DecisionRegistered(
         decision_id=new_decision_id,
-        actor_id=principal_id,
+        decided_by=ActorId(principal_id),
         context=DECISION_CONTEXT_REACTION_DISMISSAL,
         choice=_DISMISSAL_CHOICE,
         parent_id=None,

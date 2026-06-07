@@ -28,6 +28,7 @@ from cora.data.aggregates.dataset import (
     DatasetStatus,
 )
 from cora.data.features.discard_dataset.command import DiscardDataset
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -35,6 +36,7 @@ def decide(
     command: DiscardDataset,
     *,
     now: datetime,
+    discarded_by: ActorId,
 ) -> list[DatasetDiscarded]:
     """Decide the events produced by discarding a Dataset."""
     if state is None:
@@ -47,5 +49,6 @@ def decide(
             dataset_id=state.id,
             reason=reason.value,
             occurred_at=now,
+            discarded_by=discarded_by,
         )
     ]

@@ -33,7 +33,7 @@ precedent shipped in Pass 2.
 Idempotency-wrappable per the create-style convention; the
 `with_idempotency` wrap is applied at `wire.py`, not here.
 
-`initialized_by_actor_id` is handler-injected from the request
+`initialized_by` is handler-injected from the request
 envelope's `principal_id` per the "no spoofable author" discipline.
 
 `causation_id` is the id of the event/message that triggered this
@@ -61,6 +61,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.initialize_seal.command import InitializeSeal
 from cora.federation.features.initialize_seal.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -157,7 +158,7 @@ def bind(deps: Kernel) -> Handler:
             state=None,
             command=command,
             now=now,
-            initialized_by_actor_id=principal_id,
+            initialized_by=ActorId(principal_id),
             online_credential=online_credential,
             offline_credential=offline_credential,
         )
@@ -165,7 +166,7 @@ def bind(deps: Kernel) -> Handler:
         decision_id = deps.id_generator.new_id()
         decision_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=principal_id,
+            decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
             choice=str(command.facility_id),
             parent_id=None,

@@ -2,10 +2,10 @@
 `proj_decision_ratings` read model.
 
 Subscribed events:
-  - DecisionRated -> UPSERT one row per (decision_id, rated_by_actor_id)
+  - DecisionRated -> UPSERT one row per (decision_id, rated_by)
 
 Latest-per-actor-wins implementation: ON CONFLICT (decision_id,
-rated_by_actor_id) DO UPDATE WHERE EXCLUDED.rated_at > rated_at.
+rated_by) DO UPDATE WHERE EXCLUDED.rated_at > rated_at.
 The WHERE guard makes the apply() out-of-order-replay safe: if a
 projection rebuild lands an older rating after a newer one, the
 older one does not overwrite (defensive; production at-least-once
@@ -36,9 +36,9 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _UPSERT_RATING_SQL = """
 INSERT INTO proj_decision_ratings
-    (decision_id, rated_by_actor_id, rating, comment, rated_at, confidence_at_rating)
+    (decision_id, rated_by, rating, comment, rated_at, confidence_at_rating)
 VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (decision_id, rated_by_actor_id) DO UPDATE
+ON CONFLICT (decision_id, rated_by) DO UPDATE
    SET rating                   = EXCLUDED.rating,
        comment                  = EXCLUDED.comment,
        rated_at                 = EXCLUDED.rated_at,
@@ -62,7 +62,7 @@ class DecisionRatingsProjection:
             return
         payload = event.payload
         decision_id = UUID(payload["decision_id"])
-        rated_by_actor_id = UUID(payload["rated_by_actor_id"])
+        rated_by = UUID(payload["rated_by"])
         rating = payload["rating"]
         comment = payload.get("comment")
         rated_at = datetime.fromisoformat(payload["rated_at"])
@@ -75,7 +75,7 @@ class DecisionRatingsProjection:
         await conn.execute(
             _UPSERT_RATING_SQL,
             decision_id,
-            rated_by_actor_id,
+            rated_by,
             rating,
             comment,
             rated_at,

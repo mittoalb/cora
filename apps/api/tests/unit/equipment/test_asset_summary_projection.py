@@ -8,12 +8,15 @@ integration suite.
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from cora.equipment.projections import AssetSummaryProjection
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _ASSET_ID = uuid4()
 _PARENT_ID = uuid4()
@@ -88,6 +91,7 @@ async def test_asset_registered_inserts_with_commissioned_lifecycle_and_parent()
             "level": "Unit",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
 
@@ -138,6 +142,7 @@ async def test_asset_registered_with_drawing_backfills_three_columns() -> None:
             "level": "Component",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "drawing": {
                 "system": "ICMS",
                 "number": "P4105",
@@ -167,6 +172,7 @@ async def test_asset_registered_with_drawing_no_revision_keeps_revision_null() -
             "level": "Component",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "drawing": {"system": "EDMS", "number": "9001"},
         },
     )
@@ -195,6 +201,7 @@ async def test_asset_registered_with_model_id_populates_model_column() -> None:
             "parent_id": str(_PARENT_ID),
             "model_id": str(_MODEL_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
 
@@ -220,6 +227,7 @@ async def test_asset_registered_without_model_id_leaves_model_column_null() -> N
             "level": "Device",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
 
@@ -243,6 +251,7 @@ async def test_asset_registered_with_null_parent_for_enterprise_root() -> None:
             "level": "Enterprise",
             "parent_id": None,
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
 
@@ -441,6 +450,7 @@ async def test_asset_registered_with_alternate_identifiers_writes_sorted_list() 
             "level": "Device",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             # Intentionally out-of-order to exercise the defensive sort.
             "alternate_identifiers": [
                 {"kind": "SerialNumber", "value": "SN-002"},
@@ -475,6 +485,7 @@ async def test_asset_registered_with_empty_alternate_identifiers_writes_empty_li
             "level": "Device",
             "parent_id": str(_PARENT_ID),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "alternate_identifiers": [],
         },
     )

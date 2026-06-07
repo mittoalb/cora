@@ -14,7 +14,7 @@ CalibrationRevisionAppended event. Tests in this module cover:
   - content sensitivity (different subset -> different hash) across
     each hashed field
   - exclusion guarantees (excluded fields do NOT affect the hash):
-    revision_id, established_at, established_by_actor_id
+    revision_id, established_at, established_by
 
 Lifecycle and validation guards live in test_append_calibration_revision_decider.py
 to keep this file focused on the hash itself.
@@ -38,9 +38,10 @@ from cora.calibration.aggregates.calibration.state import CalibrationSource
 from cora.calibration.features import append_calibration_revision
 from cora.calibration.features.append_calibration_revision import AppendCalibrationRevision
 from cora.infrastructure.content_hash import compute_content_hash
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000ca2001")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000ca2001"))
 _SUBSYSTEM_ID = UUID("01900000-0000-7000-8000-000000ca2002")
 _CAL_ID = UUID("01900000-0000-7000-8000-000000ca2003")
 _REV_ID_1 = UUID("01900000-0000-7000-8000-000000ca2004")
@@ -48,7 +49,7 @@ _NEW_REV_ID = UUID("01900000-0000-7000-8000-000000ca2006")
 _PROC_ID = UUID("01900000-0000-7000-8000-000000ca2007")
 _DATASET_ID = UUID("01900000-0000-7000-8000-000000ca2008")
 _DECISION_ID = UUID("01900000-0000-7000-8000-000000ca2009")
-_ACTOR_ID = UUID("01900000-0000-7000-8000-000000ca200a")
+_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000ca200a"))
 
 # Golden vectors precomputed via `compute_content_hash(
 #     event_type_to_payload_type("CalibrationRevisionAppended"), <subset>)`.
@@ -65,7 +66,7 @@ def _prior_revision(*, revision_id: UUID = _REV_ID_1) -> CalibrationRevision:
         status=CalibrationStatus.PROVISIONAL,
         source=MeasuredSource(procedure_id=_PROC_ID),
         established_at=_NOW,
-        established_by_actor_id=_PRINCIPAL_ID,
+        established_by=_PRINCIPAL_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=None,
     )
@@ -79,7 +80,8 @@ def _state(*, revisions: tuple[CalibrationRevision, ...] = ()) -> Calibration:
         operating_point={"energy": 25.0, "optics_config": "5x"},
         description=None,
         revisions=revisions,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_at=_NOW,
+        defined_by=_PRINCIPAL_ID,
     )
 
 
@@ -92,7 +94,7 @@ def _decide(
     supersedes_revision_id: UUID | None = None,
     revisions: tuple[CalibrationRevision, ...] = (),
     new_revision_id: UUID = _NEW_REV_ID,
-    established_by_actor_id: UUID = _PRINCIPAL_ID,
+    established_by: ActorId = _PRINCIPAL_ID,
 ) -> Any:
     cmd = AppendCalibrationRevision(
         calibration_id=_CAL_ID,
@@ -107,7 +109,7 @@ def _decide(
         command=cmd,
         now=_NOW,
         new_revision_id=new_revision_id,
-        established_by_actor_id=established_by_actor_id,
+        established_by=established_by,
     )
     return events[0]
 
@@ -159,7 +161,7 @@ def test_decide_content_hash_matches_helper_output_directly() -> None:
     or rename fields beyond the documented subset."""
     event = _decide(
         value={"center": 1024.5},
-        source=AssertedSource(actor_id=_ACTOR_ID),
+        source=AssertedSource(asserted_by=_ACTOR_ID),
     )
     expected = compute_content_hash(
         "application/vnd.cora.calibration-revision-appended+json",
@@ -199,12 +201,12 @@ def test_decide_hash_invariant_under_revision_id() -> None:
 
 
 @pytest.mark.unit
-def test_decide_hash_invariant_under_established_by_actor_id() -> None:
-    """established_by_actor_id is envelope metadata (analog of
-    PlanVersioned.versioned_by_actor_id), not content. Same content
+def test_decide_hash_invariant_under_established_by() -> None:
+    """established_by is envelope metadata (analog of
+    PlanVersioned.versioned_by), not content. Same content
     decided by two different actors must produce the same hash."""
-    event_a = _decide(established_by_actor_id=_PRINCIPAL_ID)
-    event_b = _decide(established_by_actor_id=uuid4())
+    event_a = _decide(established_by=_PRINCIPAL_ID)
+    event_b = _decide(established_by=ActorId(uuid4()))
     assert event_a.content_hash == event_b.content_hash
 
 

@@ -282,7 +282,7 @@ async def test_apply_writes_decision_on_run_completed() -> None:
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
     assert decision.confidence == pytest.approx(0.92)
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
     assert decision.rule is not None
     assert decision.rule.value == "agent:RunDebriefer:v1"
     # inputs round-trip via JSONB.

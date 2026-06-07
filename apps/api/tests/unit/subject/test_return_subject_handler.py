@@ -120,6 +120,7 @@ async def test_handler_appends_subject_returned_event() -> None:
     assert returned.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "returned_by": str(_PRINCIPAL_ID),
     }
     assert returned.event_id == _RETURN_EVENT_ID
     assert returned.metadata == {"command": "ReturnSubject"}

@@ -11,6 +11,13 @@ transition.
     (operator-only per [[project_supply_design]] Anti-hooks).
   - `monitor_ref`: identifies the originating sensor / file / log
     (carried verbatim onto the emitted event for audit).
+  - `monitor_source_id`: the stable `MonitorSourceId` UUID of the
+    in-process adapter subscription that emitted the observation;
+    threaded into the event payload's `triggered_by` field per
+    [[project_fold_symmetry_design]]. Distinct from `monitor_ref`:
+    `monitor_ref` is the human-readable "sensor identity" (PV name,
+    file path) while `monitor_source_id` is the stable adapter
+    subscription handle that survives sensor reconfigurations.
   - `reason`: free-text audit string per the existing Supply
     transition convention (1-500 chars after trim).
 
@@ -23,6 +30,7 @@ SUBSCRIPTION side, not threaded through the command surface.
 from dataclasses import dataclass
 from uuid import UUID
 
+from cora.infrastructure.identity import MonitorSourceId
 from cora.supply.aggregates.supply import MonitorRef, SupplyStatus
 
 
@@ -33,4 +41,5 @@ class ObserveSupplyStatus:
     supply_id: UUID
     new_status: SupplyStatus
     monitor_ref: MonitorRef
+    monitor_source_id: MonitorSourceId
     reason: str

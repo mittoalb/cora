@@ -162,7 +162,7 @@ async def test_initialize_seal_handler_writes_seal_payload_fields() -> None:
     assert payload["facility_id"] == _FACILITY_ID
     assert payload["online_credential_id"] == str(_ONLINE_KEY_REF)
     assert payload["offline_credential_id"] == str(_OFFLINE_KEY_REF)
-    assert payload["initialized_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert payload["initialized_by"] == str(_PRINCIPAL_ID)
     assert payload["occurred_at"] == _NOW.isoformat()
 
 
@@ -323,9 +323,9 @@ async def test_initialize_seal_handler_collision_does_not_write_either_stream() 
 
 
 @pytest.mark.unit
-async def test_initialize_seal_handler_records_initialized_by_actor_id_from_principal() -> None:
+async def test_initialize_seal_handler_records_initialized_by_from_principal() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `initialized_by_actor_id`; the command carries no spoofable author."""
+    `initialized_by`; the command carries no spoofable author."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
     handler = initialize_seal.bind(deps)
@@ -335,7 +335,7 @@ async def test_initialize_seal_handler_records_initialized_by_actor_id_from_prin
         correlation_id=_CORRELATION_ID,
     )
     seal_events, _ = await store.load("Seal", _STREAM_ID)
-    assert seal_events[0].payload["initialized_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert seal_events[0].payload["initialized_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit

@@ -39,9 +39,11 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features import demote_dataset
 from cora.data.features.demote_dataset import DemoteDataset
+from cora.infrastructure.identity import ActorId
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 20, 12, 0, 0, tzinfo=UTC)
+_DEMOTED_BY = ActorId(UUID("01900000-0000-7000-8000-000000000099"))
 
 
 def _dataset(
@@ -72,6 +74,7 @@ def test_decide_raises_dataset_not_found_when_state_is_none() -> None:
             state=None,
             command=DemoteDataset(dataset_id=uuid4(), reason="calibration error"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
 
 
@@ -85,6 +88,7 @@ def test_decide_raises_cannot_demote_when_discarded() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="trying"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
     assert "discarded" in exc_info.value.reason.lower()
 
@@ -98,6 +102,7 @@ def test_decide_raises_already_retracted_when_intent_is_retracted() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="re-demote attempt"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
     assert exc_info.value.current_intent is Intent.RETRACTED
 
@@ -113,6 +118,7 @@ def test_decide_raises_cannot_demote_when_intent_is_trial() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="trying"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
     assert "Trial" in exc_info.value.reason
     assert "Production" in exc_info.value.reason
@@ -126,6 +132,7 @@ def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="   "),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
 
 
@@ -138,6 +145,7 @@ def test_decide_raises_invalid_reason_for_too_long() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason=overlong),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
 
 
@@ -149,12 +157,14 @@ def test_decide_emits_event_with_trimmed_reason() -> None:
         state=state,
         command=DemoteDataset(dataset_id=state.id, reason="  calibration error  "),
         now=_NOW,
+        demoted_by=_DEMOTED_BY,
     )
     assert events == [
         DatasetDemoted(
             dataset_id=state.id,
             reason="calibration error",
             occurred_at=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
     ]
 
@@ -174,6 +184,7 @@ def test_decide_validates_status_before_intent_guard() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="trying"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )
     # Verify the discard-related message wins, not the intent message
     assert "discarded" in exc_info.value.reason.lower()
@@ -192,4 +203,5 @@ def test_decide_already_retracted_fires_before_trial_guard() -> None:
             state=state,
             command=DemoteDataset(dataset_id=state.id, reason="trying"),
             now=_NOW,
+            demoted_by=_DEMOTED_BY,
         )

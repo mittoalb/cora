@@ -1,5 +1,6 @@
 """Unit tests for the `has_determining_policies` predicate."""
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -13,6 +14,9 @@ from cora.decision.aggregates.decision import (
     DecisionContext,
     has_determining_policies,
 )
+from cora.infrastructure.identity import ActorId
+
+_NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
 
 def _decision(
@@ -21,7 +25,8 @@ def _decision(
 ) -> Decision:
     return Decision(
         id=uuid4(),
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
+        decided_at=_NOW,
         context=DecisionContext(context),
         choice=DecisionChoice("Allow"),
         alternatives=alternatives,

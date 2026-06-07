@@ -5,7 +5,7 @@ Single-source transition: `Rotating -> Active`. Strict-not-idempotent
 completing a rotation on a credential that is not in `Rotating` status
 raises `CredentialCannotRotateError`.
 
-`rotation_completed_by_actor_id` is handler-injected from the request
+`rotation_completed_by` is handler-injected from the request
 envelope's `principal_id` per the non-determinism principle (capture,
 don't recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -45,7 +45,7 @@ def decide(
     command: CompleteCredentialRotation,
     *,
     now: datetime,
-    rotation_completed_by_actor_id: UUID,
+    rotation_completed_by: UUID,
 ) -> list[CredentialRotationCompleted]:
     """Decide the events produced by completing a credential rotation.
 
@@ -74,7 +74,7 @@ def decide(
     return [
         CredentialRotationCompleted(
             credential_id=state.id,
-            rotation_completed_by_actor_id=rotation_completed_by_actor_id,
+            rotation_completed_by=rotation_completed_by,
             occurred_at=now,
         )
     ]

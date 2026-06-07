@@ -71,6 +71,7 @@ async def test_handler_appends_subject_registered_event_to_store() -> None:
         "subject_id": str(_NEW_ID),
         "name": "Sample-A1",
         "occurred_at": _NOW.isoformat(),
+        "registered_by": str(_PRINCIPAL_ID),
     }
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None

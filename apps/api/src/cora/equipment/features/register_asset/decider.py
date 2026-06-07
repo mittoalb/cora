@@ -76,6 +76,7 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetParentError,
 )
 from cora.equipment.features.register_asset.command import RegisterAsset
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -84,6 +85,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
+    commissioned_by: ActorId,
 ) -> list[AssetRegistered]:
     """Decide the events produced by registering a new asset.
 
@@ -131,6 +133,7 @@ def decide(
             level=command.level.value,
             parent_id=command.parent_id,
             occurred_at=now,
+            commissioned_by=commissioned_by,
             drawing=command.drawing,
             model_id=command.model_id,
             alternate_identifiers=command.alternate_identifiers,

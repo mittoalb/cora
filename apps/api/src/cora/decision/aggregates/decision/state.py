@@ -25,7 +25,7 @@ AI-recommends-then-human-overrides flow.
     convention attributes).
 
 
-Genesis aggregate: id + actor_id + context + choice + reasoning +
+Genesis aggregate: id + decided_by + context + choice + reasoning +
 confidence + confidence_source + parent_id + rule +
 inputs + alternatives + override_kind + reasoning_signature
 + occurred_at. Single event (DecisionRegistered); read side; REST +
@@ -35,7 +35,7 @@ parent_id set, parent Decision exists).
 ## Standards alignment (gate-review locks; 2026 survey + validation pass)
 
   - **PROV-AGENT (eScience 2025)**: field naming aligns with
-    `prov:wasAssociatedWith.agent` (`actor_id`),
+    `prov:wasAssociatedWith.agent` (`decided_by`),
     `prov:wasInformedBy` (`parent_id`), `prov:atTime`
     (`occurred_at`). PROV-O export at API boundaries lands when
     first consumer asks; in-domain stays on these primitives.
@@ -55,13 +55,13 @@ parent_id set, parent Decision exists).
     encrypted summary) for tamper-evidence beyond the row-level
     INSERT-only guarantee.
 
-## `actor_id` vs envelope `principal_id`
+## `decided_by` vs envelope `principal_id`
 
 These are distinct fields with overlapping but non-identical
 semantics. They will TYPICALLY hold the same UUID but can
 legitimately differ:
 
-  - `Decision.actor_id` is the WHO of the decision: the human or
+  - `Decision.decided_by` is the WHO of the decision: the human or
     AI that made the choice. PROV-O `prov:wasAssociatedWith.agent`.
     Lives on the Decision aggregate's state and is captured in the
     DecisionRegistered event payload.
@@ -75,10 +75,10 @@ decision is the same Actor whose credentials called the API).
 Future cases where they differ:
 
   - Admin records a decision made by another Actor (audit-policy
-    feature; admin's principal_id, decided-by Actor's actor_id).
+    feature; admin's principal_id, decided-by Actor's decided_by).
   - Saga emits register_decision on behalf of an originating
     principal (saga's machine principal_id, original-decider's
-    actor_id).
+    decided_by).
 
 Convention when sagas land: the saga passes-through the
 originating principal_id to downstream commands; the saga's own
@@ -120,6 +120,7 @@ from typing import Any, Final, Literal
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identity import ActorId
 
 DECISION_CHOICE_MAX_LENGTH = 500
 DECISION_REASONING_MAX_LENGTH = 5000
@@ -516,7 +517,7 @@ class DecisionNotFoundError(Exception):
 
 
 class DeciderActorNotFoundError(Exception):
-    """The Actor referenced by `actor_id` does not exist.
+    """The Actor referenced by `decided_by` does not exist.
 
     Cross-aggregate validation at registration: the handler pre-
     loads the Actor and confirms its stream is non-empty. No
@@ -525,9 +526,9 @@ class DeciderActorNotFoundError(Exception):
     fact still holds). Mapped to HTTP 409.
     """
 
-    def __init__(self, actor_id: UUID) -> None:
-        super().__init__(f"Cannot register Decision: actor_id {actor_id} does not exist")
-        self.actor_id = actor_id
+    def __init__(self, decided_by: UUID) -> None:
+        super().__init__(f"Cannot register Decision: decided_by {decided_by} does not exist")
+        self.decided_by = decided_by
 
 
 class DecisionParentNotFoundError(Exception):
@@ -902,11 +903,14 @@ class DecisionRatingRecord:
     """One operator's latest rating of a Decision.
 
     Held in `Decision.ratings: dict[UUID, DecisionRatingRecord]`
-    keyed by `rated_by_actor_id`. Multiple `DecisionRated` events
-    per (decision, actor) pair are allowed; the evolver keeps only
-    the latest (greatest `rated_at`) per actor in the aggregate
-    state. The audit trail (every rating ever submitted) lives in
-    the event log; this is the read-side latest-wins snapshot.
+    keyed by the rater Actor's id (per the fold-symmetry dict-
+    keyed special case: when attribution is the dict KEY, the
+    per-value record need not repeat it). Multiple `DecisionRated`
+    events per (decision, actor) pair are allowed; the evolver
+    keeps only the latest (greatest `rated_at`) per actor in the
+    aggregate state. The audit trail (every rating ever submitted)
+    lives in the event log; this is the read-side latest-wins
+    snapshot.
 
     `comment` is optional (None = no comment).
     """
@@ -933,7 +937,8 @@ class Decision:
     """
 
     id: UUID
-    actor_id: UUID
+    decided_by: ActorId
+    decided_at: datetime
     context: DecisionContext
     choice: DecisionChoice
     parent_id: UUID | None = None
@@ -951,7 +956,8 @@ class Decision:
     # chains, evaluator votes, etc.) follow the same shape.
     # At-most-one-open-per-kind enforced by the evolver.
     logbooks: dict[str, UUID] = field(default_factory=dict[str, UUID])
-    # 8f-b: operator ratings, keyed by rated_by_actor_id. Latest
+    # 8f-b: operator ratings, keyed by the rater Actor's id (the
+    # fold-symmetry dict-keyed attribution special case). Latest
     # per actor wins; audit trail in the event log. Empty dict at
     # genesis; populated as `DecisionRated` events fold.
     ratings: dict[UUID, DecisionRatingRecord] = field(

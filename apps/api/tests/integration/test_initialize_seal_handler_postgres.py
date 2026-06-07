@@ -112,7 +112,7 @@ async def test_initialize_seal_writes_both_streams_atomically(
     assert seal.offline_credential_id == _OFFLINE_KEY_REF
     assert seal.current_head_hash is None
     assert seal.current_sequence_number == 0
-    assert seal.initialized_by_actor_id == _PRINCIPAL_ID
+    assert seal.initialized_by == _PRINCIPAL_ID
 
 
 @pytest.mark.integration
@@ -193,7 +193,7 @@ async def test_initialize_seal_projection_lands_row(
             """
             SELECT facility_id, online_credential_id, offline_credential_id,
                    current_head_hash, current_sequence_number,
-                   initialized_by_actor_id, last_signed_by_actor_id,
+                   initialized_by, last_signed_by,
                    status, initialized_at, last_signed_at
               FROM proj_federation_seal_summary
              WHERE facility_id = $1
@@ -206,8 +206,8 @@ async def test_initialize_seal_projection_lands_row(
     assert row["offline_credential_id"] == _OFFLINE_KEY_REF
     assert row["current_head_hash"] is None
     assert row["current_sequence_number"] == 0
-    assert row["initialized_by_actor_id"] == _PRINCIPAL_ID
-    assert row["last_signed_by_actor_id"] is None
+    assert row["initialized_by"] == _PRINCIPAL_ID
+    assert row["last_signed_by"] is None
     assert row["status"] == SealStatus.LIVE.value
     assert row["initialized_at"] == _NOW
     assert row["last_signed_at"] is None

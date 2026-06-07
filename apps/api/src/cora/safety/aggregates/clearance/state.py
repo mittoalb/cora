@@ -80,6 +80,7 @@ from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
 from cora.infrastructure.identifier import Identifier
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance.hazard_classification import HazardClassification, RiskBand
 
 CLEARANCE_TITLE_MAX_LENGTH = 200
@@ -658,7 +659,7 @@ class ReviewStep:
 
     step_index: int
     role: str
-    actor_id: UUID
+    decided_by: ActorId
     decision: str
     decided_at: datetime
     notes: str | None = None

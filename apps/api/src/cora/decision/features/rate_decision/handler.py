@@ -28,6 +28,7 @@ from cora.decision.errors import UnauthorizedError
 from cora.decision.features.rate_decision.command import RateDecision
 from cora.decision.features.rate_decision.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -105,7 +106,7 @@ def bind(deps: Kernel) -> Handler:
             state=state,
             command=command,
             now=now,
-            rated_by_actor_id=principal_id,
+            rated_by=ActorId(principal_id),
         )
 
         new_events = [

@@ -36,7 +36,7 @@ CREATE TABLE proj_federation_permit_summary (
     allowed_artifact_kinds                 JSONB       NOT NULL,
     abi_tier_floor                         TEXT        NOT NULL,
     expires_at                             TIMESTAMPTZ,
-    defined_by_actor_id                    UUID        NOT NULL,
+    defined_by                             UUID        NOT NULL,
     status                                 TEXT        NOT NULL CHECK (
         status IN ('Defined', 'Active', 'Suspended', 'Revoked')
     ),

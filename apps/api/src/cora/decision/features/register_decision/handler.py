@@ -86,7 +86,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "register_decision.start",
             command_name=_COMMAND_NAME,
-            actor_id=str(command.actor_id),
+            decided_by=str(command.decided_by),
             context=command.context,
             parent_id=str(command.parent_id) if command.parent_id is not None else None,
             override_kind=command.override_kind,
@@ -105,7 +105,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "register_decision.denied",
                 command_name=_COMMAND_NAME,
-                actor_id=str(command.actor_id),
+                decided_by=str(command.decided_by),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,
@@ -114,9 +114,9 @@ def bind(deps: Kernel) -> Handler:
             raise UnauthorizedError(decision_authz.reason)
 
         # Pre-load Actor (always; required field).
-        actor = await load_actor(deps.event_store, command.actor_id)
+        actor = await load_actor(deps.event_store, command.decided_by)
         if actor is None:
-            raise DeciderActorNotFoundError(command.actor_id)
+            raise DeciderActorNotFoundError(command.decided_by)
 
         # Pre-load parent Decision (when ref set).
         parent = None
@@ -162,7 +162,7 @@ def bind(deps: Kernel) -> Handler:
             "register_decision.success",
             command_name=_COMMAND_NAME,
             decision_id=str(new_id),
-            actor_id=str(command.actor_id),
+            decided_by=str(command.decided_by),
             context=command.context,
             parent_id=str(command.parent_id) if command.parent_id is not None else None,
             override_kind=command.override_kind,

@@ -37,6 +37,7 @@ from cora.data.aggregates.dataset import (
     Intent,
 )
 from cora.data.features.demote_dataset.command import DemoteDataset
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -44,6 +45,7 @@ def decide(
     command: DemoteDataset,
     *,
     now: datetime,
+    demoted_by: ActorId,
 ) -> list[DatasetDemoted]:
     """Decide the events produced by demoting a Dataset to Retracted.
 
@@ -102,5 +104,6 @@ def decide(
             dataset_id=state.id,
             reason=reason.value,
             occurred_at=now,
+            demoted_by=demoted_by,
         )
     ]

@@ -26,7 +26,7 @@ def _register_decision(client: TestClient) -> str:
     r = client.post(
         "/decisions",
         json={
-            "actor_id": actor_id,
+            "decided_by": actor_id,
             "context": "RunDebrief",
             "choice": "NominalCompletion",
         },

@@ -6,7 +6,7 @@ VO.
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -26,9 +26,11 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features import discard_dataset
 from cora.data.features.discard_dataset import DiscardDataset
+from cora.infrastructure.identity import ActorId
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
+_DISCARDED_BY = ActorId(UUID("01900000-0000-7000-8000-000000000099"))
 
 
 def _dataset(*, status: DatasetStatus = DatasetStatus.REGISTERED) -> Dataset:
@@ -53,12 +55,14 @@ def test_decide_emits_dataset_discarded_with_trimmed_reason() -> None:
             reason="  GDPR Article 17 erasure request  ",
         ),
         now=_NOW,
+        discarded_by=_DISCARDED_BY,
     )
     assert events == [
         DatasetDiscarded(
             dataset_id=state.id,
             reason="GDPR Article 17 erasure request",
             occurred_at=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
     ]
 
@@ -71,6 +75,7 @@ def test_decide_raises_dataset_not_found_when_state_is_none() -> None:
             state=None,
             command=DiscardDataset(dataset_id=target_id, reason="X"),
             now=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
     assert exc_info.value.dataset_id == target_id
 
@@ -83,6 +88,7 @@ def test_decide_raises_invalid_reason_for_whitespace_only() -> None:
             state=state,
             command=DiscardDataset(dataset_id=state.id, reason="   "),
             now=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
 
 
@@ -97,6 +103,7 @@ def test_decide_raises_invalid_reason_for_too_long() -> None:
                 reason="a" * (DATASET_DISCARD_REASON_MAX_LENGTH + 1),
             ),
             now=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
 
 
@@ -109,6 +116,7 @@ def test_decide_raises_cannot_discard_from_discarded() -> None:
             state=state,
             command=DiscardDataset(dataset_id=state.id, reason="second"),
             now=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
     assert exc_info.value.current_status is DatasetStatus.DISCARDED
 
@@ -124,6 +132,7 @@ def test_decide_validates_reason_before_status_guard() -> None:
             state=state,
             command=DiscardDataset(dataset_id=state.id, reason="   "),
             now=_NOW,
+            discarded_by=_DISCARDED_BY,
         )
 
 
@@ -131,6 +140,6 @@ def test_decide_validates_reason_before_status_guard() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _dataset()
     cmd = DiscardDataset(dataset_id=state.id, reason="X")
-    first = discard_dataset.decide(state=state, command=cmd, now=_NOW)
-    second = discard_dataset.decide(state=state, command=cmd, now=_NOW)
+    first = discard_dataset.decide(state=state, command=cmd, now=_NOW, discarded_by=_DISCARDED_BY)
+    second = discard_dataset.decide(state=state, command=cmd, now=_NOW, discarded_by=_DISCARDED_BY)
     assert first == second

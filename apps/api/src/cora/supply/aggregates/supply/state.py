@@ -35,12 +35,12 @@ research corpora.
 
 
 Minimal Supply: id + scope + kind + name + status (defaults Unknown
-implicitly via genesis evolver) + registered_at. 10a-a shipped
-`register_supply` (genesis -> Unknown) and `mark_supply_available`
-(Unknown -> Available, operator-asserted first observation). 10a-b
-closed the FSM with `degrade`, `mark_unavailable`, `mark_recovering`,
-and `restore` (the last is the recovery acknowledgement, distinct
-from `mark_supply_available`'s first-observation semantics).
+implicitly via genesis evolver). 10a-a shipped `register_supply`
+(genesis -> Unknown) and `mark_supply_available` (Unknown ->
+Available, operator-asserted first observation). 10a-b closed the
+FSM with `degrade`, `mark_unavailable`, `mark_recovering`, and
+`restore` (the last is the recovery acknowledgement, distinct from
+`mark_supply_available`'s first-observation semantics).
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 

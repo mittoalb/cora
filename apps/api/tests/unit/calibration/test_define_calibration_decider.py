@@ -19,9 +19,10 @@ from cora.calibration.aggregates.calibration import (
 from cora.calibration.features import define_calibration
 from cora.calibration.features.define_calibration import DefineCalibration
 from cora.calibration.quantities import CalibrationQuantity
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000ca1001")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000ca1001"))
 _SUBSYSTEM_ID = UUID("01900000-0000-7000-8000-000000ca1002")
 _NEW_ID = UUID("01900000-0000-7000-8000-000000ca1003")
 
@@ -38,7 +39,8 @@ def _existing_state() -> Calibration:
         operating_point=_op_point(),
         description=None,
         revisions=(),
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_at=_NOW,
+        defined_by=_PRINCIPAL_ID,
     )
 
 
@@ -54,7 +56,7 @@ def test_decide_emits_genesis_event_for_valid_command() -> None:
         command=cmd,
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -63,7 +65,7 @@ def test_decide_emits_genesis_event_for_valid_command() -> None:
     assert event.quantity == "rotation_center"
     assert event.operating_point == _op_point()
     assert event.description is None
-    assert event.defined_by_actor_id == _PRINCIPAL_ID
+    assert event.defined_by == _PRINCIPAL_ID
 
 
 @pytest.mark.unit
@@ -79,7 +81,7 @@ def test_decide_rejects_when_state_already_exists() -> None:
             command=cmd,
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -97,7 +99,7 @@ def test_decide_rejects_missing_required_operating_point_key() -> None:
             command=cmd,
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -115,7 +117,7 @@ def test_decide_rejects_empty_operating_point() -> None:
             command=cmd,
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -136,7 +138,7 @@ def test_decide_rejects_additional_operating_point_property() -> None:
             command=cmd,
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -153,7 +155,7 @@ def test_decide_coerces_empty_description_to_none() -> None:
         command=cmd,
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert events[0].description is None
 
@@ -171,7 +173,7 @@ def test_decide_trims_description() -> None:
         command=cmd,
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert events[0].description == "vessel-A bakeout pre-scan"
 
@@ -190,7 +192,7 @@ def test_decide_rejects_overlong_description() -> None:
             command=cmd,
             now=_NOW,
             new_id=_NEW_ID,
-            defined_by_actor_id=_PRINCIPAL_ID,
+            defined_by=_PRINCIPAL_ID,
         )
 
 
@@ -206,14 +208,14 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         command=cmd,
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     second = define_calibration.decide(
         state=None,
         command=cmd,
         now=_NOW,
         new_id=_NEW_ID,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -232,6 +234,6 @@ def test_decide_is_immune_to_uuid4_stub() -> None:
         ),
         now=_NOW,
         new_id=new_id,
-        defined_by_actor_id=_PRINCIPAL_ID,
+        defined_by=_PRINCIPAL_ID,
     )
     assert events[0].calibration_id == new_id

@@ -27,7 +27,7 @@ typed union from the payload.
 Caution's `serialize_target` and Safety's `serialize_binding` emit a
 nested `{"kind": "<ArmName>", "id": "<uuid>"}` object inside the event
 payload. Calibration deliberately inlines exclusive-arc fields
-(`source_procedure_id` / `source_dataset_id` / `source_actor_id`)
+(`source_procedure_id` / `source_dataset_id` / `asserted_by`)
 directly into the event payload instead. Reason: the same
 exclusive-arc shape lands in the projection's
 `proj_calibration_revisions` table per Q5 lock, so keeping wire and
@@ -53,6 +53,7 @@ from cora.calibration.aggregates.calibration.state import (
     MeasuredSource,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise, deserialize_vo_or_raise
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
 
 # ---------------------------------------------------------------------------
@@ -65,28 +66,37 @@ def serialize_source(source: CalibrationSource) -> dict[str, Any]:
 
     Returns a dict with three keys, exactly one non-null:
 
-      MeasuredSource(procedure_id=X)  -> {procedure_id: str(X), dataset_id: None, actor_id: None}
-      ComputedSource(dataset_id=Y)    -> {procedure_id: None, dataset_id: str(Y), actor_id: None}
-      AssertedSource(actor_id=Z)      -> {procedure_id: None, dataset_id: None, actor_id: str(Z)}
+      MeasuredSource(procedure_id=X)
+          -> {source_procedure_id: str(X), source_dataset_id: None, asserted_by: None}
+      ComputedSource(dataset_id=Y)
+          -> {source_procedure_id: None, source_dataset_id: str(Y), asserted_by: None}
+      AssertedSource(asserted_by=Z)
+          -> {source_procedure_id: None, source_dataset_id: None, asserted_by: str(Z)}
+
+    The `asserted_by` key is byte-identical with the
+    `AssertedSource.asserted_by` field name per the fold-symmetry
+    rename (the prior `source_actor_id` key generalised the suffix
+    for column-shape symmetry; the renamed shape keeps that symmetry
+    while aligning with the VO field).
     """
     match source:
         case MeasuredSource(procedure_id=procedure_id):
             return {
                 "source_procedure_id": str(procedure_id),
                 "source_dataset_id": None,
-                "source_actor_id": None,
+                "asserted_by": None,
             }
         case ComputedSource(dataset_id=dataset_id):
             return {
                 "source_procedure_id": None,
                 "source_dataset_id": str(dataset_id),
-                "source_actor_id": None,
+                "asserted_by": None,
             }
-        case AssertedSource(actor_id=actor_id):
+        case AssertedSource(asserted_by=asserted_by):
             return {
                 "source_procedure_id": None,
                 "source_dataset_id": None,
-                "source_actor_id": str(actor_id),
+                "asserted_by": str(asserted_by),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(source)
@@ -96,7 +106,7 @@ def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
     """Decode exclusive-arc payload fields into a typed CalibrationSource.
 
     Validates that exactly one of `source_procedure_id` /
-    `source_dataset_id` / `source_actor_id` is non-null. Raises
+    `source_dataset_id` / `asserted_by` is non-null. Raises
     `InvalidCalibrationSourceError` on violation (zero set, more than
     one set, or all three missing keys) so a contaminated payload fails
     loud rather than silently degrading to the first non-null match.
@@ -105,17 +115,17 @@ def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
     def _build() -> CalibrationSource:
         procedure_id_raw = payload.get("source_procedure_id")
         dataset_id_raw = payload.get("source_dataset_id")
-        actor_id_raw = payload.get("source_actor_id")
+        asserted_by_raw = payload.get("asserted_by")
         present = [
             ("source_procedure_id", procedure_id_raw),
             ("source_dataset_id", dataset_id_raw),
-            ("source_actor_id", actor_id_raw),
+            ("asserted_by", asserted_by_raw),
         ]
         non_null = [(k, v) for k, v in present if v is not None]
         if len(non_null) != 1:
             msg = (
                 f"CalibrationSource payload must have exactly one non-null "
-                f"source_*_id field; got {len(non_null)} non-null: "
+                f"source-discriminator field; got {len(non_null)} non-null: "
                 f"{[k for k, _ in non_null]!r}"
             )
             raise InvalidCalibrationSourceError(msg)
@@ -125,10 +135,10 @@ def deserialize_source(payload: dict[str, Any]) -> CalibrationSource:
                 return MeasuredSource(procedure_id=UUID(value))
             case "source_dataset_id":
                 return ComputedSource(dataset_id=UUID(value))
-            case "source_actor_id":
-                return AssertedSource(actor_id=UUID(value))
+            case "asserted_by":
+                return AssertedSource(asserted_by=ActorId(UUID(value)))
             case _:  # pragma: no cover  # exhaustiveness guard via len-check above
-                msg = f"Unknown source_*_id key {key!r}"
+                msg = f"Unknown source-discriminator key {key!r}"
                 raise InvalidCalibrationSourceError(msg)
 
     return deserialize_vo_or_raise(
@@ -154,9 +164,11 @@ class CalibrationDefined:
     `description` is optional operator-prose; `None` when absent
     (matches Method/Plan/Family precedent).
 
-    `defined_by_actor_id` denorm of the envelope `principal_id` for
+    `defined_by` denorm of the envelope `principal_id` for
     projection convenience; consumers querying "calibrations I
-    defined" don't need to join the envelope table.
+    defined" don't need to join the envelope table. Folded onto
+    `Calibration.defined_by` per [[project_fold_symmetry_design]];
+    paired with `Calibration.defined_at = occurred_at`.
     """
 
     calibration_id: UUID
@@ -164,7 +176,7 @@ class CalibrationDefined:
     quantity: str  # CalibrationQuantity value-string
     operating_point: dict[str, Any]
     description: str | None
-    defined_by_actor_id: UUID
+    defined_by: ActorId
     occurred_at: datetime
 
 
@@ -190,7 +202,14 @@ class CalibrationRevisionAppended:
     revision already on this aggregate (cross-aggregate supersession
     is forbidden).
 
-    `established_by_actor_id` denorm of envelope `principal_id`.
+    `established_by` denorm of envelope `principal_id`. Folded onto
+    `CalibrationRevision.established_by` per [[project_fold_symmetry_design]];
+    paired with `established_at`.
+
+    `asserted_by` mirrors `AssertedSource.asserted_by` for byte-identity
+    with the renamed VO field; non-null only when the source arm is
+    `AssertedSource` (exclusive-arc invariant with `source_procedure_id`
+    and `source_dataset_id`).
     """
 
     revision_id: UUID
@@ -199,9 +218,9 @@ class CalibrationRevisionAppended:
     status: CalibrationStatus
     source_procedure_id: UUID | None
     source_dataset_id: UUID | None
-    source_actor_id: UUID | None
+    asserted_by: ActorId | None
     established_at: datetime
-    established_by_actor_id: UUID
+    established_by: ActorId
     decided_by_decision_id: UUID | None
     supersedes_revision_id: UUID | None
     occurred_at: datetime
@@ -239,7 +258,7 @@ class CalibrationRevisionPublished:
       - `receipt_id` is the UUID minted by the PublishPort adapter
         (the cross-BC `PublicationReceiptRecorded` on the Permit
         stream carries the same receipt_id for join purposes).
-      - `published_by_actor_id` is the envelope `principal_id` of
+      - `published_by` is the envelope `principal_id` of
         the publish-slice caller (for human-initiated publish);
         AI agent publication goes through `promote_*_publication`
         per the propose-then-promote pattern, and the handler
@@ -265,7 +284,7 @@ class CalibrationRevisionPublished:
     signature_kid: str
     receipt_id: UUID
     published_at: datetime
-    published_by_actor_id: UUID
+    published_by: UUID
     publication_status: str
     occurred_at: datetime
 
@@ -293,7 +312,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
             quantity=quantity,
             operating_point=operating_point,
             description=description,
-            defined_by_actor_id=defined_by_actor_id,
+            defined_by=defined_by,
             occurred_at=occurred_at,
         ):
             return {
@@ -302,7 +321,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 "quantity": quantity,
                 "operating_point": operating_point,
                 "description": description,
-                "defined_by_actor_id": str(defined_by_actor_id),
+                "defined_by": str(defined_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case CalibrationRevisionAppended(
@@ -312,9 +331,9 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
             status=status,
             source_procedure_id=source_procedure_id,
             source_dataset_id=source_dataset_id,
-            source_actor_id=source_actor_id,
+            asserted_by=asserted_by,
             established_at=established_at,
-            established_by_actor_id=established_by_actor_id,
+            established_by=established_by,
             decided_by_decision_id=decided_by_decision_id,
             supersedes_revision_id=supersedes_revision_id,
             occurred_at=occurred_at,
@@ -331,9 +350,9 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 "source_dataset_id": (
                     str(source_dataset_id) if source_dataset_id is not None else None
                 ),
-                "source_actor_id": (str(source_actor_id) if source_actor_id is not None else None),
+                "asserted_by": (str(asserted_by) if asserted_by is not None else None),
                 "established_at": established_at.isoformat(),
-                "established_by_actor_id": str(established_by_actor_id),
+                "established_by": str(established_by),
                 "decided_by_decision_id": (
                     str(decided_by_decision_id) if decided_by_decision_id is not None else None
                 ),
@@ -355,7 +374,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
             signature_kid=signature_kid,
             receipt_id=receipt_id,
             published_at=published_at,
-            published_by_actor_id=published_by_actor_id,
+            published_by=published_by,
             publication_status=publication_status,
             occurred_at=occurred_at,
         ):
@@ -369,7 +388,7 @@ def to_payload(event: CalibrationEvent) -> dict[str, Any]:
                 "signature_kid": signature_kid,
                 "receipt_id": str(receipt_id),
                 "published_at": published_at.isoformat(),
-                "published_by_actor_id": str(published_by_actor_id),
+                "published_by": str(published_by),
                 "publication_status": publication_status,
                 "occurred_at": occurred_at.isoformat(),
             }
@@ -395,7 +414,7 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     quantity=payload["quantity"],
                     operating_point=payload["operating_point"],
                     description=payload.get("description"),
-                    defined_by_actor_id=UUID(payload["defined_by_actor_id"]),
+                    defined_by=ActorId(UUID(payload["defined_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
@@ -404,7 +423,7 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
             def _build_revision_appended() -> CalibrationRevisionAppended:
                 raw_proc = payload.get("source_procedure_id")
                 raw_dataset = payload.get("source_dataset_id")
-                raw_actor = payload.get("source_actor_id")
+                raw_asserted = payload.get("asserted_by")
                 raw_decided = payload.get("decided_by_decision_id")
                 raw_supersedes = payload.get("supersedes_revision_id")
                 return CalibrationRevisionAppended(
@@ -414,9 +433,9 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     status=CalibrationStatus(payload["status"]),
                     source_procedure_id=UUID(raw_proc) if raw_proc is not None else None,
                     source_dataset_id=UUID(raw_dataset) if raw_dataset is not None else None,
-                    source_actor_id=UUID(raw_actor) if raw_actor is not None else None,
+                    asserted_by=(ActorId(UUID(raw_asserted)) if raw_asserted is not None else None),
                     established_at=datetime.fromisoformat(payload["established_at"]),
-                    established_by_actor_id=UUID(payload["established_by_actor_id"]),
+                    established_by=ActorId(UUID(payload["established_by"])),
                     decided_by_decision_id=UUID(raw_decided) if raw_decided is not None else None,
                     supersedes_revision_id=(
                         UUID(raw_supersedes) if raw_supersedes is not None else None
@@ -443,7 +462,7 @@ def from_stored(stored: StoredEvent) -> CalibrationEvent:
                     signature_kid=payload["signature_kid"],
                     receipt_id=UUID(payload["receipt_id"]),
                     published_at=datetime.fromisoformat(payload["published_at"]),
-                    published_by_actor_id=UUID(payload["published_by_actor_id"]),
+                    published_by=UUID(payload["published_by"]),
                     publication_status=payload["publication_status"],
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 )

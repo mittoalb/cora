@@ -10,7 +10,7 @@ was kicked off (key compromise drill, root rotation, tree rewrite).
 Flows through to the emitted `SealRepublishingStarted` event payload
 so operator context survives on the immutable event log.
 
-Server-side concerns (`started_by_actor_id`, wall-clock timestamp,
+Server-side concerns (`started_by`, wall-clock timestamp,
 per-event ids, correlation id) are injected by the handler from
 infrastructure ports / the request envelope per the non-determinism
 principle (capture, don't recompute).

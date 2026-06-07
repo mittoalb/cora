@@ -8,7 +8,8 @@ Pins the Monitor truth table per
       * Decommissioned (no Monitor equivalent for deregister)
   - Source-state allowlists mirror the operator-driven sibling
     deciders verbatim.
-  - Every emitted event carries `trigger="Monitor"` and a serialized
+  - Every emitted event carries `trigger="Monitor"`, a typed
+    `MonitorSourceId` in `triggered_by`, and a serialized
     `monitor_ref` audit field.
 """
 
@@ -17,6 +18,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import MonitorSourceId
 from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
     MonitorRef,
@@ -37,6 +39,7 @@ from cora.supply.features.observe_supply_status import ObserveSupplyStatus, deci
 
 _NOW = datetime(2026, 5, 28, 12, 0, 0, tzinfo=UTC)
 _MREF = MonitorRef(source_kind="EpicsPv", source_id="S35:beam_current")
+_MONITOR_SOURCE_ID = MonitorSourceId(uuid4())
 
 
 def _state(status: SupplyStatus) -> Supply:
@@ -56,6 +59,7 @@ def _cmd(
         supply_id=supply_id,
         new_status=new_status,
         monitor_ref=_MREF,
+        monitor_source_id=_MONITOR_SOURCE_ID,
         reason=reason,
     )
 
@@ -64,7 +68,7 @@ def _cmd(
 def test_decide_raises_not_found_when_state_is_none() -> None:
     sup_id = uuid4()
     with pytest.raises(SupplyNotFoundError):
-        decide(None, _cmd(sup_id, SupplyStatus.DEGRADED), now=_NOW)
+        decide(None, _cmd(sup_id, SupplyStatus.DEGRADED), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
 
 
 @pytest.mark.unit
@@ -77,7 +81,7 @@ def test_decide_rejects_monitor_forbidden_target_status(forbidden_target: Supply
     Monitor; Unknown is reachable only via genesis (defensive guard)."""
     s = _state(SupplyStatus.AVAILABLE)
     with pytest.raises(MonitorTriggerNotPermittedError) as exc_info:
-        decide(s, _cmd(s.id, forbidden_target), now=_NOW)
+        decide(s, _cmd(s.id, forbidden_target), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
     assert exc_info.value.requested_status is forbidden_target
 
 
@@ -87,10 +91,11 @@ def test_decide_rejects_monitor_forbidden_target_status(forbidden_target: Supply
 )
 def test_decide_degraded_from_permitted_source(source: SupplyStatus) -> None:
     s = _state(source)
-    events = decide(s, _cmd(s.id, SupplyStatus.DEGRADED), now=_NOW)
+    events = decide(s, _cmd(s.id, SupplyStatus.DEGRADED), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
     assert len(events) == 1
     assert isinstance(events[0], SupplyDegraded)
     assert events[0].trigger == "Monitor"
+    assert events[0].triggered_by == _MONITOR_SOURCE_ID
     assert events[0].monitor_ref == "EpicsPv:S35:beam_current"
     assert events[0].from_status == source.value
 
@@ -100,7 +105,7 @@ def test_decide_degraded_from_disallowed_source_raises() -> None:
     """Source-state allowlist for Degraded matches operator-driven slice."""
     s = _state(SupplyStatus.UNAVAILABLE)
     with pytest.raises(SupplyCannotDegradeError):
-        decide(s, _cmd(s.id, SupplyStatus.DEGRADED), now=_NOW)
+        decide(s, _cmd(s.id, SupplyStatus.DEGRADED), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
 
 
 @pytest.mark.unit
@@ -115,10 +120,13 @@ def test_decide_degraded_from_disallowed_source_raises() -> None:
 )
 def test_decide_unavailable_from_permitted_source(source: SupplyStatus) -> None:
     s = _state(source)
-    events = decide(s, _cmd(s.id, SupplyStatus.UNAVAILABLE), now=_NOW)
+    events = decide(
+        s, _cmd(s.id, SupplyStatus.UNAVAILABLE), now=_NOW, triggered_by=_MONITOR_SOURCE_ID
+    )
     assert len(events) == 1
     assert isinstance(events[0], SupplyMarkedUnavailable)
     assert events[0].trigger == "Monitor"
+    assert events[0].triggered_by == _MONITOR_SOURCE_ID
 
 
 @pytest.mark.unit
@@ -126,16 +134,19 @@ def test_decide_unavailable_from_disallowed_source_raises() -> None:
     """Only Unavailable itself disallows the Unavailable target."""
     s = _state(SupplyStatus.UNAVAILABLE)
     with pytest.raises(SupplyCannotMarkUnavailableError):
-        decide(s, _cmd(s.id, SupplyStatus.UNAVAILABLE), now=_NOW)
+        decide(s, _cmd(s.id, SupplyStatus.UNAVAILABLE), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
 
 
 @pytest.mark.unit
 def test_decide_recovering_from_unavailable_succeeds() -> None:
     s = _state(SupplyStatus.UNAVAILABLE)
-    events = decide(s, _cmd(s.id, SupplyStatus.RECOVERING), now=_NOW)
+    events = decide(
+        s, _cmd(s.id, SupplyStatus.RECOVERING), now=_NOW, triggered_by=_MONITOR_SOURCE_ID
+    )
     assert len(events) == 1
     assert isinstance(events[0], SupplyMarkedRecovering)
     assert events[0].trigger == "Monitor"
+    assert events[0].triggered_by == _MONITOR_SOURCE_ID
 
 
 @pytest.mark.unit
@@ -152,11 +163,16 @@ def test_decide_recovering_from_disallowed_source_raises(source: SupplyStatus) -
     """Recovering's source allowlist is {Unavailable} only."""
     s = _state(source)
     with pytest.raises(SupplyCannotMarkRecoveringError):
-        decide(s, _cmd(s.id, SupplyStatus.RECOVERING), now=_NOW)
+        decide(s, _cmd(s.id, SupplyStatus.RECOVERING), now=_NOW, triggered_by=_MONITOR_SOURCE_ID)
 
 
 @pytest.mark.unit
 def test_decide_invalid_reason_raises() -> None:
     s = _state(SupplyStatus.AVAILABLE)
     with pytest.raises(InvalidSupplyReasonError):
-        decide(s, _cmd(s.id, SupplyStatus.DEGRADED, reason="   "), now=_NOW)
+        decide(
+            s,
+            _cmd(s.id, SupplyStatus.DEGRADED, reason="   "),
+            now=_NOW,
+            triggered_by=_MONITOR_SOURCE_ID,
+        )

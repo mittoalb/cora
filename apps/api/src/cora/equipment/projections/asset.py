@@ -65,9 +65,10 @@ _INSERT_ASSET_SQL = """
 INSERT INTO proj_equipment_asset_summary
     (asset_id, name, level, lifecycle, condition, parent_id,
      drawing_system, drawing_number, drawing_revision, model_id,
-     alternate_identifiers, owners, commissioned_at, created_at)
+     alternate_identifiers, owners, commissioned_at, commissioned_by,
+     created_at)
 VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5, $6, $7, $8,
-        $9, $10, $11, $11)
+        $9, $10, $11, $12, $11)
 ON CONFLICT (asset_id) DO NOTHING
 """
 
@@ -101,14 +102,17 @@ SET lifecycle = $2, updated_at = now()
 WHERE asset_id = $1
 """
 
-# AssetDecommissioned writes BOTH lifecycle and decommissioned_at in a
-# single statement so the read row's two facets land atomically. The
-# timestamp source is the event's occurred_at (passed as $2), matching
-# the Asset evolver's fold per L2.
+# AssetDecommissioned writes lifecycle, decommissioned_at, and
+# decommissioned_by in a single statement so the read row's facets
+# land atomically. The timestamp source is the event's occurred_at
+# (passed as $2), matching the Asset evolver's fold per L2;
+# decommissioned_by is the principal that issued the
+# decommission_asset command (passed as $3), per fold-symmetry.
 _UPDATE_DECOMMISSIONED_SQL = """
 UPDATE proj_equipment_asset_summary
 SET lifecycle = 'Decommissioned',
     decommissioned_at = $2,
+    decommissioned_by = $3,
     updated_at = now()
 WHERE asset_id = $1
 """
@@ -280,6 +284,7 @@ class AssetSummaryProjection:
                     alternate_identifiers_list,
                     owners_list,
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    UUID(event.payload["commissioned_by"]),
                 )
             case "AssetActivated" | "AssetMaintenanceExited":
                 await self._update_lifecycle(event, conn, "Active")
@@ -288,6 +293,7 @@ class AssetSummaryProjection:
                     _UPDATE_DECOMMISSIONED_SQL,
                     UUID(event.payload["asset_id"]),
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    UUID(event.payload["decommissioned_by"]),
                 )
             case "AssetMaintenanceEntered":
                 await self._update_lifecycle(event, conn, "Maintenance")

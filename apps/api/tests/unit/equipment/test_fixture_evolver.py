@@ -1,7 +1,7 @@
 """Unit tests for the Fixture evolver: single-event genesis."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -11,6 +11,9 @@ from cora.equipment.aggregates.fixture import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _NOW = datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -30,6 +33,7 @@ def test_evolve_genesis_builds_state_from_event() -> None:
         slot_asset_bindings=bindings,
         parameter_overrides={"exposure_ms": 100},
         occurred_at=_NOW,
+        registered_by=_TEST_ACTOR_ID,
     )
     state = evolve(None, event)
     assert state.id == fixture_id
@@ -56,6 +60,7 @@ def test_fold_single_event_returns_state() -> None:
         slot_asset_bindings=frozenset(),
         parameter_overrides={},
         occurred_at=_NOW,
+        registered_by=_TEST_ACTOR_ID,
     )
     state = fold([event])
     assert state is not None

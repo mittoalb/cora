@@ -2,7 +2,7 @@
 
 Covers authz denial, FSM not-found rejection, strict-not-idempotent
 re-revoke rejection, and the event-envelope shape (correlation_id +
-causation_id propagation, `revoked_by_actor_id` denorm carried from
+causation_id propagation, `revoked_by` denorm carried from
 `principal_id`).
 """
 
@@ -31,6 +31,7 @@ from cora.federation.features import revoke_permit
 from cora.federation.features.revoke_permit import RevokePermit
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
@@ -44,7 +45,7 @@ _SUSPENDED_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed014")
 _REVOKED_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed015")
 _FOLLOWUP_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed016")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
-_DEFINED_BY_ACTOR_ID = UUID("01900000-0000-7000-8000-00000000009a")
+_DEFINED_BY_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000009a"))
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _EXPIRES_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=UTC)
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000000bb1")
@@ -94,7 +95,7 @@ async def _seed_defined_permit(store: InMemoryEventStore) -> None:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_DEFINED_BY_ACTOR_ID,
+        defined_by=_DEFINED_BY_ACTOR_ID,
         terms=_outbound_terms(),
         occurred_at=_T0,
     )
@@ -111,7 +112,7 @@ async def _seed_active_permit(store: InMemoryEventStore) -> None:
     await _seed_defined_permit(store)
     activated = PermitActivated(
         permit_id=_PERMIT_ID,
-        activated_by_actor_id=_PRINCIPAL_ID,
+        activated_by=_PRINCIPAL_ID,
         occurred_at=_T1,
     )
     await _append(
@@ -127,7 +128,7 @@ async def _seed_suspended_permit(store: InMemoryEventStore) -> None:
     await _seed_active_permit(store)
     suspended = PermitSuspended(
         permit_id=_PERMIT_ID,
-        suspended_by_actor_id=_PRINCIPAL_ID,
+        suspended_by=_PRINCIPAL_ID,
         occurred_at=_T1,
     )
     await _append(
@@ -171,7 +172,7 @@ async def test_revoke_permit_handler_appends_event_from_defined() -> None:
     transition = events[-1]
     assert transition.event_type == "PermitRevoked"
     assert transition.payload["permit_id"] == str(_PERMIT_ID)
-    assert transition.payload["revoked_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert transition.payload["revoked_by"] == str(_PRINCIPAL_ID)
     assert transition.payload["reason"] == "peer decommissioned"
     assert transition.correlation_id == _CORRELATION_ID
     assert transition.causation_id is None

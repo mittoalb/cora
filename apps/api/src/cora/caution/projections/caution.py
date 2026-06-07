@@ -65,7 +65,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_CAUTION_SQL = """
 INSERT INTO proj_caution_summary
     (caution_id, target_kind, target_id, category, severity, text, workaround,
-     author_actor_id, tags, expires_at, propagate_to_children,
+     authored_by, tags, expires_at, propagate_to_children,
      status, parent_id, superseded_by_caution_id, retired_reason,
      registered_at, last_status_changed_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
@@ -130,7 +130,7 @@ class CautionSummaryProjection:
                     payload["severity"],
                     payload["text"],
                     payload["workaround"],
-                    UUID(payload["author_actor_id"]),
+                    UUID(payload["authored_by"]),
                     list(payload["tags"]),
                     (
                         datetime.fromisoformat(raw_expires_at)

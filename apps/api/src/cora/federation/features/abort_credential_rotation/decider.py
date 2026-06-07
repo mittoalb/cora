@@ -5,7 +5,7 @@ Single-source transition: `Rotating -> Active`. Strict-not-idempotent
 aborting a rotation on a credential that is not in `Rotating` status
 raises `CredentialCannotRotateError`.
 
-`rotation_aborted_by_actor_id` is handler-injected from the request
+`rotation_aborted_by` is handler-injected from the request
 envelope's `principal_id` per the non-determinism principle (capture,
 don't recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -45,7 +45,7 @@ def decide(
     command: AbortCredentialRotation,
     *,
     now: datetime,
-    rotation_aborted_by_actor_id: UUID,
+    rotation_aborted_by: UUID,
 ) -> list[CredentialRotationAborted]:
     """Decide the events produced by aborting a credential rotation.
 
@@ -66,7 +66,7 @@ def decide(
     return [
         CredentialRotationAborted(
             credential_id=state.id,
-            rotation_aborted_by_actor_id=rotation_aborted_by_actor_id,
+            rotation_aborted_by=rotation_aborted_by,
             occurred_at=now,
             reason=command.reason,
         )

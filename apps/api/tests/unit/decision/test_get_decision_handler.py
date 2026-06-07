@@ -15,6 +15,7 @@ from cora.decision.features import get_decision
 from cora.decision.features.get_decision import GetDecision
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
@@ -25,7 +26,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def _seed_decision(store: InMemoryEventStore, decision_id: UUID) -> None:
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         context="RecipeApproval",
         choice="Approved",
         parent_id=None,

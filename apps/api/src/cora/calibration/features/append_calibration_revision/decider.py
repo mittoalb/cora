@@ -20,11 +20,11 @@ No FSM transition; status lives per-revision per the design memo.
      Asset parent + Procedure target + Campaign lead_actor + Run.subject
      precedent).
 
-`established_by_actor_id` is handler-injected from the request
-envelope's `principal_id`. The source's typed inner UUID may or may
-not match the envelope's principal (an operator can assert a value
-on behalf of another operator; a subscriber can append a computed
-revision while the envelope's principal is the system identity).
+`established_by` is handler-injected from the request envelope's
+`principal_id`. The source's typed inner UUID may or may not match
+the envelope's principal (an operator can assert a value on behalf
+of another operator; a subscriber can append a computed revision
+while the envelope's principal is the system identity).
 
 `revision_id` is handler-injected from the IdGenerator port (separate
 from the event_id which envelope-wraps the persisted event).
@@ -54,6 +54,7 @@ from cora.calibration.features.append_calibration_revision.command import (
 )
 from cora.calibration.quantities import CalibrationQuantity, get_value_schema
 from cora.infrastructure.content_hash import compute_content_hash
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
 from cora.infrastructure.signing import event_type_to_payload_type
 
@@ -68,7 +69,7 @@ def decide(
     *,
     now: datetime,
     new_revision_id: UUID,
-    established_by_actor_id: UUID,
+    established_by: ActorId,
 ) -> list[CalibrationRevisionAppended]:
     """Decide the events produced by appending a new revision.
 
@@ -98,7 +99,7 @@ def decide(
     # Split the polymorphic source into the exclusive-arc event-class
     # fields (Q5 lock). The event dataclass carries typed UUIDs; the
     # to_payload codec stringifies for the wire.
-    source_procedure_id, source_dataset_id, source_actor_id = _split_source(command.source)
+    source_procedure_id, source_dataset_id, asserted_by = _split_source(command.source)
 
     # Compute the revision's content hash via the same canonical subset
     # the evolver folds (CalibrationRevision.content_subset). Capturing
@@ -109,7 +110,7 @@ def decide(
         status=command.status,
         source=command.source,
         established_at=now,
-        established_by_actor_id=established_by_actor_id,
+        established_by=established_by,
         decided_by_decision_id=command.decided_by_decision_id,
         supersedes_revision_id=command.supersedes_revision_id,
     )
@@ -126,9 +127,9 @@ def decide(
             status=command.status,
             source_procedure_id=source_procedure_id,
             source_dataset_id=source_dataset_id,
-            source_actor_id=source_actor_id,
+            asserted_by=asserted_by,
             established_at=now,
-            established_by_actor_id=established_by_actor_id,
+            established_by=established_by,
             decided_by_decision_id=command.decided_by_decision_id,
             supersedes_revision_id=command.supersedes_revision_id,
             occurred_at=now,
@@ -153,16 +154,16 @@ def _validate_value(value: dict[str, Any], schema: dict[str, Any]) -> None:
 
 def _split_source(
     source: AssertedSource | ComputedSource | MeasuredSource,
-) -> tuple[UUID | None, UUID | None, UUID | None]:
-    """Split the polymorphic source into (procedure_id, dataset_id, actor_id)
+) -> tuple[UUID | None, UUID | None, ActorId | None]:
+    """Split the polymorphic source into (procedure_id, dataset_id, asserted_by)
     with exactly one non-None per Q5 exclusive-arc encoding."""
     match source:
         case MeasuredSource(procedure_id=procedure_id):
             return procedure_id, None, None
         case ComputedSource(dataset_id=dataset_id):
             return None, dataset_id, None
-        case AssertedSource(actor_id=actor_id):
-            return None, None, actor_id
+        case AssertedSource(asserted_by=asserted_by):
+            return None, None, asserted_by
 
 
 __all__ = ["decide"]

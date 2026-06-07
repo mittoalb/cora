@@ -28,7 +28,7 @@ class DecisionOutput(BaseModel):
     """
 
     id: UUID
-    actor_id: UUID
+    decided_by: UUID
     context: str = Field(..., max_length=DECISION_CONTEXT_MAX_LENGTH)
     choice: str = Field(..., max_length=DECISION_CHOICE_MAX_LENGTH)
     parent_id: UUID | None
@@ -72,7 +72,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         band = confidence_band(decision.confidence)
         return DecisionOutput(
             id=decision.id,
-            actor_id=decision.actor_id,
+            decided_by=decision.decided_by,
             context=decision.context.value,
             choice=decision.choice.value,
             parent_id=decision.parent_id,

@@ -44,6 +44,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identity import ActorId
 
 CALIBRATION_DESCRIPTION_MAX_LENGTH = 2000
 
@@ -118,9 +119,19 @@ class AssertedSource:
     memory, vendor datasheet, or out-of-band measurement. The Actor id
     is carried for accountability (the same identity is also on the
     StoredEvent envelope's principal_id, so this is denorm).
+
+    `asserted_by` is the provenance-source field: it identifies the
+    Actor that supplied the value (vendor datasheet operator, calibrator
+    on the bench). Contrast with the sibling
+    `CalibrationRevision.established_by` which is the fact-act-authority
+    field: the principal that performed the append_calibration_revision
+    command and thereby committed the revision to the stream. For
+    operator-asserted revisions the two are commonly the same person,
+    but they are not constrained to match: an operator can append a
+    revision whose asserted value came from another operator.
     """
 
-    actor_id: UUID
+    asserted_by: ActorId
 
 
 type CalibrationSource = MeasuredSource | ComputedSource | AssertedSource
@@ -435,7 +446,7 @@ class CalibrationRevision:
     status: CalibrationStatus
     source: CalibrationSource
     established_at: datetime
-    established_by_actor_id: UUID
+    established_by: ActorId
     decided_by_decision_id: UUID | None = None
     supersedes_revision_id: UUID | None = None
     # SHA-256 (64-char lowercase hex) of the canonical body bytes for
@@ -455,8 +466,8 @@ class CalibrationRevision:
         Pins identity per [[project_content_addressed_identity_design]]:
         `value + status + source_kind + source_id + decided_by_decision_id
         + supersedes_revision_id`. Excluded: `revision_id` (identity, not
-        content); `established_at` and `established_by_actor_id` (envelope
-        metadata, analog of event `occurred_at` and `defined_by_actor_id`
+        content); `established_at` and `established_by` (envelope
+        metadata, analog of event `occurred_at` and `defined_by`
         on Plan/Method); `content_hash` itself. The parent aggregate's
         identity (`target_id`, `quantity`, `operating_point`) lives one
         level up on the Calibration aggregate and is NOT folded into the
@@ -479,7 +490,7 @@ class CalibrationRevision:
             case ComputedSource(dataset_id=source_id):
                 source_kind = "computed"
                 source_id_str = str(source_id)
-            case AssertedSource(actor_id=source_id):
+            case AssertedSource(asserted_by=source_id):
                 source_kind = "asserted"
                 source_id_str = str(source_id)
         return {
@@ -529,14 +540,16 @@ class Calibration:
     appended at the end. The latest revision per-status (or per-source-
     kind) is recomputed at read time via `read.py` helpers.
 
-    Per the locked Path C convention (`project_template_aggregate_timestamps`),
-    lifecycle bookkeeping timestamps (`defined_at`, `last_revised_at`)
-    do NOT live on aggregate state; they are derived at projection-
-    apply time from each event's envelope `occurred_at`. The 7th
-    aggregate to follow the pattern. The `established_at` field on
-    individual `CalibrationRevision` instances STAYS — it is the
-    domain-meaningful timestamp of when the revision was decided
-    (may legitimately differ from when the event was recorded).
+    Per [[project_fold_symmetry_design]] the genesis-time half is folded
+    back onto state alongside its attribution half: `defined_at` is
+    folded from `CalibrationDefined.occurred_at` and pairs with
+    `defined_by`. `last_revised_at` continues to live only on the
+    projection (Path C) because no aggregate-level attribution half
+    exists for it (per-revision attribution sits on `CalibrationRevision.established_by`).
+    The `established_at` field on individual `CalibrationRevision`
+    instances STAYS — it is the domain-meaningful timestamp of when the
+    revision was decided (may legitimately differ from when the event
+    was recorded).
     """
 
     id: UUID
@@ -545,4 +558,5 @@ class Calibration:
     operating_point: dict[str, Any]
     description: str | None
     revisions: tuple[CalibrationRevision, ...]
-    defined_by_actor_id: UUID
+    defined_at: datetime
+    defined_by: ActorId

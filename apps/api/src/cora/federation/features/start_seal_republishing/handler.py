@@ -24,7 +24,7 @@ changes.
 
 Delegates to `make_seal_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `started_by_actor_id`.
+under `started_by`.
 """
 
 from typing import Protocol
@@ -60,5 +60,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="StartSealRepublishing",
         log_prefix="start_seal_republishing",
         decide_fn=decide,
-        actor_kwarg="started_by_actor_id",
+        actor_kwarg="started_by",
     )

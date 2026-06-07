@@ -28,6 +28,7 @@ from datetime import datetime
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import validate_bounded_text
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     InvalidSupplyKindError,
@@ -35,6 +36,7 @@ from cora.supply.aggregates.supply import (
     SupplyAlreadyExistsError,
     SupplyName,
     SupplyRegistered,
+    TriggerSource,
 )
 from cora.supply.features.register_supply.command import RegisterSupply
 
@@ -45,6 +47,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
+    triggered_by: ActorId,
 ) -> list[SupplyRegistered]:
     """Decide the events produced by registering a new supply.
 
@@ -54,6 +57,11 @@ def decide(
       - kind must be valid -> InvalidSupplyKindError
       - Name must be valid -> InvalidSupplyNameError
         (via SupplyName VO)
+
+    `triggered_by` is the operator's `ActorId` (registration is
+    always operator-driven; no Monitor or Auto counterpart). Folded
+    onto the event payload alongside trigger="Operator" per the
+    fold-symmetry attribution rule.
     """
     if state is not None:
         raise SupplyAlreadyExistsError(state.id)
@@ -73,6 +81,8 @@ def decide(
             scope=command.scope.value,
             kind=kind,
             name=name.value,
+            trigger=TriggerSource.OPERATOR.value,
+            triggered_by=triggered_by,
             occurred_at=now,
         )
     ]

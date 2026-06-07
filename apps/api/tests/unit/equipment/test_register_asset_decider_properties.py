@@ -22,6 +22,7 @@ asset-alternate-identifiers slice:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pytest
 from hypothesis import given
@@ -36,11 +37,14 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features import register_asset
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.identity import ActorId
 from tests._strategies import aware_datetimes, printable_ascii_text
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from uuid import UUID
 
 
 _NAME = printable_ascii_text(min_size=1, max_size=200)
@@ -93,7 +97,9 @@ def test_register_asset_propagates_model_id_verbatim_into_event(
         parent_id=parent_id,
         model_id=model_id,
     )
-    events = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
+    events = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, AssetRegistered)
@@ -125,8 +131,12 @@ def test_register_asset_is_pure_across_model_id_inputs(
         parent_id=parent_id,
         model_id=model_id,
     )
-    first = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
-    second = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
+    first = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
+    second = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     assert first == second
 
 
@@ -157,7 +167,9 @@ def test_register_asset_propagates_alternate_identifiers_verbatim_into_event(
         parent_id=parent_id,
         alternate_identifiers=alternate_identifiers,
     )
-    events = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
+    events = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, AssetRegistered)
@@ -190,6 +202,10 @@ def test_register_asset_is_pure_across_alternate_identifiers_inputs(
         parent_id=parent_id,
         alternate_identifiers=alternate_identifiers,
     )
-    first = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
-    second = register_asset.decide(state=None, command=command, now=now, new_id=new_id)
+    first = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
+    second = register_asset.decide(
+        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+    )
     assert first == second

@@ -38,7 +38,7 @@ def _outbound_view() -> PermitView:
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         status="Active",
         terms_kind="Outbound",
         read_scope="ReadAllArtifacts",
@@ -66,7 +66,7 @@ def _inbound_view() -> PermitView:
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         status="Defined",
         terms_kind="Inbound",
         read_scope=None,
@@ -103,7 +103,7 @@ def test_get_federation_permit_returns_200_with_outbound_terms() -> None:
     assert body["direction"] == "Outbound"
     assert body["status"] == "Active"
     assert body["allowed_credential_ids"] == [str(_CREDENTIAL_ID)]
-    assert body["defined_by_actor_id"] == str(_ACTOR_ID)
+    assert body["defined_by"] == str(_ACTOR_ID)
     assert body["terms"]["kind"] == "Outbound"
     assert body["terms"]["read_scope"] == "ReadAllArtifacts"
     assert body["terms"]["onward_action_scope"] == "ReadOnly"

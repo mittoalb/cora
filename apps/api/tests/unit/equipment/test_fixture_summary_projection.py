@@ -3,12 +3,15 @@
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from cora.equipment.projections.fixture_summary import FixtureSummaryProjection
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 
 _FIXTURE_ID = uuid4()
 _ASSEMBLY_ID = uuid4()
@@ -63,6 +66,7 @@ async def test_fixture_registered_inserts_summary_counts() -> None:
             ],
             "parameter_overrides": {"exposure_ms": 100},
             "occurred_at": _NOW.isoformat(),
+            "registered_by": str(_TEST_ACTOR_ID),
         },
     )
     await proj.apply(event, conn)
@@ -70,14 +74,15 @@ async def test_fixture_registered_inserts_summary_counts() -> None:
     assert args is not None
     # Positional args after SQL: fixture_id, assembly_id,
     # assembly_content_hash, surface_id, binding_count, override_count,
-    # created_at.
+    # registered_by, created_at.
     assert args.args[1] == _FIXTURE_ID
     assert args.args[2] == _ASSEMBLY_ID
     assert args.args[3] == "a" * 64
     assert args.args[4] == _SURFACE_ID
     assert args.args[5] == 2  # binding_count
     assert args.args[6] == 1  # override_count
-    assert args.args[7] == _NOW
+    assert args.args[7] == _TEST_ACTOR_ID
+    assert args.args[8] == _NOW
 
 
 @pytest.mark.unit

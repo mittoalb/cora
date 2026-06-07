@@ -20,12 +20,13 @@ from cora.calibration.aggregates.calibration import (
     evolve,
     fold,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 18, 12, 0, 0, tzinfo=UTC)
 _LATER = datetime(2026, 5, 18, 14, 30, 0, tzinfo=UTC)
 _CAL_ID = UUID("01900000-0000-7000-8000-000000ca0001")
 _SUB_ID = UUID("01900000-0000-7000-8000-000000ca0002")
-_ACTOR_ID = UUID("01900000-0000-7000-8000-000000ca0003")
+_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000ca0003"))
 _PROC_ID = UUID("01900000-0000-7000-8000-000000ca0004")
 _DATASET_ID = UUID("01900000-0000-7000-8000-000000ca0005")
 _REV_ID_1 = UUID("01900000-0000-7000-8000-000000ca0006")
@@ -39,7 +40,7 @@ def _defined() -> CalibrationDefined:
         quantity="rotation_center",
         operating_point={"energy": 25, "optics_config": "5x"},
         description=None,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
 
@@ -53,7 +54,7 @@ def _revision(
 ) -> CalibrationRevisionAppended:
     source_procedure_id = _PROC_ID if source_kind == "measured" else None
     source_dataset_id = _DATASET_ID if source_kind == "computed" else None
-    source_actor_id = _ACTOR_ID if source_kind == "asserted" else None
+    asserted_by = _ACTOR_ID if source_kind == "asserted" else None
     return CalibrationRevisionAppended(
         revision_id=revision_id,
         calibration_id=_CAL_ID,
@@ -61,9 +62,9 @@ def _revision(
         status=CalibrationStatus.PROVISIONAL,
         source_procedure_id=source_procedure_id,
         source_dataset_id=source_dataset_id,
-        source_actor_id=source_actor_id,
+        asserted_by=asserted_by,
         established_at=established_at,
-        established_by_actor_id=_ACTOR_ID,
+        established_by=_ACTOR_ID,
         decided_by_decision_id=None,
         supersedes_revision_id=supersedes,
         occurred_at=established_at,
@@ -79,7 +80,8 @@ def test_evolve_genesis_creates_aggregate_with_empty_revisions() -> None:
     assert state.quantity == "rotation_center"
     assert state.operating_point == {"energy": 25, "optics_config": "5x"}
     assert state.revisions == ()
-    assert state.defined_by_actor_id == _ACTOR_ID
+    assert state.defined_by == _ACTOR_ID
+    assert state.defined_at == _NOW
 
 
 @pytest.mark.unit

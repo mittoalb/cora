@@ -13,7 +13,7 @@ expected version on append is the loaded `current_version`, not zero
 (Seal must already have been initialized).
 
 Longhand update handler: the decider needs handler-injected
-`rotated_by_actor_id` to stamp the audit denorm onto
+`rotated_by` to stamp the audit denorm onto
 `SealOnlineKeyRotated`, so this slice cannot use the
 `make_update_handler` factory (which only forwards `state`, `command`,
 `now`). The longhand body wraps the same load-authorize-fold-decide-
@@ -67,6 +67,7 @@ from cora.federation.features.rotate_seal_online_key.command import (
 )
 from cora.federation.features.rotate_seal_online_key.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -154,14 +155,14 @@ def bind(deps: Kernel) -> Handler:
             state=state,
             command=command,
             now=now,
-            rotated_by_actor_id=principal_id,
+            rotated_by=ActorId(principal_id),
             new_online_credential=new_online_credential,
         )
 
         decision_id = deps.id_generator.new_id()
         decision_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=principal_id,
+            decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
             choice=str(command.facility_id),
             parent_id=None,

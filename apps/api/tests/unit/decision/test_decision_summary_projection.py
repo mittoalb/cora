@@ -67,7 +67,7 @@ async def test_decision_registered_inserts_with_genesis_payload() -> None:
         "DecisionRegistered",
         {
             "decision_id": str(_DECISION_ID),
-            "actor_id": str(_ACTOR_ID),
+            "decided_by": str(_ACTOR_ID),
             "context": "calibration interlock check",
             "choice": "accept",
             "parent_id": None,
@@ -123,7 +123,7 @@ async def test_confidence_band_derivation_at_insert(
         "DecisionRegistered",
         {
             "decision_id": str(_DECISION_ID),
-            "actor_id": str(_ACTOR_ID),
+            "decided_by": str(_ACTOR_ID),
             "confidence": confidence,
             "choice": "NominalCompletion",
             "occurred_at": _NOW.isoformat(),
@@ -146,7 +146,7 @@ async def test_decision_with_parent_id_persists_override_chain_link() -> None:
         "DecisionRegistered",
         {
             "decision_id": str(_DECISION_ID),
-            "actor_id": str(_ACTOR_ID),
+            "decided_by": str(_ACTOR_ID),
             "parent_id": str(_PARENT_ID),
             "confidence": None,
             "choice": "NominalCompletion",
@@ -173,7 +173,7 @@ async def test_decision_with_audit_only_choice_persists_for_filter_visibility() 
         "DecisionRegistered",
         {
             "decision_id": str(_DECISION_ID),
-            "actor_id": str(_ACTOR_ID),
+            "decided_by": str(_ACTOR_ID),
             "confidence": None,
             "choice": "DebriefConflicted",
             "occurred_at": _NOW.isoformat(),

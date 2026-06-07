@@ -74,6 +74,7 @@ from cora.equipment.aggregates.fixture import (
 )
 from cora.equipment.features.register_fixture.command import RegisterFixture
 from cora.equipment.features.register_fixture.context import RegisterFixtureContext
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.json_schema_validation import validate_values_against_schema
 
 _NO_SCHEMA_REJECTION = (
@@ -118,6 +119,7 @@ def decide(
     context: RegisterFixtureContext,
     now: datetime,
     new_id: UUID,
+    registered_by: ActorId,
 ) -> list[FixtureRegistered]:
     """Decide the events produced by registering a Fixture against an Assembly.
 
@@ -262,5 +264,6 @@ def decide(
             slot_asset_bindings=command.slot_asset_bindings,
             parameter_overrides=command.parameter_overrides,
             occurred_at=now,
+            registered_by=registered_by,
         )
     ]

@@ -42,7 +42,7 @@ def test_mcp_register_decision_tool_succeeds_minimal() -> None:
                 "params": {
                     "name": "register_decision",
                     "arguments": {
-                        "actor_id": actor_id,
+                        "decided_by": actor_id,
                         "context": "RecipeApproval",
                         "choice": "Approved",
                     },
@@ -68,7 +68,7 @@ def test_mcp_register_decision_tool_with_full_audit_metadata() -> None:
                 "params": {
                     "name": "register_decision",
                     "arguments": {
-                        "actor_id": actor_id,
+                        "decided_by": actor_id,
                         "context": "ProcedureExecution",
                         "choice": "Pass",
                         "rule": "iso17025:7.1.3:simple_acceptance",
@@ -99,7 +99,7 @@ def test_mcp_register_decision_tool_returns_iserror_for_missing_actor() -> None:
                 "params": {
                     "name": "register_decision",
                     "arguments": {
-                        "actor_id": str(uuid4()),
+                        "decided_by": str(uuid4()),
                         "context": "RecipeApproval",
                         "choice": "Approved",
                     },
@@ -109,7 +109,7 @@ def test_mcp_register_decision_tool_returns_iserror_for_missing_actor() -> None:
         )
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is True
-    assert "actor_id" in body["result"]["content"][0]["text"]
+    assert "decided_by" in body["result"]["content"][0]["text"]
 
 
 @pytest.mark.contract
@@ -118,7 +118,7 @@ def test_mcp_get_decision_tool_returns_decision_after_registration() -> None:
         actor_id = _register_actor(client)
         decision_id = client.post(
             "/decisions",
-            json={"actor_id": actor_id, "context": "RecipeApproval", "choice": "Approved"},
+            json={"decided_by": actor_id, "context": "RecipeApproval", "choice": "Approved"},
         ).json()["decision_id"]
         headers = open_session(client)
         response = client.post(

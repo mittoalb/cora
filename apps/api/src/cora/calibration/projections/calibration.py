@@ -38,7 +38,7 @@ from the exclusive-arc `source_*_id` fields in the
 
   source_procedure_id non-null  -> 'measured'
   source_dataset_id   non-null  -> 'computed'
-  source_actor_id     non-null  -> 'asserted'
+  asserted_by         non-null  -> 'asserted'
 
 Exactly one is non-null (event-class invariant); the exclusive-arc
 column shape mirrors `proj_calibration_revisions` (deferred to
@@ -59,7 +59,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_CALIBRATION_SQL = """
 INSERT INTO proj_calibration_summary
     (calibration_id, target_id, quantity, operating_point,
-     description, defined_at, last_revised_at, defined_by_actor_id,
+     description, defined_at, last_revised_at, defined_by,
      revision_count, latest_revision_status, latest_revision_source_kind)
 VALUES ($1, $2, $3, $4::jsonb,
         $5, $6, $7, $8,
@@ -90,7 +90,7 @@ def _source_kind_from_payload(payload: dict[str, Any]) -> str:
         return "measured"
     if payload.get("source_dataset_id") is not None:
         return "computed"
-    if payload.get("source_actor_id") is not None:
+    if payload.get("asserted_by") is not None:
         return "asserted"
     # Defensive: the event class enforces exactly-one-non-null at
     # construction time; reaching here means a contaminated payload.
@@ -135,7 +135,7 @@ class CalibrationSummaryProjection:
                     payload.get("description"),
                     defined_at,
                     defined_at,
-                    UUID(payload["defined_by_actor_id"]),
+                    UUID(payload["defined_by"]),
                 )
             return
 

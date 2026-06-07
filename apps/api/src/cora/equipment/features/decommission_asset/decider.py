@@ -49,6 +49,7 @@ from cora.equipment.aggregates.asset import (
 )
 from cora.equipment.features.decommission_asset.command import DecommissionAsset
 from cora.equipment.features.decommission_asset.context import DecommissionAssetContext
+from cora.infrastructure.identity import ActorId
 
 _DECOMMISSIONABLE_LIFECYCLES: tuple[AssetLifecycle, ...] = (
     AssetLifecycle.COMMISSIONED,
@@ -63,6 +64,7 @@ def decide(
     *,
     context: DecommissionAssetContext,
     now: datetime,
+    decommissioned_by: ActorId,
 ) -> list[AssetDecommissioned]:
     """Decide the events produced by decommissioning an existing asset."""
     if state is None:
@@ -73,4 +75,10 @@ def decide(
         raise AssetIsInstalledError(state.id, context.currently_installed_at_mount_id)
     if state.lifecycle not in _DECOMMISSIONABLE_LIFECYCLES:
         raise AssetCannotDecommissionError(state.id, current_lifecycle=state.lifecycle)
-    return [AssetDecommissioned(asset_id=state.id, occurred_at=now)]
+    return [
+        AssetDecommissioned(
+            asset_id=state.id,
+            occurred_at=now,
+            decommissioned_by=decommissioned_by,
+        )
+    ]

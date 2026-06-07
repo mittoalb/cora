@@ -18,12 +18,14 @@ from cora.data.features import get_dataset
 from cora.data.features.get_dataset import GetDataset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps
 
 _GOOD_SHA256 = "a" * DATASET_CHECKSUM_SHA256_HEX_LENGTH
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_SEED_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-0000000000bb"))
 
 
 async def _seed_dataset(store: InMemoryEventStore, dataset_id: UUID) -> None:
@@ -40,6 +42,7 @@ async def _seed_dataset(store: InMemoryEventStore, dataset_id: UUID) -> None:
         subject_id=None,
         derived_from=frozenset(),
         occurred_at=_NOW,
+        registered_by=_SEED_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=event_type_name(event),

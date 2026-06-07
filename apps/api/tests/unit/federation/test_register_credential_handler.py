@@ -120,7 +120,7 @@ async def test_register_credential_handler_writes_credential_payload_fields() ->
     assert payload["secret_ref"] == _SECRET_REF
     assert payload["public_material_ref"] == _PUBLIC_REF
     assert payload["expires_at"] == _EXPIRES_AT.isoformat()
-    assert payload["registered_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert payload["registered_by"] == str(_PRINCIPAL_ID)
     assert payload["occurred_at"] == _NOW.isoformat()
 
 

@@ -44,7 +44,7 @@ class CalibrationSummaryDTO(BaseModel):
     description: str | None = None
     defined_at: datetime
     last_revised_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: UUID
     revision_count: int = Field(..., ge=0)
     latest_revision_status: str | None = None
     latest_revision_source_kind: str | None = None
@@ -146,7 +146,7 @@ async def list_calibrations(
                 description=item.description,
                 defined_at=item.defined_at,
                 last_revised_at=item.last_revised_at,
-                defined_by_actor_id=item.defined_by_actor_id,
+                defined_by=item.defined_by,
                 revision_count=item.revision_count,
                 latest_revision_status=item.latest_revision_status,
                 latest_revision_source_kind=item.latest_revision_source_kind,

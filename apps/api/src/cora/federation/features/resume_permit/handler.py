@@ -10,7 +10,7 @@ adds no value for transitions.
 
 Delegates to `make_permit_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `resumed_by_actor_id`.
+under `resumed_by`.
 """
 
 from typing import Protocol
@@ -44,5 +44,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="ResumePermit",
         log_prefix="resume_permit",
         decide_fn=decide,
-        actor_kwarg="resumed_by_actor_id",
+        actor_kwarg="resumed_by",
     )

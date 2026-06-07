@@ -11,7 +11,7 @@ replays.
 
 Delegates to `make_credential_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `rotation_started_by_actor_id`.
+under `rotation_started_by`.
 """
 
 from typing import Protocol
@@ -47,5 +47,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="StartCredentialRotation",
         log_prefix="start_credential_rotation",
         decide_fn=decide,
-        actor_kwarg="rotation_started_by_actor_id",
+        actor_kwarg="rotation_started_by",
     )

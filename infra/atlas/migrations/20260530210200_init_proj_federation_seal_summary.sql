@@ -12,7 +12,7 @@
 --                                        last_signed_at=NULL)
 --   - PointerSigned           -> UPDATE current_head_hash,
 --                                       current_sequence_number,
---                                       last_signed_by_actor_id,
+--                                       last_signed_by,
 --                                       last_signed_at=occurred_at
 --   - OnlineKeyRotated        -> UPDATE online_key_ref
 --   - RepublishingStarted     -> UPDATE status='Republishing'
@@ -30,8 +30,8 @@ CREATE TABLE proj_federation_seal_summary (
     current_head_hash           TEXT,
     current_sequence_number     BIGINT      NOT NULL DEFAULT 0
         CHECK (current_sequence_number >= 0),
-    initialized_by_actor_id     UUID        NOT NULL,
-    last_signed_by_actor_id     UUID,
+    initialized_by              UUID        NOT NULL,
+    last_signed_by              UUID,
     status                      TEXT        NOT NULL CHECK (
         status IN ('Live', 'Republishing')
     ),

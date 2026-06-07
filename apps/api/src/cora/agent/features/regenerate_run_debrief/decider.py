@@ -56,6 +56,7 @@ from cora.decision.aggregates.decision import (
     validate_inputs,
     validate_reasoning,
 )
+from cora.infrastructure.identity import ActorId
 
 _DECISION_RULE = "agent:RunDebriefer:v1"
 
@@ -103,7 +104,7 @@ def decide(
     return [
         DecisionRegistered(
             decision_id=new_id,
-            actor_id=context.actor.id,
+            decided_by=ActorId(context.actor.id),
             context=decision_context.value,
             choice=decision_choice.value,
             parent_id=command.parent_decision_id,

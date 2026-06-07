@@ -64,6 +64,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.aggregates.decision import event_type_name as decision_event_type_name
 from cora.decision.aggregates.decision import to_payload as decision_to_payload
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 17, 15, 0, 0, tzinfo=UTC)
@@ -100,7 +101,7 @@ async def _seed_caution_proposal_decision(
     """
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=CAUTION_DRAFTER_AGENT_ID,
+        decided_by=ActorId(CAUTION_DRAFTER_AGENT_ID),
         context=DECISION_CONTEXT_CAUTION_PROPOSAL,
         choice=choice,
         parent_id=None,

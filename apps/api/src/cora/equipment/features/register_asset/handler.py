@@ -26,6 +26,7 @@ from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.register_asset.command import RegisterAsset
 from cora.equipment.features.register_asset.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -129,6 +130,7 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
+            commissioned_by=ActorId(principal_id),
         )
 
         new_events = [

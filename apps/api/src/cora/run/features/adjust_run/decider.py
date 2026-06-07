@@ -52,6 +52,7 @@ for steering it; we don't second-guess at adjust time.
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.json_merge_patch import merge_patch
 from cora.run.aggregates.run import (
     RUN_ADJUST_REASON_MAX_LENGTH,
@@ -87,6 +88,7 @@ def decide(
     command: AdjustRun,
     *,
     context: RunAdjustContext,
+    adjusted_by: ActorId,
     now: datetime,
 ) -> list[RunAdjusted]:
     """Decide the events produced by adjusting an in-progress Run.
@@ -106,7 +108,10 @@ def decide(
     `state` is the source-state Run (None means the Run has no stream;
     raises `RunNotFoundError`). `context.method_parameters_schema` is
     the Method's optional schema (None means schemaless Method;
-    validation skipped per the RELAXED adjust-time posture). `now` is
+    validation skipped per the RELAXED adjust-time posture).
+    `adjusted_by` is the ActorId of the principal issuing the adjust;
+    threaded onto the emitted `RunAdjusted.adjusted_by` per the fold-
+    symmetry pair rule ([[project_fold_symmetry_design]]). `now` is
     the wall clock from the handler (injected per non-determinism
     principle).
     """
@@ -130,6 +135,7 @@ def decide(
             parameters_patch=command.parameters_patch,
             effective_parameters=merged,
             reason=trimmed_reason,
+            adjusted_by=adjusted_by,
             decided_by_decision_id=command.decided_by_decision_id,
             occurred_at=now,
         )

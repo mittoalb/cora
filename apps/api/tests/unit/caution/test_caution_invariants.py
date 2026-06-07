@@ -28,6 +28,7 @@ from cora.caution.aggregates.caution import (
     ensure_supersedable,
     ensure_target_preserved,
 )
+from cora.infrastructure.identity import ActorId
 
 
 def _active_caution(target: AssetTarget | ProcedureTarget | None = None) -> Caution:
@@ -38,7 +39,7 @@ def _active_caution(target: AssetTarget | ProcedureTarget | None = None) -> Caut
         severity=CautionSeverity.NOTICE,
         text=CautionText("x"),
         workaround=CautionWorkaround("y"),
-        author_actor_id=uuid4(),
+        authored_by=ActorId(uuid4()),
     )
 
 

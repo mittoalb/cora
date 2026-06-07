@@ -5,7 +5,7 @@ idempotent (matches the Credential rotation / Permit transition
 precedents): starting republishing against an already Republishing
 Seal raises `SealCannotStartRepublishingError`.
 
-`started_by_actor_id` is handler-injected from the request envelope's
+`started_by` is handler-injected from the request envelope's
 `principal_id` per the non-determinism principle (capture, don't
 recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -23,7 +23,6 @@ on the immutable event log.
 """
 
 from datetime import datetime
-from uuid import UUID
 
 from cora.federation.aggregates.seal import (
     Seal,
@@ -35,6 +34,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.start_seal_republishing.command import (
     StartSealRepublishing,
 )
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -42,7 +42,7 @@ def decide(
     command: StartSealRepublishing,
     *,
     now: datetime,
-    started_by_actor_id: UUID,
+    started_by: ActorId,
 ) -> list[SealRepublishingStarted]:
     """Decide the events produced by starting republishing on a Live Seal.
 
@@ -58,7 +58,7 @@ def decide(
     return [
         SealRepublishingStarted(
             facility_id=state.facility_id,
-            started_by_actor_id=started_by_actor_id,
+            started_by=started_by,
             occurred_at=now,
             reason=command.reason,
         )

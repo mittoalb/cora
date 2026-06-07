@@ -45,9 +45,9 @@ def test_get_decisions_accepts_rule_filter(client: TestClient) -> None:
 
 
 @pytest.mark.contract
-def test_get_decisions_rejects_invalid_actor_id_with_422(client: TestClient) -> None:
+def test_get_decisions_rejects_invalid_decided_by_with_422(client: TestClient) -> None:
     with client:
-        response = client.get("/decisions?actor_id=not-a-uuid")
+        response = client.get("/decisions?decided_by=not-a-uuid")
     assert response.status_code == 422
 
 
@@ -55,7 +55,7 @@ def test_get_decisions_rejects_invalid_actor_id_with_422(client: TestClient) -> 
 def test_get_decisions_combines_all_filters(client: TestClient) -> None:
     with client:
         response = client.get(
-            f"/decisions?confidence_band=Certain&rule=auto-accept&actor_id={uuid.uuid4()}"
+            f"/decisions?confidence_band=Certain&rule=auto-accept&decided_by={uuid.uuid4()}"
         )
     assert response.status_code == 200
 

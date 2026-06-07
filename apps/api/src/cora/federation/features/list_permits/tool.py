@@ -29,7 +29,7 @@ class PermitSummaryItemOutput(BaseModel):
     allowed_artifact_kinds: list[str] = Field(default_factory=list[str])
     abi_tier_floor: AbiTier
     expires_at: datetime
-    defined_by_actor_id: UUID
+    defined_by: UUID
     status: PermitStatus
     terms_kind: Direction
     defined_at: datetime
@@ -106,7 +106,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     allowed_artifact_kinds=[str(k) for k in item.allowed_artifact_kinds],
                     abi_tier_floor=AbiTier(item.abi_tier_floor),
                     expires_at=item.expires_at,
-                    defined_by_actor_id=item.defined_by_actor_id,
+                    defined_by=item.defined_by,
                     status=PermitStatus(item.status),
                     terms_kind=Direction(item.terms_kind),
                     defined_at=item.defined_at,

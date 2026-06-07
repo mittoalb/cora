@@ -30,6 +30,8 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from cora.infrastructure.identity import ActorId
+
 
 class CredentialPurpose(StrEnum):
     """The role this credential plays in federation traffic.
@@ -213,14 +215,16 @@ class Credential:
     state because it is a contractual upper bound, domain-meaningful,
     and not envelope-derivable.
 
-    Per the locked Path C convention
-    (`project_template_aggregate_timestamps`), lifecycle bookkeeping
-    timestamps live on the projection, not on aggregate state. The
-    genesis `occurred_at` (the moment of registration) and the
-    rotation-started `occurred_at` are envelope-derivable and live on
-    `proj_federation_credential_summary`; see `CredentialLifecycleTimestamps` in
-    `read.py`. `registered_by_actor_id` stays as identity denorm,
-    matching Calibration / Clearance / Caution precedent.
+    Per [[project_fold_symmetry_design]] the genesis envelope
+    `occurred_at` is folded onto state as `registered_at` alongside
+    the identity denorm `registered_by`. The aggregate now carries
+    both the moment of registration and the actor that performed it,
+    so the projection-tier `CredentialLifecycleTimestamps` VO no
+    longer needs to surface `registered_at` (Path C reversal for this
+    field; the rotation-started timestamp still lives on the
+    projection because it is mutable per rotation). `registered_by`
+    is type-annotated as `ActorId` so the fold-symmetry fitness test
+    can detect attribution fields structurally.
     """
 
     id: UUID
@@ -230,7 +234,8 @@ class Credential:
     secret_ref: str
     public_material_ref: str | None
     expires_at: datetime | None
-    registered_by_actor_id: UUID
+    registered_by: ActorId
+    registered_at: datetime
     rotation_pending_secret_ref: str | None
     rotation_pending_public_material_ref: str | None
     status: CredentialStatus

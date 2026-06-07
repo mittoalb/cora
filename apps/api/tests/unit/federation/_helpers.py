@@ -47,6 +47,7 @@ from cora.federation.aggregates.seal import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 
 _DEFAULT_SEAL_ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
 _DEFAULT_SEAL_OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
@@ -80,7 +81,7 @@ async def seed_defined_permit(
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=expires_at,
-        defined_by_actor_id=principal_id,
+        defined_by=ActorId(principal_id),
         terms=_default_terms(),
         occurred_at=defined_at,
     )
@@ -127,7 +128,7 @@ async def seed_active_permit(
     )
     activated = PermitActivated(
         permit_id=permit_id,
-        activated_by_actor_id=principal_id,
+        activated_by=ActorId(principal_id),
         occurred_at=activated_at,
     )
     await store.append(
@@ -177,7 +178,7 @@ async def seed_suspended_permit(
     )
     suspended = PermitSuspended(
         permit_id=permit_id,
-        suspended_by_actor_id=principal_id,
+        suspended_by=ActorId(principal_id),
         occurred_at=suspended_at,
     )
     await store.append(
@@ -223,7 +224,7 @@ async def seed_active_credential(
         secret_ref=secret_ref,
         public_material_ref=public_material_ref,
         expires_at=expires_at,
-        registered_by_actor_id=principal_id,
+        registered_by=ActorId(principal_id),
         occurred_at=registered_at,
     )
     await store.append(
@@ -273,7 +274,7 @@ async def seed_rotating_credential(
         credential_id=credential_id,
         pending_secret_ref=pending_secret_ref,
         pending_public_material_ref=pending_public_material_ref,
-        rotation_started_by_actor_id=principal_id,
+        rotation_started_by=ActorId(principal_id),
         occurred_at=rotation_started_at,
     )
     await store.append(
@@ -319,7 +320,7 @@ async def seed_revoked_credential(
     )
     revoked = CredentialRevoked(
         credential_id=credential_id,
-        revoked_by_actor_id=principal_id,
+        revoked_by=ActorId(principal_id),
         occurred_at=revoked_at,
     )
     await store.append(
@@ -358,7 +359,7 @@ async def seed_live_seal(
         facility_id=facility_id,
         online_credential_id=online_credential_id,
         offline_credential_id=offline_credential_id,
-        initialized_by_actor_id=principal_id,
+        initialized_by=ActorId(principal_id),
         occurred_at=initialized_at,
     )
     await store.append(
@@ -404,7 +405,7 @@ async def seed_republishing_seal(
     )
     started = SealRepublishingStarted(
         facility_id=facility_id,
-        started_by_actor_id=principal_id,
+        started_by=ActorId(principal_id),
         occurred_at=republishing_started_at,
     )
     await store.append(

@@ -49,7 +49,7 @@ class CautionResponse(BaseModel):
     severity: CautionSeverity
     text: str
     workaround: str
-    author_actor_id: UUID
+    authored_by: UUID
     tags: list[str]
     expires_at: datetime | None
     propagate_to_children: bool
@@ -67,7 +67,7 @@ def _response_from_state(caution: Caution) -> CautionResponse:
         severity=caution.severity,
         text=caution.text.value,
         workaround=caution.workaround.value,
-        author_actor_id=caution.author_actor_id,
+        authored_by=caution.authored_by,
         tags=sorted(t.value for t in caution.tags),
         expires_at=caution.expires_at,
         propagate_to_children=caution.propagate_to_children,

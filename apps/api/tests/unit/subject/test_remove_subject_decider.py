@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotRemoveError,
@@ -22,6 +23,7 @@ from cora.subject.features import remove_subject
 from cora.subject.features.remove_subject import RemoveSubject
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 
 
 def _subject(*, status: SubjectStatus = SubjectStatus.MOUNTED) -> Subject:
@@ -47,8 +49,9 @@ def test_decide_emits_subject_removed_for_each_allowed_source_state(
         state=state,
         command=RemoveSubject(subject_id=state.id),
         now=_NOW,
+        removed_by=_ACTOR,
     )
-    assert events == [SubjectRemoved(subject_id=state.id, occurred_at=_NOW)]
+    assert events == [SubjectRemoved(subject_id=state.id, occurred_at=_NOW, removed_by=_ACTOR)]
 
 
 @pytest.mark.unit
@@ -60,6 +63,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
             state=None,
             command=RemoveSubject(subject_id=target_id),
             now=_NOW,
+            removed_by=_ACTOR,
         )
     assert exc_info.value.subject_id == target_id
 
@@ -89,6 +93,7 @@ def test_decide_raises_cannot_remove_for_every_disallowed_source_state(
             state=state,
             command=RemoveSubject(subject_id=state.id),
             now=_NOW,
+            removed_by=_ACTOR,
         )
     assert exc_info.value.subject_id == state.id
     assert exc_info.value.current_status is current
@@ -106,6 +111,7 @@ def test_decide_error_message_lists_all_allowed_source_states() -> None:
             state=state,
             command=RemoveSubject(subject_id=state.id),
             now=_NOW,
+            removed_by=_ACTOR,
         )
     msg = str(exc_info.value)
     assert "Received" in msg
@@ -123,6 +129,7 @@ def test_decide_allows_removal_from_received_state() -> None:
         state=state,
         command=RemoveSubject(subject_id=state.id),
         now=_NOW,
+        removed_by=_ACTOR,
     )
     assert len(events) == 1
 
@@ -131,6 +138,6 @@ def test_decide_allows_removal_from_received_state() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.MEASURED)
     command = RemoveSubject(subject_id=state.id)
-    first = remove_subject.decide(state=state, command=command, now=_NOW)
-    second = remove_subject.decide(state=state, command=command, now=_NOW)
+    first = remove_subject.decide(state=state, command=command, now=_NOW, removed_by=_ACTOR)
+    second = remove_subject.decide(state=state, command=command, now=_NOW, removed_by=_ACTOR)
     assert first == second

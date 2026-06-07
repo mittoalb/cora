@@ -31,6 +31,7 @@ from cora.data.aggregates.dataset import (
 )
 from cora.data.features.promote_dataset.command import PromoteDataset
 from cora.data.features.promote_dataset.context import DatasetPromotionContext
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -39,6 +40,7 @@ def decide(
     *,
     context: DatasetPromotionContext,
     now: datetime,
+    promoted_by: ActorId,
 ) -> list[DatasetPromoted]:
     """Decide the events produced by promoting a Dataset to Production.
 
@@ -124,5 +126,6 @@ def decide(
             dataset_id=state.id,
             reason=reason.value,
             occurred_at=now,
+            promoted_by=promoted_by,
         )
     ]

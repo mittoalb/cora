@@ -27,6 +27,7 @@ from cora.agent.aggregates.agent import (
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.content_hash import canonical_body_bytes, pae_bytes
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.signing import event_type_to_payload_type
 
 
@@ -136,7 +137,12 @@ async def seed_suspended_agent(
         defined_at=defined_at,
         versioned_at=versioned_at,
     )
-    suspended = AgentSuspended(agent_id=agent_id, reason=reason, occurred_at=suspended_at)
+    suspended = AgentSuspended(
+        agent_id=agent_id,
+        reason=reason,
+        suspended_by=ActorId(principal_id),
+        occurred_at=suspended_at,
+    )
     await store.append(
         stream_type="Agent",
         stream_id=agent_id,
@@ -199,7 +205,11 @@ async def append_resume(
     occurred_at: datetime,
 ) -> None:
     """Append a single AgentResumed event."""
-    resumed = AgentResumed(agent_id=agent_id, occurred_at=occurred_at)
+    resumed = AgentResumed(
+        agent_id=agent_id,
+        resumed_by=ActorId(principal_id),
+        occurred_at=occurred_at,
+    )
     await store.append(
         stream_type="Agent",
         stream_id=agent_id,

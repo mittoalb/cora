@@ -11,7 +11,7 @@ credential can be terminally retired without first being restored;
 this matches the locked aggregate-state docstring on
 `CredentialExpiredError`.
 
-`revoked_by_actor_id` is handler-injected from the request envelope's
+`revoked_by` is handler-injected from the request envelope's
 `principal_id` (capture-don't-recompute) and stamped onto the
 emitted `CredentialRevoked` event for the audit denorm.
 
@@ -41,7 +41,7 @@ def decide(
     command: RevokeCredential,
     *,
     now: datetime,
-    revoked_by_actor_id: UUID,
+    revoked_by: UUID,
 ) -> list[CredentialRevoked]:
     """Decide the events produced by revoking a Credential.
 
@@ -58,7 +58,7 @@ def decide(
     return [
         CredentialRevoked(
             credential_id=state.id,
-            revoked_by_actor_id=revoked_by_actor_id,
+            revoked_by=revoked_by,
             occurred_at=now,
             reason=command.reason,
         )

@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     InvalidSubjectDiscardReasonError,
     Subject,
@@ -22,6 +23,7 @@ from cora.subject.features import discard_subject
 from cora.subject.features.discard_subject import DiscardSubject
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+_ACTOR = ActorId(uuid4())
 
 
 def _subject(*, status: SubjectStatus = SubjectStatus.REMOVED) -> Subject:
@@ -35,12 +37,14 @@ def test_decide_emits_subject_discarded_when_state_is_removed() -> None:
         state=state,
         command=DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator"),
         now=_NOW,
+        discarded_by=_ACTOR,
     )
     assert events == [
         SubjectDiscarded(
             subject_id=state.id,
             reason="contaminated; biohazard incinerator",
             occurred_at=_NOW,
+            discarded_by=_ACTOR,
         )
     ]
 
@@ -53,6 +57,7 @@ def test_decide_raises_subject_not_found_when_state_is_none() -> None:
             state=None,
             command=DiscardSubject(subject_id=target_id, reason="contaminated; incinerator"),
             now=_NOW,
+            discarded_by=_ACTOR,
         )
     assert exc_info.value.subject_id == target_id
 
@@ -83,6 +88,7 @@ def test_decide_raises_cannot_discard_for_every_non_removed_state(
                 subject_id=state.id, reason="contaminated; biohazard incinerator"
             ),
             now=_NOW,
+            discarded_by=_ACTOR,
         )
     assert exc_info.value.subject_id == state.id
     assert exc_info.value.current_status is current
@@ -98,6 +104,7 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
                 subject_id=state.id, reason="contaminated; biohazard incinerator"
             ),
             now=_NOW,
+            discarded_by=_ACTOR,
         )
     msg = str(exc_info.value)
     assert "Received" in msg
@@ -108,8 +115,8 @@ def test_decide_error_carries_current_status_for_diagnostic_messaging() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     state = _subject(status=SubjectStatus.REMOVED)
     command = DiscardSubject(subject_id=state.id, reason="contaminated; biohazard incinerator")
-    first = discard_subject.decide(state=state, command=command, now=_NOW)
-    second = discard_subject.decide(state=state, command=command, now=_NOW)
+    first = discard_subject.decide(state=state, command=command, now=_NOW, discarded_by=_ACTOR)
+    second = discard_subject.decide(state=state, command=command, now=_NOW, discarded_by=_ACTOR)
     assert first == second
 
 
@@ -122,6 +129,7 @@ def test_decide_raises_invalid_reason_for_empty_or_overlong(bad_reason: str) -> 
             state=state,
             command=DiscardSubject(subject_id=state.id, reason=bad_reason),
             now=_NOW,
+            discarded_by=_ACTOR,
         )
 
 
@@ -132,11 +140,13 @@ def test_decide_persists_trimmed_reason_in_event() -> None:
         state=state,
         command=DiscardSubject(subject_id=state.id, reason="  whitespace edges  "),
         now=_NOW,
+        discarded_by=_ACTOR,
     )
     assert events == [
         SubjectDiscarded(
             subject_id=state.id,
             reason="whitespace edges",
             occurred_at=_NOW,
+            discarded_by=_ACTOR,
         )
     ]

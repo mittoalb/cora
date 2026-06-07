@@ -45,12 +45,13 @@ from cora.caution.aggregates.caution import (
 from cora.caution.features import register_caution
 from cora.caution.features.register_caution.command import RegisterCaution
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import ConcurrencyError, StreamAppend
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("00000000-0000-0000-0000-000000000001")
-_AUTHOR_ID = UUID("00000000-0000-0000-0000-000000000002")
+_AUTHOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000002"))
 _CORRELATION_ID = UUID("00000000-0000-0000-0000-00000000c001")
 
 
@@ -73,7 +74,7 @@ async def test_forced_concurrent_supersede_caution_raises_concurrency_error(
     )
 
     # Register parent Caution (lands Active per 11b-a design).
-    # author_actor_id is derived from principal_id at the handler
+    # authored_by is derived from principal_id at the handler
     # per 11b cleanup N9 (no spoofing surface); use _AUTHOR_ID as the
     # principal so the resulting event carries it.
     await register_caution.bind(deps)(
@@ -110,7 +111,7 @@ async def test_forced_concurrent_supersede_caution_raises_concurrency_error(
             text="hexapod stalls below 0.6 mm/s (revised)",
             workaround="run at 0.7 mm/s",
             tags=frozenset[str](),
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
             expires_at=None,
             propagate_to_children=False,
             parent_id=parent_id,

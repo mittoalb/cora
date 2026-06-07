@@ -48,6 +48,7 @@ from cora.caution.aggregates.caution import (
 )
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports import FakeLLM, FakeLLMResponse
 from cora.infrastructure.ports.event_store import StoredEvent
 from cora.recipe.aggregates.plan import PlanDefined
@@ -207,7 +208,7 @@ async def test_subscriber_writes_caution_proposal_decision_end_to_end(
     assert decision is not None
     assert decision.context.value == "CautionProposal"
     assert decision.choice.value == "ProposeCaution"
-    assert decision.actor_id == CAUTION_DRAFTER_AGENT_ID
+    assert decision.decided_by == CAUTION_DRAFTER_AGENT_ID
     assert decision.inputs is not None
     proposed = decision.inputs["proposed_caution"]
     assert proposed["target_id"] == str(_ASSET_ID)
@@ -269,8 +270,8 @@ async def test_end_to_end_cross_bc_promotion_registers_real_caution(
     # operator is proximate author; agent is `wasInformedBy` via the
     # upstream Decision.actor_id. Guards against an accidental refactor
     # that flipped attribution to the agent.
-    assert caution.author_actor_id == _PRINCIPAL_ID
-    assert caution.author_actor_id != CAUTION_DRAFTER_AGENT_ID
+    assert caution.authored_by == _PRINCIPAL_ID
+    assert caution.authored_by != CAUTION_DRAFTER_AGENT_ID
 
 
 @pytest.mark.integration
@@ -373,10 +374,10 @@ async def _seed_supersede_decision(
     }
     # CAUTION_DRAFTER_AGENT_ID so the promote handler's provenance
     # gate passes; callers seed the agent in their fixture.
-    actor_id = CAUTION_DRAFTER_AGENT_ID
+    actor_id = ActorId(CAUTION_DRAFTER_AGENT_ID)
     event = DecisionRegistered(
         decision_id=decision_id,
-        actor_id=actor_id,
+        decided_by=actor_id,
         context=DECISION_CONTEXT_CAUTION_PROPOSAL,
         choice="ProposeSupersede",
         parent_id=None,

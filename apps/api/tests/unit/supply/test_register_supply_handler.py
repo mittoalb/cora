@@ -11,6 +11,7 @@ from uuid import UUID
 import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.errors import UnauthorizedError
@@ -22,6 +23,7 @@ _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-000000005511")
 _EVENT_ID = UUID("01900000-0000-7000-8000-000000005512")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_ACTOR_ID = ActorId(_PRINCIPAL_ID)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -70,6 +72,8 @@ async def test_handler_appends_supply_registered_event_to_store() -> None:
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
+        "trigger": "Operator",
+        "triggered_by": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),
     }
     assert stored.correlation_id == _CORRELATION_ID

@@ -4,7 +4,7 @@ Pin the FSM single-source guard (Active is the only legal source),
 the not-found branch, ref-shape validation (empty/whitespace
 `new_secret_ref`, ref equal to the credential's current
 `secret_ref`), purity (same inputs -> same outputs), and the
-handler-injected `rotation_started_by_actor_id` / `now` capture per
+handler-injected `rotation_started_by` / `now` capture per
 the non-determinism principle (capture, don't recompute).
 """
 
@@ -26,13 +26,14 @@ from cora.federation.features import start_credential_rotation
 from cora.federation.features.start_credential_rotation import (
     StartCredentialRotation,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fec001")
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fec002")
 _OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fec003")
-_REGISTERED_BY = UUID("01900000-0000-7000-8000-000000fec099")
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 _CURRENT_SECRET_REF = "vault://current/v1"
 _PENDING_SECRET_REF = "vault://pending/v2"
 _PENDING_PUBLIC_REF = "vault://pending/pub/v2"
@@ -53,7 +54,8 @@ def _credential(
         secret_ref=secret_ref,
         public_material_ref="vault://current/pub/v1",
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_REGISTERED_BY,
+        registered_by=_REGISTERED_BY,
+        registered_at=_NOW,
         rotation_pending_secret_ref=pending_secret_ref,
         rotation_pending_public_material_ref=pending_public_material_ref,
         status=status,
@@ -79,14 +81,14 @@ def test_start_credential_rotation_emits_event_when_state_is_active() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events == [
         CredentialRotationStarted(
             credential_id=_CREDENTIAL_ID,
             pending_secret_ref=_PENDING_SECRET_REF,
             pending_public_material_ref=_PENDING_PUBLIC_REF,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
         )
     ]
@@ -100,7 +102,7 @@ def test_start_credential_rotation_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
 
 
@@ -117,7 +119,7 @@ def test_start_credential_rotation_rejects_when_state_is_rotating() -> None:
             state=state,
             command=_command(new_secret_ref="vault://pending/v3"),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "start_rotation"
     assert exc.value.current_status is CredentialStatus.ROTATING
@@ -132,7 +134,7 @@ def test_start_credential_rotation_rejects_when_state_is_revoked() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "start_rotation"
     assert exc.value.current_status is CredentialStatus.REVOKED
@@ -147,7 +149,7 @@ def test_start_credential_rotation_rejects_empty_new_secret_ref() -> None:
             state=state,
             command=_command(new_secret_ref=""),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "new_secret_ref"
     assert "new_secret_ref" in str(exc.value)
@@ -162,7 +164,7 @@ def test_start_credential_rotation_rejects_whitespace_new_secret_ref() -> None:
             state=state,
             command=_command(new_secret_ref="   \t  "),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "new_secret_ref"
     assert exc.value.value == "   \t  "
@@ -176,7 +178,7 @@ def test_start_credential_rotation_trims_new_secret_ref_before_capture() -> None
         state=state,
         command=_command(new_secret_ref=f"  {_PENDING_SECRET_REF}  "),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     assert events[0].pending_secret_ref == _PENDING_SECRET_REF
@@ -191,7 +193,7 @@ def test_start_credential_rotation_rejects_when_new_secret_ref_equals_current() 
             state=state,
             command=_command(new_secret_ref=_CURRENT_SECRET_REF),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "start_rotation_same_ref"
     assert exc.value.current_status is CredentialStatus.ACTIVE
@@ -206,7 +208,7 @@ def test_start_credential_rotation_rejects_when_trimmed_ref_equals_current() -> 
             state=state,
             command=_command(new_secret_ref=f"  {_CURRENT_SECRET_REF}  "),
             now=_NOW,
-            rotation_started_by_actor_id=_PRINCIPAL_ID,
+            rotation_started_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "start_rotation_same_ref"
 
@@ -219,7 +221,7 @@ def test_start_credential_rotation_normalises_empty_public_material_ref_to_none(
         state=state,
         command=_command(new_public_material_ref=""),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     assert events[0].pending_public_material_ref is None
@@ -233,7 +235,7 @@ def test_start_credential_rotation_normalises_whitespace_public_material_ref_to_
         state=state,
         command=_command(new_public_material_ref="   "),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events[0].pending_public_material_ref is None
 
@@ -246,7 +248,7 @@ def test_start_credential_rotation_accepts_none_public_material_ref() -> None:
         state=state,
         command=_command(new_public_material_ref=None),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events[0].pending_public_material_ref is None
 
@@ -259,7 +261,7 @@ def test_start_credential_rotation_trims_public_material_ref() -> None:
         state=state,
         command=_command(new_public_material_ref=f"  {_PENDING_PUBLIC_REF}  "),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events[0].pending_public_material_ref == _PENDING_PUBLIC_REF
 
@@ -271,13 +273,13 @@ def test_start_credential_rotation_is_pure_same_inputs_same_outputs() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     second = start_credential_rotation.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -291,9 +293,9 @@ def test_start_credential_rotation_uses_handler_injected_actor_id_verbatim() -> 
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=injected,
+        rotation_started_by=injected,
     )
-    assert events[0].rotation_started_by_actor_id == injected
+    assert events[0].rotation_started_by == injected
 
 
 @pytest.mark.unit
@@ -305,7 +307,7 @@ def test_start_credential_rotation_uses_handler_injected_now_verbatim() -> None:
         state=state,
         command=_command(),
         now=custom_now,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -318,10 +320,10 @@ def test_start_credential_rotation_actor_id_independent_of_registered_by() -> No
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=_OTHER_ACTOR_ID,
+        rotation_started_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].rotation_started_by_actor_id == _OTHER_ACTOR_ID
-    assert state.registered_by_actor_id == _REGISTERED_BY
+    assert events[0].rotation_started_by == _OTHER_ACTOR_ID
+    assert state.registered_by == _REGISTERED_BY
 
 
 @pytest.mark.unit
@@ -332,6 +334,6 @@ def test_start_credential_rotation_does_not_mint_new_id() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_started_by_actor_id=_PRINCIPAL_ID,
+        rotation_started_by=_PRINCIPAL_ID,
     )
     assert events[0].credential_id == state.id

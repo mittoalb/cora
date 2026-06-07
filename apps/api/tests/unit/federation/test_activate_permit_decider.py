@@ -2,7 +2,7 @@
 
 Pins the FSM single-source transition (`Defined -> Active`) plus the
 strict-not-idempotent guard (re-activating any non-Defined permit raises
-PermitCannotActivateError) and the `activated_by_actor_id` capture from
+PermitCannotActivateError) and the `activated_by` capture from
 handler-injected `principal_id`. Slice-level integration (handler ->
 event-store) is covered by the handler tests.
 """
@@ -27,12 +27,13 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import activate_permit
 from cora.federation.features.activate_permit import ActivatePermit
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed001")
 _PERMIT_ID = UUID("01900000-0000-7000-8000-000000fed002")
-_DEFINED_BY_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fed003")
+_DEFINED_BY_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed003"))
 
 
 def _terms() -> OutboundTerms:
@@ -53,7 +54,8 @@ def _existing_state(*, status: PermitStatus = PermitStatus.DEFINED) -> Permit:
         allowed_artifact_kinds=frozenset({"dataset"}),
         abi_tier_floor=AbiTier.STABLE,
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_DEFINED_BY_ACTOR_ID,
+        defined_by=_DEFINED_BY_ACTOR_ID,
+        defined_at=_NOW,
         status=status,
         terms=_terms(),
     )
@@ -69,13 +71,13 @@ def test_activate_permit_emits_event_for_defined_permit() -> None:
         state=_existing_state(status=PermitStatus.DEFINED),
         command=_command(),
         now=_NOW,
-        activated_by_actor_id=_PRINCIPAL_ID,
+        activated_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, PermitActivated)
     assert event.permit_id == _PERMIT_ID
-    assert event.activated_by_actor_id == _PRINCIPAL_ID
+    assert event.activated_by == _PRINCIPAL_ID
     assert event.occurred_at == _NOW
 
 
@@ -87,7 +89,7 @@ def test_activate_permit_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            activated_by_actor_id=_PRINCIPAL_ID,
+            activated_by=_PRINCIPAL_ID,
         )
 
 
@@ -99,7 +101,7 @@ def test_activate_permit_rejects_when_already_active() -> None:
             state=_existing_state(status=PermitStatus.ACTIVE),
             command=_command(),
             now=_NOW,
-            activated_by_actor_id=_PRINCIPAL_ID,
+            activated_by=_PRINCIPAL_ID,
         )
     assert excinfo.value.current_status is PermitStatus.ACTIVE
 
@@ -112,7 +114,7 @@ def test_activate_permit_rejects_when_suspended() -> None:
             state=_existing_state(status=PermitStatus.SUSPENDED),
             command=_command(),
             now=_NOW,
-            activated_by_actor_id=_PRINCIPAL_ID,
+            activated_by=_PRINCIPAL_ID,
         )
     assert excinfo.value.current_status is PermitStatus.SUSPENDED
 
@@ -125,14 +127,14 @@ def test_activate_permit_rejects_when_revoked() -> None:
             state=_existing_state(status=PermitStatus.REVOKED),
             command=_command(),
             now=_NOW,
-            activated_by_actor_id=_PRINCIPAL_ID,
+            activated_by=_PRINCIPAL_ID,
         )
     assert excinfo.value.current_status is PermitStatus.REVOKED
 
 
 @pytest.mark.unit
-def test_activate_permit_captures_activated_by_actor_id_from_handler_arg() -> None:
-    """Handler injects `principal_id` as `activated_by_actor_id`; the
+def test_activate_permit_captures_activated_by_from_handler_arg() -> None:
+    """Handler injects `principal_id` as `activated_by`; the
     decider denorms it verbatim (non-determinism: capture, don't
     recompute)."""
     other_principal = UUID("01900000-0000-7000-8000-00000000c099")
@@ -140,9 +142,9 @@ def test_activate_permit_captures_activated_by_actor_id_from_handler_arg() -> No
         state=_existing_state(status=PermitStatus.DEFINED),
         command=_command(),
         now=_NOW,
-        activated_by_actor_id=other_principal,
+        activated_by=other_principal,
     )
-    assert events[0].activated_by_actor_id == other_principal
+    assert events[0].activated_by == other_principal
 
 
 @pytest.mark.unit
@@ -151,13 +153,13 @@ def test_activate_permit_is_pure_same_inputs_same_outputs() -> None:
         state=_existing_state(status=PermitStatus.DEFINED),
         command=_command(),
         now=_NOW,
-        activated_by_actor_id=_PRINCIPAL_ID,
+        activated_by=_PRINCIPAL_ID,
     )
     second = activate_permit.decide(
         state=_existing_state(status=PermitStatus.DEFINED),
         command=_command(),
         now=_NOW,
-        activated_by_actor_id=_PRINCIPAL_ID,
+        activated_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -171,6 +173,6 @@ def test_activate_permit_does_not_mint_its_own_uuid() -> None:
         state=state,
         command=ActivatePermit(permit_id=rogue),
         now=_NOW,
-        activated_by_actor_id=_PRINCIPAL_ID,
+        activated_by=_PRINCIPAL_ID,
     )
     assert events[0].permit_id == state.id

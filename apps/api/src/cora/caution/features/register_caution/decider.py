@@ -42,6 +42,7 @@ from cora.caution.aggregates.caution import (
     ensure_expires_at_future,
 )
 from cora.caution.features.register_caution.command import RegisterCaution
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -50,7 +51,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-    author_actor_id: UUID,
+    authored_by: ActorId,
 ) -> list[CautionRegistered]:
     """Decide the events produced by registering a new caution.
 
@@ -65,7 +66,7 @@ def decide(
       - expires_at (when set) must be strictly future
         -> InvalidCautionExpiresAtError
 
-    `author_actor_id` is handler-injected from the request envelope's
+    `authored_by` is handler-injected from the request envelope's
     `principal_id` (not on the command). At register time author and
     principal are equal by construction; the command surface omits the
     field so callers cannot spoof a different author.
@@ -89,7 +90,7 @@ def decide(
             text=text.value,
             workaround=workaround.value,
             tags=frozenset(t.value for t in tags),
-            author_actor_id=author_actor_id,
+            authored_by=authored_by,
             expires_at=command.expires_at,
             propagate_to_children=command.propagate_to_children,
             parent_id=None,

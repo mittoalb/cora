@@ -4,7 +4,7 @@ Pure function: given the (always None) Credential state and a
 `RegisterCredential` command, returns the events to append on the
 Credential stream. No I/O, no awaits, no side effects.
 
-`now`, `new_id`, and `registered_by_actor_id` are injected by the
+`now`, `new_id`, and `registered_by` are injected by the
 application handler from the Clock / IdGenerator ports and the
 request envelope (the non-determinism principle: capture, don't
 recompute).
@@ -43,6 +43,7 @@ from cora.federation.aggregates.credential import (
     InvalidCredentialSecretRefError,
 )
 from cora.federation.features.register_credential.command import RegisterCredential
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -51,7 +52,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-    registered_by_actor_id: UUID,
+    registered_by: ActorId,
 ) -> list[CredentialRegistered]:
     """Decide the events produced by registering a new Credential.
 
@@ -90,7 +91,7 @@ def decide(
             secret_ref=secret_ref,
             public_material_ref=command.public_material_ref,
             expires_at=command.expires_at,
-            registered_by_actor_id=registered_by_actor_id,
+            registered_by=registered_by,
             occurred_at=now,
         )
     ]

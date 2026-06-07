@@ -13,7 +13,7 @@ existing Calibration:
     3-tier `Refined` is a future option, not currently supported.
   - `source` — typed `CalibrationSource` discriminated union
     (`MeasuredSource(procedure_id)` | `ComputedSource(dataset_id)` |
-    `AssertedSource(actor_id)`). The runtime type IS the discriminator;
+    `AssertedSource(asserted_by)`). The runtime type IS the discriminator;
     no redundant `source_kind` field. Source FK targets are NOT
     cross-BC validated at the decider (eventual-consistency stance).
   - `decided_by_decision_id` — OPTIONAL link to the Decision BC record
@@ -25,8 +25,8 @@ existing Calibration:
     must exist in `aggregate.revisions` at append time.
 
 Server-side concerns (revision_id, wall-clock timestamp, correlation
-id, per-event ids, established_by_actor_id) are injected by the
-handler from infrastructure ports / the request envelope.
+id, per-event ids, established_by) are injected by the handler from
+infrastructure ports / the request envelope.
 """
 
 from dataclasses import dataclass

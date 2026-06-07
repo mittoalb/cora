@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -12,7 +12,11 @@ from cora.equipment.aggregates.fixture import (
     from_stored,
     to_payload,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _NOW = datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -50,6 +54,7 @@ def test_fixture_registered_to_payload_then_from_stored_round_trip() -> None:
         slot_asset_bindings=bindings,
         parameter_overrides={"exposure_ms": 250},
         occurred_at=_NOW,
+        registered_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(original)
     rebuilt = from_stored(_stored("FixtureRegistered", payload))
@@ -73,6 +78,7 @@ def test_fixture_registered_payload_serializes_bindings_as_sorted_list() -> None
         slot_asset_bindings=bindings,
         parameter_overrides={},
         occurred_at=_NOW,
+        registered_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     bindings_payload = cast("list[dict[str, str]]", payload["slot_asset_bindings"])

@@ -9,6 +9,12 @@ re-suspending a `Suspended` Agent raises `AgentCannotSuspendError`.
   - Current status must be `Versioned` -> `AgentCannotSuspendError`
   - `reason` REQUIRED; wrapped via `AgentSuspensionReason(...)`;
     1-500 chars after trim -> `InvalidAgentSuspensionReasonError`.
+
+`suspended_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different suspending actor; the
+fold-symmetry attribution half then lands on both the event payload
+and Agent aggregate state per [[project_fold_symmetry_design]].
 """
 
 from datetime import datetime
@@ -22,6 +28,7 @@ from cora.agent.aggregates.agent import (
     AgentSuspensionReason,
 )
 from cora.agent.features.suspend_agent.command import SuspendAgent
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -29,6 +36,7 @@ def decide(
     command: SuspendAgent,
     *,
     now: datetime,
+    suspended_by: ActorId,
 ) -> list[AgentSuspended]:
     """Decide the events produced by suspending an Agent.
 
@@ -49,6 +57,7 @@ def decide(
         AgentSuspended(
             agent_id=state.id,
             reason=reason.value,
+            suspended_by=suspended_by,
             occurred_at=now,
         )
     ]

@@ -31,7 +31,9 @@ from cora.equipment.features.register_fixture import (
     RegisterFixture,
     RegisterFixtureContext,
 )
+from cora.infrastructure.identity import ActorId
 
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
 _NOW = datetime(2026, 6, 3, 12, 0, 0, tzinfo=UTC)
 
 
@@ -92,6 +94,7 @@ def test_decide_emits_fixture_registered_when_all_invariants_hold() -> None:
         context=state_context,
         now=_NOW,
         new_id=new_id,
+        registered_by=_TEST_ACTOR_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -114,6 +117,7 @@ def test_decide_rejects_missing_assembly_with_assembly_not_found() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.assembly_id == target_id
 
@@ -131,6 +135,7 @@ def test_decide_rejects_deprecated_assembly_with_cannot_instantiate() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.assembly_id == assembly_id
     assert "Deprecated" in exc_info.value.reason
@@ -162,6 +167,7 @@ def test_decide_rejects_missing_asset_with_asset_not_found() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == missing_asset_id
 
@@ -180,6 +186,7 @@ def test_decide_rejects_exactly_one_slot_with_zero_bindings() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.slot_name == "rotary"
     assert "Exactly1" in exc_info.value.reason
@@ -211,6 +218,7 @@ def test_decide_rejects_unknown_slot_in_bindings() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.slot_name == "unknown_slot"
     assert "not declared" in exc_info.value.reason
@@ -242,6 +250,7 @@ def test_decide_rejects_family_mismatch_with_asset_family_mismatch_error() -> No
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.slot_name == "camera"
     assert exc_info.value.asset_id == asset_id
@@ -264,6 +273,7 @@ def test_decide_rejects_overrides_when_schema_absent_under_strict_posture() -> N
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert "exposure_ms" in exc_info.value.reason
 
@@ -290,6 +300,7 @@ def test_decide_rejects_overrides_failing_schema_validation() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
 
 
@@ -323,6 +334,7 @@ def test_decide_rejects_decommissioned_bound_asset_with_not_attachable_error() -
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == asset_id
     assert exc_info.value.current_lifecycle == AssetLifecycle.DECOMMISSIONED.value
@@ -356,6 +368,7 @@ def test_decide_skips_lifecycle_guard_when_dict_is_empty() -> None:
         context=context,
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_TEST_ACTOR_ID,
     )
     assert len(events) == 1
     assert isinstance(events[0], FixtureRegistered)
@@ -393,6 +406,7 @@ def test_decide_rejects_orphan_bound_asset_with_not_installed_error() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == asset_id
 
@@ -437,6 +451,7 @@ def test_decide_orphan_error_carries_sorted_first_when_multiple_orphans() -> Non
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
     assert exc_info.value.asset_id == asset_early
 
@@ -470,6 +485,7 @@ def test_decide_skips_orphan_guard_when_mount_id_dict_is_none() -> None:
         context=context,
         now=_NOW,
         new_id=uuid4(),
+        registered_by=_TEST_ACTOR_ID,
     )
     assert len(events) == 1
     assert isinstance(events[0], FixtureRegistered)
@@ -505,6 +521,7 @@ def test_decide_decommissioned_guard_fires_before_orphan_guard() -> None:
             context=context,
             now=_NOW,
             new_id=uuid4(),
+            registered_by=_TEST_ACTOR_ID,
         )
 
 
@@ -531,6 +548,7 @@ def test_decide_is_pure_same_inputs_yield_same_events() -> None:
         context=context,
         now=_NOW,
         new_id=new_id,
+        registered_by=_TEST_ACTOR_ID,
     )
     events_b = register_fixture.decide(
         state=None,
@@ -538,5 +556,6 @@ def test_decide_is_pure_same_inputs_yield_same_events() -> None:
         context=context,
         now=_NOW,
         new_id=new_id,
+        registered_by=_TEST_ACTOR_ID,
     )
     assert events_a == events_b

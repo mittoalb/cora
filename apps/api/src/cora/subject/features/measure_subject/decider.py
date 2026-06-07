@@ -16,10 +16,17 @@ aggregate level — that lives in `Run` observation channels later. The
 aggregate-level `Measured` status just means "has been measured at
 least once". Same precedent as `mount_subject` and
 `deactivate_actor`.
+
+`measured_by` is handler-injected from the request envelope's
+`principal_id` (not on the command). The command surface omits the
+field so callers cannot spoof a different measuring actor; the
+fold-symmetry attribution half then lands on the event payload per
+[[project_fold_symmetry_design]].
 """
 
 from datetime import datetime
 
+from cora.infrastructure.identity import ActorId
 from cora.subject.aggregates.subject import (
     Subject,
     SubjectCannotMeasureError,
@@ -35,10 +42,11 @@ def decide(
     command: MeasureSubject,
     *,
     now: datetime,
+    measured_by: ActorId,
 ) -> list[SubjectMeasured]:
     """Decide the events produced by measuring an existing subject."""
     if state is None:
         raise SubjectNotFoundError(command.subject_id)
     if state.status is not SubjectStatus.MOUNTED:
         raise SubjectCannotMeasureError(state.id, current_status=state.status)
-    return [SubjectMeasured(subject_id=state.id, occurred_at=now)]
+    return [SubjectMeasured(subject_id=state.id, occurred_at=now, measured_by=measured_by)]

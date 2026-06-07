@@ -143,7 +143,7 @@ async def test_seed_and_subscriber_write_decision_end_to_end(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
 
     # LLM was called exactly once; payload contained the run_id.
     assert len(llm.received) == 1

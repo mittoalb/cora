@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceApproved,
@@ -27,7 +28,7 @@ def _approving_step(step_index: int = 0) -> ReviewStep:
     return ReviewStep(
         step_index=step_index,
         role="ESH",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="Approved",
         decided_at=_NOW,
     )
@@ -37,7 +38,7 @@ def _rejected_step(step_index: int = 0) -> ReviewStep:
     return ReviewStep(
         step_index=step_index,
         role="ESH",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="Rejected",
         decided_at=_NOW,
     )
@@ -101,7 +102,7 @@ def test_decide_rejects_when_terminal_step_not_approved() -> None:
     rejected_step = ReviewStep(
         step_index=0,
         role="ESH",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision="RequestedChanges",
         decided_at=_NOW,
     )

@@ -454,7 +454,7 @@ async def test_run_debrief_agent_fires_on_equipment_abort(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "EquipmentAbort"
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: Hexapod stream carries the fault event -----
 

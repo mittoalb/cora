@@ -18,7 +18,7 @@ for a facility:
     `online_credential_id`.
 
 Server-side concerns (wall-clock timestamp, correlation id, per-event
-ids, `initialized_by_actor_id`) are injected by the handler from
+ids, `initialized_by`) are injected by the handler from
 infrastructure ports / the request envelope per the
 capture-don't-recompute principle. Per-slice cross-aggregate purpose
 binding (verifying each Credential's purpose matches the slot) is

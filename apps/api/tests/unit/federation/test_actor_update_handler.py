@@ -32,6 +32,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.identity import ActorId
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import (
     seed_active_credential,
@@ -68,16 +69,16 @@ async def test_factory_passes_principal_id_under_actor_kwarg() -> None:
         state: Any,
         command: Any,
         now: datetime,
-        suspended_by_actor_id: UUID,
+        suspended_by: UUID,
     ) -> list[PermitSuspended]:
         captured["state"] = state
         captured["command"] = command
         captured["now"] = now
-        captured["suspended_by_actor_id"] = suspended_by_actor_id
+        captured["suspended_by"] = suspended_by
         return [
             PermitSuspended(
                 permit_id=command.permit_id,
-                suspended_by_actor_id=suspended_by_actor_id,
+                suspended_by=suspended_by,
                 occurred_at=now,
             )
         ]
@@ -100,7 +101,7 @@ async def test_factory_passes_principal_id_under_actor_kwarg() -> None:
         command_name="SuspendPermit",
         log_prefix="suspend_permit",
         decide_fn=fake_decide,
-        actor_kwarg="suspended_by_actor_id",
+        actor_kwarg="suspended_by",
     )
 
     class _Cmd:
@@ -112,11 +113,11 @@ async def test_factory_passes_principal_id_under_actor_kwarg() -> None:
         correlation_id=_CORRELATION_ID,
     )
 
-    assert captured["suspended_by_actor_id"] == _PRINCIPAL_ID
+    assert captured["suspended_by"] == _PRINCIPAL_ID
     assert captured["now"] == _T2
     events, version = await store.load("Permit", _PERMIT_ID)
     assert version == 3
-    assert events[-1].payload["suspended_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["suspended_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit
@@ -129,9 +130,9 @@ async def test_factory_propagates_decider_exception_without_wrapping() -> None:
         state: Any,
         command: Any,
         now: datetime,
-        suspended_by_actor_id: UUID,
+        suspended_by: UUID,
     ) -> list[PermitSuspended]:
-        _ = (state, command, now, suspended_by_actor_id)
+        _ = (state, command, now, suspended_by)
         raise _BoomError("decider rejected")
 
     store = InMemoryEventStore()
@@ -152,7 +153,7 @@ async def test_factory_propagates_decider_exception_without_wrapping() -> None:
         command_name="SuspendPermit",
         log_prefix="suspend_permit",
         decide_fn=boom_decide,
-        actor_kwarg="suspended_by_actor_id",
+        actor_kwarg="suspended_by",
     )
 
     class _Cmd:
@@ -178,11 +179,11 @@ async def test_factory_raises_unauthorized_and_skips_decide_on_deny() -> None:
         state: Any,
         command: Any,
         now: datetime,
-        suspended_by_actor_id: UUID,
+        suspended_by: UUID,
     ) -> list[PermitSuspended]:
         nonlocal called
         called = True
-        _ = (state, command, now, suspended_by_actor_id)
+        _ = (state, command, now, suspended_by)
         return []
 
     store = InMemoryEventStore()
@@ -203,7 +204,7 @@ async def test_factory_raises_unauthorized_and_skips_decide_on_deny() -> None:
         command_name="SuspendPermit",
         log_prefix="suspend_permit",
         decide_fn=fake_decide,
-        actor_kwarg="suspended_by_actor_id",
+        actor_kwarg="suspended_by",
     )
 
     class _Cmd:
@@ -223,14 +224,14 @@ async def test_factory_raises_unauthorized_and_skips_decide_on_deny() -> None:
 @pytest.mark.unit
 async def test_credential_wrapper_stamps_actor_under_supplied_kwarg() -> None:
     """The Credential per-aggregate wrapper threads `principal_id` as
-    `rotation_started_by_actor_id` (or whatever `actor_kwarg` names)."""
+    `rotation_started_by` (or whatever `actor_kwarg` names)."""
 
     def fake_decide(
         *,
         state: Any,
         command: Any,
         now: datetime,
-        rotation_started_by_actor_id: UUID,
+        rotation_started_by: UUID,
     ) -> list[CredentialRotationStarted]:
         _ = (state, command)
         return [
@@ -238,7 +239,7 @@ async def test_credential_wrapper_stamps_actor_under_supplied_kwarg() -> None:
                 credential_id=command.credential_id,
                 pending_secret_ref="vault://pending/v2",
                 pending_public_material_ref="vault://pending/pub/v2",
-                rotation_started_by_actor_id=rotation_started_by_actor_id,
+                rotation_started_by=rotation_started_by,
                 occurred_at=now,
             )
         ]
@@ -259,7 +260,7 @@ async def test_credential_wrapper_stamps_actor_under_supplied_kwarg() -> None:
         command_name="StartCredentialRotation",
         log_prefix="start_credential_rotation",
         decide_fn=fake_decide,
-        actor_kwarg="rotation_started_by_actor_id",
+        actor_kwarg="rotation_started_by",
     )
 
     class _Cmd:
@@ -273,7 +274,7 @@ async def test_credential_wrapper_stamps_actor_under_supplied_kwarg() -> None:
     events, version = await store.load("Credential", _CRED_ID)
     assert version == 2
     assert events[-1].event_type == "CredentialRotationStarted"
-    assert events[-1].payload["rotation_started_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rotation_started_by"] == str(_PRINCIPAL_ID)
 
 
 @pytest.mark.unit
@@ -287,13 +288,13 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
         state: Any,
         command: Any,
         now: datetime,
-        started_by_actor_id: UUID,
+        started_by: ActorId,
     ) -> list[SealRepublishingStarted]:
         _ = state
         return [
             SealRepublishingStarted(
                 facility_id=command.facility_id,
-                started_by_actor_id=started_by_actor_id,
+                started_by=started_by,
                 occurred_at=now,
             )
         ]
@@ -314,7 +315,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
         command_name="StartSealRepublishing",
         log_prefix="start_seal_republishing",
         decide_fn=fake_decide,
-        actor_kwarg="started_by_actor_id",
+        actor_kwarg="started_by",
     )
 
     class _Cmd:
@@ -328,7 +329,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
     events, version = await store.load("Seal", expected_stream)
     assert version == 2
     assert events[-1].event_type == "SealRepublishingStarted"
-    assert events[-1].payload["started_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["started_by"] == str(_PRINCIPAL_ID)
     assert events[-1].payload["facility_id"] == _FACILITY_ID
 
 
@@ -342,9 +343,9 @@ async def test_factory_appends_after_decide_so_decider_errors_leave_stream_intac
         state: Any,
         command: Any,
         now: datetime,
-        suspended_by_actor_id: UUID,
+        suspended_by: UUID,
     ) -> list[PermitSuspended]:
-        _ = (state, command, now, suspended_by_actor_id)
+        _ = (state, command, now, suspended_by)
         raise ValueError("decider rejected")
 
     store = InMemoryEventStore()
@@ -366,7 +367,7 @@ async def test_factory_appends_after_decide_so_decider_errors_leave_stream_intac
         command_name="SuspendPermit",
         log_prefix="suspend_permit",
         decide_fn=boom_decide,
-        actor_kwarg="suspended_by_actor_id",
+        actor_kwarg="suspended_by",
     )
 
     class _Cmd:

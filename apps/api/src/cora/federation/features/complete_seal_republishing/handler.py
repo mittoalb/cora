@@ -16,7 +16,7 @@ caching adds no value when the decider rejects replays.
 
 Delegates to `make_seal_update_handler` (Federation-local
 actor-stamping factory) which threads `principal_id` into the decider
-under `completed_by_actor_id`.
+under `completed_by`.
 """
 
 from typing import Protocol
@@ -52,5 +52,5 @@ def bind(deps: Kernel) -> Handler:
         command_name="CompleteSealRepublishing",
         log_prefix="complete_seal_republishing",
         decide_fn=decide,
-        actor_kwarg="completed_by_actor_id",
+        actor_kwarg="completed_by",
     )

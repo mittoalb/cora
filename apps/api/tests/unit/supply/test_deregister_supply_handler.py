@@ -7,6 +7,7 @@ import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.supply.aggregates.supply import (
     SupplyCannotDeregisterError,
@@ -28,6 +29,7 @@ _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000005912")
 _MARK_AVAILABLE_EVENT_ID = UUID("01900000-0000-7000-8000-000000005913")
 _TRANSITION_EVENT_ID = UUID("01900000-0000-7000-8000-000000005914")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
+_ACTOR_ID = ActorId(_PRINCIPAL_ID)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
@@ -37,6 +39,8 @@ async def _seed_available_supply(store: InMemoryEventStore) -> None:
         scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2",
+        trigger="Operator",
+        triggered_by=_ACTOR_ID,
         occurred_at=_PRIOR,
     )
     mark = SupplyMarkedAvailable(
@@ -44,6 +48,7 @@ async def _seed_available_supply(store: InMemoryEventStore) -> None:
         from_status="Unknown",
         reason="walkdown",
         trigger="Operator",
+        triggered_by=_ACTOR_ID,
         occurred_at=_PRIOR,
     )
     for ev, eid, cmd in [

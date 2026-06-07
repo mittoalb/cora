@@ -1,13 +1,16 @@
 """Application handler for the `suspend_agent` slice.
 
-Built on the hoisted `make_agent_update_handler`
-factory (same shape as version_agent / deprecate_agent post-hoist).
+Built on the actor-stamping `make_agent_actor_update_handler`
+factory variant: the envelope's `principal_id` threads into the
+decider under `suspended_by`, landing on `AgentSuspended.suspended_by`
+and the Agent aggregate's `suspended_by` state field per
+[[project_fold_symmetry_design]].
 """
 
 from typing import Protocol
 from uuid import UUID
 
-from cora.agent._agent_update_handler import make_agent_update_handler
+from cora.agent._agent_update_handler import make_agent_actor_update_handler
 from cora.agent.features.suspend_agent.command import SuspendAgent
 from cora.agent.features.suspend_agent.decider import decide
 from cora.infrastructure.kernel import Kernel
@@ -30,9 +33,10 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a suspend_agent handler closed over the shared deps."""
-    return make_agent_update_handler(
+    return make_agent_actor_update_handler(
         deps,
         command_name="SuspendAgent",
         log_prefix="suspend_agent",
         decide_fn=decide,
+        actor_kwarg="suspended_by",
     )

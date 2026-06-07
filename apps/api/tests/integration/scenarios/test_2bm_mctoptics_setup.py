@@ -150,6 +150,7 @@ from cora.equipment.features.update_family_settings_schema import UpdateFamilySe
 from cora.equipment.features.update_family_settings_schema import (
     bind as bind_update_family_settings_schema,
 )
+from cora.infrastructure.identity import ActorId
 from cora.recipe.features.add_plan_wire import AddPlanWire
 from cora.recipe.features.add_plan_wire import bind as bind_add_plan_wire
 from cora.recipe.features.define_method import DefineMethod
@@ -1018,7 +1019,7 @@ async def test_mctoptics_deployment_plays_out_end_to_end(
                 calibration_id=cal_id,
                 value=value,
                 status=CalibrationStatus.PROVISIONAL,
-                source=AssertedSource(actor_id=_PRINCIPAL_ID),
+                source=AssertedSource(asserted_by=ActorId(_PRINCIPAL_ID)),
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

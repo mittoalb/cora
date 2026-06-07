@@ -21,6 +21,7 @@ import pytest
 from cora.caution.errors import UnauthorizedError
 from cora.caution.features import list_cautions
 from cora.caution.features.list_cautions import ListCautions
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports import Allow
 from cora.infrastructure.projection import encode_cursor
 from tests.unit._helpers import build_deps as _build_deps_shared
@@ -30,7 +31,7 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _CAUTION_ID = UUID("01900000-0000-7000-8000-00000000c001")
 _TARGET_ID = UUID("01900000-0000-7000-8000-00000000c002")
-_AUTHOR_ID = UUID("01900000-0000-7000-8000-00000000c003")
+_AUTHOR_ID = ActorId(UUID("01900000-0000-7000-8000-00000000c003"))
 
 
 @pytest.mark.unit
@@ -61,7 +62,7 @@ async def test_handler_accepts_canonical_filter_shape() -> None:
             severities=["Caution", "Warning"],
             statuses=["Active"],
             tag="hexapod",
-            author_actor_id=_AUTHOR_ID,
+            authored_by=_AUTHOR_ID,
             limit=20,
         ),
         principal_id=_PRINCIPAL_ID,

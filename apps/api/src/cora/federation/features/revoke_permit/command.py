@@ -9,7 +9,7 @@ immutable event log.
 
 The principal-id of the invoker is supplied separately by the
 application handler at call time and stamped onto the
-`PermitRevoked` event as `revoked_by_actor_id`.
+`PermitRevoked` event as `revoked_by`.
 
 Closing the permit is terminal: any non-Revoked status transitions to
 Revoked.

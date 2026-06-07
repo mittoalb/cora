@@ -17,15 +17,17 @@ from cora.decision.aggregates.decision import (
 )
 from cora.decision.features.rate_decision.command import RateDecision
 from cora.decision.features.rate_decision.decider import decide
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 17, 12, 0, 0, tzinfo=UTC)
-_RATER_ID = uuid4()
+_RATER_ID = ActorId(uuid4())
 
 
 def _decision(*, decision_id: object | None = None) -> Decision:
     return Decision(
         id=decision_id or uuid4(),  # type: ignore[arg-type]
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
+        decided_at=_NOW,
         context=DecisionContext("RunDebrief"),
         choice=DecisionChoice("NominalCompletion"),
     )
@@ -38,7 +40,7 @@ def test_emits_single_decision_rated_event() -> None:
         state=d,
         command=RateDecision(decision_id=d.id, rating=DecisionRating.USEFUL),
         now=_NOW,
-        rated_by_actor_id=_RATER_ID,
+        rated_by=_RATER_ID,
     )
     assert len(events) == 1
     assert isinstance(events[0], DecisionRated)
@@ -46,7 +48,7 @@ def test_emits_single_decision_rated_event() -> None:
     assert e.decision_id == d.id
     assert e.rating is DecisionRating.USEFUL
     assert e.comment is None
-    assert e.rated_by_actor_id == _RATER_ID
+    assert e.rated_by == _RATER_ID
     assert e.rated_at == _NOW
 
 
@@ -61,7 +63,7 @@ def test_carries_optional_comment_trimmed() -> None:
             comment="  flagged the wrong thing  ",
         ),
         now=_NOW,
-        rated_by_actor_id=_RATER_ID,
+        rated_by=_RATER_ID,
     )
     assert events[0].comment == "flagged the wrong thing"
 
@@ -73,7 +75,7 @@ def test_not_found_when_state_is_none() -> None:
             state=None,
             command=RateDecision(decision_id=uuid4(), rating=DecisionRating.USEFUL),
             now=_NOW,
-            rated_by_actor_id=_RATER_ID,
+            rated_by=_RATER_ID,
         )
 
 
@@ -89,7 +91,7 @@ def test_invalid_comment_raises() -> None:
                 comment="   ",  # whitespace-only rejected (callers pass None)
             ),
             now=_NOW,
-            rated_by_actor_id=_RATER_ID,
+            rated_by=_RATER_ID,
         )
 
 
@@ -105,7 +107,7 @@ def test_over_cap_comment_raises() -> None:
                 comment="x" * (DECISION_RATING_COMMENT_MAX_LENGTH + 1),
             ),
             now=_NOW,
-            rated_by_actor_id=_RATER_ID,
+            rated_by=_RATER_ID,
         )
 
 
@@ -124,7 +126,7 @@ def test_multiple_ratings_from_same_actor_not_rejected_at_decider() -> None:
         state=d,
         command=RateDecision(decision_id=d.id, rating=DecisionRating.MISLEADING),
         now=_NOW,
-        rated_by_actor_id=_RATER_ID,
+        rated_by=_RATER_ID,
     )
     assert len(events) == 1
 
@@ -140,6 +142,6 @@ def test_each_rating_value_accepted(rating: DecisionRating) -> None:
         state=d,
         command=RateDecision(decision_id=d.id, rating=rating),
         now=_NOW,
-        rated_by_actor_id=_RATER_ID,
+        rated_by=_RATER_ID,
     )
     assert events[0].rating is rating

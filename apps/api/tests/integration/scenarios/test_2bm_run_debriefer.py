@@ -380,7 +380,7 @@ async def test_run_debrief_agent_fires_on_terminal_run(
     assert decision is not None
     assert decision.context.value == "RunDebrief"
     assert decision.choice.value == "NominalCompletion"
-    assert decision.actor_id == RUN_DEBRIEFER_AGENT_ID
+    assert decision.decided_by == RUN_DEBRIEFER_AGENT_ID
 
     # ----- Assert: LLM was called exactly once with the run_id in context -----
 

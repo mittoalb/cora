@@ -2,7 +2,7 @@
 
 Reads `proj_decision_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Three
-optional filters (confidence_band + rule + actor_id) plus
+optional filters (confidence_band + rule + decided_by) plus
 cursor pagination on `(created_at, decision_id)`.
 
 `confidence` (the raw float) flows through to the result row;
@@ -35,7 +35,7 @@ class DecisionSummaryItem:
     """One row from the decision projection."""
 
     decision_id: UUID
-    actor_id: UUID
+    decided_by: UUID
     rule: str | None
     parent_id: UUID | None
     confidence: float | None
@@ -66,14 +66,14 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "decision_id, actor_id, rule, parent_id, confidence, confidence_band, choice, created_at"
+    "decision_id, decided_by, rule, parent_id, confidence, confidence_band, choice, created_at"
 )
 
 
 def _row_to_item(row: Any) -> DecisionSummaryItem:
     return DecisionSummaryItem(
         decision_id=row["decision_id"],
-        actor_id=row["actor_id"],
+        decided_by=row["decided_by"],
         rule=str(row["rule"]) if row["rule"] is not None else None,
         parent_id=row["parent_id"],
         confidence=row["confidence"],
@@ -91,7 +91,7 @@ def _log_fields(query: ListDecisions) -> dict[str, Any]:
     return {
         "confidence_band": query.confidence_band,
         "rule": query.rule,
-        "actor_id": str(query.actor_id) if query.actor_id else None,
+        "decided_by": str(query.decided_by) if query.decided_by else None,
         "choice": query.choice,
         "exclude_choices": list(query.exclude_choices) if query.exclude_choices else None,
     }
@@ -111,7 +111,7 @@ def bind(deps: Kernel) -> Handler:
         filters=[
             ScalarFilter(attr="confidence_band"),
             ScalarFilter(attr="rule"),
-            ScalarFilter(attr="actor_id"),
+            ScalarFilter(attr="decided_by"),
             ScalarFilter(attr="choice"),
             ColumnNotInFilter(attr="exclude_choices", column="choice"),
         ],

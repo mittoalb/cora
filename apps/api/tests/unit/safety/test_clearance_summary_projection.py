@@ -188,7 +188,7 @@ async def test_apply_clearance_review_step_recorded_is_no_op() -> None:
                 "clearance_id": str(uuid4()),
                 "step_index": 0,
                 "role": "BeamlineScientist",
-                "actor_id": str(uuid4()),
+                "decided_by": str(uuid4()),
                 "decision": "Approved",
                 "decided_at": _NOW.isoformat(),
                 "notes": None,
@@ -220,7 +220,7 @@ async def test_apply_unsubscribed_event_type_is_silently_ignored() -> None:
 @pytest.mark.unit
 async def test_apply_clearance_approved_includes_validity_window_overrides() -> None:
     """Approved emits UPDATE with status + last_status_changed_at +
-    last_reviewed_by_actor_id (read from envelope) + COALESCE(valid_from,
+    last_reviewed_by (read from envelope) + COALESCE(valid_from,
     valid_until)."""
     proj = ClearanceSummaryProjection()
     conn = _RecordingConn()

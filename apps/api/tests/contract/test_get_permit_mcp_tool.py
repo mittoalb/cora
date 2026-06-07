@@ -37,7 +37,7 @@ def _outbound_view() -> PermitView:
         allowed_artifact_kinds=["dataset"],
         abi_tier_floor="Stable",
         expires_at=_EXPIRES_AT,
-        defined_by_actor_id=_ACTOR_ID,
+        defined_by=_ACTOR_ID,
         status="Active",
         terms_kind="Outbound",
         read_scope="ReadAllArtifacts",

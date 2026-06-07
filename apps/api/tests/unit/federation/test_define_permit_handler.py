@@ -134,7 +134,7 @@ async def test_define_permit_handler_writes_permit_payload_fields() -> None:
     assert payload["allowed_payload_types"] == ["application/json"]
     assert payload["allowed_artifact_kinds"] == ["dataset"]
     assert payload["abi_tier_floor"] == AbiTier.STABLE.value
-    assert payload["defined_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert payload["defined_by"] == str(_PRINCIPAL_ID)
     assert payload["terms"]["kind"] == "Outbound"
 
 

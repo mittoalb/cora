@@ -5,7 +5,7 @@ posture on re-complete (Active source-state rejection after a
 successful complete), FSM precondition rejection on Active / Revoked,
 not-found on an unknown credential, and the success path's event
 envelope shape (correlation_id, causation_id, and the
-`rotation_completed_by_actor_id` denorm on payload).
+`rotation_completed_by` denorm on payload).
 """
 
 from datetime import UTC, datetime
@@ -87,7 +87,7 @@ async def test_complete_credential_rotation_handler_appends_event_to_rotating_cr
     assert version == 3
     stored = events[-1]
     assert stored.event_type == "CredentialRotationCompleted"
-    assert stored.payload["rotation_completed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert stored.payload["rotation_completed_by"] == str(_PRINCIPAL_ID)
     assert stored.payload["credential_id"] == str(_CREDENTIAL_ID)
     assert stored.correlation_id == _CORRELATION_ID
     assert stored.causation_id is None
@@ -96,7 +96,7 @@ async def test_complete_credential_rotation_handler_appends_event_to_rotating_cr
 @pytest.mark.unit
 async def test_complete_credential_rotation_handler_event_payload_is_identity_only() -> None:
     """`CredentialRotationCompleted` carries only credential_id +
-    rotation_completed_by_actor_id + occurred_at on its payload;
+    rotation_completed_by + occurred_at on its payload;
     pending refs and current refs do NOT appear."""
     store = InMemoryEventStore()
     await seed_rotating_credential(
@@ -121,7 +121,7 @@ async def test_complete_credential_rotation_handler_event_payload_is_identity_on
     payload = events[-1].payload
     assert set(payload.keys()) == {
         "credential_id",
-        "rotation_completed_by_actor_id",
+        "rotation_completed_by",
         "occurred_at",
     }
 
@@ -273,9 +273,9 @@ async def test_complete_credential_rotation_handler_denied_does_not_write_to_str
 
 
 @pytest.mark.unit
-async def test_complete_credential_rotation_handler_records_completed_by_actor_id() -> None:
+async def test_complete_credential_rotation_handler_records_completed_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `rotation_completed_by_actor_id` on the emitted event (audit
+    `rotation_completed_by` on the emitted event (audit
     anchor for the operator gesture), regardless of who started the
     rotation."""
     store = InMemoryEventStore()
@@ -300,4 +300,4 @@ async def test_complete_credential_rotation_handler_records_completed_by_actor_i
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert events[-1].payload["rotation_completed_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["rotation_completed_by"] == str(_PRINCIPAL_ID)

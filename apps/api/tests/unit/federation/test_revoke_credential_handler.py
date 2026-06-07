@@ -104,7 +104,7 @@ async def test_revoke_credential_handler_appends_event_from_active() -> None:
     transition = events[-1]
     assert transition.event_type == "CredentialRevoked"
     assert transition.payload["credential_id"] == str(_CREDENTIAL_ID)
-    assert transition.payload["revoked_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert transition.payload["revoked_by"] == str(_PRINCIPAL_ID)
     assert transition.correlation_id == _CORRELATION_ID
     assert transition.causation_id is None
 
@@ -444,9 +444,9 @@ async def test_revoke_credential_handler_denied_does_not_write_either_stream() -
 
 
 @pytest.mark.unit
-async def test_revoke_credential_handler_records_principal_as_revoked_by_actor_id() -> None:
+async def test_revoke_credential_handler_records_principal_as_revoked_by() -> None:
     """The handler injects the request envelope's `principal_id` as
-    `revoked_by_actor_id` on the emitted event (audit anchor for the
+    `revoked_by` on the emitted event (audit anchor for the
     operator gesture), regardless of who registered the credential."""
     store = InMemoryEventStore()
     # Seed Registered BY a different actor; the revoker should still be
@@ -468,6 +468,6 @@ async def test_revoke_credential_handler_records_principal_as_revoked_by_actor_i
         correlation_id=_CORRELATION_ID,
     )
     events, _ = await store.load("Credential", _CREDENTIAL_ID)
-    assert events[-1].payload["revoked_by_actor_id"] == str(_PRINCIPAL_ID)
+    assert events[-1].payload["revoked_by"] == str(_PRINCIPAL_ID)
     decision_events, _ = await store.load("Decision", _DECISION_ID)
     assert decision_events[0].payload["actor_id"] == str(_PRINCIPAL_ID)

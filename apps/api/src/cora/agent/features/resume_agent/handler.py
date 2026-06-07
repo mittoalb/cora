@@ -1,13 +1,16 @@
 """Application handler for the `resume_agent` slice.
 
-Built on the hoisted `make_agent_update_handler`
-factory.
+Built on the actor-stamping `make_agent_actor_update_handler`
+factory variant: the envelope's `principal_id` threads into the
+decider under `resumed_by`, landing on `AgentResumed.resumed_by`
+and the Agent aggregate's `resumed_by` state field per
+[[project_fold_symmetry_design]].
 """
 
 from typing import Protocol
 from uuid import UUID
 
-from cora.agent._agent_update_handler import make_agent_update_handler
+from cora.agent._agent_update_handler import make_agent_actor_update_handler
 from cora.agent.features.resume_agent.command import ResumeAgent
 from cora.agent.features.resume_agent.decider import decide
 from cora.infrastructure.kernel import Kernel
@@ -30,9 +33,10 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a resume_agent handler closed over the shared deps."""
-    return make_agent_update_handler(
+    return make_agent_actor_update_handler(
         deps,
         command_name="ResumeAgent",
         log_prefix="resume_agent",
         decide_fn=decide,
+        actor_kwarg="resumed_by",
     )

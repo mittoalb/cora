@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from cora.infrastructure.identifier import Identifier, InvalidIdentifierError
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance import (
     CLEARANCE_HAZARD_NOTES_MAX_LENGTH,
     CLEARANCE_MITIGATION_REF_MAX_LENGTH,
@@ -194,19 +195,19 @@ def test_hazard_declaration_normalizes_whitespace_only_notes_to_none() -> None:
 
 @pytest.mark.unit
 def test_reviewer_step_carries_all_fields() -> None:
-    actor = uuid4()
+    actor = ActorId(uuid4())
     now = datetime(2026, 5, 15, 10, 0, 0, tzinfo=UTC)
     step = ReviewStep(
         step_index=0,
         role="BeamlineScientist",
-        actor_id=actor,
+        decided_by=actor,
         decision="Approved",
         decided_at=now,
         notes="LGTM",
     )
     assert step.step_index == 0
     assert step.role == "BeamlineScientist"
-    assert step.actor_id == actor
+    assert step.decided_by == actor
     assert step.decision == "Approved"
     assert step.notes == "LGTM"
 

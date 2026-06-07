@@ -60,6 +60,7 @@ async def test_deregister_supply_appends_transition_event_to_same_stream(
         "from_status": "Unknown",
         "reason": "typo at registration; re-registering",
         "trigger": "Operator",
+        "triggered_by": str(_PRINCIPAL_ID),
         "occurred_at": _DEREGISTER_NOW.isoformat(),
     }
     assert transition.correlation_id == _CORRELATION_ID

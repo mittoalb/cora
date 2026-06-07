@@ -4,7 +4,7 @@ Pure function: given the (always None) Permit state and a
 `DefinePermit` command, returns the events to append on the
 Permit stream. No I/O, no awaits, no side effects.
 
-`now`, `new_id`, and `defined_by_actor_id` are injected by the
+`now`, `new_id`, and `defined_by` are injected by the
 application handler from the Clock / IdGenerator ports and the
 request envelope (the non-determinism principle: capture, don't
 recompute).
@@ -56,6 +56,7 @@ from cora.federation.aggregates.permit import (
     ReadScope,
 )
 from cora.federation.features.define_permit.command import DefinePermit
+from cora.infrastructure.identity import ActorId
 
 
 def decide(
@@ -64,7 +65,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-    defined_by_actor_id: UUID,
+    defined_by: ActorId,
 ) -> list[PermitDefined]:
     """Decide the events produced by defining a new Permit.
 
@@ -135,7 +136,7 @@ def decide(
             allowed_artifact_kinds=command.allowed_artifact_kinds,
             abi_tier_floor=command.abi_tier_floor,
             expires_at=command.expires_at,
-            defined_by_actor_id=defined_by_actor_id,
+            defined_by=defined_by,
             terms=command.terms,
             occurred_at=now,
         )

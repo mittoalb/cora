@@ -153,6 +153,7 @@ from cora.decision.aggregates.decision import (
     validate_reasoning,
 )
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import ConcurrencyError
 from cora.infrastructure.signing import SIGNED_EVENT_TYPES
@@ -612,7 +613,7 @@ class RunDebrieferSubscriber:
 
         domain_event = DecisionRegistered(
             decision_id=decision_id,
-            actor_id=actor.id,
+            decided_by=ActorId(actor.id),
             context=decision_context.value,
             choice=decision_choice.value,
             parent_id=None,

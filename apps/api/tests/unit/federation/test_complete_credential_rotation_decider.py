@@ -3,7 +3,7 @@
 Pin the FSM source-state guard (Rotating is the only legal source),
 the not-found branch, the belt-and-braces pending-ref-present guard,
 purity (same inputs same outputs), and handler-injected
-`rotation_completed_by_actor_id` + `now` reproducibility.
+`rotation_completed_by` + `now` reproducibility.
 
 `CompleteCredentialRotation` carries no operator-facing body fields
 (no `reason`): the command is identity-only on the credential, and
@@ -28,13 +28,14 @@ from cora.federation.features import complete_credential_rotation
 from cora.federation.features.complete_credential_rotation import (
     CompleteCredentialRotation,
 )
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fec001")
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fec002")
 _OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fec003")
-_REGISTERED_BY = UUID("01900000-0000-7000-8000-000000fec099")
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 
 
 def _credential(
@@ -51,7 +52,8 @@ def _credential(
         secret_ref="vault://current/v1",
         public_material_ref="vault://current/pub/v1",
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_REGISTERED_BY,
+        registered_by=_REGISTERED_BY,
+        registered_at=_NOW,
         rotation_pending_secret_ref=pending_secret_ref,
         rotation_pending_public_material_ref=pending_public_material_ref,
         status=status,
@@ -73,12 +75,12 @@ def test_complete_credential_rotation_emits_event_when_state_is_rotating() -> No
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     assert events == [
         CredentialRotationCompleted(
             credential_id=_CREDENTIAL_ID,
-            rotation_completed_by_actor_id=_PRINCIPAL_ID,
+            rotation_completed_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
         )
     ]
@@ -92,7 +94,7 @@ def test_complete_credential_rotation_rejects_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            rotation_completed_by_actor_id=_PRINCIPAL_ID,
+            rotation_completed_by=_PRINCIPAL_ID,
         )
 
 
@@ -105,7 +107,7 @@ def test_complete_credential_rotation_rejects_when_state_is_active() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_completed_by_actor_id=_PRINCIPAL_ID,
+            rotation_completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "complete_rotation"
     assert exc.value.current_status is CredentialStatus.ACTIVE
@@ -120,7 +122,7 @@ def test_complete_credential_rotation_rejects_when_state_is_revoked() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_completed_by_actor_id=_PRINCIPAL_ID,
+            rotation_completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "complete_rotation"
     assert exc.value.current_status is CredentialStatus.REVOKED
@@ -141,7 +143,7 @@ def test_complete_credential_rotation_rejects_when_pending_secret_ref_is_none() 
             state=state,
             command=_command(),
             now=_NOW,
-            rotation_completed_by_actor_id=_PRINCIPAL_ID,
+            rotation_completed_by=_PRINCIPAL_ID,
         )
     assert exc.value.attempted == "complete_rotation"
 
@@ -157,20 +159,20 @@ def test_complete_credential_rotation_is_pure_same_inputs_same_outputs() -> None
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     second = complete_credential_rotation.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     assert first == second
 
 
 @pytest.mark.unit
 def test_complete_credential_rotation_uses_handler_injected_actor_id_verbatim() -> None:
-    """Sanity: handler-injected `rotation_completed_by_actor_id` is used
+    """Sanity: handler-injected `rotation_completed_by` is used
     verbatim; decider doesn't synthesize it."""
     state = _credential(
         CredentialStatus.ROTATING,
@@ -181,9 +183,9 @@ def test_complete_credential_rotation_uses_handler_injected_actor_id_verbatim() 
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=injected,
+        rotation_completed_by=injected,
     )
-    assert events[0].rotation_completed_by_actor_id == injected
+    assert events[0].rotation_completed_by == injected
 
 
 @pytest.mark.unit
@@ -199,7 +201,7 @@ def test_complete_credential_rotation_uses_handler_injected_now_verbatim() -> No
         state=state,
         command=_command(),
         now=custom_now,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now
 
@@ -216,10 +218,10 @@ def test_complete_credential_rotation_actor_id_independent_of_registered_by() ->
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_OTHER_ACTOR_ID,
+        rotation_completed_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].rotation_completed_by_actor_id == _OTHER_ACTOR_ID
-    assert state.registered_by_actor_id == _REGISTERED_BY
+    assert events[0].rotation_completed_by == _OTHER_ACTOR_ID
+    assert state.registered_by == _REGISTERED_BY
 
 
 @pytest.mark.unit
@@ -233,7 +235,7 @@ def test_complete_credential_rotation_does_not_mint_new_id() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     assert events[0].credential_id == state.id
 
@@ -241,7 +243,7 @@ def test_complete_credential_rotation_does_not_mint_new_id() -> None:
 @pytest.mark.unit
 def test_complete_credential_rotation_emits_identity_only_payload() -> None:
     """`CredentialRotationCompleted` carries only the three audit fields
-    (credential_id, rotation_completed_by_actor_id, occurred_at); the
+    (credential_id, rotation_completed_by, occurred_at); the
     pending refs are not stamped on the event payload."""
     state = _credential(
         CredentialStatus.ROTATING,
@@ -252,7 +254,7 @@ def test_complete_credential_rotation_emits_identity_only_payload() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        rotation_completed_by_actor_id=_PRINCIPAL_ID,
+        rotation_completed_by=_PRINCIPAL_ID,
     )
     event = events[0]
     assert isinstance(event, CredentialRotationCompleted)

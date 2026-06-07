@@ -10,7 +10,7 @@ be persisted atomically by the handler via `EventStore.append_streams`:
 The decider stays pure: handler-injected parameters carry the
 SignatureEnvelope (from SignaturePort.sign), the receipt_id (from
 PublishPort.publish), the wall-clock `now`, and the
-published_by_actor_id (from the request envelope's principal_id).
+published_by (from the request envelope's principal_id).
 The decider's job is to validate the publication is authorized +
 deterministic, then transform the inputs into the locked event
 shapes.
@@ -29,7 +29,7 @@ Invariants:
   - DCO chain shape: enforced at the verify-then-apply orchestrator
     when the artifact is re-verified on the consumer side, plus the
     architecture-fitness test that walks publish_* handlers asserting
-    `published_by_actor_id` resolves to a human Actor. The handler
+    `published_by` resolves to a human Actor. The handler
     composes the chain from the envelope principal at publish time;
     the decider trusts that handler.
   - Permit's terms allowing this artifact kind: the handler-tier
@@ -94,7 +94,7 @@ def decide(
     signature_kid: str,
     receipt_id: UUID,
     now: datetime,
-    published_by_actor_id: UUID,
+    published_by: UUID,
 ) -> PublishRevisionEvents:
     """Validate the publish + emit the cross-BC event pair.
 
@@ -145,7 +145,7 @@ def decide(
         signature_kid=signature_kid,
         receipt_id=receipt_id,
         published_at=now,
-        published_by_actor_id=published_by_actor_id,
+        published_by=published_by,
         publication_status=_PUBLICATION_STATUS_LIVE,
         occurred_at=now,
     )

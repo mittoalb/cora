@@ -9,7 +9,7 @@
 --
 -- Subscribed events:
 --   - ClearanceRegistered          -> INSERT (status='Defined', last_status_*=NULL,
---                                             last_reviewed_by_actor_id=NULL)
+--                                             last_reviewed_by=NULL)
 --   - ClearanceSubmitted           -> UPDATE status='Submitted'   + status-change ts
 --   - ClearanceUnderReview         -> UPDATE status='UnderReview' + status-change ts
 --   - ClearanceReviewStepRecorded  -> (no projection update; reviewer chain lives
@@ -18,11 +18,11 @@
 --                                       to keep the projection narrow per cross-BC
 --                                       precedent of NOT projecting per-substream rows)
 --   - ClearanceApproved            -> UPDATE status='Approved'    + status-change ts
---                                                                 + last_reviewed_by_actor_id
+--                                                                 + last_reviewed_by
 --                                                                 + valid_from / valid_until (if provided)
 --   - ClearanceRejected            -> UPDATE status='Rejected'    + status-change ts
 --                                                                 + last_status_reason
---                                                                 + last_reviewed_by_actor_id
+--                                                                 + last_reviewed_by
 --   - ClearanceActivated           -> UPDATE status='Active'      + status-change ts
 --
 -- 11a-c will add (additive, no migration needed if columns nullable):
@@ -55,7 +55,7 @@
 -- is set on Rejected (will also be set on Expired in 11a-c). Approved /
 -- Activated are happy-path; no reason column populated.
 --
--- `last_reviewed_by_actor_id` denormalized for at-a-glance "who approved /
+-- `last_reviewed_by` denormalized for at-a-glance "who approved /
 -- rejected this" without requiring a join to the reviewers chain.
 --
 -- ## Pagination index
@@ -91,7 +91,7 @@ CREATE TABLE proj_safety_clearance_summary (
     registered_at             TIMESTAMPTZ NOT NULL,
     last_status_changed_at    TIMESTAMPTZ,
     last_status_reason        TEXT,
-    last_reviewed_by_actor_id UUID,
+    last_reviewed_by UUID,
     valid_from                TIMESTAMPTZ,
     valid_until               TIMESTAMPTZ,
     next_review_due_at        TIMESTAMPTZ,

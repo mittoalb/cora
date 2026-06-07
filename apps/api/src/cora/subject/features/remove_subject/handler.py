@@ -1,8 +1,9 @@
 """Application handler for the `remove_subject` slice.
 
-Update-style handler. Canonical body lives in
-`cora.subject._subject_update_handler.make_subject_update_handler`; this
-module is a thin slice-specific bind.
+Built on the actor-stamping `make_subject_actor_update_handler`
+factory variant: the envelope's `principal_id` threads into the
+decider under `removed_by`, landing on `SubjectRemoved.removed_by`
+per [[project_fold_symmetry_design]].
 
 Not idempotency-wrapped: update-style commands are inherently
 domain-idempotent (second call from `Removed` state hits
@@ -14,7 +15,7 @@ from uuid import UUID
 
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.subject._subject_update_handler import make_subject_update_handler
+from cora.subject._subject_update_handler import make_subject_actor_update_handler
 from cora.subject.features.remove_subject.command import RemoveSubject
 from cora.subject.features.remove_subject.decider import decide
 
@@ -35,9 +36,10 @@ class Handler(Protocol):
 
 def bind(deps: Kernel) -> Handler:
     """Build a remove_subject handler closed over the shared deps."""
-    return make_subject_update_handler(
+    return make_subject_actor_update_handler(
         deps,
         command_name="RemoveSubject",
         log_prefix="remove_subject",
         decide_fn=decide,
+        actor_kwarg="removed_by",
     )

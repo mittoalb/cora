@@ -55,14 +55,19 @@ The fields that DO stay on state:
     key-separation invariant and for cross-purpose binding checks).
   - `current_head_hash` / `current_sequence_number` (decider reads
     these for monotonicity invariants).
-  - `initialized_by_actor_id` (genesis identity denorm; follows
-    Calibration/Clearance/Caution `defined_by_actor_id` precedent).
+  - `initialized_by` (genesis identity denorm; folds into the
+    aggregate alongside `initialized_at` per fold-symmetry).
+  - `initialized_at` (genesis envelope `occurred_at`; paired with
+    `initialized_by` per [[project_fold_symmetry_design]]).
   - `status` (the FSM state).
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
+
+from cora.infrastructure.identity import ActorId
 
 
 class SealStatus(StrEnum):
@@ -385,14 +390,19 @@ class Seal:
     pointer signing and each completed republish. Seeded to 0 at
     initialization.
 
-    `initialized_by_actor_id` is the genesis identity denorm (matches
-    Calibration / Clearance / Caution `defined_by_actor_id` precedent
-    and the Permit / Credential brief spec).
+    `initialized_by` is the genesis identity denorm and `initialized_at`
+    folds the genesis envelope `occurred_at`; the pair satisfies the
+    fold-symmetry rule [[project_fold_symmetry_design]] for the genesis
+    arm. Transition events (sign / rotate / start-republish /
+    complete-republish) stay fold-NEITHER on state per the same
+    convention: their attribution rides on the envelope and on the
+    projection (`last_signed_by`), not on aggregate state.
 
-    Per [[project_template_aggregate_timestamps]] Path C, lifecycle
-    bookkeeping timestamps (`initialized_at`, `last_signed_at`) live
-    on the projection, not on state; see
-    `SealLifecycleTimestamps` in `read.py`.
+    Per [[project_template_aggregate_timestamps]] Path C the
+    transition-tier bookkeeping (`last_signed_at`) still lives on the
+    projection, not on state; see `SealLifecycleTimestamps` in
+    `read.py`. `initialized_at` is now folded onto state per the Path
+    C reversal for the genesis arm.
     """
 
     facility_id: str
@@ -400,5 +410,6 @@ class Seal:
     offline_credential_id: UUID
     current_head_hash: str | None
     current_sequence_number: int
-    initialized_by_actor_id: UUID
+    initialized_by: ActorId
+    initialized_at: datetime
     status: SealStatus

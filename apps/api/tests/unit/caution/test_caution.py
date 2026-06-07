@@ -26,6 +26,7 @@ from cora.caution.aggregates.caution import (
     InvalidCautionWorkaroundError,
     ProcedureTarget,
 )
+from cora.infrastructure.identity import ActorId
 
 # ---------- CautionText VO ----------
 
@@ -242,7 +243,7 @@ def _minimal_caution() -> Caution:
         severity=CautionSeverity.CAUTION,
         text=CautionText("hexapod stalls below 0.5 mm/s"),
         workaround=CautionWorkaround("run at 0.6 mm/s"),
-        author_actor_id=uuid4(),
+        authored_by=ActorId(uuid4()),
     )
 
 

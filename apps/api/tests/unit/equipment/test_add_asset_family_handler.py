@@ -49,9 +49,13 @@ from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports.event_store import EventStore
 from tests.unit._helpers import build_deps as _build_deps_shared
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 _NEW_ID = UUID("01900000-0000-7000-8000-00000000fa01")
@@ -288,6 +292,7 @@ async def _seed_asset_with_model_id(
         parent_id=_PARENT_ID,
         occurred_at=_PRIOR,
         model_id=model_id,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     new_event = to_new_event(
         event_type=asset_event_type_name(registered),

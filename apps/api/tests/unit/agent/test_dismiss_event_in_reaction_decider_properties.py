@@ -207,7 +207,7 @@ def test_event_strictly_ahead_emits_decision_with_expected_payload(
     )
 
     assert decision.decision_id == decision_id
-    assert decision.actor_id == principal_id
+    assert decision.decided_by == principal_id
     assert decision.context == DECISION_CONTEXT_REACTION_DISMISSAL
     assert decision.choice == "EventDismissed"
     assert decision.occurred_at == _NOW

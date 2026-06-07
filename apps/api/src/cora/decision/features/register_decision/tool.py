@@ -27,6 +27,7 @@ from cora.decision.aggregates.decision import (
 )
 from cora.decision.features.register_decision.command import RegisterDecision
 from cora.decision.features.register_decision.handler import IdempotentHandler
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
@@ -46,7 +47,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Register a new Decision (structured-audit record of a "
             "consequential choice). Same aggregate handles human and AI "
-            "deciders; actor_id distinguishes them. Use parent_id + "
+            "deciders; decided_by distinguishes them. Use parent_id + "
             "override_kind for corrections / exceptions / appeals / "
             "supersessions. Use rule + inputs for "
             "ISO 17025 Clause 7.1.3 conformance. Use confidence + "
@@ -56,7 +57,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def register_decision_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        actor_id: Annotated[UUID, Field(description="WHO made the decision (Actor.id).")],
+        decided_by: Annotated[UUID, Field(description="WHO made the decision (Actor.id).")],
         context: Annotated[
             str,
             Field(
@@ -160,7 +161,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         decision_id = await handler(
             RegisterDecision(
-                actor_id=actor_id,
+                decided_by=ActorId(decided_by),
                 context=context,
                 choice=choice,
                 parent_id=parent_id,

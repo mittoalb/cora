@@ -4,7 +4,7 @@ Pin the FSM single-source guard (Live is the only legal source),
 the not-found branch, head-hash shape validation (empty / whitespace
 new_head_hash), the strict-monotonic sequence-number guard, purity
 (same inputs -> same outputs), and the handler-injected
-`signed_by_actor_id` / `now` capture per the non-determinism
+`signed_by` / `now` capture per the non-determinism
 principle (capture, don't recompute).
 """
 
@@ -24,12 +24,13 @@ from cora.federation.aggregates.seal import (
 )
 from cora.federation.features import sign_seal_pointer
 from cora.federation.features.sign_seal_pointer import SignSealPointer
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _FACILITY_ID = "aps-2bm"
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fec001")
-_OTHER_ACTOR_ID = UUID("01900000-0000-7000-8000-000000fec002")
-_INITIALIZED_BY = UUID("01900000-0000-7000-8000-000000fec099")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec001"))
+_OTHER_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec002"))
+_INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 _ONLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0b1")
 _PRIOR_HEAD_HASH = "a" * 64
@@ -48,7 +49,8 @@ def _seal(
         offline_credential_id=_OFFLINE_KEY,
         current_head_hash=current_head_hash,
         current_sequence_number=current_sequence_number,
-        initialized_by_actor_id=_INITIALIZED_BY,
+        initialized_by=_INITIALIZED_BY,
+        initialized_at=_NOW,
         status=status,
     )
 
@@ -72,7 +74,7 @@ def test_sign_seal_pointer_emits_event_when_state_is_live() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert events == [
         SealPointerSigned(
@@ -80,7 +82,7 @@ def test_sign_seal_pointer_emits_event_when_state_is_live() -> None:
             head_hash=_NEW_HEAD_HASH,
             sequence_number=2,
             signed_at=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
         )
     ]
@@ -93,7 +95,7 @@ def test_sign_seal_pointer_raises_not_found_when_state_is_none() -> None:
             state=None,
             command=_command(),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
 
 
@@ -106,7 +108,7 @@ def test_sign_seal_pointer_raises_cannot_sign_when_republishing() -> None:
             state=state,
             command=_command(),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.current_status is SealStatus.REPUBLISHING
@@ -121,7 +123,7 @@ def test_sign_seal_pointer_rejects_empty_new_head_hash() -> None:
             state=state,
             command=_command(new_head_hash=""),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
     assert "new_head_hash" in exc.value.reason
 
@@ -135,7 +137,7 @@ def test_sign_seal_pointer_rejects_whitespace_new_head_hash() -> None:
             state=state,
             command=_command(new_head_hash="   \t  "),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
     assert "new_head_hash" in exc.value.reason
 
@@ -148,7 +150,7 @@ def test_sign_seal_pointer_trims_new_head_hash_before_capture() -> None:
         state=state,
         command=_command(new_head_hash=f"  {_NEW_HEAD_HASH}  "),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     assert events[0].head_hash == _NEW_HEAD_HASH
@@ -163,7 +165,7 @@ def test_sign_seal_pointer_raises_sequence_regression_when_seq_equals_prior() ->
             state=state,
             command=_command(new_sequence_number=5),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
     assert exc.value.prior_sequence_number == 5
     assert exc.value.proposed_sequence_number == 5
@@ -178,7 +180,7 @@ def test_sign_seal_pointer_raises_sequence_regression_when_seq_lower_than_prior(
             state=state,
             command=_command(new_sequence_number=3),
             now=_NOW,
-            signed_by_actor_id=_PRINCIPAL_ID,
+            signed_by=_PRINCIPAL_ID,
         )
     assert exc.value.prior_sequence_number == 5
     assert exc.value.proposed_sequence_number == 3
@@ -192,7 +194,7 @@ def test_sign_seal_pointer_accepts_strict_increment_from_genesis_zero() -> None:
         state=state,
         command=_command(new_sequence_number=1),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     assert events[0].sequence_number == 1
@@ -206,7 +208,7 @@ def test_sign_seal_pointer_accepts_large_sequence_jump() -> None:
         state=state,
         command=_command(new_sequence_number=2_000_000),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert events[0].sequence_number == 2_000_000
 
@@ -218,13 +220,13 @@ def test_sign_seal_pointer_is_pure_same_inputs_same_outputs() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     second = sign_seal_pointer.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -233,14 +235,14 @@ def test_sign_seal_pointer_is_pure_same_inputs_same_outputs() -> None:
 def test_sign_seal_pointer_captures_handler_injected_actor_id_verbatim() -> None:
     """The decider records the handler-injected actor id without synthesising."""
     state = _seal(SealStatus.LIVE)
-    injected = uuid4()
+    injected = ActorId(uuid4())
     events = sign_seal_pointer.decide(
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=injected,
+        signed_by=injected,
     )
-    assert events[0].signed_by_actor_id == injected
+    assert events[0].signed_by == injected
 
 
 @pytest.mark.unit
@@ -253,7 +255,7 @@ def test_sign_seal_pointer_captures_handler_injected_now_verbatim() -> None:
         state=state,
         command=_command(),
         now=custom_now,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert events[0].signed_at == custom_now
     assert events[0].occurred_at == custom_now
@@ -267,10 +269,10 @@ def test_sign_seal_pointer_actor_id_independent_of_initialized_by() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=_OTHER_ACTOR_ID,
+        signed_by=_OTHER_ACTOR_ID,
     )
-    assert events[0].signed_by_actor_id == _OTHER_ACTOR_ID
-    assert state.initialized_by_actor_id == _INITIALIZED_BY
+    assert events[0].signed_by == _OTHER_ACTOR_ID
+    assert state.initialized_by == _INITIALIZED_BY
 
 
 @pytest.mark.unit
@@ -281,6 +283,6 @@ def test_sign_seal_pointer_reuses_facility_id_from_state() -> None:
         state=state,
         command=_command(),
         now=_NOW,
-        signed_by_actor_id=_PRINCIPAL_ID,
+        signed_by=_PRINCIPAL_ID,
     )
     assert events[0].facility_id == state.facility_id

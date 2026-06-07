@@ -144,7 +144,7 @@ def decide(
     return [
         DecisionRegistered(
             decision_id=new_id,
-            actor_id=command.actor_id,
+            decided_by=command.decided_by,
             context=decision_context.value,
             choice=choice.value,
             parent_id=command.parent_id,

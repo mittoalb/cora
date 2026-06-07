@@ -85,6 +85,7 @@ async def test_store_subject_persists_event_to_postgres(
     assert stored.payload == {
         "subject_id": str(subject_id),
         "occurred_at": _NOW.isoformat(),
+        "stored_by": str(_PRINCIPAL_ID),
     }
     assert stored.event_id == _STORE_EVENT_ID
     assert stored.metadata == {"command": "StoreSubject"}

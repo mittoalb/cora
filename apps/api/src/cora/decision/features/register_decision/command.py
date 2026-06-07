@@ -2,7 +2,7 @@
 
 Carries the caller-controlled inputs:
 
-  - `actor_id`: WHO made the decision (Actor.Ref). Existence-
+  - `decided_by`: WHO made the decision (Actor.Ref). Existence-
     checked at handler-load time. Same Actor aggregate handles
     human + AI deciders; the actor's role discriminator
     (operator / scientist / agent / admin / approver / reviewer)
@@ -62,13 +62,14 @@ from cora.decision.aggregates.decision import (
     DecisionConfidenceSource,
     DecisionOverrideKind,
 )
+from cora.infrastructure.identity import ActorId
 
 
 @dataclass(frozen=True)
 class RegisterDecision:
     """Register a new Decision with the structured-audit metadata."""
 
-    actor_id: UUID
+    decided_by: ActorId
     context: str
     choice: str
     parent_id: UUID | None = None

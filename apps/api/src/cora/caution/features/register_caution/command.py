@@ -5,7 +5,7 @@ or Procedure), the classification (`category` + `severity`), the
 body (`text` + `workaround`), optional `tags` (empty set allowed),
 optional `expires_at`, and the hierarchy-propagation opt-in flag.
 
-`author_actor_id` is intentionally NOT on the command: the handler
+`authored_by` is intentionally NOT on the command: the handler
 derives it from the authenticated `principal_id` envelope and passes
 it as a keyword-only argument to the decider. The design memo says
 "at register time they are equal"; enforcing that by construction
@@ -13,7 +13,7 @@ removes the API-surface route for a caller to spoof authorship by
 supplying any UUID.
 
 Server-side concerns (new aggregate id, wall-clock timestamp,
-correlation id, per-event ids, author_actor_id) are injected by the
+correlation id, per-event ids, authored_by) are injected by the
 handler from infrastructure ports / the request envelope, matching
 the cross-BC create-style command shape locked in Access / Trust /
 Subject / Equipment / Supply / Safety.

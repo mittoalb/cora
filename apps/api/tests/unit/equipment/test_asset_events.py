@@ -1,7 +1,7 @@
 """Unit tests for the Asset aggregate's event (de)serialization helpers."""
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -38,7 +38,11 @@ from cora.equipment.aggregates.asset.state import (
     AssetOwnerIdentifierType,
     AssetOwnerName,
 )
+from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.event_store import StoredEvent
+
+_TEST_ACTOR_ID = ActorId(UUID("00000000-0000-0000-0000-000000000001"))
+
 
 _NOW = datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 
@@ -74,6 +78,7 @@ def test_event_type_name_returns_class_name() -> None:
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     assert event_type_name(event) == "AssetRegistered"
 
@@ -88,6 +93,7 @@ def test_to_payload_serializes_asset_registered_with_parent() -> None:
         level="Site",
         parent_id=parent_id,
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     assert to_payload(event) == {
         "asset_id": str(asset_id),
@@ -95,6 +101,7 @@ def test_to_payload_serializes_asset_registered_with_parent() -> None:
         "level": "Site",
         "parent_id": str(parent_id),
         "occurred_at": _NOW.isoformat(),
+        "commissioned_by": str(_TEST_ACTOR_ID),
     }
 
 
@@ -110,6 +117,7 @@ def test_to_payload_serializes_asset_registered_with_null_parent() -> None:
         level="Enterprise",
         parent_id=None,
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["parent_id"] is None
@@ -128,6 +136,7 @@ def test_from_stored_rebuilds_asset_registered_with_parent() -> None:
             "level": "Site",
             "parent_id": str(parent_id),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -137,6 +146,7 @@ def test_from_stored_rebuilds_asset_registered_with_parent() -> None:
         level="Site",
         parent_id=parent_id,
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -152,6 +162,7 @@ def test_from_stored_rebuilds_asset_registered_with_null_parent() -> None:
             "level": "Enterprise",
             "parent_id": None,
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -169,6 +180,7 @@ def test_to_payload_then_from_stored_round_trips_with_parent() -> None:
         level="Device",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -183,6 +195,7 @@ def test_to_payload_then_from_stored_round_trips_without_parent() -> None:
         level="Enterprise",
         parent_id=None,
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -200,6 +213,7 @@ def test_to_payload_omits_drawing_key_when_drawing_is_none() -> None:
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert "drawing" not in payload
@@ -214,6 +228,7 @@ def test_to_payload_includes_drawing_block_when_set() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A"),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["drawing"] == {"system": "ICMS", "number": "P4105", "revision": "A"}
@@ -231,6 +246,7 @@ def test_from_stored_rebuilds_asset_registered_with_drawing() -> None:
             "level": "Component",
             "parent_id": str(parent_id),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "drawing": {"system": "EDMS", "number": "9001", "revision": None},
         },
     )
@@ -242,6 +258,7 @@ def test_from_stored_rebuilds_asset_registered_with_drawing() -> None:
         parent_id=parent_id,
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.EDMS, number="9001", revision=None),
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -259,6 +276,7 @@ def test_from_stored_folds_legacy_payload_without_drawing_to_none() -> None:
             "level": "Unit",
             "parent_id": str(uuid4()),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -277,6 +295,7 @@ def test_to_payload_then_from_stored_round_trips_without_drawing_explicit() -> N
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     rebuilt = from_stored(stored)
@@ -294,6 +313,7 @@ def test_to_payload_then_from_stored_round_trips_with_drawing() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.DOI, number="10.5281/zenodo.X", revision="v2"),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -314,6 +334,7 @@ def test_to_payload_omits_model_id_key_when_model_id_is_none() -> None:
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert "model_id" not in payload
@@ -331,6 +352,7 @@ def test_to_payload_includes_model_id_when_set() -> None:
         parent_id=parent_id,
         occurred_at=_NOW,
         model_id=model_id,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["model_id"] == str(model_id)
@@ -349,6 +371,7 @@ def test_from_stored_rebuilds_asset_registered_with_model_id() -> None:
             "level": "Component",
             "parent_id": str(parent_id),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "model_id": str(model_id),
         },
     )
@@ -360,6 +383,7 @@ def test_from_stored_rebuilds_asset_registered_with_model_id() -> None:
         parent_id=parent_id,
         occurred_at=_NOW,
         model_id=model_id,
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -378,6 +402,7 @@ def test_from_stored_folds_legacy_payload_without_model_id_to_none() -> None:
             "level": "Unit",
             "parent_id": str(uuid4()),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -396,6 +421,7 @@ def test_to_payload_then_from_stored_round_trips_without_model_id_explicit() -> 
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     rebuilt = from_stored(stored)
@@ -413,6 +439,7 @@ def test_to_payload_then_from_stored_round_trips_with_model_id() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         model_id=uuid4(),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -430,6 +457,7 @@ def test_to_payload_then_from_stored_round_trips_with_drawing_and_model_id() -> 
         occurred_at=_NOW,
         drawing=Drawing(system=DrawingSystem.ICMS, number="P4105", revision="A"),
         model_id=uuid4(),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -494,7 +522,9 @@ def test_to_payload_then_from_stored_round_trips_for_asset_activated() -> None:
 
 @pytest.mark.unit
 def test_event_type_name_returns_asset_decommissioned_class_name() -> None:
-    event = AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW)
+    event = AssetDecommissioned(
+        asset_id=uuid4(), occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+    )
     assert event_type_name(event) == "AssetDecommissioned"
 
 
@@ -505,11 +535,14 @@ def test_to_payload_serializes_asset_decommissioned_to_primitives() -> None:
     the event payload (no `from_lifecycle` field). Same convention as
     Subject's SubjectRemoved (also multi-source-to-single-target)."""
     asset_id = uuid4()
-    event = AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+    event = AssetDecommissioned(
+        asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+    )
     payload = to_payload(event)
     assert payload == {
         "asset_id": str(asset_id),
         "occurred_at": _NOW.isoformat(),
+        "decommissioned_by": str(_TEST_ACTOR_ID),
     }
     assert "lifecycle" not in payload
     assert "from_lifecycle" not in payload
@@ -523,15 +556,20 @@ def test_from_stored_rebuilds_asset_decommissioned() -> None:
         {
             "asset_id": str(asset_id),
             "occurred_at": _NOW.isoformat(),
+            "decommissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
-    assert rebuilt == AssetDecommissioned(asset_id=asset_id, occurred_at=_NOW)
+    assert rebuilt == AssetDecommissioned(
+        asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+    )
 
 
 @pytest.mark.unit
 def test_to_payload_then_from_stored_round_trips_for_asset_decommissioned() -> None:
-    original = AssetDecommissioned(asset_id=uuid4(), occurred_at=_NOW)
+    original = AssetDecommissioned(
+        asset_id=uuid4(), occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+    )
     stored = _stored("AssetDecommissioned", to_payload(original))
     assert from_stored(stored) == original
 
@@ -1124,6 +1162,7 @@ def test_to_payload_omits_alternate_identifiers_when_empty() -> None:
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert "alternate_identifiers" not in payload
@@ -1138,6 +1177,7 @@ def test_to_payload_includes_alternate_identifiers_when_set() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["alternate_identifiers"] == [
@@ -1158,6 +1198,7 @@ def test_to_payload_emits_alternate_identifiers_sorted_for_stable_bytes() -> Non
         parent_id=uuid4(),
         occurred_at=_NOW,
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_B, _SAMPLE_ALT_ID_A}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["alternate_identifiers"] == [
@@ -1178,6 +1219,7 @@ def test_from_stored_rebuilds_asset_registered_with_alternate_identifiers() -> N
             "level": "Component",
             "parent_id": str(parent_id),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
             "alternate_identifiers": [
                 {"kind": "SerialNumber", "value": "12345-ABC"},
                 {"kind": "InventoryNumber", "value": "APS-2BM-CAM-001"},
@@ -1192,6 +1234,7 @@ def test_from_stored_rebuilds_asset_registered_with_alternate_identifiers() -> N
         parent_id=parent_id,
         occurred_at=_NOW,
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
 
 
@@ -1210,6 +1253,7 @@ def test_from_stored_folds_legacy_payload_without_alternate_identifiers_to_empty
             "level": "Unit",
             "parent_id": str(uuid4()),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -1228,6 +1272,7 @@ def test_to_payload_then_from_stored_round_trips_without_alternate_identifiers_e
         level="Site",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     rebuilt = from_stored(stored)
@@ -1245,6 +1290,7 @@ def test_to_payload_then_from_stored_round_trips_with_alternate_identifiers() ->
         parent_id=uuid4(),
         occurred_at=_NOW,
         alternate_identifiers=frozenset({_SAMPLE_ALT_ID_A, _SAMPLE_ALT_ID_B}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original
@@ -1395,6 +1441,7 @@ def test_to_payload_serializes_asset_registered_with_owners() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         owners=frozenset({_HZB_OWNER}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert payload["owners"] == [
@@ -1419,6 +1466,7 @@ def test_to_payload_omits_owners_when_empty() -> None:
         level="Unit",
         parent_id=uuid4(),
         occurred_at=_NOW,
+        commissioned_by=_TEST_ACTOR_ID,
     )
     payload = to_payload(event)
     assert "owners" not in payload
@@ -1437,6 +1485,7 @@ def test_from_stored_rebuilds_asset_registered_without_owners_key_defaults_to_em
             "level": "Unit",
             "parent_id": str(uuid4()),
             "occurred_at": _NOW.isoformat(),
+            "commissioned_by": str(_TEST_ACTOR_ID),
         },
     )
     rebuilt = from_stored(stored)
@@ -1453,6 +1502,7 @@ def test_round_trip_for_asset_registered_with_owners() -> None:
         parent_id=uuid4(),
         occurred_at=_NOW,
         owners=frozenset({_HZB_OWNER}),
+        commissioned_by=_TEST_ACTOR_ID,
     )
     stored = _stored("AssetRegistered", to_payload(original))
     assert from_stored(stored) == original

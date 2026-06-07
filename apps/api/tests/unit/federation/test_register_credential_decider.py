@@ -5,7 +5,7 @@ Pin the genesis-collision guard, every field-shape rejection branch
 trimming-before-capture for those three fields, the optional
 expires_at strict-future guard, the six purpose enum arms, purity
 (same inputs -> same outputs), and handler-injected new_id /
-registered_by_actor_id / now capture per the non-determinism
+registered_by / now capture per the non-determinism
 principle (capture, don't recompute).
 """
 
@@ -24,13 +24,14 @@ from cora.federation.aggregates.credential import (
 )
 from cora.federation.features import register_credential
 from cora.federation.features.register_credential import RegisterCredential
+from cora.infrastructure.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC)
-_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000fed101")
+_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed101"))
 _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed102")
 _NEW_ID = UUID("01900000-0000-7000-8000-000000fed103")
-_REGISTERED_BY = UUID("01900000-0000-7000-8000-000000fed199")
+_REGISTERED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fed199"))
 _SECRET_REF = "vault://kv/cora/federation/aps-2bm/signing#v1"
 _PUBLIC_REF = "vault://kv/cora/federation/aps-2bm/signing/pub#v1"
 
@@ -57,7 +58,8 @@ def _existing_state() -> Credential:
         secret_ref=_SECRET_REF,
         public_material_ref=_PUBLIC_REF,
         expires_at=_EXPIRES_AT,
-        registered_by_actor_id=_REGISTERED_BY,
+        registered_by=_REGISTERED_BY,
+        registered_at=_NOW,
         rotation_pending_secret_ref=None,
         rotation_pending_public_material_ref=None,
         status=CredentialStatus.ACTIVE,
@@ -71,7 +73,7 @@ def test_register_credential_emits_event_for_valid_command() -> None:
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert len(events) == 1
     event = events[0]
@@ -82,7 +84,7 @@ def test_register_credential_emits_event_for_valid_command() -> None:
     assert event.secret_ref == _SECRET_REF
     assert event.public_material_ref == _PUBLIC_REF
     assert event.expires_at == _EXPIRES_AT
-    assert event.registered_by_actor_id == _PRINCIPAL_ID
+    assert event.registered_by == _PRINCIPAL_ID
     assert event.occurred_at == _NOW
 
 
@@ -93,7 +95,7 @@ def test_register_credential_accepts_none_expires_at() -> None:
         command=_command(expires_at=None),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].expires_at is None
 
@@ -105,7 +107,7 @@ def test_register_credential_accepts_none_public_material_ref() -> None:
         command=_command(public_material_ref=None),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].public_material_ref is None
 
@@ -120,7 +122,7 @@ def test_register_credential_accepts_every_purpose_arm(purpose: CredentialPurpos
         command=_command(purpose=purpose),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].purpose is purpose
 
@@ -132,7 +134,7 @@ def test_register_credential_trims_facility_id_before_capture() -> None:
         command=_command(facility_id="  aps-2bm  "),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].facility_id == "aps-2bm"
 
@@ -144,7 +146,7 @@ def test_register_credential_trims_audience_before_capture() -> None:
         command=_command(audience="  peer.example.org  "),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].audience == "peer.example.org"
 
@@ -156,7 +158,7 @@ def test_register_credential_trims_secret_ref_before_capture() -> None:
         command=_command(secret_ref=f"  {_SECRET_REF}  "),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].secret_ref == _SECRET_REF
 
@@ -170,7 +172,7 @@ def test_register_credential_rejects_when_state_already_exists() -> None:
             command=_command(),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.credential_id == _CREDENTIAL_ID
 
@@ -183,7 +185,7 @@ def test_register_credential_rejects_empty_facility_id() -> None:
             command=_command(facility_id=""),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "facility_id"
     assert "facility_id" in str(exc.value)
@@ -197,7 +199,7 @@ def test_register_credential_rejects_whitespace_only_facility_id() -> None:
             command=_command(facility_id="   "),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "facility_id"
     assert exc.value.value == "   "
@@ -211,7 +213,7 @@ def test_register_credential_rejects_empty_audience() -> None:
             command=_command(audience=""),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "audience"
     assert "audience" in str(exc.value)
@@ -225,7 +227,7 @@ def test_register_credential_rejects_whitespace_only_audience() -> None:
             command=_command(audience="   "),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "audience"
     assert exc.value.value == "   "
@@ -239,7 +241,7 @@ def test_register_credential_rejects_empty_secret_ref() -> None:
             command=_command(secret_ref=""),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "secret_ref"
     assert "secret_ref" in str(exc.value)
@@ -253,7 +255,7 @@ def test_register_credential_rejects_whitespace_only_secret_ref() -> None:
             command=_command(secret_ref="   \t  "),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.field_name == "secret_ref"
     assert exc.value.value == "   \t  "
@@ -267,7 +269,7 @@ def test_register_credential_rejects_expires_at_in_the_past() -> None:
             command=_command(expires_at=datetime(2025, 1, 1, 0, 0, 0, tzinfo=UTC)),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
     assert exc.value.credential_id == _NEW_ID
 
@@ -281,7 +283,7 @@ def test_register_credential_rejects_expires_at_equal_to_now() -> None:
             command=_command(expires_at=_NOW),
             now=_NOW,
             new_id=_NEW_ID,
-            registered_by_actor_id=_PRINCIPAL_ID,
+            registered_by=_PRINCIPAL_ID,
         )
 
 
@@ -292,14 +294,14 @@ def test_register_credential_is_pure_same_inputs_same_outputs() -> None:
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     second = register_credential.decide(
         state=None,
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert first == second
 
@@ -313,22 +315,22 @@ def test_register_credential_uses_handler_injected_new_id_verbatim() -> None:
         command=_command(),
         now=_NOW,
         new_id=new_id,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].credential_id == new_id
 
 
 @pytest.mark.unit
 def test_register_credential_uses_handler_injected_actor_id_verbatim() -> None:
-    injected = uuid4()
+    injected = ActorId(uuid4())
     events = register_credential.decide(
         state=None,
         command=_command(),
         now=_NOW,
         new_id=_NEW_ID,
-        registered_by_actor_id=injected,
+        registered_by=injected,
     )
-    assert events[0].registered_by_actor_id == injected
+    assert events[0].registered_by == injected
 
 
 @pytest.mark.unit
@@ -340,6 +342,6 @@ def test_register_credential_uses_handler_injected_now_verbatim() -> None:
         command=_command(expires_at=custom_expiry),
         now=custom_now,
         new_id=_NEW_ID,
-        registered_by_actor_id=_PRINCIPAL_ID,
+        registered_by=_PRINCIPAL_ID,
     )
     assert events[0].occurred_at == custom_now

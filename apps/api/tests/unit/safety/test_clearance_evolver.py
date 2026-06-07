@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.safety.aggregates.clearance import (
     ClearanceActivated,
     ClearanceApproved,
@@ -105,7 +106,7 @@ def test_fold_reconstructs_declarations() -> None:
 #
 # Each FSM-closure event is folded onto a Defined state and the resulting
 # status / chain / validity-window invariants are pinned. These guard
-# against silent re-introduction of the dropped `last_reviewed_by_actor_id`
+# against silent re-introduction of the dropped `last_reviewed_by`
 # state field (the Clearance dataclass no longer carries it; an evolver
 # fold that tries to set it would fail to construct the dataclass).
 
@@ -132,7 +133,7 @@ def _step_appended(
         clearance_id=_CLEARANCE_ID,
         step_index=step_index,
         role="ESH",
-        actor_id=uuid4(),
+        decided_by=ActorId(uuid4()),
         decision=decision,
         decided_at=decided_at,
         notes=None,
@@ -282,7 +283,7 @@ def test_fold_full_walk_to_active() -> None:
             clearance_id=_CLEARANCE_ID,
             step_index=0,
             role="ESH",
-            actor_id=UUID("01900000-0000-7000-8000-000000099999"),
+            decided_by=ActorId(UUID("01900000-0000-7000-8000-000000099999")),
             decision="Approved",
             decided_at=_NOW,
             notes=None,
@@ -307,7 +308,7 @@ def test_transition_events_on_empty_state_raise(transition_event: object) -> Non
 @pytest.mark.unit
 def test_fold_approved_state_carries_no_reviewer_id_field() -> None:
     """Pin the dropped state field: `Clearance` aggregate no longer carries
-    `last_reviewed_by_actor_id`. Approving actor lives on the event envelope
+    `last_reviewed_by`. Approving actor lives on the event envelope
     (StoredEvent.principal_id) and is sourced by the projection, not the
     aggregate fold.
     """
@@ -322,4 +323,4 @@ def test_fold_approved_state_carries_no_reviewer_id_field() -> None:
     )
     assert state is not None
     # The field is dropped at the dataclass level; hasattr returns False.
-    assert not hasattr(state, "last_reviewed_by_actor_id")
+    assert not hasattr(state, "last_reviewed_by")

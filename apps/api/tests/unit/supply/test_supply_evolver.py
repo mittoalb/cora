@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 
+from cora.infrastructure.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
     SupplyDegraded,
@@ -24,6 +25,7 @@ from cora.supply.aggregates.supply import (
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = UUID("01900000-0000-7000-8000-000000005222")
+_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000005223"))
 
 
 # ---------- fold (genesis only) ----------
@@ -43,6 +45,8 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2 drop",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             )
         ]
@@ -68,6 +72,8 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
                 scope="Facility",
                 kind="PhotonBeam",
                 name="APS storage-ring beam",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyMarkedAvailable(
@@ -75,6 +81,7 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
                 from_status="Unknown",
                 reason="control room confirms beam delivered",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
         ]
@@ -102,6 +109,7 @@ def test_evolve_marked_available_on_empty_state_raises() -> None:
                 from_status="Unknown",
                 reason="r",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
         )
@@ -119,6 +127,8 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             )
         ]
@@ -131,6 +141,7 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
             from_status="Unknown",
             reason="r",
             trigger="Operator",
+            triggered_by=_ACTOR_ID,
             occurred_at=_NOW,
         ),
     )
@@ -152,6 +163,8 @@ def _genesis_state() -> Supply:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             )
         ]
@@ -169,6 +182,7 @@ def _genesis_state() -> Supply:
                 from_status="Available",
                 reason="half-current",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyStatus.DEGRADED,
@@ -179,6 +193,7 @@ def _genesis_state() -> Supply:
                 from_status="Available",
                 reason="beam dump",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyStatus.UNAVAILABLE,
@@ -189,6 +204,7 @@ def _genesis_state() -> Supply:
                 from_status="Unavailable",
                 reason="beam returning",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyStatus.RECOVERING,
@@ -199,6 +215,7 @@ def _genesis_state() -> Supply:
                 from_status="Recovering",
                 reason="ops confirms stable",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyStatus.AVAILABLE,
@@ -209,6 +226,7 @@ def _genesis_state() -> Supply:
                 from_status="Available",
                 reason="duplicate; re-registering correctly",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyStatus.DECOMMISSIONED,
@@ -260,6 +278,7 @@ def test_evolver_raises_on_transition_event_with_no_genesis(event_type_name: str
                 from_status="x",
                 reason="r",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
         )
@@ -278,6 +297,8 @@ def test_full_fsm_cycle_via_fold() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyMarkedAvailable(
@@ -285,6 +306,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 from_status="Unknown",
                 reason="walkdown",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyDegraded(
@@ -292,6 +314,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 from_status="Available",
                 reason="half-current",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyMarkedUnavailable(
@@ -299,6 +322,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 from_status="Degraded",
                 reason="full dump",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyMarkedRecovering(
@@ -306,6 +330,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 from_status="Unavailable",
                 reason="beam returning",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyRestored(
@@ -313,6 +338,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 from_status="Recovering",
                 reason="confirmed stable",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
         ]
@@ -338,6 +364,8 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyMarkedAvailable(
@@ -345,6 +373,7 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
                 from_status="Unknown",
                 reason="walkdown",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
             SupplyDeregistered(
@@ -352,6 +381,7 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
                 from_status="Available",
                 reason="typo; re-registering",
                 trigger="Operator",
+                triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
             ),
         ]

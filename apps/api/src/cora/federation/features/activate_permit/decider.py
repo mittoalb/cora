@@ -4,7 +4,7 @@ Single-source transition: `Defined -> Active`. Strict-not-idempotent
 (matches the Calibration / Clearance / Supply precedent): re-activating
 an already-Active permit raises `PermitCannotActivateError`.
 
-`activated_by_actor_id` is handler-injected from the request envelope's
+`activated_by` is handler-injected from the request envelope's
 `principal_id` per the non-determinism principle (capture, don't
 recompute). The decider is pure: state + command + injected
 non-determinism in, events out.
@@ -33,7 +33,7 @@ def decide(
     command: ActivatePermit,
     *,
     now: datetime,
-    activated_by_actor_id: UUID,
+    activated_by: UUID,
 ) -> list[PermitActivated]:
     """Decide the events produced by activating a Defined permit.
 
@@ -50,7 +50,7 @@ def decide(
     return [
         PermitActivated(
             permit_id=state.id,
-            activated_by_actor_id=activated_by_actor_id,
+            activated_by=activated_by,
             occurred_at=now,
         )
     ]
