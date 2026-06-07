@@ -96,6 +96,7 @@ from cora.equipment.aggregates.asset import (
     PortDirection,
 )
 from cora.infrastructure.bounded_text import bounded_name
+from cora.infrastructure.scope_markers import Annotated, DeferredVocabulary
 
 METHOD_NAME_MAX_LENGTH = 200
 METHOD_VERSION_TAG_MAX_LENGTH = 50
@@ -545,7 +546,19 @@ class Method:
     # MethodDefined-only streams fold cleanly via payload.get default).
     # See [[project_supply_design]] §"Method.needed_supplies consumer"
     # for the full design lock.
-    needed_supplies: frozenset[str] = field(default_factory=frozenset[str])
+    #
+    # Carries a `DeferredVocabulary[SupplyKind]` marker per
+    # [[project_structural_scope_design]] §"Marker convention": the
+    # bare-str element type graduates to a typed `SupplyKind(StrEnum)`
+    # in LOCKSTEP with Supply.kind when Supply.kind Watch item 4 fires.
+    # See `cora.infrastructure.scope_markers` for the marker shape.
+    needed_supplies: Annotated[
+        frozenset[str],
+        DeferredVocabulary(
+            target_name="SupplyKind",
+            trigger_doc="Supply.kind Watch item 4 trigger per project-structural-scope-design",
+        ),
+    ] = field(default_factory=frozenset[str])
     # needed_assembly_ids references Assembly aggregates (Equipment BC)
     # by UUID. Declares "this Method needs a specific composition
     # blueprint" (e.g., the MCTOptics microscope fixture), not just N

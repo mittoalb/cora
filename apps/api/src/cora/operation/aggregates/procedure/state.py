@@ -98,6 +98,7 @@ from uuid import UUID
 
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
 from cora.infrastructure.logbook import LogbookFieldSpec, LogbookSchema
+from cora.infrastructure.scope_markers import Annotated, SubsumedBy
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -846,11 +847,33 @@ class Procedure:
     when first step lands), expected-step-count for
     progress projections, etc. All land with safe defaults via the
     additive-state pattern.
+
+    `Procedure.kind` is intentionally a bare `str` (NOT a typed
+    `ProcedureTemplate` ref). The template role is already filled by
+    `Capability` (parameter contract) and `Recipe` (step expansion via
+    `register_procedure_from_recipe`); promoting an independent
+    `ProcedureTemplate` aggregate would duplicate that role for one
+    ISA-106 procedure-of-procedures concept. The `SubsumedBy` marker
+    annotation on the field records this stance permanently. See
+    `cora.infrastructure.scope_markers` for the marker shape and
+    [[project_structural_scope_design]] for the rationale.
     """
 
     id: UUID
     name: ProcedureName
-    kind: str
+    # Carries a `SubsumedBy[ProcedureTemplate <- (Capability, Recipe)]`
+    # marker per [[project_structural_scope_design]] §"Marker convention":
+    # do NOT promote `ProcedureTemplate` as an independent aggregate; the
+    # template role is already filled by Capability + Recipe. The marker
+    # is PERMANENT (stronger than DeferredVocabulary). See
+    # `cora.infrastructure.scope_markers` for the marker shape.
+    kind: Annotated[
+        str,
+        SubsumedBy(
+            subsumed_target_name="ProcedureTemplate",
+            subsuming_aggregate_names=("Capability", "Recipe"),
+        ),
+    ]
     target_asset_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: ProcedureStatus = ProcedureStatus.DEFINED
     parent_run_id: UUID | None = None

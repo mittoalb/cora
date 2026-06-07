@@ -123,6 +123,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
+from cora.infrastructure.scope_markers import Annotated, DeferredVocabulary
 
 SUPPLY_NAME_MAX_LENGTH = 200
 SUPPLY_KIND_MAX_LENGTH = 50
@@ -568,6 +569,20 @@ class Supply:
 
     id: UUID
     scope: SupplyScope
-    kind: str
+    # Carries a `DeferredVocabulary[SupplyKind]` marker per
+    # [[project_structural_scope_design]] §"Marker convention": the
+    # bare-str discriminator graduates to a typed `SupplyKind(StrEnum)`
+    # when Watch item 4 fires (90+ days pilot data + <12 distinct
+    # kinds + no new kind in trailing 60 days). LOCKSTEP with
+    # `Method.needed_supplies` per the same marker convention; one
+    # cannot graduate without the other. See
+    # `cora.infrastructure.scope_markers` for the marker shape.
+    kind: Annotated[
+        str,
+        DeferredVocabulary(
+            target_name="SupplyKind",
+            trigger_doc="Supply.kind Watch item 4 trigger per project-structural-scope-design",
+        ),
+    ]
     name: SupplyName
     status: SupplyStatus = SupplyStatus.UNKNOWN
