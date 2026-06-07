@@ -134,6 +134,74 @@ Intrinsic per-lens properties. Motion is via the lens turret motor wired into th
 | `max_speed` | `30 deg/s` |
 | `encoder_resolution` | `0.01 deg` |
 
+## Engineering drawings
+
+Each Asset may carry one canonical engineering reference as a `(system, number, revision)` triple per the [Drawing VO](../../architecture/modules/equipment/index.md). The carrier holds the build-to document for the physical specimen; the [Mount drawing](equipment/mctoptics.md#engineering-drawings) on the slot is a separate document (where the slot lives in the beamline). v1 is single-valued; the Drawing-frozenset promotion and `Model.drawing` / `Fixture.drawing` extensions defer to the rule-of-three trigger.
+
+Assets not listed below have no canonical document cited on the 2-BM source page yet (Aerotech `ABS250MP` datasheet for `Aerotech_ABRS_rotary`, Kohzu `CYAT-070` datasheet for the four `Sample_top_*` stages, an APS shutter drawing for `Shutter_2BM`, and a FLIR Oryx datasheet for `Oryx_5MP_camera`). These populate when the operator confirms the canonical reference.
+
+### `Hexapod_2BM`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `Hex300-Data-Sheet` |
+| `revision` | `D20250203` |
+
+Aerotech HEX300-230HL hexapod product datasheet (Hex300-Data-Sheet-D20250203.pdf). The MCTOptics deployment cites this as the structured reference for the 6-DoF positioner that anchors the sample stack.
+
+### `Optique_Peter_focus_Z`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
+Optique Peter MICRX080 microscope manual (MAN-11863-0521-0465-A, 21 May 2021, 53 pages). The shared vendor manual covers every Optique Peter housing constituent (focus stage, lens turret, lens kit, scintillator). Same reference attaches to each MCTOptics-bound Asset below.
+
+### `MCTOptics_lens_turret`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
+### `MCTOptics_objective_0`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
+v1 attaches the housing manual as the canonical reference; the Mitutoyo MPLAPO LWD per-magnification datasheet is the eventual upgrade once part numbers are verified (see the [vendor catalog note](equipment/mctoptics.md#vendor-catalog-models) on the Plan-Apo-NIR three-part-number split).
+
+### `MCTOptics_objective_1`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
+### `MCTOptics_objective_2`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
+### `Scintillator_LuAG`
+
+| Field | Value |
+| --- | --- |
+| `system` | `EDMS` |
+| `number` | `MAN-11863` |
+| `revision` | `0521-0465-A` |
+
 ## Pending
 
 | Asset | Family |

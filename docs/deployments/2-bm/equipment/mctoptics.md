@@ -112,6 +112,23 @@ Four Calibrations downstream of this deployment. Full revision details on the [C
 
 All initial revisions are `AssertedSource` (operator-attested from vendor datasheets) with status `Provisional`. They get superseded by `MeasuredSource` revisions when the corresponding calibration Procedure runs.
 
+## Engineering drawings
+
+Three carriers hold a canonical engineering reference under the [Drawing VO](../../../architecture/modules/equipment/index.md): the Assembly (composition blueprint), the Mount (where the slot lives in the beamline), and each bound Asset (build-to document for the specimen). Per the VO's anti-hook, Assembly / Mount / Asset drawings are NOT collapsed even when they happen to point at the same vendor document.
+
+The Optique Peter MICRX080 manual covers the housing composition, the slot layout, and every physical constituent, so v1 attaches the same `(EDMS, MAN-11863, 0521-0465-A)` triple to all three carriers. When the per-magnification Mitutoyo datasheets land they take over the Objective Asset drawings; the Assembly and Mount stay on MAN-11863.
+
+| Carrier | Field | Value |
+| --- | --- | --- |
+| MCTOptics Assembly | `system` | `EDMS` |
+| | `number` | `MAN-11863` |
+| | `revision` | `0521-0465-A` |
+| `optics_mount` (Mount) | `system` | `EDMS` |
+| | `number` | `MAN-11863` |
+| | `revision` | `0521-0465-A` |
+
+Per-Asset drawings for the seven bound physical Assets are listed on the [Engineering drawings section](../assets.md#engineering-drawings) of the flat inventory. Vendor-tier drawings (per-magnification Mitutoyo datasheets, FLIR Oryx datasheet for the camera) are pending operator confirmation of part numbers.
+
 ## PIDINST citation
 
 Two tiers of persistent identifiers:

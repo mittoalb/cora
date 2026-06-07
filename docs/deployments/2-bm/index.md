@@ -10,6 +10,9 @@ CORA's pilot deployment. The scenario corpus that grounds the domain model runs 
 | Sector | `Sector 2` |
 | Site | [APS](../aps/index.md) |
 | Enterprise | [Argonne](../argonne/index.md) |
+| Drawing | `(ICMS, A342-RT1000, 02)` (APS beamline layout drawing, Rev 02, May 2026) |
+
+Single-valued per the [Drawing VO](../../architecture/modules/equipment/index.md); the legacy Beam Component Reference Table `APS_1404611` is the natural carrier for upstream-optics Mounts and defers until those Assets register. See per-Asset drawings on [Assets](assets.md#engineering-drawings) and Assembly / Mount drawings on [MCTOptics](equipment/mctoptics.md#engineering-drawings).
 
 ## Inventories
 
