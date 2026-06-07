@@ -44,9 +44,26 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 
 `Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface). `ImagingDetector` and `PseudoAxis` are presenter / facet Families: they carry no affordances, but Methods bind against them via `needed_family_ids` (for `ImagingDetector` the Assembly's `presents_as_family_id` is the satisfaction handle; for `PseudoAxis` the Family membership is the gate that lets an Asset carry a `partition_rule`).
 
+## Vendor catalog (Models)
+
+Per-Asset Model bindings carry the vendor identity that PIDINST Property 6 (Manufacturer) and Property 7 (Model) need. Assets bind to a Model at registration; the Asset's Family set must be a subset of the Model's declared families. The four MCTOptics-housing Models (lens turret motor, Mitutoyo MPLAPO objective kit, FLIR Oryx camera, Crytur LuAG scintillator) live on the [MCTOptics deployment](equipment/mctoptics.md#vendor-catalog-models) page; the table below tracks Models bound to non-MCTOptics 2-BM Assets.
+
+| Model | Manufacturer | Part number | Declared Families | Bound at 2-BM |
+| --- | --- | --- | --- | --- |
+| `aerotech_hexgen_hex300_230hl` | Aerotech | `HEX300-230HL-E1-PL4-TAS` | `Hexapod` | `Hexapod_2BM` |
+| `aerotech_abs250mp_m_as` | Aerotech | `ABS250MP-M-AS` | `RotaryStage` | `Aerotech_ABRS_rotary` |
+| `aerotech_pro225sl_1000` | Aerotech | `PRO225SL-1000` | `LinearStage` | `Optique_Peter_focus_Z` |
+| `kohzu_cyat_070` | Kohzu | `CYAT-070` | `LinearStage` | `Sample_top_X`, `Sample_top_Z` |
+
+Part-number suffix conventions vary by vendor: Aerotech's `HEX300-230HL-E1-PL4-TAS` encodes operationally significant variants (`-E1` incremental encoder, `-PL4` ultra-high-accuracy preload, `-TAS` thermal-actively-stabilized); `ABS250MP-M-AS` follows the same pattern (`-M` mid-precision class, `-AS` air-bearing series); `PRO225SL-1000` carries the `-1000` mm travel suffix natively. v1 stores the full type designation as a single `part_number` string; the catalog convention upgrades to suffix decomposition at the second case where a suffix axis crosses Model boundaries (rule-of-three), or at the first APS imaging stage+drive registration, whichever fires first.
+
+The Aerotech Ensemble HLE10-40-A-MXH drive box (companion to `aerotech_hexgen_hex300_230hl`) and the OMS-VME58 boxes (companions to the Kohzu stages) are intentionally not modelled as separate Assets in v1; whether controllers earn first-class Asset status is tracked in `project_controller_as_asset_research` (Stage-0 seed, deferred-with-trigger).
+
+`Sample_top_Pitch` and `Sample_top_Roll` are NOT yet bound to a Model: the 2-BM source page reports them as hexapod axes 2bmHXP:m4/m5 (not standalone Kohzu stages), so the Model-binding question waits on the HIGH-severity Family retag (PseudoAxis-with-Hexapod-constituent under the Hexapod_2BM Asset, see `project_pitch_roll_retag` watch item). The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
+
 ## Family settings schemas
 
-NEW schemas registered for the MCTOptics deployment. The `RotaryStage`, `LinearStage`, `Camera`, and `Scintillator` schemas are declared at the [APS Site assets](../aps/assets.md) level. `ImagingDetector` and `PseudoAxis` carry no settings schema (they are presenter / facet Families).
+NEW schemas registered for the 2-BM deployment. The `RotaryStage`, `LinearStage`, `Camera`, and `Scintillator` schemas are declared at the [APS Site assets](../aps/assets.md) level once a second beamline uses them; today they remain implicit in the per-Asset [Settings](#settings) values below. `ImagingDetector` and `PseudoAxis` carry no settings schema (they are presenter / facet Families).
 
 ### `Objective`
 
@@ -59,9 +76,35 @@ Intrinsic per-lens properties. Motion is via the lens turret motor wired into th
 | `focal_length` | number > 0 | mm | |
 | `working_distance` | number > 0 | mm | |
 
+### `Hexapod`
+
+Operational envelope of a 6-DoF parallel-kinematic positioner. The schema captures the vendor-published envelope (per-DoF travel, speed, resolution, accuracy, load capacity) without exploding the legs as sub-Assets (vendor-sealed unit; inverse kinematics runs in controller firmware, not in CORA). DoF-level addressability (Shape 2: per-DoF PseudoAxis facets referencing this Hexapod as constituent) is a separate design question gated on the Plan.wiring terminal-typing contract.
+
+| Setting | Type | Unit | Notes |
+| --- | --- | --- | --- |
+| `travel_x` | number > 0 | mm | single-axis from home; translation envelope |
+| `travel_y` | number > 0 | mm | |
+| `travel_z` | number > 0 | mm | |
+| `travel_a` | number > 0 | deg | rotation envelope around X (tilt) |
+| `travel_b` | number > 0 | deg | rotation envelope around Y (tilt) |
+| `travel_c` | number > 0 | deg | rotation envelope around Z (yaw) |
+| `max_speed_translation` | number > 0 | mm/s | typically dominated by the slowest translation axis |
+| `max_speed_rotation` | number > 0 | deg/s | typically dominated by the slowest rotation axis |
+| `resolution_translation` | number > 0 | nm | encoder resolution for X/Y/Z (vendor reports a common value) |
+| `resolution_rotation` | number > 0 | urad | encoder resolution for A/B/C |
+| `accuracy_translation` | number > 0 | um | bidirectional positioning accuracy, dominant translation DoF |
+| `accuracy_rotation` | number > 0 | urad | bidirectional positioning accuracy, dominant rotation DoF |
+| `load_capacity_vertical` | number > 0 | kg | rated load with platform horizontal |
+| `load_capacity_horizontal` | number > 0 | kg | rated load with platform vertical |
+| `stage_mass` | number > 0 | kg | bare platform mass (excludes mounted payload) |
+
+The pairs `max_speed_translation` / `max_speed_rotation`, `resolution_*`, and `accuracy_*` collapse the six per-DoF measurements down to two values per metric in v1; the vendor datasheet reports per-DoF variation small enough that the dominant-DoF figure is a faithful envelope. When a Method binds against per-DoF setpoints (currently no such Method exists), Shape 2 (PseudoAxis facets) is the surface that grows; the schema above stays as the envelope contract.
+
 ## Settings
 
 ### `Aerotech_ABRS_rotary`
+
+Bound to Model `aerotech_abs250mp_m_as`. Aerotech ABS250MP-M-AS air-bearing direct-drive rotary stage (250 mm aperture, mid-precision class), driven by an Aerotech Ensemble HLE10-40-A-MXH controller (separate Asset deferred per `project_controller_as_asset_research`).
 
 | Setting | Value |
 | --- | --- |
@@ -73,12 +116,36 @@ Intrinsic per-lens properties. Motion is via the lens turret motor wired into th
 
 ### `Sample_top_X`
 
+Bound to Model `kohzu_cyat_070`. Kohzu CYAT-070 crossed-roller alignment stage (80 x 80 mm table, ball-screw lead 1.0 mm). Sister Asset `Sample_top_Z` binds the same Model. The full vendor-published envelope (±0.5 um repeatability, lost motion ≤ 2 um, backlash ≤ 1 um, straightness ≤ 3 um per 30 mm, load 98 N, weight 1.7 kg) lives on the [2-BM source page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html); the v1 Settings below capture only the operationally bound min/max/speed/resolution fields.
+
 | Setting | Value |
 | --- | --- |
 | `min_position` | `−10 mm` |
 | `max_position` | `10 mm` |
 | `max_speed` | `1 mm/s` |
 | `encoder_resolution` | `0.0005 mm` |
+
+### `Hexapod_2BM`
+
+Bound to Model `aerotech_hexgen_hex300_230hl`. Values from the Aerotech HEX300-230HL product datasheet (Hex300-Data-Sheet-D20250203). Per-DoF figures collapse to the dominant axis where the vendor's range across DoFs fits within a faithful envelope (e.g., translation accuracy reported as the laxest of X / Y / Z).
+
+| Setting | Value |
+| --- | --- |
+| `travel_x` | `55 mm` |
+| `travel_y` | `60 mm` |
+| `travel_z` | `25 mm` |
+| `travel_a` | `15 deg` |
+| `travel_b` | `15 deg` |
+| `travel_c` | `30 deg` |
+| `max_speed_translation` | `25 mm/s` |
+| `max_speed_rotation` | `15 deg/s` |
+| `resolution_translation` | `20 nm` |
+| `resolution_rotation` | `0.2 urad` |
+| `accuracy_translation` | `1 um` |
+| `accuracy_rotation` | `10 urad` |
+| `load_capacity_vertical` | `45 kg` |
+| `load_capacity_horizontal` | `21 kg` |
+| `stage_mass` | `12 kg` |
 
 ### `Scintillator_LuAG`
 
