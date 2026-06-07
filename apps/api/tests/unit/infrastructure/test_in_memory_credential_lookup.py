@@ -17,6 +17,7 @@ import pytest
 from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.ports import (
     CredentialLookup,
     CredentialLookupResult,
@@ -37,7 +38,7 @@ async def test_register_then_lookup_returns_seeded_result() -> None:
     result = await lookup.lookup(cid)
     assert result is not None
     assert result.id == cid
-    assert result.facility_id == "aps-2bm"
+    assert result.facility_id == FacilityCode("aps-2bm")
     assert result.purpose == "SealOnlineSigning"
     assert result.status == "Active"
 
@@ -94,13 +95,13 @@ async def test_ctor_seed_mapping_populates_records() -> None:
     seed = {
         cid_online: CredentialLookupResult(
             id=cid_online,
-            facility_id="aps-2bm",
+            facility_id=FacilityCode("aps-2bm"),
             purpose="SealOnlineSigning",
             status="Active",
         ),
         cid_offline: CredentialLookupResult(
             id=cid_offline,
-            facility_id="aps-2bm",
+            facility_id=FacilityCode("aps-2bm"),
             purpose="SealOfflineRoot",
             status="Active",
         ),

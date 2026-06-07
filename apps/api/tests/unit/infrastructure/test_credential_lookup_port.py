@@ -1,10 +1,12 @@
 """Unit tests for the `CredentialLookup` port value types.
 
 Pins the `CredentialLookupResult` dataclass contract that the Seal
-deciders rely on: required fields, frozen-immutability, and the
+deciders rely on: required fields, frozen-immutability, the
 string-typed `purpose` / `status` columns (kept as `str` so the port
 stays free of Federation BC enum imports per the kernel-tier
-`depends_on = []` discipline).
+`depends_on = []` discipline), and the `FacilityCode`-typed
+`facility_id` field (post Slice 3 of project_structural_scope_design;
+the VO is the cross-deployment convergent identity at the port surface).
 """
 
 from dataclasses import FrozenInstanceError
@@ -12,6 +14,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.ports import (
     CredentialLookup,
     CredentialLookupResult,
@@ -29,12 +32,12 @@ def test_credential_lookup_result_carries_all_four_fields() -> None:
     cid = uuid4()
     result = CredentialLookupResult(
         id=cid,
-        facility_id="aps-2bm",
+        facility_id=FacilityCode("aps-2bm"),
         purpose="SealOnlineSigning",
         status="Active",
     )
     assert result.id == cid
-    assert result.facility_id == "aps-2bm"
+    assert result.facility_id == FacilityCode("aps-2bm")
     assert result.purpose == "SealOnlineSigning"
     assert result.status == "Active"
 
@@ -43,7 +46,7 @@ def test_credential_lookup_result_carries_all_four_fields() -> None:
 def test_credential_lookup_result_is_frozen() -> None:
     result = CredentialLookupResult(
         id=uuid4(),
-        facility_id="aps-2bm",
+        facility_id=FacilityCode("aps-2bm"),
         purpose="SealOfflineRoot",
         status="Active",
     )
@@ -56,13 +59,13 @@ def test_credential_lookup_result_supports_value_equality() -> None:
     cid = uuid4()
     a = CredentialLookupResult(
         id=cid,
-        facility_id="aps-2bm",
+        facility_id=FacilityCode("aps-2bm"),
         purpose="SealOnlineSigning",
         status="Active",
     )
     b = CredentialLookupResult(
         id=cid,
-        facility_id="aps-2bm",
+        facility_id=FacilityCode("aps-2bm"),
         purpose="SealOnlineSigning",
         status="Active",
     )
@@ -76,7 +79,7 @@ def test_credential_lookup_result_purpose_and_status_are_str() -> None:
     `== "Active"`) and the port stays free of Federation BC enums."""
     result = CredentialLookupResult(
         id=uuid4(),
-        facility_id="aps-2bm",
+        facility_id=FacilityCode("aps-2bm"),
         purpose="SealOnlineSigning",
         status="Active",
     )

@@ -115,10 +115,15 @@ def decide(
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
             actual_purpose=new_online_credential.purpose,
         )
-    if new_online_credential.facility_id != state.facility_id:
+    # CredentialLookupResult.facility_id is a FacilityCode VO post Slice 3
+    # of project_structural_scope_design; Seal.facility_id stays a bare
+    # string on disk per the wire-payload-immutability constraint. Extract
+    # `.value` inline so the SEC-FED-01 AST fitness test still recognizes
+    # the binding comparison.
+    if new_online_credential.facility_id.value != state.facility_id:
         raise SealCrossFacilityBindingError(
             expected_facility_id=state.facility_id,
-            actual_facility_id=new_online_credential.facility_id,
+            actual_facility_id=new_online_credential.facility_id.value,
             key_ref_role="online",
         )
     if new_online_credential.status != CredentialStatus.ACTIVE.value:

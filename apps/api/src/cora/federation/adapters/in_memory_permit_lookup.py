@@ -9,13 +9,23 @@ from `proj_federation_permit_summary`.
 
 from uuid import UUID
 
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.ports.federation.permit_lookup import (
     PermitLookup,
     PermitLookupResult,
 )
 
 
-def _key(peer_facility_id: str, artifact_kind: str, direction: str) -> tuple[str, str, str]:
+def _coerce_code(value: str | FacilityCode) -> FacilityCode:
+    """Accept either a raw `str` (constructed into a `FacilityCode` here)
+    or a pre-built `FacilityCode`. Keeps the bulk of existing test call
+    sites that pass plain strings working unchanged."""
+    return value if isinstance(value, FacilityCode) else FacilityCode(value)
+
+
+def _key(
+    peer_facility_id: FacilityCode, artifact_kind: str, direction: str
+) -> tuple[FacilityCode, str, str]:
     return (peer_facility_id, artifact_kind, direction)
 
 
@@ -29,23 +39,27 @@ class InMemoryPermitLookup(PermitLookup):
     """
 
     def __init__(self) -> None:
-        self._permits: dict[tuple[str, str, str], PermitLookupResult] = {}
+        self._permits: dict[tuple[FacilityCode, str, str], PermitLookupResult] = {}
 
     def register(
         self,
         *,
-        peer_facility_id: str,
+        peer_facility_id: str | FacilityCode,
         artifact_kind: str,
         direction: str,
         result: PermitLookupResult,
     ) -> None:
-        """Seed a permit for a (peer, artifact_kind, direction) lookup key."""
-        self._permits[_key(peer_facility_id, artifact_kind, direction)] = result
+        """Seed a permit for a (peer, artifact_kind, direction) lookup key.
+
+        `peer_facility_id` accepts either a raw `str` (constructed into a
+        `FacilityCode` here) or a pre-built `FacilityCode`.
+        """
+        self._permits[_key(_coerce_code(peer_facility_id), artifact_kind, direction)] = result
 
     def register_outbound(
         self,
         *,
-        peer_facility_id: str,
+        peer_facility_id: str | FacilityCode,
         artifact_kind: str,
         permit_id: UUID,
         status: str = "Active",
@@ -53,16 +67,17 @@ class InMemoryPermitLookup(PermitLookup):
         current_version: int = 0,
     ) -> PermitLookupResult:
         """Convenience: seed an outbound permit; returns the seeded result for assertions."""
+        code = _coerce_code(peer_facility_id)
         result = PermitLookupResult(
             permit_id=permit_id,
-            peer_facility_id=peer_facility_id,
+            peer_facility_id=code,
             direction="Outbound",
             status=status,
             abi_tier_floor=abi_tier_floor,
             current_version=current_version,
         )
         self.register(
-            peer_facility_id=peer_facility_id,
+            peer_facility_id=code,
             artifact_kind=artifact_kind,
             direction="Outbound",
             result=result,
@@ -72,7 +87,7 @@ class InMemoryPermitLookup(PermitLookup):
     def register_inbound(
         self,
         *,
-        peer_facility_id: str,
+        peer_facility_id: str | FacilityCode,
         artifact_kind: str,
         permit_id: UUID,
         status: str = "Active",
@@ -80,16 +95,17 @@ class InMemoryPermitLookup(PermitLookup):
         current_version: int = 0,
     ) -> PermitLookupResult:
         """Convenience: seed an inbound permit; returns the seeded result for assertions."""
+        code = _coerce_code(peer_facility_id)
         result = PermitLookupResult(
             permit_id=permit_id,
-            peer_facility_id=peer_facility_id,
+            peer_facility_id=code,
             direction="Inbound",
             status=status,
             abi_tier_floor=abi_tier_floor,
             current_version=current_version,
         )
         self.register(
-            peer_facility_id=peer_facility_id,
+            peer_facility_id=code,
             artifact_kind=artifact_kind,
             direction="Inbound",
             result=result,
@@ -97,12 +113,12 @@ class InMemoryPermitLookup(PermitLookup):
         return result
 
     async def lookup_outbound(
-        self, peer_facility_id: str, artifact_kind: str
+        self, peer_facility_id: FacilityCode, artifact_kind: str
     ) -> PermitLookupResult | None:
         return self._permits.get(_key(peer_facility_id, artifact_kind, "Outbound"))
 
     async def lookup_inbound(
-        self, peer_facility_id: str, artifact_kind: str
+        self, peer_facility_id: FacilityCode, artifact_kind: str
     ) -> PermitLookupResult | None:
         return self._permits.get(_key(peer_facility_id, artifact_kind, "Inbound"))
 

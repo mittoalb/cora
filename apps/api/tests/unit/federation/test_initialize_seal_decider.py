@@ -34,6 +34,7 @@ from cora.federation.aggregates.seal import (
 )
 from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
@@ -64,7 +65,7 @@ def _online_cred(
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
-        facility_id=facility_id,
+        facility_id=FacilityCode(facility_id),
         purpose=purpose,
         status=status,
     )
@@ -79,7 +80,7 @@ def _offline_cred(
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
-        facility_id=facility_id,
+        facility_id=FacilityCode(facility_id),
         purpose=purpose,
         status=status,
     )

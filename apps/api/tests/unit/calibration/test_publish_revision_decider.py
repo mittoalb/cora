@@ -22,6 +22,7 @@ from cora.calibration.features.publish_revision import (
     decide,
 )
 from cora.federation.aggregates.permit.events import PublicationReceiptRecorded
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.federation import (
     DsseStaticJwksEnvelope,
@@ -87,7 +88,7 @@ def _command(
 def _permit_result(*, status: str = "Active") -> PermitLookupResult:
     return PermitLookupResult(
         permit_id=_PERMIT_ID,
-        peer_facility_id=_PEER,
+        peer_facility_id=FacilityCode(_PEER),
         direction="Outbound",
         status=status,
         abi_tier_floor="Stable",

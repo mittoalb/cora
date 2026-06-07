@@ -51,6 +51,7 @@ from cora.calibration.features.publish_revision import (
     PublishCalibrationRevision,
     decide,
 )
+from cora.infrastructure.facility_code import FACILITY_CODE_MAX_LENGTH, FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.federation import (
     DsseStaticJwksEnvelope,
@@ -60,7 +61,14 @@ from tests._strategies import aware_datetimes, printable_ascii_text
 
 _HEX_CHAR = st.sampled_from("0123456789abcdef")
 _CONTENT_HASH = st.lists(_HEX_CHAR, min_size=64, max_size=64).map("".join)
-_PEER_FACILITY_ID = printable_ascii_text(min_size=1, max_size=64)
+# Constrain to valid FacilityCode shape so the same value can flow into
+# both the command's bare-string peer_facility_id and the typed
+# PermitLookupResult.peer_facility_id (FacilityCode) post Slice 3 of
+# project_structural_scope_design.
+_FACILITY_CODE_CHAR = st.sampled_from("abcdefghijklmnopqrstuvwxyz0123456789-")
+_PEER_FACILITY_ID = st.lists(
+    _FACILITY_CODE_CHAR, min_size=1, max_size=FACILITY_CODE_MAX_LENGTH
+).map("".join)
 _SIGNATURE_KID = printable_ascii_text(min_size=1, max_size=128)
 _SIGNING_VERSION = st.sampled_from(["cora/v1"])
 _PAYLOAD_BYTES = st.binary(min_size=1, max_size=512)
@@ -117,7 +125,7 @@ def _envelope(payload_bytes: bytes, signing_version: str) -> DsseStaticJwksEnvel
 def _permit(*, permit_id: UUID, peer_facility_id: str, status: str) -> PermitLookupResult:
     return PermitLookupResult(
         permit_id=permit_id,
-        peer_facility_id=peer_facility_id,
+        peer_facility_id=FacilityCode(peer_facility_id),
         direction="Outbound",
         status=status,
         abi_tier_floor="Stable",

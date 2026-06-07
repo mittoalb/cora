@@ -55,6 +55,7 @@ from cora.calibration.features.publish_revision.decider import (
 from cora.federation.aggregates.permit import event_type_name as permit_event_type_name
 from cora.federation.aggregates.permit import to_payload as permit_to_payload
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -179,8 +180,13 @@ def bind(deps: Kernel) -> Handler:
         if state is None:
             raise CalibrationNotFoundError(command.calibration_id)
 
+        # Construct FacilityCode VO at the port edge per Slice 3 of
+        # project_structural_scope_design. The command DTO carries the
+        # peer_facility_id as a bare string (wire-payload-immutability
+        # constraint); the port surface consumes the typed VO.
+        peer_facility_code = FacilityCode(command.peer_facility_id)
         permit_result = await permit_lookup.lookup_outbound(
-            peer_facility_id=command.peer_facility_id, artifact_kind=_ARTIFACT_KIND
+            peer_facility_id=peer_facility_code, artifact_kind=_ARTIFACT_KIND
         )
 
         revision = next((r for r in state.revisions if r.revision_id == command.revision_id), None)

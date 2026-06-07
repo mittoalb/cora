@@ -43,6 +43,7 @@ from cora.federation.aggregates.seal import (
 )
 from cora.federation.features import rotate_seal_online_key
 from cora.federation.features.rotate_seal_online_key import RotateSealOnlineKey
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
@@ -97,7 +98,7 @@ def _credential(
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
-        facility_id=facility_id,
+        facility_id=FacilityCode(facility_id),
         purpose=purpose,
         status=status,
     )

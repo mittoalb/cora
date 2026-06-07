@@ -49,6 +49,7 @@ from cora.federation.aggregates.credential.state import (
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 _LOOKUP_SQL = """
@@ -76,7 +77,7 @@ class PostgresCredentialLookup:
 def _row_to_result(row: Any) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=row["credential_id"],
-        facility_id=str(row["facility_id"]),
+        facility_id=FacilityCode(str(row["facility_id"])),
         purpose=CredentialPurpose(row["purpose"]),
         status=CredentialStatus(row["status"]),
     )

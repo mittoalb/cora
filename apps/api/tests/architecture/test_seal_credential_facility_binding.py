@@ -65,13 +65,33 @@ def _is_attr(node: ast.AST, owner: str, attr: str) -> bool:
 
 
 def _is_credential_facility_id(node: ast.AST) -> bool:
-    """`node` is `<credential>.facility_id` where `<credential>` is one
-    of the handler-injected credential lookup results."""
-    if not isinstance(node, ast.Attribute) or node.attr != "facility_id":
-        return False
-    if not isinstance(node.value, ast.Name):
-        return False
-    return node.value.id in _CREDENTIAL_PARAMETERS
+    """`node` is `<credential>.facility_id` or `<credential>.facility_id.value`
+    where `<credential>` is one of the handler-injected credential lookup
+    results.
+
+    The `.value` form is the post-Slice-3 shape from
+    project_structural_scope_design: `CredentialLookupResult.facility_id`
+    is a `FacilityCode` VO at the port surface, while the aggregate-stored
+    `command.facility_id` / `state.facility_id` stay bare strings. Deciders
+    extract `.value` inline at the comparison site to bridge.
+    """
+    # Direct `<credential>.facility_id` (pre-Slice-3 + decider intermediate use)
+    if (
+        isinstance(node, ast.Attribute)
+        and node.attr == "facility_id"
+        and isinstance(node.value, ast.Name)
+        and node.value.id in _CREDENTIAL_PARAMETERS
+    ):
+        return True
+    # `<credential>.facility_id.value` (post-Slice-3 FacilityCode VO comparison)
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "value"
+        and isinstance(node.value, ast.Attribute)
+        and node.value.attr == "facility_id"
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id in _CREDENTIAL_PARAMETERS
+    )
 
 
 def _is_seal_facility_id(node: ast.AST) -> bool:

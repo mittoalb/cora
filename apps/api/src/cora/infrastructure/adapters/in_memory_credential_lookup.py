@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from threading import Lock
 from uuid import UUID
 
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 
 
@@ -29,15 +30,22 @@ class InMemoryCredentialLookup:
     def register(
         self,
         credential_id: UUID,
-        facility_id: str,
+        facility_id: str | FacilityCode,
         purpose: str,
         status: str,
     ) -> None:
-        """Test helper: install a credential summary keyed by `credential_id`."""
+        """Test helper: install a credential summary keyed by `credential_id`.
+
+        `facility_id` accepts either a raw `str` (constructed into a
+        `FacilityCode` here) or a pre-built `FacilityCode` for callers
+        that already hold the VO. Keeps the bulk of existing tests
+        passing strings unchanged.
+        """
+        code = facility_id if isinstance(facility_id, FacilityCode) else FacilityCode(facility_id)
         with self._lock:
             self._records[credential_id] = CredentialLookupResult(
                 id=credential_id,
-                facility_id=facility_id,
+                facility_id=code,
                 purpose=purpose,
                 status=status,
             )

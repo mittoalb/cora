@@ -35,11 +35,22 @@ the projection is already a denormalized cross-stream view.
 inside `cora.infrastructure`'s `depends_on = []` tach contract. The
 values match the StrEnum string values; deciders partition by literal
 comparison (`purpose == "SealOnlineSigning"`, `status == "Active"`).
+
+`facility_id` is typed `FacilityCode` (not bare `str`) per the locked
+two-tier facility identity design ([[project-structural-scope-design]]
+Slice 3 "FacilityCode VO + port-surface migration"). The VO is the
+cross-deployment convergent identity for a facility; the projection
+adapter constructs it from the raw `TEXT` column, and consumers
+extract `.value` only at the boundary where they meet aggregate-stored
+bare-string `facility_id` payloads (event payloads on disk remain
+strings; the VO is in-memory only at the port surface).
 """
 
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
+
+from cora.infrastructure.facility_code import FacilityCode
 
 
 @dataclass(frozen=True)
@@ -55,10 +66,16 @@ class CredentialLookupResult:
     (matches the projection's `TEXT` columns); the decider partitions
     on `purpose == "SealOnlineSigning"` / `"SealOfflineRoot"` and
     `status == "Active"`.
+
+    `facility_id` is a `FacilityCode` value object per the two-tier
+    facility-identity design; the adapter constructs the VO from the
+    raw `TEXT` column. A malformed code at the projection-row tier
+    raises `InvalidFacilityCodeError` at adapter construction time,
+    which surfaces upstream as a port-level integrity error.
     """
 
     id: UUID
-    facility_id: str
+    facility_id: FacilityCode
     purpose: str
     status: str
 

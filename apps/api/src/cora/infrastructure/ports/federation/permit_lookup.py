@@ -23,6 +23,17 @@ The string values match the BC-tier `Direction` and `PermitStatus`
 StrEnums (`Outbound | Inbound`, `Defined | Active | Suspended | Revoked`).
 Consumers compare via literal equality on the strings.
 
+`peer_facility_id` (both on the lookup method parameter and on the
+`PermitLookupResult` dataclass) is typed `FacilityCode` (not bare `str`)
+per the locked two-tier facility identity design
+([[project-structural-scope-design]] Slice 3 "FacilityCode VO +
+port-surface migration"). The VO is the cross-deployment convergent
+identity for a facility; handlers construct
+`FacilityCode(command.peer_facility_id)` at the port edge, and the
+projection-row adapter constructs the VO from the raw `TEXT` column.
+Event payloads on disk remain bare strings; the VO is in-memory only
+at the port surface.
+
 ## Why outbound/inbound on a single port
 
 The per-BC publish slice needs an outbound permit; the per-BC pull
@@ -38,6 +49,8 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
+from cora.infrastructure.facility_code import FacilityCode
+
 
 @dataclass(frozen=True)
 class PermitLookupResult:
@@ -49,10 +62,16 @@ class PermitLookupResult:
     surfaced as `current_version` so the handler can pass it as the
     expected_version to `append_streams` without re-loading the
     full Permit stream.
+
+    `peer_facility_id` is a `FacilityCode` value object per the two-tier
+    facility-identity design; the adapter constructs the VO from the
+    raw `TEXT` column. A malformed code at the projection-row tier
+    raises `InvalidFacilityCodeError` at adapter construction time,
+    which surfaces upstream as a port-level integrity error.
     """
 
     permit_id: UUID
-    peer_facility_id: str
+    peer_facility_id: FacilityCode
     direction: str
     status: str
     abi_tier_floor: str
@@ -69,14 +88,17 @@ class PermitLookup(Protocol):
     pull-side query (matches a peer-facility id + artifact kind to
     the inbound Permit that authorizes pulling from that peer).
     Both return None when no matching active permit exists.
+
+    `peer_facility_id` takes a typed `FacilityCode`; handlers construct
+    `FacilityCode(command.peer_facility_id)` at the port edge.
     """
 
     async def lookup_outbound(
-        self, peer_facility_id: str, artifact_kind: str
+        self, peer_facility_id: FacilityCode, artifact_kind: str
     ) -> PermitLookupResult | None: ...
 
     async def lookup_inbound(
-        self, peer_facility_id: str, artifact_kind: str
+        self, peer_facility_id: FacilityCode, artifact_kind: str
     ) -> PermitLookupResult | None: ...
 
 

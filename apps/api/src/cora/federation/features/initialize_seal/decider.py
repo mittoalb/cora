@@ -163,22 +163,27 @@ def decide(
             actual_purpose=offline_credential.purpose,
         )
 
-    if online_credential.facility_id != command.facility_id:
+    # CredentialLookupResult.facility_id is a FacilityCode VO post Slice 3
+    # of project_structural_scope_design; aggregate-stored facility_id
+    # (Seal + command DTO) stays a bare string on disk per the wire-payload-
+    # immutability constraint. Extract `.value` inline so the SEC-FED-01
+    # AST fitness test still recognizes the binding comparison.
+    if online_credential.facility_id.value != command.facility_id:
         raise SealCrossFacilityBindingError(
             expected_facility_id=command.facility_id,
-            actual_facility_id=online_credential.facility_id,
+            actual_facility_id=online_credential.facility_id.value,
             key_ref_role="online",
         )
-    if offline_credential.facility_id != command.facility_id:
+    if offline_credential.facility_id.value != command.facility_id:
         raise SealCrossFacilityBindingError(
             expected_facility_id=command.facility_id,
-            actual_facility_id=offline_credential.facility_id,
+            actual_facility_id=offline_credential.facility_id.value,
             key_ref_role="offline",
         )
-    if online_credential.facility_id != offline_credential.facility_id:
+    if online_credential.facility_id.value != offline_credential.facility_id.value:
         raise SealCrossFacilityBindingError(
-            expected_facility_id=online_credential.facility_id,
-            actual_facility_id=offline_credential.facility_id,
+            expected_facility_id=online_credential.facility_id.value,
+            actual_facility_id=offline_credential.facility_id.value,
             key_ref_role="online_vs_offline",
         )
 
