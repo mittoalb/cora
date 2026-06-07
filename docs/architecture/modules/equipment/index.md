@@ -53,7 +53,7 @@ Out of scope
 | `AssetPort` | `(name, direction, signal_type)` triple; direction is `Input` \| `Output`; signal_type is free text, 1-50 chars | members of `Asset.ports` |
 | `AssetOwner` | `(name, contact?, identifier?, identifier_type?)`; identifier and identifier_type are paired (both present or both absent) | members of `Asset.owners` |
 | `AlternateIdentifier` | `(kind, value)`; kind is closed StrEnum `SerialNumber` \| `InventoryNumber` \| `Other` | members of `Asset.alternate_identifiers` |
-| `Drawing` | `(uri, sha256?, content_type?)` external-spec reference | `Asset.drawing`, `Mount.drawing`, `Assembly.drawing` |
+| `Drawing` | `(system, number, revision?)`; system is closed StrEnum `ICMS` \| `EDMS` \| `DOI`; revision None means "latest" | `Asset.drawing`, `Mount.drawing`, `Assembly.drawing` |
 | `Manufacturer` | `(name, identifier?, identifier_type?)`; identifier_type is closed StrEnum `ROR` \| `GRID` \| `ISNI` and is paired with identifier | `Model.manufacturer` |
 | `ModelStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Model.status` |
 | `Placement` | 6-DoF rigid-body transform: `(translation_mm, rotation_deg)` where translation is `(x, y, z)` and rotation is `(rx, ry, rz)` extrinsic Tait-Bryan | `Frame.placement`, `Mount.placement` |
