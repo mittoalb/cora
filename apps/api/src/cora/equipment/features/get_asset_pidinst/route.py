@@ -5,6 +5,9 @@ on hit. Errors propagate to the BC's exception-handler tuples in
 `equipment/routes.py` per L8 + L9:
 
   - `AssetNotFoundError`                  -> 404
+  - `VirtualAxisNotPidinstableError`      -> 404 (Asset carries a
+    partition_rule and is structurally ineligible for PIDINST per
+    PIDINST v1.0's Manufacturer + Owner mandate)
   - `OwnerStateNotAvailableError`         -> 409
   - `ManufacturerStateNotAvailableError`  -> 409
   - `LandingPageMissingError`             -> 422
@@ -58,7 +61,11 @@ router = APIRouter(tags=["equipment"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No asset exists with the given id.",
+            "description": (
+                "No asset exists with the given id, OR the asset is a virtual axis "
+                "(carries a partition_rule) which is structurally not PIDINST-eligible "
+                "under PIDINST v1.0."
+            ),
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,

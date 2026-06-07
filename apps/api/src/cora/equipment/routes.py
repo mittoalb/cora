@@ -173,6 +173,7 @@ from cora.equipment.errors import (
     ManufacturerStateNotAvailableError,
     OwnerStateNotAvailableError,
     UnauthorizedError,
+    VirtualAxisNotPidinstableError,
 )
 from cora.equipment.features import (
     activate_asset,
@@ -500,6 +501,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         FamilyNotFoundForAssemblyError,
         FixtureAssetNotFoundError,
         FixtureNotFoundError,
+        VirtualAxisNotPidinstableError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (

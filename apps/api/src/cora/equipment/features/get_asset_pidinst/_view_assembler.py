@@ -30,6 +30,7 @@ from cora.equipment._pidinst_types import AssetPidinstView, ModelPidinstView, Ow
 from cora.equipment.aggregates.asset import AssetNotFoundError, load_asset
 from cora.equipment.aggregates.family import load_family
 from cora.equipment.aggregates.model import Model, load_model
+from cora.equipment.errors import VirtualAxisNotPidinstableError
 from cora.infrastructure.ports import EventStore
 
 
@@ -52,6 +53,15 @@ async def assemble_pidinst_view(
     asset = await load_asset(event_store, asset_id)
     if asset is None:
         raise AssetNotFoundError(asset_id)
+    # Virtual axes (Assets carrying a partition_rule) are structurally
+    # not PIDINST-eligible: PIDINST v1.0 mandates a Manufacturer + Owner
+    # that virtual axes do not have. Reject here at view-assembly time
+    # so the route returns 404 (resource not applicable) instead of 409
+    # (which would mis-signal "fix this by adding a Manufacturer").
+    # See [[project_virtual_axis_aggregate_followup]] for the broader
+    # context on virtual-axis-as-Asset modeling.
+    if asset.partition_rule is not None:
+        raise VirtualAxisNotPidinstableError(asset_id)
     model = await load_model(event_store, asset.model_id) if asset.model_id is not None else None
     families = await asyncio.gather(
         *[load_family(event_store, family_id) for family_id in sorted(asset.family_ids, key=str)]

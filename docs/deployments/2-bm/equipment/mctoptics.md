@@ -117,7 +117,9 @@ All initial revisions are `AssertedSource` (operator-attested from vendor datash
 Two tiers of persistent identifiers:
 
 - **The Fixture earns one DOI** as a citable experimental station. This mirrors the HZB PEAXIS precedent where the composite imaging station is published as a single Instrument with `HasComponent` relations to its parts.
-- **Each bound Asset earns its own DOI** (all eight Assets listed above, including the PseudoAxis). The Fixture's PIDINST record references them via `HasComponent`; each Asset's record references the Fixture via `IsComponentOf`.
+- **Each physical bound Asset earns its own DOI** (the seven physical Assets: MCTOptics presenter, three Objectives, Oryx camera, LuAG scintillator, lens turret motor). The Fixture's PIDINST record references them via `HasComponent`; each Asset's record references the Fixture via `IsComponentOf`.
+
+`MCTOptics_lens_select` is intentionally NOT PIDINST-minted. PIDINST v1.0 requires a Manufacturer (Property 6) and Owner (Property 5), both of which assume a physical instrument with a vendor and an institutional steward. Virtual axes are software routing constructs over a real motor: they carry no Manufacturer (there is no vendor of LookupTables), no independent Owner, and no serial number. The lens index to turret angle table is event-sourced via the partition rule and is fully audit-complete without a DOI; if a citation handle is ever needed it lives on the lens turret motor's DOI, not on the virtual axis. `GET /assets/{lens_select_id}/pidinst` returns 404 (not applicable) by design.
 
 For pilot v1, persistent identifiers are stub-minted (no real DOIs registered with DataCite). The production mint path is deferred until 2-BM commissions with real facility DataCite credentials.
 

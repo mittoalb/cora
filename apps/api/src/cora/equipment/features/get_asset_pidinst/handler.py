@@ -5,6 +5,8 @@ error propagates as-is to the route layer, which maps via the BC's
 exception-handler registration:
 
   - `AssetNotFoundError`               -> 404 (existing not-found tuple)
+  - `VirtualAxisNotPidinstableError`   -> 404 (Asset carries a
+    partition_rule; virtual axes are PIDINST-ineligible by design)
   - `OwnerStateNotAvailableError`      -> 409 (per L8 + L9; new)
   - `ManufacturerStateNotAvailableError` -> 409 (per L8 + L9; new)
   - `LandingPageMissingError`          -> 422 (per L8 + L9; new)

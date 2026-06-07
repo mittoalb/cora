@@ -16,9 +16,11 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.equipment._pidinst_types import AssetPidinstView, ModelPidinstView
+from cora.equipment.aggregates._partition_rule import Affine
 from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.equipment.aggregates.asset.events import (
     AssetFamilyAdded,
+    AssetPartitionRuleUpdated,
     AssetRegistered,
     event_type_name,
     to_payload,
@@ -54,6 +56,7 @@ from cora.equipment.aggregates.model.state import (
     ManufacturerIdentifierType,
     ManufacturerName,
 )
+from cora.equipment.errors import VirtualAxisNotPidinstableError
 from cora.equipment.features.get_asset_pidinst._view_assembler import assemble_pidinst_view
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
@@ -345,3 +348,42 @@ async def test_assemble_pidinst_view_publication_year_derives_from_commissioned_
     )
     assert view.commissioned_at == datetime(2024, 7, 4, 10, 0, 0, tzinfo=UTC)
     assert view.publication_year == 2024
+
+
+@pytest.mark.unit
+@pytest.mark.timeout(60, method="thread")
+async def test_assemble_pidinst_view_with_virtual_axis_raises_not_pidinstable() -> None:
+    """Assets carrying a non-None partition_rule are virtual axes and
+    PIDINST-ineligible per PIDINST v1.0's Manufacturer + Owner mandate.
+    The assembler rejects them BEFORE any Model / Family load so the
+    route returns 404 (resource not applicable), not 409 (which would
+    mis-signal "fix this by adding a Manufacturer").
+    """
+    store = InMemoryEventStore()
+    asset_id = uuid4()
+    await _seed_asset(store, asset_id=asset_id, owners=frozenset({_hzb_owner()}))
+    rule_updated = AssetPartitionRuleUpdated(
+        asset_id=asset_id,
+        partition_rule=Affine(gain=2.0, offset=1.0),
+        occurred_at=_NOW,
+    )
+    rule_event = to_new_event(
+        event_type=event_type_name(rule_updated),
+        payload=to_payload(rule_updated),
+        occurred_at=_NOW,
+        event_id=uuid4(),
+        command_name="UpdateAssetPartitionRule",
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    version = (await store.load("Asset", asset_id))[1]
+    await store.append("Asset", asset_id, version, [rule_event])
+
+    with pytest.raises(VirtualAxisNotPidinstableError) as exc_info:
+        await assemble_pidinst_view(
+            store,
+            asset_id,
+            facility_publisher=_PUBLISHER,
+            landing_page_template=_LANDING_TEMPLATE,
+        )
+    assert exc_info.value.asset_id == asset_id

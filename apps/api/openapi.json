@@ -17596,7 +17596,7 @@
                 }
               }
             },
-            "description": "No asset exists with the given id."
+            "description": "No asset exists with the given id, OR the asset is a virtual axis (carries a partition_rule) which is structurally not PIDINST-eligible under PIDINST v1.0."
           },
           "409": {
             "content": {

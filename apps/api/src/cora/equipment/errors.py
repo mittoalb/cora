@@ -101,6 +101,34 @@ class AssetNameMissingError(PidinstSerializationError):
         self.asset_id = asset_id
 
 
+class VirtualAxisNotPidinstableError(Exception):
+    """The target Asset is a virtual axis (carries a non-None `partition_rule`)
+    and is structurally ineligible for PIDINST minting.
+
+    PIDINST v1.0 requires a Manufacturer (Property 6) and at least one
+    Owner (Property 5); virtual axes are software routing constructs
+    that carry no vendor and no institutional steward. The Asset's
+    partition_rule is the substrate that distinguishes the virtual case
+    from a physical instrument.
+
+    Raised at the PIDINST view-assembler tier before the serializer
+    runs, so the route can map this to 404 (resource not applicable)
+    rather than 409 (which would mis-signal "fix this by adding a
+    Manufacturer"). Sits OUTSIDE the `PidinstSerializationError`
+    hierarchy because the 409-mapped serializer errors all describe
+    fixable view-state gaps; this one is structural and never fixable
+    for the resource. See [[project_virtual_axis_aggregate_followup]].
+    """
+
+    def __init__(self, asset_id: UUID) -> None:
+        super().__init__(
+            f"Asset {asset_id} is a virtual axis (carries a partition_rule) and is "
+            f"structurally not PIDINST-eligible; PIDINST v1.0 requires a Manufacturer "
+            f"and Owner that virtual axes do not have"
+        )
+        self.asset_id = asset_id
+
+
 class FixturePidinstSerializationError(PidinstSerializationError):
     """Base for every Fixture-tier PIDINST serializer precondition violation.
 
