@@ -27,6 +27,8 @@ Operator tribal knowledge captured at shakedown, first-light, or production time
 
 **Workaround.** Run `hexapod_reboot.py` (in [`2bmb-bin`](https://github.com/xray-imaging/2bmb-bin)): stops the hexapod IOC, power-cycles PDU outlet 4 with 10s settling each way, restarts the IOC, polls `HexapodAllEnabled` for up to 180s. If the PV is still `0` after the timeout, `caput 2bmHXP:EnableWork.PROC 1` to force-enable, then re-poll. Manual checks during recovery: verify outlet state via NetBooter `/status.xml`; SSH `2bmb@arcturus` for IOC log inspection.
 
+**Modeling note.** This Caution targets `Hexapod_2BM` (the stage Asset) as a proxy: the failure mode is in the hexapod's drive electronics, not in the stage itself, and the workaround above is entirely controller-side (PDU outlet, IOC restart, EPICS PV poll). CORA's model does not yet carry controller-as-Asset, so the stage is the closest honest target available today. Tracked in `project_controller_as_asset_research` (Stage-0 memo seed). When that memo's named triggers fire and the drive electronics earns its own Asset row, retarget this Caution to the controller and amend the text accordingly; the "PI-Hexapod" phrasing in the Observation also predates the current Aerotech HEX300-230HL hardware per the [2-BM beamline components page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html) and wants a source-of-truth check at the same time.
+
 **Lifetime.** No `expires_at` (permanent until superseded or retired). Surfaces on every future Run start at 2-BM that targets the Hexapod, so operators know to run the recovery routine on first sign of unresponsiveness rather than chasing a phantom motion-control bug.
 
 ## Pending
