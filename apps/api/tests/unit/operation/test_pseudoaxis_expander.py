@@ -42,7 +42,6 @@ _NOW = datetime(2026, 6, 5, 12, 0, 0, tzinfo=UTC)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _PSEUDOAXIS_FAMILY_ID = UUID("01900000-0000-7000-8000-00000000f001")
-_PSEUDOAXIS_FAMILY_IDS = frozenset({_PSEUDOAXIS_FAMILY_ID})
 _AFFINE_ASSET_ID = UUID("01900000-0000-7000-8000-00000000c001")
 _AGGREGATION_ASSET_ID = UUID("01900000-0000-7000-8000-00000000c002")
 _AFFINE_CONSTITUENT_ID = UUID("01900000-0000-7000-8000-00000000d001")
@@ -60,9 +59,9 @@ async def _seed_pseudoaxis_asset(
 
     Seeds the Asset directly through the event store so the test
     bypasses handler wiring and exercises the expander in isolation.
-    Family id is the canonical `_PSEUDOAXIS_FAMILY_ID`; the evaluator
-    only checks set-intersection against `pseudoaxis_family_ids`, not
-    the Family's `name`.
+    Family attachment is preserved as scaffolding for the seeded
+    Asset's audit trail; the expander self-gates on `partition_rule
+    is not None` and does not consult Family membership.
     """
     registered = AssetRegistered(
         asset_id=asset_id,
@@ -135,7 +134,6 @@ async def test_expander_passes_through_action_step_unchanged() -> None:
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
     )
 
     assert result == steps
@@ -152,7 +150,6 @@ async def test_expander_passes_through_check_step_unchanged() -> None:
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
     )
 
     assert result == steps
@@ -169,7 +166,6 @@ async def test_expander_passes_through_non_pseudoaxis_setpoint_unchanged() -> No
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
     )
 
     assert result == steps
@@ -191,7 +187,6 @@ async def test_expander_emits_one_constituent_setpoint_for_affine_rewrite() -> N
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
         constituent_resolver=lambda _aid: (_AFFINE_CONSTITUENT_ID,),
     )
 
@@ -220,7 +215,6 @@ async def test_expander_emits_n_constituent_setpoints_for_aggregation_rewrite() 
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
         constituent_resolver=lambda _aid: constituents,
     )
 
@@ -253,7 +247,6 @@ async def test_expander_default_resolver_raises_partition_rule_not_found_error()
             steps,
             event_store=store,
             correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
         )
     assert exc_info.value.asset_id == _AFFINE_ASSET_ID
 
@@ -287,7 +280,6 @@ async def test_expander_rewrites_multiple_pseudoaxis_steps_independently() -> No
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
         constituent_resolver=_resolver,
     )
 
@@ -342,7 +334,6 @@ async def test_expander_preserves_surrounding_steps_between_expansions() -> None
         steps,
         event_store=store,
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=_PSEUDOAXIS_FAMILY_IDS,
         constituent_resolver=_resolver,
     )
 

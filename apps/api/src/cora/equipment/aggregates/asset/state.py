@@ -88,6 +88,7 @@ from uuid import UUID
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._partition_rule import PartitionRule
 from cora.infrastructure.bounded_text import bounded_name, validate_bounded_text
+from cora.infrastructure.identity import ActorId
 
 ASSET_NAME_MAX_LENGTH = 200
 ALTERNATE_IDENTIFIER_VALUE_MAX_LENGTH = 200
@@ -1211,12 +1212,12 @@ class AssetAttachedToDifferentFixtureError(Exception):
 
 
 class AssetCannotUpdatePartitionRuleError(Exception):
-    """Attempted to update the partition rule on an Asset that is not
-    of Family PseudoAxis OR is Decommissioned.
+    """Attempted to update the partition rule on a Decommissioned Asset.
 
     Partition rules are the equipment-property facet that decomposes a
-    virtual-axis command into constituent setpoints; only PseudoAxis
-    Assets carry them. Decommissioned Assets reject all mutations,
+    virtual-axis command into constituent setpoints; any Asset carrying
+    a non-None rule is treated as a virtual axis by the runtime
+    evaluator. Decommissioned Assets reject all mutations,
     including rule updates, to preserve the audit trail of the
     final-state rule that was in effect at decommissioning.
     """
@@ -1395,6 +1396,15 @@ class Asset:
     # cleanly via the additive-state pattern.
     commissioned_at: datetime | None = None
     decommissioned_at: datetime | None = None
+    # Fold-symmetry attribution pair for the commissioned_at /
+    # decommissioned_at PIDINST lifecycle dates per
+    # [[project-fold-symmetry-design]]. `commissioned_by` is folded from
+    # `AssetRegistered.commissioned_by` (the principal that issued the
+    # register_asset command), `decommissioned_by` from
+    # `AssetDecommissioned.decommissioned_by`. Default-None so legacy
+    # streams fold cleanly via the additive-state pattern.
+    commissioned_by: ActorId | None = None
+    decommissioned_by: ActorId | None = None
     # PIDINST v1.0 Property 1 persistent identifier (DOI or Handle).
     # Set-once at the aggregate level per F3.3 Findable immutability:
     # once `assign_asset_persistent_id` lands, no further assign / clear /

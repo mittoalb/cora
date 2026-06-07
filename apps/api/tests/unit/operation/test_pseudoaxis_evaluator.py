@@ -44,7 +44,6 @@ from cora.operation._pseudoaxis_evaluator import (
     resolve_pseudoaxis_command,
 )
 from cora.operation.errors import (
-    AssetNotPseudoAxisError,
     PartitionRuleNotFoundError,
 )
 from tests.unit._helpers import build_deps as _build_deps_shared
@@ -137,22 +136,6 @@ async def _setup_pseudoaxis_asset(
     return asset_id, family_id
 
 
-async def _setup_non_pseudoaxis_asset(deps: Kernel) -> UUID:
-    """Seed an Asset whose Family is NOT named PseudoAxis."""
-    family_id = await _define_family_named(deps, name="LinearStage")
-    asset_id = await register_asset.bind(deps)(
-        RegisterAsset(name="DetectorY", level=AssetLevel.DEVICE, parent_id=_PARENT_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await add_asset_family.bind(deps)(
-        AddAssetFamily(asset_id=asset_id, family_id=family_id),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    return asset_id
-
-
 @pytest.mark.unit
 async def test_resolve_pseudoaxis_command_raises_asset_not_found_on_missing_asset() -> None:
     store = InMemoryEventStore()
@@ -165,34 +148,14 @@ async def test_resolve_pseudoaxis_command_raises_asset_not_found_on_missing_asse
             commanded_value=1.0,
             constituent_asset_ids=(_CONSTITUENT_ID_A,),
             correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=frozenset({_FAMILY_ID}),
         )
-
-
-@pytest.mark.unit
-async def test_resolve_pseudoaxis_command_raises_not_pseudoaxis_on_unrelated_family() -> None:
-    store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
-    _pa_asset_id, _pa_family_id = await _setup_pseudoaxis_asset(deps, rule=None)
-    non_pa_asset_id = await _setup_non_pseudoaxis_asset(deps)
-
-    with pytest.raises(AssetNotPseudoAxisError) as exc_info:
-        await resolve_pseudoaxis_command(
-            event_store=store,
-            asset_id=non_pa_asset_id,
-            commanded_value=1.0,
-            constituent_asset_ids=(_CONSTITUENT_ID_A,),
-            correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=frozenset({_FAMILY_ID}),
-        )
-    assert exc_info.value.asset_id == non_pa_asset_id
 
 
 @pytest.mark.unit
 async def test_resolve_pseudoaxis_command_raises_partition_rule_not_found_when_unset() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id, family_id = await _setup_pseudoaxis_asset(deps, rule=None)
+    asset_id, _family_id = await _setup_pseudoaxis_asset(deps, rule=None)
 
     with pytest.raises(PartitionRuleNotFoundError) as exc_info:
         await resolve_pseudoaxis_command(
@@ -201,7 +164,6 @@ async def test_resolve_pseudoaxis_command_raises_partition_rule_not_found_when_u
             commanded_value=1.0,
             constituent_asset_ids=(_CONSTITUENT_ID_A,),
             correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=frozenset({family_id}),
         )
     assert exc_info.value.asset_id == asset_id
 
@@ -210,7 +172,7 @@ async def test_resolve_pseudoaxis_command_raises_partition_rule_not_found_when_u
 async def test_resolve_pseudoaxis_command_returns_resolved_setpoints_for_affine_rule() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id, family_id = await _setup_pseudoaxis_asset(deps, rule=_AFFINE_RULE)
+    asset_id, _family_id = await _setup_pseudoaxis_asset(deps, rule=_AFFINE_RULE)
 
     resolved = await resolve_pseudoaxis_command(
         event_store=store,
@@ -218,7 +180,6 @@ async def test_resolve_pseudoaxis_command_returns_resolved_setpoints_for_affine_
         commanded_value=3.0,
         constituent_asset_ids=(_CONSTITUENT_ID_A,),
         correlation_id=_CORRELATION_ID,
-        pseudoaxis_family_ids=frozenset({family_id}),
     )
 
     assert isinstance(resolved, ResolvedSetpoints)
@@ -234,7 +195,7 @@ async def test_resolve_pseudoaxis_command_returns_resolved_setpoints_for_affine_
 async def test_resolve_raises_invalid_rule_when_calibration_revision_none() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id, family_id = await _setup_pseudoaxis_asset(deps, rule=_LOOKUP_RULE)
+    asset_id, _family_id = await _setup_pseudoaxis_asset(deps, rule=_LOOKUP_RULE)
 
     with pytest.raises(InvalidPartitionRuleError) as exc_info:
         await resolve_pseudoaxis_command(
@@ -243,7 +204,6 @@ async def test_resolve_raises_invalid_rule_when_calibration_revision_none() -> N
             commanded_value=1.0,
             constituent_asset_ids=(_CONSTITUENT_ID_A,),
             correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=frozenset({family_id}),
             calibration_revision=None,
         )
     assert exc_info.value.sub_code == "calibration_revision_retracted"
@@ -253,7 +213,7 @@ async def test_resolve_raises_invalid_rule_when_calibration_revision_none() -> N
 async def test_resolve_pseudoaxis_command_emits_resolved_log_exactly_once() -> None:
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
-    asset_id, family_id = await _setup_pseudoaxis_asset(deps, rule=_AFFINE_RULE)
+    asset_id, _family_id = await _setup_pseudoaxis_asset(deps, rule=_AFFINE_RULE)
 
     with structlog.testing.capture_logs() as logs:
         await resolve_pseudoaxis_command(
@@ -262,7 +222,6 @@ async def test_resolve_pseudoaxis_command_emits_resolved_log_exactly_once() -> N
             commanded_value=3.0,
             constituent_asset_ids=(_CONSTITUENT_ID_A,),
             correlation_id=_CORRELATION_ID,
-            pseudoaxis_family_ids=frozenset({family_id}),
         )
 
     resolved_events = [e for e in logs if e.get("event") == "pseudoaxis.resolved"]

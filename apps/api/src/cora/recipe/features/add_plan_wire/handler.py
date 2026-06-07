@@ -1,9 +1,10 @@
 """Application handler for the `add_plan_wire` slice.
 
 Update-style handler that loads the Plan stream PLUS the Asset
-streams the proposed wire references PLUS (when the target Asset is a
-PseudoAxis Family member) every SOURCE Asset of existing wires that
-already target the same Asset. Stays longhand for the same reason
+streams the proposed wire references PLUS (when the target Asset
+already has incoming wires) every SOURCE Asset of those existing
+wires so the PseudoAxis fan-out validator can resolve source-port
+signal_types without I/O. Stays longhand for the same reason
 `update_plan_default_parameters` does (6g-b): it loads more than one
 stream, so it can't share a single-stream factory.
 
@@ -16,23 +17,18 @@ only when cached-success-on-retry semantics are needed.
   1. Authorize the principal for the `AddPlanWire` command.
   2. Load the Plan stream and fold to current state.
   3. Load the two Asset streams referenced by the proposed wire
-     (deduped to one load when source_asset_id == target_asset_id).
-     Any reference that resolves to a non-existent Asset stream
-     raises `AssetNotFoundError` (Equipment-BC error, 404), matching
-     `define_plan` and `start_procedure`. The decider's
+     (deduped to one load when source_asset_id == target_asset_id),
+     plus every SOURCE Asset of existing wires that already target
+     the same Asset. Any reference that resolves to a non-existent
+     Asset stream raises `AssetNotFoundError` (Equipment-BC error,
+     404), matching `define_plan` and `start_procedure`. The decider's
      `PlanWireAssetNotBoundError` is retained as defense-in-depth
      for the case where an Asset exists but isn't in `Plan.asset_ids`.
-  4. Resolve PseudoAxis Family membership for the target Asset by
-     loading each Family in `target_asset.family_ids` and matching
-     on `name == "PseudoAxis"` (mirrors the
-     `update_asset_partition_rule` slice handler). The set of
-     PseudoAxis family ids is supplied to the decider via
-     `pseudoaxis_family_ids` so the decider stays pure and tests can
-     bypass the by-name lookup. When the target Asset matches, the
-     handler also pre-loads every SOURCE Asset referenced by existing
-     wires that already target the same Asset, so the fan-out
-     validator can resolve source-port signal_types without I/O.
-  5. Pass state + context + pseudoaxis_family_ids into the pure decider.
+  4. Load the Plan's bound Method so the decider can run the
+     role-endpoint check.
+  5. Pass state + context into the pure decider. PseudoAxis fan-out
+     validation self-gates on `target_asset.partition_rule is not
+     None`; no separate Family-membership lookup is needed.
   6. Persist the resulting events.
 
 Mirrors the loading shape of `update_plan_default_parameters` (one
@@ -41,19 +37,15 @@ the `PlanWireContext` (slice-local) to thread Asset state into the
 decider in a typed way.
 """
 
-import asyncio
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.equipment.aggregates.asset.read import load_asset
-from cora.equipment.aggregates.family.read import load_family
-from cora.equipment.aggregates.family.state import FamilyName
 from cora.infrastructure.event_envelope import to_new_event
 
 if TYPE_CHECKING:
     from cora.equipment.aggregates.asset import Asset
-    from cora.equipment.aggregates.family.state import Family
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
@@ -70,8 +62,6 @@ from cora.recipe.errors import UnauthorizedError
 from cora.recipe.features.add_plan_wire.command import AddPlanWire
 from cora.recipe.features.add_plan_wire.context import PlanWireContext
 from cora.recipe.features.add_plan_wire.decider import decide
-
-_PSEUDOAXIS_FAMILY_NAME = FamilyName("PseudoAxis")
 
 _STREAM_TYPE = "Plan"
 _COMMAND_NAME = "AddPlanWire"
@@ -173,22 +163,6 @@ def bind(deps: Kernel) -> Handler:
                 raise AssetNotFoundError(asset_id)
             assets_by_id[asset_id] = asset
 
-        # Resolve PseudoAxis Family membership for the target Asset by
-        # loading each Family in its family_ids and matching by name.
-        # Mirrors update_asset_partition_rule handler. The decider
-        # takes the resolved id set; tests bypass the load by passing
-        # pseudoaxis_family_ids directly.
-        target_asset = assets_by_id.get(command.target_asset_id)
-        pseudoaxis_family_ids: frozenset[UUID] = frozenset()
-        if target_asset is not None and target_asset.family_ids:
-            family_ids = list(target_asset.family_ids)
-            loaded: list[Family | None] = await asyncio.gather(
-                *[load_family(deps.event_store, fid) for fid in family_ids],
-            )
-            pseudoaxis_family_ids = frozenset(
-                f.id for f in loaded if f is not None and f.name == _PSEUDOAXIS_FAMILY_NAME
-            )
-
         # Load the Plan's bound Method so the decider can run the
         # role-endpoint check (structural closure between role_bindings
         # and wires). When state.method_id is None
@@ -209,7 +183,6 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             context=context,
             now=now,
-            pseudoaxis_family_ids=pseudoaxis_family_ids,
         )
 
         new_events = [

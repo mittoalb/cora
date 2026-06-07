@@ -137,7 +137,6 @@ def _build_conduct_handler(
     *,
     control_port: InMemoryControlPort,
     constituent_map: Mapping[UUID, tuple[UUID, ...]],
-    pseudoaxis_family_ids: frozenset[UUID],
 ) -> conduct_procedure.Handler:
     """Compose conduct_procedure with the same wiring as `wire_operation`
     plus a populated `InMemoryRecipeExpansionPort` so the PseudoAxis
@@ -160,10 +159,7 @@ def _build_conduct_handler(
     def resolver(asset_id: UUID) -> tuple[UUID, ...]:
         return constituent_map[asset_id]
 
-    expansion_port = InMemoryRecipeExpansionPort(
-        pseudoaxis_family_ids=pseudoaxis_family_ids,
-        constituent_resolver=resolver,
-    )
+    expansion_port = InMemoryRecipeExpansionPort(constituent_resolver=resolver)
     return conduct_procedure.bind(deps, conductor=conductor, expansion_port=expansion_port)
 
 
@@ -177,7 +173,7 @@ async def test_conduct_pseudoaxis_setpoint_fans_out_to_two_constituents_postgres
     (
         pseudoaxis_asset_id,
         constituent_ids,
-        family_id,
+        _family_id,
     ) = await _setup_pseudoaxis_asset_with_aggregation(deps, constituent_count=2)
 
     procedure_id = await register_procedure.bind(deps)(
@@ -199,7 +195,6 @@ async def test_conduct_pseudoaxis_setpoint_fans_out_to_two_constituents_postgres
         deps,
         control_port=control_port,
         constituent_map={pseudoaxis_asset_id: constituent_ids},
-        pseudoaxis_family_ids=frozenset({family_id}),
     )
 
     commanded = 10.0
@@ -297,7 +292,6 @@ async def test_conduct_pseudoaxis_setpoint_with_affine_rule_fans_out_to_one_cons
         deps,
         control_port=control_port,
         constituent_map={pseudoaxis_asset_id: (constituent_id,)},
-        pseudoaxis_family_ids=frozenset({family_id}),
     )
 
     commanded = 4.0

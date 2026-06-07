@@ -150,33 +150,6 @@ def test_mcp_update_asset_partition_rule_tool_returns_iserror_for_unknown_asset(
 
 
 @pytest.mark.contract
-def test_mcp_update_asset_partition_rule_tool_returns_iserror_when_not_pseudoaxis() -> None:
-    """Asset without the PseudoAxis Family rejects the update."""
-    with TestClient(create_app()) as client:
-        headers = open_session(client)
-        asset_body = _call_tool(
-            client,
-            headers,
-            call_id=10,
-            name="register_asset",
-            arguments={"name": "ANL", "level": "Enterprise", "parent_id": None},
-        )
-        asset_id = UUID(asset_body["result"]["structuredContent"]["asset_id"])  # type: ignore[index]
-        body = _call_tool(
-            client,
-            headers,
-            call_id=20,
-            name="update_asset_partition_rule",
-            arguments={
-                "asset_id": str(asset_id),
-                "partition_rule": {"kind": "Affine", "gain": 1.0, "offset": 0.0},
-            },
-        )
-    assert body["result"]["isError"] is True  # type: ignore[index]
-    assert "pseudoaxis" in body["result"]["content"][0]["text"].lower()  # type: ignore[index]
-
-
-@pytest.mark.contract
 def test_mcp_update_asset_partition_rule_tool_returns_iserror_on_invalid_rule_shape() -> None:
     """Aggregation Difference + constituent_count != 2 -> InvalidPartitionRuleError."""
     with TestClient(create_app()) as client:

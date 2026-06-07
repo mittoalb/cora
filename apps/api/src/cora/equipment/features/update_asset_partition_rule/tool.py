@@ -34,15 +34,15 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="update_asset_partition_rule",
         description=(
-            "Update a PseudoAxis Asset's partition rule, which decomposes "
-            "an operator-commanded virtual-axis value into setpoints on "
-            "N constituent motor axes. Partition rule is a discriminated "
-            "union of 5 closed shapes (Affine, Aggregation, LookupTable, "
-            "CompositePartition, SolverReference). Pass partition_rule as "
-            "a dict with 'kind' discriminator + kind-specific fields. "
-            "Pass None to clear the rule. The rule must not self-reference "
-            "or nest to another PseudoAxis. Asset must exist and be of "
-            "Family PseudoAxis and not Decommissioned."
+            "Update an Asset's partition rule, which decomposes an "
+            "operator-commanded virtual-axis value into setpoints on N "
+            "constituent motor axes. Any Asset carrying a non-None rule "
+            "is treated as a virtual axis by the runtime evaluator. "
+            "Partition rule is a discriminated union of 5 closed shapes "
+            "(Affine, Aggregation, LookupTable, CompositePartition, "
+            "SolverReference). Pass partition_rule as a dict with 'kind' "
+            "discriminator + kind-specific fields. Pass None to clear the "
+            "rule. Asset must exist and not be Decommissioned."
         ),
     )
     async def update_asset_partition_rule_tool(  # pyright: ignore[reportUnusedFunction]

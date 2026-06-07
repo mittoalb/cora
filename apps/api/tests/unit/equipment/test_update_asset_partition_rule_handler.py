@@ -113,27 +113,6 @@ async def _setup_pseudoaxis_asset(deps: Kernel) -> tuple[UUID, UUID]:
     return asset_id, family_id
 
 
-async def _setup_non_pseudoaxis_asset(deps: Kernel) -> UUID:
-    """Define a Family whose name is NOT `PseudoAxis`, register an Asset,
-    and bind them. Returns the Asset id.
-
-    Consumes the same id-queue slots as `_setup_pseudoaxis_asset`; the
-    test only cares that the Asset carries no PseudoAxis Family.
-    """
-    family_id = await _define_family_named(deps, name="LinearStage")
-    asset_id = await register_asset.bind(deps)(
-        RegisterAsset(name="DetectorY", level=AssetLevel.DEVICE, parent_id=_PARENT_ID),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    await add_asset_family.bind(deps)(
-        AddAssetFamily(asset_id=asset_id, family_id=family_id),
-        principal_id=_PRINCIPAL_ID,
-        correlation_id=_CORRELATION_ID,
-    )
-    return asset_id
-
-
 @pytest.mark.unit
 async def test_handler_returns_none_on_success() -> None:
     store = InMemoryEventStore()
@@ -171,21 +150,6 @@ async def test_handler_appends_partition_rule_updated_event_with_payload() -> No
     assert rule_payload["kind"] == "Affine"
     assert rule_payload["gain"] == 2.0
     assert rule_payload["offset"] == 1.0
-
-
-@pytest.mark.unit
-async def test_handler_raises_cannot_update_when_asset_is_not_pseudoaxis() -> None:
-    store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
-    asset_id = await _setup_non_pseudoaxis_asset(deps)
-
-    with pytest.raises(AssetCannotUpdatePartitionRuleError) as exc_info:
-        await update_asset_partition_rule.bind(deps)(
-            UpdateAssetPartitionRule(asset_id=asset_id, partition_rule=_DEFAULT_RULE),
-            principal_id=_PRINCIPAL_ID,
-            correlation_id=_CORRELATION_ID,
-        )
-    assert exc_info.value.reason == "Asset is not of Family PseudoAxis"
 
 
 @pytest.mark.unit

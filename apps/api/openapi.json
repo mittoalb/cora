@@ -17421,7 +17421,7 @@
     },
     "/assets/{asset_id}/partition-rule": {
       "post": {
-        "description": "Update or clear a PseudoAxis asset's partition rule.\n\nPOST is used (not PATCH) because the rule is a complete typed VO\nreplacement, not a merge patch. Null body clears the rule.\nReturns 200 OK with an empty acknowledgment dict.",
+        "description": "Update or clear an asset's partition rule.\n\nPOST is used (not PATCH) because the rule is a complete typed VO\nreplacement, not a merge patch. Null body clears the rule.\nReturns 200 OK with an empty acknowledgment dict. Any Asset\ncarrying a non-None rule is treated as a virtual axis by the\nruntime evaluator and the Plan-bind fan-out validator.",
         "operationId": "post_asset_partition_rule_assets__asset_id__partition_rule_post",
         "parameters": [
           {
@@ -17519,13 +17519,13 @@
                 }
               }
             },
-            "description": "Asset is not of Family PseudoAxis or is Decommissioned, OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
+            "description": "Asset is Decommissioned (immutable once retired), OR a concurrent write to the same asset stream conflicted (optimistic concurrency)."
           },
           "422": {
             "description": "Request body failed schema validation (unknown partition rule kind, missing required field for kind, malformed UUID, etc.)."
           }
         },
-        "summary": "Update or clear a PseudoAxis asset's partition rule",
+        "summary": "Update or clear an asset's partition rule",
         "tags": [
           "equipment"
         ]

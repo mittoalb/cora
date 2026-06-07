@@ -11,11 +11,7 @@ The decider:
   - Self-reference and nesting checks are currently structural no-ops
     at the decider tier (current PartitionRule shapes do NOT carry
     constituent_asset_ids directly; they are inferred from Asset.ports
-    at runtime-evaluator time). The handler tier is responsible for
-    cross-aggregate validation (Asset-of-Family-PseudoAxis,
-    constituent-existence, constituent-Family-membership) per the
-    cross-aggregate-validating-create pattern; the decider stays pure
-    and operates only on what is on Asset state itself
+    at runtime-evaluator time)
   - No-ops (returns []) if the new rule equals the current rule
     (idempotent re-submission, no audit value)
   - Otherwise emits AssetPartitionRuleUpdated(asset_id, partition_rule,
@@ -27,13 +23,10 @@ replay: the first AssetPartitionRuleUpdated event on a stream with
 non-None partition_rule is the genesis. Mirrors AssetSettingsUpdated
 precedent (one event covers set + update + clear).
 
-The handler is responsible for:
-  1. Loading the Asset's Family membership to verify it is PseudoAxis
-  2. If the rule is non-None, loading each constituent_asset_id (if the
-     rule shape carries them) to verify they exist and are not themselves
-     of Family PseudoAxis (nesting prevention)
-  3. If the rule is a LookupTable, loading the Calibration revision to
-     verify it exists and is not retracted
+The slice is self-gating on `Asset.partition_rule` presence: any
+Asset that has had a rule set (or is being given one) is a virtual
+axis. The earlier Family-membership gate is removed, see the
+[[project_pseudoaxis_design]] supersession note.
 
 The decider stays pure: no I/O, no aggregate boundary crossing.
 """

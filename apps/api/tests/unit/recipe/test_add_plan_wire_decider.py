@@ -649,7 +649,6 @@ def test_decide_raises_pseudoaxis_arity_mismatch_when_wire_count_exceeds_rule() 
                 }
             ),
             now=_NOW,
-            pseudoaxis_family_ids=frozenset({pseudoaxis_family_id}),
         )
     assert exc_info.value.pseudoaxis_asset_id == tgt_id
     assert exc_info.value.expected_constituent_count == 1
@@ -709,7 +708,6 @@ def test_decide_raises_pseudoaxis_fanout_signal_type_mismatch_on_mixed_sources()
                 }
             ),
             now=_NOW,
-            pseudoaxis_family_ids=frozenset({pseudoaxis_family_id}),
         )
     assert exc_info.value.pseudoaxis_asset_id == tgt_id
     assert exc_info.value.signal_types == frozenset({"mm", "deg"})
@@ -751,7 +749,6 @@ def test_decide_raises_pseudoaxis_output_cardinality_when_target_has_no_output_p
                 }
             ),
             now=_NOW,
-            pseudoaxis_family_ids=frozenset({pseudoaxis_family_id}),
         )
     assert exc_info.value.pseudoaxis_asset_id == tgt_id
     assert exc_info.value.output_port_count == 2

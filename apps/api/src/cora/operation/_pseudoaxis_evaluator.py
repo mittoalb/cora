@@ -1,29 +1,29 @@
 """Runtime evaluator that resolves a PseudoAxis virtual-axis command.
 
-Loads the target Asset, verifies it is of Family PseudoAxis and carries
-a partition rule, dispatches on the rule's kind, returns the resolved
-constituent setpoints with timing + correlation evidence. The caller
+Loads the target Asset, verifies it carries a partition rule,
+dispatches on the rule's kind, returns the resolved constituent
+setpoints with timing + correlation evidence. The caller
 (pre-Conductor expansion) is responsible for the constituent Surface
 authz sweep and the sequential ControlPort dispatch loop; this module
 is the math + load step only.
 
 Pure function from `(event_store, asset_id, commanded_value,
-constituent_asset_ids, correlation_id, calibration_revision,
-pseudoaxis_family_ids)` to a `ResolvedSetpoints` record, modulo the
-event-store I/O for the Asset load and the one structlog emission at
-the end. No business-logic state survives across commands per the
+constituent_asset_ids, correlation_id, calibration_revision)` to a
+`ResolvedSetpoints` record, modulo the event-store I/O for the
+Asset load and the one structlog emission at the end. No
+business-logic state survives across commands per the
 non-determinism principle: the evaluator reloads the Asset on every
 invocation.
 
-`pseudoaxis_family_ids` is supplied by the caller so this module does
-not have to spin up a Family-by-name lookup; the wiring layer
-resolves the canonical PseudoAxis Family at startup and threads the
-id set through. `calibration_revision` is supplied by the caller for
-the LookupTable arm and may be None for every other rule kind;
-LookupTable + None raises `InvalidPartitionRuleError(sub_code=
+`calibration_revision` is supplied by the caller for the LookupTable
+arm and may be None for every other rule kind; LookupTable + None
+raises `InvalidPartitionRuleError(sub_code=
 "calibration_revision_retracted")` per the memo lock.
 
-See [[project-pseudoaxis-design]] v3 step 1 + step 2 + step 4.
+Self-gated on `Asset.partition_rule is not None`: any Asset that has
+had a rule set is a virtual axis. The earlier Family-membership
+guard is removed, see the [[project_pseudoaxis_design]] supersession
+note.
 """
 
 from __future__ import annotations
@@ -52,7 +52,6 @@ from cora.operation._partition_rule_eval import (
     eval_solver_reference,
 )
 from cora.operation.errors import (
-    AssetNotPseudoAxisError,
     PartitionRuleNotFoundError,
     PseudoAxisEvaluationFailedError,
 )
@@ -99,7 +98,6 @@ async def resolve_pseudoaxis_command(
     commanded_value: float,
     constituent_asset_ids: tuple[UUID, ...],
     correlation_id: UUID,
-    pseudoaxis_family_ids: frozenset[UUID],
     calibration_revision: object | None = None,
 ) -> ResolvedSetpoints:
     """Resolve a PseudoAxis virtual-axis command into constituent setpoints.
@@ -108,21 +106,19 @@ async def resolve_pseudoaxis_command(
 
       1. Load the target Asset; raise `AssetNotFoundError` if the
          stream is empty.
-      2. Verify the Asset's `family_ids` intersects the caller-supplied
-         `pseudoaxis_family_ids`; raise `AssetNotPseudoAxisError`
-         otherwise (routing bug from the caller's side).
-      3. Verify `state.partition_rule is not None`; raise
-         `PartitionRuleNotFoundError` otherwise (PseudoAxis Asset
-         exists but the operating math has not been set).
-      4. Dispatch on `type(state.partition_rule)` into the matching
+      2. Verify `state.partition_rule is not None`; raise
+         `PartitionRuleNotFoundError` otherwise (the Asset exists but
+         the operating math has not been set, so it does not behave
+         as a virtual axis).
+      3. Dispatch on `type(state.partition_rule)` into the matching
          pure evaluator in `_partition_rule_eval`. For `LookupTable`,
          pass `calibration_revision` through; for `SolverReference`,
          apply the singularity-threshold guard via
          `check_solver_residual`.
-      5. Emit one `pseudoaxis.resolved` structured-log event with the
+      4. Emit one `pseudoaxis.resolved` structured-log event with the
          rule kind, the resolved setpoints, the latency, the
          correlation id, and the residual.
-      6. Return a `ResolvedSetpoints` record.
+      5. Return a `ResolvedSetpoints` record.
 
     `constituent_asset_ids` is supplied by the caller (loaded from
     the rule + Asset wiring at command-acceptance time) so this
@@ -135,9 +131,6 @@ async def resolve_pseudoaxis_command(
     asset = await load_asset(event_store, asset_id)
     if asset is None:
         raise AssetNotFoundError(asset_id)
-
-    if asset.family_ids.isdisjoint(pseudoaxis_family_ids):
-        raise AssetNotPseudoAxisError(asset_id)
 
     rule = asset.partition_rule
     if rule is None:

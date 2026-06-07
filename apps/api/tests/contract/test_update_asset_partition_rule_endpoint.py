@@ -129,21 +129,6 @@ def test_post_partition_rule_returns_404_for_missing_asset() -> None:
 
 
 @pytest.mark.contract
-def test_post_partition_rule_returns_409_when_asset_is_not_pseudoaxis() -> None:
-    """Asset without a PseudoAxis Family rejects with 409 at handler tier."""
-    with TestClient(create_app()) as client:
-        asset_id = _register_asset(client)
-        response = client.post(
-            f"/assets/{asset_id}/partition-rule",
-            json={
-                "partition_rule": {"kind": "Affine", "gain": 1.0, "offset": 0.0},
-            },
-        )
-    assert response.status_code == 409
-    assert "not of Family PseudoAxis" in response.json()["detail"]
-
-
-@pytest.mark.contract
 def test_post_partition_rule_returns_409_when_asset_is_decommissioned() -> None:
     """Decommissioned PseudoAxis Asset rejects partition rule updates."""
     with TestClient(create_app()) as client:

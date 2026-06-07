@@ -166,7 +166,6 @@ async def expand_pseudoaxis_steps(
     *,
     event_store: EventStore,
     correlation_id: UUID,
-    pseudoaxis_family_ids: frozenset[UUID],
     constituent_resolver: ConstituentResolver = _default_constituent_resolver,
 ) -> tuple[Step, ...]:
     """Rewrite PseudoAxis SetpointSteps into N sequential constituent setpoints.
@@ -194,11 +193,6 @@ async def expand_pseudoaxis_steps(
     a pure rewrite over Step VOs modulo the event-store I/O the
     evaluator performs (Asset load) and the resolver call.
 
-    `pseudoaxis_family_ids` is threaded into `resolve_pseudoaxis_command`
-    so the evaluator can verify the resolved Asset's `family_ids`
-    intersects the configured PseudoAxis Family id set; the wiring layer
-    supplies the canonical PseudoAxis Family id at startup.
-
     Errors raised by the evaluator propagate unchanged so the
     routes-layer status-code mapping surfaces the right HTTP semantics
     (409 for routing / data-substrate gaps, 422 for evaluator-input
@@ -217,7 +211,6 @@ async def expand_pseudoaxis_steps(
                 commanded_value=commanded,
                 constituent_asset_ids=constituent_asset_ids,
                 correlation_id=correlation_id,
-                pseudoaxis_family_ids=pseudoaxis_family_ids,
             )
             for constituent_id, value in zip(
                 resolved.constituent_asset_ids,

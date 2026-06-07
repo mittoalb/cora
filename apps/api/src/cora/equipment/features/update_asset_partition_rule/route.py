@@ -252,7 +252,7 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Asset is not of Family PseudoAxis or is Decommissioned, "
+                "Asset is Decommissioned (immutable once retired), "
                 "OR a concurrent write to the same asset stream conflicted "
                 "(optimistic concurrency)."
             ),
@@ -264,7 +264,7 @@ router = APIRouter(tags=["equipment"])
             ),
         },
     },
-    summary="Update or clear a PseudoAxis asset's partition rule",
+    summary="Update or clear an asset's partition rule",
 )
 async def post_asset_partition_rule(
     asset_id: Annotated[UUID, Path(description="Target asset's id.")],
@@ -274,11 +274,13 @@ async def post_asset_partition_rule(
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> dict[str, str]:
-    """Update or clear a PseudoAxis asset's partition rule.
+    """Update or clear an asset's partition rule.
 
     POST is used (not PATCH) because the rule is a complete typed VO
     replacement, not a merge patch. Null body clears the rule.
-    Returns 200 OK with an empty acknowledgment dict.
+    Returns 200 OK with an empty acknowledgment dict. Any Asset
+    carrying a non-None rule is treated as a virtual axis by the
+    runtime evaluator and the Plan-bind fan-out validator.
     """
     # Convert Pydantic body to frozen-dataclass union.
     # InvalidPartitionRuleError from _to_partition_rule (raised by
