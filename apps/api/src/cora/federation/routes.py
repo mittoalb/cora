@@ -36,6 +36,13 @@ from cora.federation.aggregates.credential.state import (
     CredentialNotFoundError,
     InvalidCredentialSecretRefError,
 )
+from cora.federation.aggregates.facility import (
+    FacilityAlreadyExistsError,
+    FacilityAreaCannotHaveTrustAnchorsError,
+    FacilityAreaMustHaveParentError,
+    FacilitySiteCannotHaveParentError,
+    InvalidFacilityNameError,
+)
 from cora.federation.aggregates.permit.state import (
     InvalidPermitScopeError,
     PermitAlreadyExistsError,
@@ -78,6 +85,7 @@ from cora.federation.features import (
     list_permits,
     list_seals,
     register_credential,
+    register_facility,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -166,6 +174,7 @@ def register_federation_routes(app: FastAPI) -> None:
     app.include_router(rotate_seal_online_key.router)
     app.include_router(start_seal_republishing.router)
     app.include_router(complete_seal_republishing.router)
+    app.include_router(register_facility.router)
     app.include_router(list_permits.router)
     app.include_router(get_permit.router)
     app.include_router(list_credentials.router)
@@ -175,6 +184,7 @@ def register_federation_routes(app: FastAPI) -> None:
     for validation_cls in (
         InvalidPermitScopeError,
         InvalidCredentialSecretRefError,
+        InvalidFacilityNameError,
         InvalidSealFacilityIdError,
         InvalidSealHeadHashError,
     ):
@@ -183,6 +193,9 @@ def register_federation_routes(app: FastAPI) -> None:
         PermitScopeCollapseError,
         UnsupportedCanonicalizationVersionError,
         CredentialExpiredError,
+        FacilitySiteCannotHaveParentError,
+        FacilityAreaMustHaveParentError,
+        FacilityAreaCannotHaveTrustAnchorsError,
         SealKeyCollisionError,
         SealKeyPurposeMismatchError,
         SealSequenceNumberRegressionError,
@@ -197,6 +210,7 @@ def register_federation_routes(app: FastAPI) -> None:
     for already_exists_cls in (
         PermitAlreadyExistsError,
         CredentialAlreadyExistsError,
+        FacilityAlreadyExistsError,
         SealAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)

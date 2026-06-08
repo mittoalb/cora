@@ -30,20 +30,16 @@ from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 # cleaned up in a follow-up. Each entry MUST have a comment.
 # Empty each entry as the slice ships / drift is fixed.
 WIP_ERRORS: dict[str, frozenset[str]] = {
-    # Facility aggregate scaffolding lands in Session 5 Slice 5 Sub-Slice A
-    # (additive aggregate; no routes wired). The register_facility +
-    # decommission_facility slices in Sub-Slices B + C wire the
-    # exception handlers; these errors graduate off the WIP list when
-    # Sub-Slice C lands. Per project_facility_aggregate_design.
+    # FacilityNotFoundError + FacilityCannotDecommissionError ship with
+    # the decommission_facility slice in Session 5 Slice 5 Sub-Slice C.
+    # The Sub-Slice B register_facility wiring already registered the
+    # other 5 Facility error classes (Already-exists, Site-cannot-have-
+    # parent, Area-must-have-parent, Area-cannot-have-trust-anchors,
+    # InvalidFacilityName). Per project_facility_aggregate_design.
     "federation": frozenset(
         {
-            "FacilityAlreadyExistsError",
-            "FacilityAreaCannotHaveTrustAnchorsError",
-            "FacilityAreaMustHaveParentError",
             "FacilityCannotDecommissionError",
             "FacilityNotFoundError",
-            "FacilitySiteCannotHaveParentError",
-            "InvalidFacilityNameError",
         }
     ),
 }

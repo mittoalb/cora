@@ -5603,6 +5603,15 @@
         "title": "ExtrapolationKind",
         "type": "string"
       },
+      "FacilityKind": {
+        "description": "The structural tier of a Facility row.\n\nDay-one closed at two arms per [[project_structural_scope_design]]:\n\n  - `Site`: ISA-95 Site (the physical research facility). Only kind\n    that holds `trust_anchor_credential_ids`; only kind whose\n    `parent_id` may be None.\n  - `Area`: ISA-95 Area (an experimental hall or building within a\n    Site). Always has a non-null `parent_id`; trust\n    anchors stay empty (Area inherits via parent chain).\n\nWidening triggers (deferred per locked design):\n\n  - `Institution` (ISA-95 Enterprise): promote to a SEPARATE\n    `Organization` aggregate with ROR-identifier semantics when\n    Argonne-owns-APS-and-CNM becomes operationally relevant. Do\n    NOT widen `FacilityKind` to add Institution.\n  - `Sector`: APS-local; map to `kind=Area` until a second facility\n    brings an intermediate vocabulary that doesn't fit Area.",
+        "enum": [
+          "Site",
+          "Area"
+        ],
+        "title": "FacilityKind",
+        "type": "string"
+      },
       "FamilyListResponse": {
         "description": "Page of families plus opaque next-page cursor.",
         "properties": {
@@ -9866,6 +9875,100 @@
           "decision_id"
         ],
         "title": "RegisterDecisionResponse",
+        "type": "object"
+      },
+      "RegisterFacilityAlternateIdentifierBody": {
+        "additionalProperties": false,
+        "description": "Wire format for one `AlternateIdentifier` value object on the request body.",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AlternateIdentifierKind",
+            "description": "Closed PIDINST v1.0 Property 13 vocabulary: SerialNumber (manufacturer per-unit identifier), InventoryNumber (facility asset tag), or Other (vendor-specific or unconventional scheme)."
+          },
+          "value": {
+            "description": "Operator-supplied opaque string identifying the Facility under the given scheme. Trimmed at the domain boundary.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "RegisterFacilityAlternateIdentifierBody",
+        "type": "object"
+      },
+      "RegisterFacilityRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/facilities`.",
+        "properties": {
+          "alternate_identifiers": {
+            "description": "Optional day-one PIDINST alternate-identifier seed (Property 13). Defaults to empty. Add/remove slices are deferred.",
+            "items": {
+              "$ref": "#/components/schemas/RegisterFacilityAlternateIdentifierBody"
+            },
+            "title": "Alternate Identifiers",
+            "type": "array"
+          },
+          "code": {
+            "description": "Cross-deployment convergent facility slug (lowercase ASCII alphanumeric and dash, 1-32 chars). Used to derive the deterministic Facility stream id; immutable post-genesis.",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "display_name": {
+            "description": "Operator-supplied display string, trimmed and bounded 1-200 chars at the domain boundary.",
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FacilityKind",
+            "description": "Closed enum: Site (ISA-95 Site; physical research facility) or Area (ISA-95 Area; experimental hall or building within a Site)."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Parent Facility id. MUST be omitted for kind=Site. MUST be provided for kind=Area. Cross-stream existence and parent-kind=Site validation are deferred to a future slice.",
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "code",
+          "display_name",
+          "kind"
+        ],
+        "title": "RegisterFacilityRequest",
+        "type": "object"
+      },
+      "RegisterFacilityResponse": {
+        "description": "Response body for `POST /federation/facilities`.\n\nCarries BOTH identity tiers per the two-tier identity contract:\n\n  - `facility_id`: opaque UUID for spine references within this\n    deployment.\n  - `code`: cross-deployment convergent slug. Clients SHOULD prefer\n    this for any cross-BC or cross-deployment reference.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "facility_id": {
+            "format": "uuid",
+            "title": "Facility Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_id",
+          "code"
+        ],
+        "title": "RegisterFacilityResponse",
         "type": "object"
       },
       "RegisterFixtureRequest": {
@@ -24773,6 +24876,106 @@
           }
         },
         "summary": "Start a rotation against an Active credential (Active -> Rotating)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/facilities": {
+      "post": {
+        "operationId": "post_federation_facilities_federation_facilities_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Facility.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of writing a duplicate Facility.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterFacilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterFacilityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A Facility with the supplied code already exists. The deterministic stream-id derivation enforces code uniqueness at the live path; codes are immutable post-creation and may not be reused for a new facility after decommissioning."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body failed schema validation (missing field, invalid enum value, code violating the alphanumeric+dash pattern, display_name empty after trim, alternate_identifier kind out of closed enum, OR structural Facility invariant violated (Site has non-null parent_id, Area has null parent_id)), OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Register a new federation Facility (single-stream genesis)",
         "tags": [
           "federation"
         ]

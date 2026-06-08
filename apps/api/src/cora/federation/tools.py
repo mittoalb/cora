@@ -37,6 +37,7 @@ from cora.federation.features.list_seals import tool as list_seals_tool
 from cora.federation.features.register_credential import (
     tool as register_credential_tool,
 )
+from cora.federation.features.register_facility import tool as register_facility_tool
 from cora.federation.features.resume_permit import tool as resume_permit_tool
 from cora.federation.features.revoke_credential import tool as revoke_credential_tool
 from cora.federation.features.revoke_permit import tool as revoke_permit_tool
@@ -121,6 +122,10 @@ def register_federation_tools(
     complete_seal_republishing_tool.register(
         mcp,
         get_handler=lambda: get_handlers().complete_seal_republishing,
+    )
+    register_facility_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_facility,
     )
     list_permits_tool.register(
         mcp,

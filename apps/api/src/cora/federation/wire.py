@@ -50,6 +50,7 @@ from cora.federation.features import (
     list_permits,
     list_seals,
     register_credential,
+    register_facility,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -91,6 +92,7 @@ class FederationHandlers:
     rotate_seal_online_key: rotate_seal_online_key.Handler
     start_seal_republishing: start_seal_republishing.Handler
     complete_seal_republishing: complete_seal_republishing.Handler
+    register_facility: register_facility.IdempotentHandler
     list_permits: list_permits.Handler
     get_permit: get_permit.Handler
     list_credentials: list_credentials.Handler
@@ -196,6 +198,18 @@ def wire_federation(deps: Kernel) -> FederationHandlers:
         complete_seal_republishing=with_tracing(
             complete_seal_republishing.bind(deps),
             command_name="CompleteSealRepublishing",
+            bc=_BC,
+        ),
+        register_facility=with_tracing(
+            with_idempotency(
+                register_facility.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterFacility",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterFacility",
             bc=_BC,
         ),
         list_permits=with_tracing(

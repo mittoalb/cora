@@ -170,6 +170,22 @@ class Settings(BaseSettings):
     # malformed config fails fast, not on first auth attempt.
     identity_providers: list[IdentityProviderConfig] = []
 
+    # Federation BC — self-Facility identity (Session 5 Slice 5)
+    # `self_facility_code` is the cross-deployment convergent slug for
+    # THIS deployment's own Facility row, seeded at lifespan startup by
+    # `bootstrap_federation` per [[project_facility_aggregate_design]].
+    # The value is consumed by `FacilityCode(...)` at startup; any
+    # violation of the alphanumeric-and-dash 1-32-char pattern raises
+    # `InvalidFacilityCodeError` and fails the lifespan fast.
+    #
+    # Default `"cora"` matches the existing `facility_publisher: str = "CORA"`
+    # placeholder convention; production deployments override with the
+    # actual facility slug (for example `aps`, `maxiv`, `nsls2`) via
+    # the `SELF_FACILITY_CODE` env var. Two CORA deployments that both
+    # leave the default in place WILL collide on the same code when
+    # federating, so production sets this without exception.
+    self_facility_code: str = "cora"
+
     # Equipment BC — PIDINST integration (slice E.1)
     # `facility_publisher` is the institutional `publisher` field emitted
     # on every PIDINST record produced by `GET /assets/{asset_id}/pidinst`

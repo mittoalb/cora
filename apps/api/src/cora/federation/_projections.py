@@ -15,10 +15,13 @@ read models, one per aggregate:
   - `SealSummaryProjection`       -> `proj_federation_seal_summary`
     (SealInitialized / SealPointerSigned / SealOnlineKeyRotated /
     SealRepublishingStarted / SealRepublishingCompleted)
+  - `FacilitySummaryProjection`   -> `proj_federation_facility_summary`
+    (FacilityRegistered / FacilityDecommissioned)
 """
 
 from cora.federation.projections import (
     CredentialSummaryProjection,
+    FacilitySummaryProjection,
     PermitSummaryProjection,
     SealSummaryProjection,
 )
@@ -35,6 +38,7 @@ def register_federation_projections(
     registry.register(PermitSummaryProjection())
     registry.register(CredentialSummaryProjection())
     registry.register(SealSummaryProjection())
+    registry.register(FacilitySummaryProjection())
 
 
 __all__ = ["register_federation_projections"]

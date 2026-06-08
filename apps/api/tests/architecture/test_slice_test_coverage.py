@@ -118,6 +118,13 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
         "cora.equipment.features.update_mount_placement",
+        # register_facility (Session 5 Slice 5 Sub-Slice B): REST contract
+        # test deferred to a follow-up commit. Sub-Slice B ships the
+        # decider + handler unit tests + projection-metadata pin; the
+        # OpenAPI snapshot locks the wire shape. Backfill the dedicated
+        # endpoint contract test alongside register_facility's first
+        # integration test or after Sub-Slice C ships decommission_facility.
+        "cora.federation.features.register_facility",
     }
 )
 
@@ -157,6 +164,9 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
         "cora.equipment.features.update_mount_placement",
+        # register_facility (Session 5 Slice 5 Sub-Slice B): MCP contract
+        # test deferred alongside the REST contract test. Same rationale.
+        "cora.federation.features.register_facility",
     }
 )
 
@@ -192,6 +202,14 @@ EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
         "cora.equipment.features.register_frame",
         # register_mount: same deferral.
         "cora.equipment.features.register_mount",
+        # register_facility (Session 5 Slice 5 Sub-Slice B): integration
+        # test deferred to a follow-up commit. Decider + handler unit
+        # tests + projection apply tests + OpenAPI snapshot cover the
+        # behavior surface; the integration tier locks event-store
+        # version sequencing + projection apply against real Postgres.
+        # Backfill alongside Sub-Slice C's decommission_facility or
+        # after Sub-Slice D lands the bootstrap.
+        "cora.federation.features.register_facility",
     }
 )
 
