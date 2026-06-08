@@ -123,6 +123,20 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        controller_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional reference to the controller Asset (a "
+                    "sibling Device carrying the MotionController "
+                    "Family) that drives this Asset. Set ONCE at "
+                    "registration; rebind path is decommission + "
+                    "re-register. Eventual-consistency: the "
+                    "controller's existence is NOT verified."
+                ),
+            ),
+        ] = None,
     ) -> RegisterAssetOutput:
         handler = get_handler()
         asset_id = await handler(
@@ -136,6 +150,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                     entry.to_domain() for entry in (alternate_identifiers or [])
                 ),
                 owners=frozenset(entry.to_domain() for entry in (owners or [])),
+                controller_id=controller_id,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

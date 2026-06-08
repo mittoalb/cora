@@ -167,6 +167,17 @@ class AssetRegistered:
     owners; PIDINST 1-n MANDATORY cardinality is enforced at the
     serializer boundary, not here. See
     [[project-asset-owner-design]] Locks 1, 7, 11.
+
+    `controller_id` is an optional reference to the controller Asset
+    (a sibling Device carrying the MotionController Family) that
+    drives this Asset. Set at registration per the
+    [[project-controller-as-asset-stage1-design]] memo (Lock A
+    precedent from model_id); rebind path is decommission + re-
+    register. Defaults to None so legacy AssetRegistered streams
+    without the field fold cleanly via the additive-payload pattern;
+    `to_payload` uses the omit-when-None convention (key absent
+    rather than serialized as JSON null) to mirror the `drawing` /
+    `model_id` precedents.
     """
 
     asset_id: UUID
@@ -185,6 +196,7 @@ class AssetRegistered:
         default_factory=frozenset[AlternateIdentifier]
     )
     owners: frozenset[AssetOwner] = field(default_factory=frozenset[AssetOwner])
+    controller_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -636,6 +648,7 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
             model_id=model_id,
             alternate_identifiers=alternate_identifiers,
             owners=owners,
+            controller_id=controller_id,
         ):
             payload: dict[str, Any] = {
                 "asset_id": str(asset_id),
@@ -653,6 +666,14 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 }
             if model_id is not None:
                 payload["model_id"] = str(model_id)
+            if controller_id is not None:
+                # Omit-when-None mirroring the model_id / drawing
+                # precedent: legacy AssetRegistered streams (pre-
+                # controller-as-Asset slice) had no `controller_id`
+                # key; preserve that wire shape so existing readers
+                # cannot observe a JSON null where the key was
+                # previously absent.
+                payload["controller_id"] = str(controller_id)
             if alternate_identifiers:
                 # Omit-when-empty: legacy AssetRegistered shape had no
                 # `alternate_identifiers` key; preserve that wire shape
@@ -902,6 +923,8 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                 )
                 raw_model_id = payload.get("model_id")
                 model_id = UUID(raw_model_id) if raw_model_id is not None else None
+                raw_controller_id = payload.get("controller_id")
+                controller_id = UUID(raw_controller_id) if raw_controller_id is not None else None
                 raw_alt_ids = payload.get("alternate_identifiers", [])
                 alternate_identifiers = frozenset(
                     AlternateIdentifier(
@@ -923,6 +946,7 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     model_id=model_id,
                     alternate_identifiers=alternate_identifiers,
                     owners=owners,
+                    controller_id=controller_id,
                 )
 
             return deserialize_or_raise(

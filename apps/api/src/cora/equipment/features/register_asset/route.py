@@ -108,6 +108,17 @@ class RegisterAssetRequest(BaseModel):
             "1-n cardinality at emission time."
         ),
     )
+    controller_id: UUID | None = Field(
+        None,
+        description=(
+            "Optional reference to the controller Asset (a sibling "
+            "Device carrying the MotionController Family) that drives "
+            "this Asset. Set ONCE at registration; rebind path is "
+            "decommission + re-register (matches the operational "
+            "semantics of a physical controller swap). Eventual-"
+            "consistency: the controller's existence is NOT verified."
+        ),
+    )
 
 
 class RegisterAssetResponse(BaseModel):
@@ -198,6 +209,7 @@ async def post_assets(
                 entry.to_domain() for entry in (body.alternate_identifiers or [])
             ),
             owners=frozenset(entry.to_domain() for entry in (body.owners or [])),
+            controller_id=body.controller_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,

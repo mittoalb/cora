@@ -11,7 +11,8 @@ The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset r
 | Asset | Level | Family | Parent |
 | --- | --- | --- | --- |
 | `Shutter_2BM` | `Device` | `Shutter` | `2-BM` |
-| `Aerotech_ABRS_rotary` | `Device` | `RotaryStage` | `2-BM` |
+| `Aerotech_Ensemble_drive` | `Device` | `MotionController` | `2-BM` |
+| `Aerotech_ABRS_rotary` | `Device` | `RotaryStage` | `2-BM` (driven by `Aerotech_Ensemble_drive`) |
 | `Sample_top_X` | `Device` | `LinearStage` | `2-BM` |
 | `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` |
 | `Sample_top_Roll` | `Device` | `PseudoAxis` | `2-BM` |
@@ -33,6 +34,7 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 | Family | Affordances |
 | --- | --- |
 | `Shutter` | `Shutterable` |
+| `MotionController` | (empty at v1; controllers expose configuration + firmware identity through `settings` rather than command-tier affordances) |
 | `RotaryStage` | `Rotatable`, `Homeable`, `Limitable`, `Following`, `Marking` |
 | `LinearStage` | `Translatable`, `Homeable`, `Limitable`, `Following` |
 | `Hexapod` | `Posable`, `Homeable`, `Limitable` |
@@ -44,6 +46,8 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 
 `Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface). `ImagingDetector` and `PseudoAxis` are presenter / facet Families: they carry no affordances, but Methods bind against them via `needed_family_ids` (for `ImagingDetector` the Assembly's `presents_as_family_id` is the satisfaction handle; for `PseudoAxis` the Family membership is the gate that lets an Asset carry a `partition_rule`).
 
+`MotionController` is the first separately-modelled drive-electronics Family. v1 ships empty affordances by design: the meaningful state on a controller is configuration (firmware version, IP address, axis count, protocol) and identity (serial number), captured in `settings` and `alternate_identifiers`. Command-tier affordances (firmware-update, reboot, sync-output toggling) are deferred until an operator-side Procedure demands them, at which point they grow on the existing add-only affordance amendment path.
+
 ## Vendor catalog (Models)
 
 Per-Asset Model bindings carry the vendor identity that PIDINST Property 6 (Manufacturer) and Property 7 (Model) need. Assets bind to a Model at registration; the Asset's Family set must be a subset of the Model's declared families. The four MCTOptics-housing Models (lens turret motor, Mitutoyo MPLAPO objective kit, FLIR Oryx camera, Crytur LuAG scintillator) live on the [MCTOptics deployment](equipment/mctoptics.md#vendor-catalog-models) page; the table below tracks Models bound to non-MCTOptics 2-BM Assets.
@@ -52,12 +56,13 @@ Per-Asset Model bindings carry the vendor identity that PIDINST Property 6 (Manu
 | --- | --- | --- | --- | --- |
 | `aerotech_hexgen_hex300_230hl` | Aerotech | `HEX300-230HL-E1-PL4-TAS` | `Hexapod` | `Hexapod_2BM` |
 | `aerotech_abs250mp_m_as` | Aerotech | `ABS250MP-M-AS` | `RotaryStage` | `Aerotech_ABRS_rotary` |
+| `aerotech_ensemble_hle10_40_a_mxh` | Aerotech | `HLE10-40-A-MXH` | `MotionController` | `Aerotech_Ensemble_drive` |
 | `aerotech_pro225sl_1000` | Aerotech | `PRO225SL-1000` | `LinearStage` | `Optique_Peter_focus_Z` |
 | `kohzu_cyat_070` | Kohzu | `CYAT-070` | `LinearStage` | `Sample_top_X`, `Sample_top_Z` |
 
 Part-number suffix conventions vary by vendor: Aerotech's `HEX300-230HL-E1-PL4-TAS` encodes operationally significant variants (`-E1` incremental encoder, `-PL4` ultra-high-accuracy preload, `-TAS` thermal-actively-stabilized); `ABS250MP-M-AS` follows the same pattern (`-M` mid-precision class, `-AS` air-bearing series); `PRO225SL-1000` carries the `-1000` mm travel suffix natively. v1 stores the full type designation as a single `part_number` string; the catalog convention upgrades to suffix decomposition at the second case where a suffix axis crosses Model boundaries (rule-of-three), or at the first APS imaging stage+drive registration, whichever fires first.
 
-The Aerotech Ensemble HLE10-40-A-MXH drive box (companion to `aerotech_hexgen_hex300_230hl`) and the OMS-VME58 boxes (companions to the Kohzu stages) are intentionally not modelled as separate Assets in v1; whether controllers earn first-class Asset status is tracked in `project_controller_as_asset_research` (Stage-0 seed, deferred-with-trigger).
+The Aerotech Ensemble HLE10-40-A-MXH (companion drive for `aerotech_abs250mp_m_as`) IS now modelled as a separate Asset (`Aerotech_Ensemble_drive`) at the Device level under 2-BM, with `Aerotech_ABRS_rotary.controller_id` carrying the back-reference. This is the FIRST `MotionController` Asset shipped, anchoring the controller-as-Asset slice on the unambiguously-identified rotary drive per `project_controller_as_asset_stage1_design`. The other 6 controller hardware classes at 2-BM (OMS-VME58 at 2bma, OMS-VME58 at 2bmb, the integrated Aerotech HexGen controller driving `Hexapod_2BM`, the Aerotech `2bmbAERO` IOC, the Nanotec ST4118 stepper inside Optique Peter, and the Schunk LPTM 30 inside the camera selector) remain deferred per `project_controller_as_asset_research`; each earns its own Stage-1 call when its own trigger fires.
 
 `Sample_top_Pitch` and `Sample_top_Roll` are PseudoAxis Assets (virtual DoFs over the 2bmHXP hexapod-kinematics solver) and do not bind to a vendor Model. The Model-binding flow (PIDINST) targets physical commissioned hardware; the underlying constituents (the Hexapod_2BM physical axes) carry the Model binding. The remaining four hexapod DoFs (X, Y, Z, Yaw) and the constituent-port wiring from Hexapod_2BM to the virtual DoFs are deferred until the trigger named in `project_pitch_roll_retag`. The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
 
@@ -100,11 +105,40 @@ Operational envelope of a 6-DoF parallel-kinematic positioner. The schema captur
 
 The pairs `max_speed_translation` / `max_speed_rotation`, `resolution_*`, and `accuracy_*` collapse the six per-DoF measurements down to two values per metric in v1; the vendor datasheet reports per-DoF variation small enough that the dominant-DoF figure is a faithful envelope. When a Method binds against per-DoF setpoints (currently no such Method exists), Shape 2 (PseudoAxis facets) is the surface that grows; the schema above stays as the envelope contract.
 
+### `MotionController`
+
+Identity + configuration + connectivity of a separately-modelled drive-electronics box. Field selection follows the intentional-design posture: every field exists because reproducibility, federation, or operational reasoning needs it, not because the existing 2-BM ad-hoc representation already carries it. Per-axis Procedures continue to target the driven stage Asset; controller-tier Procedures (firmware update, controller swap, sync-output retune) target the controller Asset and read these fields. See `project_controller_as_asset_stage1_design`.
+
+| Setting | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `serial_number` | string, 1-128 chars | yes | Per-unit identity; operator-facing canonical key. Distinct from `Asset.alternate_identifiers` (PIDINST cross-reference set), which can also carry serial numbers among other schemes; `serial_number` here is the single operator-blessed canonical value. |
+| `firmware_version` | string, 1-64 chars | yes | Reproducibility provenance. Required intentionally per the intentional-modeling posture: absence-of-operator-demand is the failure mode that posture exists to forbid. A controller without a recorded firmware version cannot honestly answer the "did the firmware change between Run X and Run Y" question. Free-text in v1; semver validation defers to the second-vendor proof. |
+| `ip_address` | string, 7-45 chars | no | Network identity. Optional because not every controller class is network-attached (RS-232 / RS-485 / VME-bus boxes have no IP). Format validation is shape-only at this layer (route / Pydantic may impose IPv4 / IPv6 regex when deployments warrant it). |
+| `axis_count` | integer, 1-91 | yes | Operational metadata. Bounds bracket smallest single-axis (1) to largest OMS-VME58 deployment at 2-BM (91 Kohzu motors). Drives the eventual multi-motor Caution-fans-out semantics when that trigger fires. |
+| `protocol` | closed enum: `EPICS \| Aerotech_Native \| OMS_VME \| Serial_RS232 \| Serial_RS485 \| Modbus_TCP \| Other` | yes | Communication protocol. Six known plus `Other` escape valve; future additions follow the add-only-enum convention. |
+
+`manufacturer` is NOT on this schema: vendor identity lives on the bound Model row per the Capability-declares-settings-schema pattern (`Aerotech` for `Aerotech_Ensemble_drive` comes from `aerotech_ensemble_hle10_40_a_mxh`).
+
 ## Settings
+
+### `Aerotech_Ensemble_drive`
+
+Bound to Model `aerotech_ensemble_hle10_40_a_mxh`. The Aerotech Ensemble HLE10-40-A-MXH digital drive that runs `Aerotech_ABRS_rotary`. First `MotionController` Asset shipped at 2-BM; the back-reference lives on `Aerotech_ABRS_rotary.controller_id`.
+
+Placeholder values below are intentional. The controller-as-Asset design ships the substrate for reproducibility provenance now; the actual operator-confirmed firmware version and serial number land via `update_asset_settings` once 2-BM staff verifies them on the physical hardware. Leaving the fields out entirely would silently re-create the 2-BM ad-hoc absence-of-tracking that the slice exists to address.
+
+| Setting | Value |
+| --- | --- |
+| `serial_number` | `unknown-pending-confirmation` |
+| `firmware_version` | `unknown-pending-confirmation` |
+| `axis_count` | `1` |
+| `protocol` | `Aerotech_Native` |
+
+`ip_address` is omitted at v1 pending operator confirmation; the field is optional on the schema.
 
 ### `Aerotech_ABRS_rotary`
 
-Bound to Model `aerotech_abs250mp_m_as`. Aerotech ABS250MP-M-AS air-bearing direct-drive rotary stage (250 mm aperture, mid-precision class), driven by an Aerotech Ensemble HLE10-40-A-MXH controller (separate Asset deferred per `project_controller_as_asset_research`).
+Bound to Model `aerotech_abs250mp_m_as`. Aerotech ABS250MP-M-AS air-bearing direct-drive rotary stage (250 mm aperture, mid-precision class), driven by `Aerotech_Ensemble_drive` (referenced via `Aerotech_ABRS_rotary.controller_id`).
 
 | Setting | Value |
 | --- | --- |

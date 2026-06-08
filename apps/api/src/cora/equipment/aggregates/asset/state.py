@@ -1253,3 +1253,18 @@ class Asset:
     # streams without the field fold cleanly via the additive-state
     # pattern. See [[project-asset-persistent-id-write-design]].
     persistent_id: PersistentIdentifier | None = None
+    # Optional back-reference to the controller Asset (a sibling Device
+    # carrying the MotionController Family) that drives this Asset.
+    # Set ONCE at `register_asset` per the model-binding Lock A
+    # precedent; rebind path is decommission + re-register (which
+    # matches the operational semantics of a physical controller swap:
+    # swap IS a logical decommission of the prior controller). Eventual-
+    # consistency: the decider does NOT verify the referenced controller
+    # Asset stream exists (mirrors `parent_id`, `model_id`, `fixture_id`
+    # precedents). Defaults to None so legacy AssetRegistered streams
+    # without the field fold cleanly via the additive-state pattern.
+    # See [[project-controller-as-asset-stage1-design]] for the design
+    # lock and [[project-controller-as-asset-research]] for the
+    # standards convergence (OPC UA DI, ISA-88, AAS DigitalNameplate,
+    # MTConnect, PIDINST).
+    controller_id: UUID | None = None

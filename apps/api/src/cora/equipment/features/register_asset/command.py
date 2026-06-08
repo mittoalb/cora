@@ -40,6 +40,16 @@ does NOT cross-validate `(kind, value)` uniqueness across Assets
 in v1 (per [[project-asset-alternate-identifiers-design]] Lock F);
 no cross-BC IO either (per Lock I), so the handler does not load
 any external stream on this field's behalf.
+
+`controller_id` is `UUID | None`, optional reference to the
+controller Asset (a sibling Device carrying the MotionController
+Family) that drives this Asset. Set ONCE at registration per
+[[project-controller-as-asset-stage1-design]] (Lock A precedent
+from model_id); rebind path is decommission + re-register.
+Eventual-consistency: the decider does NOT verify the referenced
+controller Asset exists (mirrors `parent_id`, `model_id`,
+`fixture_id`). The handler does not load any external stream on
+this field's behalf.
 """
 
 from dataclasses import dataclass, field
@@ -81,3 +91,4 @@ class RegisterAsset:
     # uniqueness within the payload (Lock 6); identifier/identifier_type
     # pairing is enforced by the AssetOwner VO.
     owners: frozenset[AssetOwner] = field(default_factory=frozenset[AssetOwner])
+    controller_id: UUID | None = None

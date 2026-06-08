@@ -9142,6 +9142,19 @@
             "description": "Optional PIDINST v1.0 Property 13 alternate-identifier tuples (operator-supplied serial numbers, inventory tags, vendor-specific schemes) seeded at registration. Each entry is a flat (kind, value) pair; kind is closed vocabulary SerialNumber | InventoryNumber | Other. Cross-Asset uniqueness on (kind, value) is NOT enforced in v1.",
             "title": "Alternate Identifiers"
           },
+          "controller_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional reference to the controller Asset (a sibling Device carrying the MotionController Family) that drives this Asset. Set ONCE at registration; rebind path is decommission + re-register (matches the operational semantics of a physical controller swap). Eventual-consistency: the controller's existence is NOT verified.",
+            "title": "Controller Id"
+          },
           "drawing": {
             "anyOf": [
               {

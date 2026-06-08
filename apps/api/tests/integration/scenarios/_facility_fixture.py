@@ -223,12 +223,23 @@ def operator_for(scenario_file: str) -> UUID:
 @dataclass(frozen=True)
 class DeviceSpec:
     """One Device under the Unit: its name, pre-allocated asset_id, the
-    Family it gets linked to, and that Family's pre-allocated id."""
+    Family it gets linked to, and that Family's pre-allocated id.
+
+    `controller_id` is an optional back-reference to a sibling
+    Device-level Asset carrying the MotionController Family that drives
+    this Device. None for stages whose controller is sealed in (e.g.
+    Optique Peter focus stage with PCB-integrated Nanotec stepper) or
+    not yet modelled; set when the scenario opts in to the
+    controller-as-Asset slice. See
+    [[project-controller-as-asset-stage1-design]]. The install ceremony
+    forwards this id into `register_asset` verbatim; the value flows to
+    `Asset.controller_id` on the genesis event."""
 
     name: str
     asset_id: UUID
     cap_name: str
     cap_id: UUID
+    controller_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -423,7 +434,12 @@ async def install_aps_unit(
         )
     for d in devices:
         await bind_register_asset(deps)(
-            RegisterAsset(name=d.name, level=AssetLevel.DEVICE, parent_id=unit_id),
+            RegisterAsset(
+                name=d.name,
+                level=AssetLevel.DEVICE,
+                parent_id=unit_id,
+                controller_id=d.controller_id,
+            ),
             principal_id=principal_id,
             correlation_id=correlation_id,
         )

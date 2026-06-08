@@ -119,11 +119,19 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000352501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000352701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
 
-# Capabilities (2: rotary + linear)
+# Capabilities (3: motion controller + rotary + linear)
+_CAP_MOTION_CONTROLLER_ID = UUID("01900000-0000-7000-8000-000000352c21")
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c01")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c11")
 
-# Devices (2 motors only; camera + scintillator are passive)
+# Devices: controller registered first (so the rotary's controller_id
+# back-reference targets an already-registered Asset stream), then the 2
+# motor stages. Camera + scintillator are passive and omitted.
+# Aerotech_Ensemble_drive is the first MotionController Asset shipped
+# per [[project-controller-as-asset-stage1-design]]; it drives only
+# Aerotech_ABRS_rotary at v1, the other 6 controller hardware classes at
+# 2-BM remain deferred per [[project-controller-as-asset-research]].
+_ASSET_AEROTECH_ENSEMBLE_ID = UUID("01900000-0000-7000-8000-000000352a31")
 _ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000352a11")
 _ASSET_SAMPLE_TOP_X_ID = UUID("01900000-0000-7000-8000-000000352a21")
 
@@ -143,8 +151,24 @@ _CAUTION_AEROTECH_INDEX_ID = UUID("01900000-0000-7000-8000-000000352f21")
 
 
 _DEVICES = (
+    # Controller comes first: register_asset for the controller must land
+    # before the rotary's register_asset (which carries
+    # `controller_id=_ASSET_AEROTECH_ENSEMBLE_ID`). The decider does not
+    # verify the referenced stream exists (eventual-consistency stance
+    # mirroring `parent_id` / `model_id` / `fixture_id`), but registering
+    # in dependency order matches real-world ceremony.
     DeviceSpec(
-        "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
+        "Aerotech_Ensemble_drive",
+        _ASSET_AEROTECH_ENSEMBLE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_ID,
+    ),
+    DeviceSpec(
+        "Aerotech_ABRS_rotary",
+        _ASSET_AEROTECH_ABRS_ID,
+        "RotaryStage",
+        _CAP_ROTARY_STAGE_ID,
+        controller_id=_ASSET_AEROTECH_ENSEMBLE_ID,
     ),
     DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
 )
@@ -517,13 +541,27 @@ async def test_motor_homing_plays_out_end_to_end(
         _ARGONNE_ENTERPRISE_ID,
         _APS_SITE_ID,
         _2BM_UNIT_ID,
+        _ASSET_AEROTECH_ENSEMBLE_ID,
         _ASSET_AEROTECH_ABRS_ID,
         _ASSET_SAMPLE_TOP_X_ID,
     ):
         _events, version = await deps.event_store.load("Asset", asset_id)
         assert version >= 1, f"Asset {asset_id} did not land"
 
-    # ----- Assert: Aerotech stream carries the full lifecycle + condition arc -----
+    # ----- Assert: Aerotech Ensemble controller stream landed -----
+
+    controller_events, _ = await deps.event_store.load("Asset", _ASSET_AEROTECH_ENSEMBLE_ID)
+    assert [e.event_type for e in controller_events] == [
+        "AssetRegistered",  # genesis (Commissioned)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # The controller itself carries no controller_id back-reference
+    # (and would never; controllers ARE the leaf of the drive-electronics
+    # chain at v1). Omit-when-None wire shape: key absent rather than
+    # serialized as null.
+    assert "controller_id" not in controller_events[0].payload
+
+    # ----- Assert: Aerotech rotary stream carries the full lifecycle + condition arc -----
 
     aerotech_events, _ = await deps.event_store.load("Asset", _ASSET_AEROTECH_ABRS_ID)
     aerotech_event_types = [e.event_type for e in aerotech_events]
@@ -535,6 +573,11 @@ async def test_motor_homing_plays_out_end_to_end(
         "AssetRestored",  # condition Degraded -> Nominal (after retry success)
     ]
 
+    # ----- Assert: rotary's AssetRegistered payload carries the controller_id back-reference -----
+
+    rotary_registered_payload = aerotech_events[0].payload
+    assert UUID(rotary_registered_payload["controller_id"]) == _ASSET_AEROTECH_ENSEMBLE_ID
+
     # ----- Assert: Sample_top_X carries the simpler happy-path arc -----
 
     sample_events, _ = await deps.event_store.load("Asset", _ASSET_SAMPLE_TOP_X_ID)
@@ -544,6 +587,9 @@ async def test_motor_homing_plays_out_end_to_end(
         "AssetFamilyAdded",
         "AssetActivated",
     ]
+    # Sample_top_X has no modelled controller at v1 (sealed-in or
+    # unmodelled stepper); the field stays omit-when-None on the wire.
+    assert "controller_id" not in sample_events[0].payload
 
     # ----- Assert: Procedure stream has the expected lifecycle (4 events) -----
 

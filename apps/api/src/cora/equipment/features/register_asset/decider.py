@@ -61,6 +61,18 @@ payload (Lock 6): two owners sharing a `name` raise
 VO's `__post_init__`. No cross-BC IO fires on this field's
 behalf; ROR / GRID / ISNI string values are opaque to the
 aggregate.
+
+## Controller binding (Lock A precedent)
+
+`command.controller_id` flows through to the emitted
+AssetRegistered event verbatim. Mirrors `model_id` and
+`parent_id` precedents: the decider does NOT load the controller
+Asset snapshot, does NOT verify it exists, and does NOT enforce
+that the referenced Asset carries the MotionController Family.
+Operators are trusted to register controllers before binding
+stages to them; a dangling reference is operator error, not a
+domain invariant violation. The handler does not load any external
+stream on this field's behalf.
 """
 
 from datetime import datetime
@@ -138,5 +150,6 @@ def decide(
             model_id=command.model_id,
             alternate_identifiers=command.alternate_identifiers,
             owners=command.owners,
+            controller_id=command.controller_id,
         )
     ]

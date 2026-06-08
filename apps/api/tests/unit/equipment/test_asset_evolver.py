@@ -2369,3 +2369,225 @@ def test_evolve_asset_attached_to_fixture_preserves_lifecycle_timestamps() -> No
     assert state.fixture_id == fixture_id
     assert state.commissioned_at == commissioned
     assert state.decommissioned_at is None
+
+
+# ---------- controller_id genesis + transition arms + preservation ----------
+
+
+@pytest.mark.unit
+def test_evolve_register_with_controller_id_folds_to_state() -> None:
+    """Genesis: AssetRegistered with controller_id folds to
+    Asset.controller_id on the new state."""
+    asset_id = uuid4()
+    controller_id = uuid4()
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=asset_id,
+            name="Aerotech_ABRS_rotary",
+            level="Device",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+            controller_id=controller_id,
+            commissioned_by=_TEST_ACTOR_ID,
+        ),
+    )
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_evolve_register_without_controller_id_yields_none() -> None:
+    """Additive-state pattern: registration without controller_id yields
+    Asset.controller_id=None (permissive default; the dominant case for
+    stages whose controller is sealed in or otherwise un-modelled)."""
+    state = evolve(
+        None,
+        AssetRegistered(
+            asset_id=uuid4(),
+            name="X",
+            level="Device",
+            parent_id=uuid4(),
+            occurred_at=_NOW,
+            commissioned_by=_TEST_ACTOR_ID,
+        ),
+    )
+    assert state.controller_id is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition"),
+    [
+        ("activate", AssetActivated),
+        ("decommission", AssetDecommissioned),
+        ("enter_maintenance", AssetMaintenanceEntered),
+        ("exit_maintenance", AssetMaintenanceExited),
+    ],
+)
+def test_evolve_lifecycle_transition_preserves_controller_id(
+    name: str,
+    transition: type,
+) -> None:
+    """Critical pin: every lifecycle transition arm MUST carry
+    controller_id through from prior state. controller_id is set ONCE
+    at registration per the Lock A precedent from model_id, but
+    transition arms still must carry it forward like any other Asset
+    field. Silent-wipe risk is the dominant failure mode the design
+    memo flagged: constructing Asset(...) without controller_id wipes
+    the field to None on the next state transition."""
+    _ = name
+    controller_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        lifecycle=(
+            AssetLifecycle.COMMISSIONED
+            if transition is AssetActivated
+            else AssetLifecycle.ACTIVE
+            if transition is AssetMaintenanceEntered
+            else AssetLifecycle.MAINTENANCE
+            if transition is AssetMaintenanceExited
+            else AssetLifecycle.ACTIVE
+        ),
+        controller_id=controller_id,
+    )
+    state = evolve(
+        prior, transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition))
+    )
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_evolve_relocate_preserves_controller_id() -> None:
+    """Hierarchy mutation also must preserve controller_id."""
+    old_parent = uuid4()
+    new_parent = uuid4()
+    controller_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=old_parent,
+        controller_id=controller_id,
+    )
+    state = evolve(
+        prior,
+        AssetRelocated(
+            asset_id=prior.id,
+            from_parent_id=old_parent,
+            to_parent_id=new_parent,
+            reason="moved",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "transition", "kwargs"),
+    [
+        ("family_added", AssetFamilyAdded, {"family_id": uuid4()}),
+        ("family_removed", AssetFamilyRemoved, {"family_id": uuid4()}),
+        ("degraded", AssetDegraded, {"reason": "x"}),
+        ("faulted", AssetFaulted, {"reason": "x"}),
+        ("restored", AssetRestored, {"reason": "x"}),
+        ("settings_updated", AssetSettingsUpdated, {"settings": {"a": 1}}),
+    ],
+)
+def test_evolve_mutation_preserves_controller_id(
+    name: str,
+    transition: type,
+    kwargs: dict[str, object],
+) -> None:
+    """Mirror of test_evolve_mutation_preserves_model_id: every mutation
+    arm carries controller_id forward."""
+    _ = name
+    controller_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.UNIT,
+        parent_id=uuid4(),
+        controller_id=controller_id,
+    )
+    state = evolve(
+        prior,
+        transition(asset_id=prior.id, occurred_at=_NOW, **_extra_kwargs_for(transition), **kwargs),
+    )
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_evolve_port_added_preserves_controller_id() -> None:
+    controller_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        controller_id=controller_id,
+    )
+    state = evolve(
+        prior,
+        AssetPortAdded(
+            asset_id=prior.id,
+            port_name="x",
+            direction="Input",
+            signal_type="TTL",
+            occurred_at=_NOW,
+        ),
+    )
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_evolve_port_removed_preserves_controller_id() -> None:
+    port = AssetPort(name="x", direction=PortDirection.INPUT, signal_type="TTL")
+    controller_id = uuid4()
+    prior = Asset(
+        id=uuid4(),
+        name=AssetName("X"),
+        level=AssetLevel.DEVICE,
+        parent_id=uuid4(),
+        ports=frozenset({port}),
+        controller_id=controller_id,
+    )
+    state = evolve(prior, AssetPortRemoved(asset_id=prior.id, port_name="x", occurred_at=_NOW))
+    assert state.controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_fold_register_with_controller_id_then_lifecycle_transitions_preserves_controller_id() -> (
+    None
+):
+    """End-to-end fold: register with controller_id, then activate +
+    enter maintenance + exit maintenance + decommission. The
+    controller_id binding survives the entire lifecycle path."""
+    asset_id = uuid4()
+    parent_id = uuid4()
+    controller_id = uuid4()
+    state = fold(
+        [
+            AssetRegistered(
+                asset_id=asset_id,
+                name="Aerotech_ABRS_rotary",
+                level="Device",
+                parent_id=parent_id,
+                occurred_at=_NOW,
+                controller_id=controller_id,
+                commissioned_by=_TEST_ACTOR_ID,
+            ),
+            AssetActivated(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceEntered(asset_id=asset_id, occurred_at=_NOW),
+            AssetMaintenanceExited(asset_id=asset_id, occurred_at=_NOW),
+            AssetDecommissioned(
+                asset_id=asset_id, occurred_at=_NOW, decommissioned_by=_TEST_ACTOR_ID
+            ),
+        ]
+    )
+    assert state is not None
+    assert state.controller_id == controller_id
+    assert state.lifecycle is AssetLifecycle.DECOMMISSIONED

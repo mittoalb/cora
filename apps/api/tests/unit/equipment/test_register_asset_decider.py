@@ -256,6 +256,47 @@ def test_decide_defaults_model_id_to_none_when_omitted() -> None:
 
 
 @pytest.mark.unit
+def test_decide_propagates_controller_id_to_emitted_event() -> None:
+    """Happy path: an optional controller_id supplied on the command
+    rides the AssetRegistered event verbatim. The decider does NOT load
+    the controller Asset snapshot (eventual-consistency); the handler
+    does not enforce existence either, mirroring the parent_id /
+    fixture_id back-reference precedents."""
+    controller_id = uuid4()
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="Aerotech_ABRS_rotary",
+            level=AssetLevel.DEVICE,
+            parent_id=uuid4(),
+            controller_id=controller_id,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+        commissioned_by=_TEST_ACTOR_ID,
+    )
+    assert events[0].controller_id == controller_id
+
+
+@pytest.mark.unit
+def test_decide_defaults_controller_id_to_none_when_omitted() -> None:
+    """Stages with sealed-in or unmodelled controllers default to
+    controller_id=None (the dominant case at v1)."""
+    events = register_asset.decide(
+        state=None,
+        command=RegisterAsset(
+            name="Sample_top_X",
+            level=AssetLevel.DEVICE,
+            parent_id=uuid4(),
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+        commissioned_by=_TEST_ACTOR_ID,
+    )
+    assert events[0].controller_id is None
+
+
+@pytest.mark.unit
 def test_decide_passes_alternate_identifiers_through_to_emitted_event() -> None:
     """Happy path: a non-empty `alternate_identifiers` set on the
     command rides the AssetRegistered event verbatim. The decider does
