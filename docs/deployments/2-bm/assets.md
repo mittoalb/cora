@@ -13,8 +13,9 @@ The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset r
 | `Shutter_2BM` | `Device` | `Shutter` | `2-BM` |
 | `Aerotech_Ensemble_drive` | `Device` | `MotionController` | `2-BM` |
 | `Aerotech_ABRS_rotary` | `Device` | `RotaryStage` | `2-BM` (driven by `Aerotech_Ensemble_drive`) |
-| `Sample_top_X` | `Device` | `LinearStage` | `2-BM` |
-| `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` |
+| `OMS_VME58_2bmb_drive` | `Device` | `MotionController` | `2-BM` |
+| `Sample_top_X` | `Device` | `LinearStage` | `2-BM` (driven by `OMS_VME58_2bmb_drive`) |
+| `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` (driven by `OMS_VME58_2bmb_drive`) |
 | `Sample_top_Roll` | `Device` | `PseudoAxis` | `2-BM` |
 | `Sample_top_Pitch` | `Device` | `PseudoAxis` | `2-BM` |
 | `Aerotech_Hexapod_drive` | `Device` | `MotionController` | `2-BM` |
@@ -62,11 +63,12 @@ Per-Asset Model bindings carry the vendor identity that PIDINST Property 6 (Manu
 | `aerotech_hexapod_drive_unknown_pn` | Aerotech | `unknown-pending-confirmation` | `MotionController` | `Aerotech_Hexapod_drive` |
 | `aerotech_2bmbaero_drive_unknown_pn` | Aerotech | `unknown-pending-confirmation` | `MotionController` | `Aerotech_2bmbAERO_drive` |
 | `aerotech_pro225sl_1000` | Aerotech | `PRO225SL-1000` | `LinearStage` | `Optique_Peter_focus_Z` |
+| `oms_vme58` | Oregon Micro Systems | `VME58` | `MotionController` | `OMS_VME58_2bmb_drive` |
 | `kohzu_cyat_070` | Kohzu | `CYAT-070` | `LinearStage` | `Sample_top_X`, `Sample_top_Z` |
 
 Part-number suffix conventions vary by vendor: Aerotech's `HEX300-230HL-E1-PL4-TAS` encodes operationally significant variants (`-E1` incremental encoder, `-PL4` ultra-high-accuracy preload, `-TAS` thermal-actively-stabilized); `ABS250MP-M-AS` follows the same pattern (`-M` mid-precision class, `-AS` air-bearing series); `PRO225SL-1000` carries the `-1000` mm travel suffix natively. v1 stores the full type designation as a single `part_number` string; the catalog convention upgrades to suffix decomposition at the second case where a suffix axis crosses Model boundaries (rule-of-three), or at the first APS imaging stage+drive registration, whichever fires first.
 
-The Aerotech Ensemble HLE10-40-A-MXH (companion drive for `aerotech_abs250mp_m_as`) IS now modelled as a separate Asset (`Aerotech_Ensemble_drive`) at the Device level under 2-BM, with `Aerotech_ABRS_rotary.controller_id` carrying the back-reference. This was the FIRST `MotionController` Asset shipped, anchoring the controller-as-Asset slice on the unambiguously-identified rotary drive per `project_controller_as_asset_stage1_design`. A SECOND `MotionController` Asset (`Aerotech_Hexapod_drive`) now models the drive for `Hexapod_2BM`, with `Hexapod_2BM.controller_id` carrying the back-reference; the 2-BM source page does not name the drive's specific product line (the EPICS interface is "native Aerotech Ensemble" but the box is not identified, nor is rack-separate vs sealed-in integration confirmed), so the Model row uses `unknown-pending-confirmation` for the part number and the per-Asset Settings block carries placeholders that operators replace via `update_asset_settings` once the physical hardware is verified. A THIRD `MotionController` Asset (`Aerotech_2bmbAERO_drive`) models the drive electronics that the `2bmbAERO` EPICS IOC manages on behalf of `Optique_Peter_focus_Z`; the Asset name uses the IOC handle (the most stable operator-facing identifier; the drive's product line is almost certainly Aerotech Ensemble-family but unconfirmed on the source page), and the same `unknown-pending-confirmation` pattern carries the per-unit identity placeholders. PARTIAL SHIP today is 3 of 7 controller hardware classes; the remaining 4 (OMS-VME58 at 2bma, OMS-VME58 at 2bmb, the Nanotec ST4118 stepper inside Optique Peter, and the Schunk LPTM 30 inside the camera selector) remain deferred per `project_controller_as_asset_research`; each earns its own Stage-1 call when its own trigger fires.
+The Aerotech Ensemble HLE10-40-A-MXH (companion drive for `aerotech_abs250mp_m_as`) IS now modelled as a separate Asset (`Aerotech_Ensemble_drive`) at the Device level under 2-BM, with `Aerotech_ABRS_rotary.controller_id` carrying the back-reference. This was the FIRST `MotionController` Asset shipped, anchoring the controller-as-Asset slice on the unambiguously-identified rotary drive per `project_controller_as_asset_stage1_design`. A SECOND `MotionController` Asset (`Aerotech_Hexapod_drive`) now models the drive for `Hexapod_2BM`, with `Hexapod_2BM.controller_id` carrying the back-reference; the 2-BM source page does not name the drive's specific product line (the EPICS interface is "native Aerotech Ensemble" but the box is not identified, nor is rack-separate vs sealed-in integration confirmed), so the Model row uses `unknown-pending-confirmation` for the part number and the per-Asset Settings block carries placeholders that operators replace via `update_asset_settings` once the physical hardware is verified. A THIRD `MotionController` Asset (`Aerotech_2bmbAERO_drive`) models the drive electronics that the `2bmbAERO` EPICS IOC manages on behalf of `Optique_Peter_focus_Z`; the Asset name uses the IOC handle (the most stable operator-facing identifier; the drive's product line is almost certainly Aerotech Ensemble-family but unconfirmed on the source page), and the same `unknown-pending-confirmation` pattern carries the per-unit identity placeholders. A FOURTH `MotionController` Asset (`OMS_VME58_2bmb_drive`) now models the Oregon Micro Systems VME58 motor controller card in the 2-BM b-station IOC crate (`ioc2bmb`), which drives the `2bmb:m1`-`2bmb:m91` motor band including `Sample_top_X` (`2bmb:m18`) and `Sample_top_Z` (`2bmb:m17`); both stage Assets now carry `controller_id` back-references to `OMS_VME58_2bmb_drive`. The remaining 89 driven motors on the 2bmb crate live in [Pending](#pending) until each earns its own Asset registration; the controller Asset is the addressability handle that makes a future "VME-bus glitch took out m1-m91" Caution scope honestly to the bus rather than dispersing across 91 motor Assets. PARTIAL SHIP today is 4 of 7 controller hardware classes; the remaining 3 (OMS-VME58 at 2bma, the Nanotec ST4118 stepper inside Optique Peter, and the Schunk LPTM 30 inside the camera selector) remain deferred per `project_controller_as_asset_research`; each earns its own Stage-1 call when its own trigger fires.
 
 `Sample_top_Pitch` and `Sample_top_Roll` are PseudoAxis Assets (virtual DoFs over the 2bmHXP hexapod-kinematics solver) and do not bind to a vendor Model. The Model-binding flow (PIDINST) targets physical commissioned hardware; the underlying constituents (the Hexapod_2BM physical axes) carry the Model binding. The remaining four hexapod DoFs (X, Y, Z, Yaw) and the constituent-port wiring from Hexapod_2BM to the virtual DoFs are deferred until the trigger named in `project_pitch_roll_retag`. The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
 
@@ -157,6 +159,23 @@ Operators address the focus motor via `2bmbAERO:m1` (IOC name + motor channel); 
 
 `ip_address` is omitted at v1 pending operator confirmation; the field is optional on the schema.
 
+### `OMS_VME58_2bmb_drive`
+
+Bound to Model `oms_vme58`. The Oregon Micro Systems VME58 motor controller card in the 2-BM b-station IOC crate (`ioc2bmb`), which drives the `2bmb:m1`-`2bmb:m91` motor band per the [2-BM source page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html). Fourth `MotionController` Asset shipped at 2-BM; the back-references live on `Sample_top_X.controller_id` and `Sample_top_Z.controller_id` (`2bmb:m18` and `2bmb:m17` respectively); the remaining 89 driven motors on this crate are tracked in [Pending](#pending).
+
+Operators address motors on this crate via the EPICS channel naming `2bmb:m<N>` (IOC name + motor channel); the IOC is software (an EPICS process running in the `ioc2bmb` crate) while the Asset modelled here is the OMS VME58 hardware board itself. Same OPC UA DI / AAS DigitalNameplate alignment as the Aerotech drives: CORA models the field-replaceable, firmware-versioned drive electronics rather than the software process that addresses them. The Aerotech Ensemble axes (`2bmb:m100`-`2bmb:m102`) on the same IOC are addressed through a separate Aerotech HLE10-40-A-MXH and ship as their own `Aerotech_Ensemble_drive` Asset; one IOC, two physical controllers, two MotionController Assets.
+
+`axis_count=91` is the OMS-VME58 card's slot-cardinality at 2-BM and the upper bound of the settings_schema range; even though only two of the 91 channels are currently bound to modelled stages, the controller's intrinsic capacity is the value the field records. `protocol=OMS_VME` matches the closed-enum value in the `MotionController` settings schema. The drive is VME-bus addressed (not IP-attached), so `ip_address` is omitted.
+
+| Setting | Value |
+| --- | --- |
+| `serial_number` | `unknown-pending-confirmation` |
+| `firmware_version` | `unknown-pending-confirmation` |
+| `axis_count` | `91` |
+| `protocol` | `OMS_VME` |
+
+`ip_address` is omitted (VME-bus addressed, no IP); the field is optional on the schema. `serial_number` and `firmware_version` carry the same `unknown-pending-confirmation` placeholders as the Aerotech drives; operator confirmation lands via `update_asset_settings` once the 2-BM staff verifies the physical card.
+
 ### `Aerotech_Hexapod_drive`
 
 Bound to Model `aerotech_hexapod_drive_unknown_pn`. The Aerotech drive electronics that run `Hexapod_2BM`. Second `MotionController` Asset shipped at 2-BM; the back-reference lives on `Hexapod_2BM.controller_id`.
@@ -188,7 +207,7 @@ Bound to Model `aerotech_abs250mp_m_as`. Aerotech ABS250MP-M-AS air-bearing dire
 
 ### `Sample_top_X`
 
-Bound to Model `kohzu_cyat_070`. Kohzu CYAT-070 crossed-roller alignment stage (80 x 80 mm table, ball-screw lead 1.0 mm). Sister Asset `Sample_top_Z` binds the same Model. The full vendor-published envelope (±0.5 um repeatability, lost motion ≤ 2 um, backlash ≤ 1 um, straightness ≤ 3 um per 30 mm, load 98 N, weight 1.7 kg) lives on the [2-BM source page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html); the v1 Settings below capture only the operationally bound min/max/speed/resolution fields.
+Bound to Model `kohzu_cyat_070`, driven by `OMS_VME58_2bmb_drive` (referenced via `Sample_top_X.controller_id`; addressed on EPICS channel `2bmb:m18`). Kohzu CYAT-070 crossed-roller alignment stage (80 x 80 mm table, ball-screw lead 1.0 mm). Sister Asset `Sample_top_Z` binds the same Model and the same controller. The full vendor-published envelope (±0.5 um repeatability, lost motion ≤ 2 um, backlash ≤ 1 um, straightness ≤ 3 um per 30 mm, load 98 N, weight 1.7 kg) lives on the [2-BM source page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html); the v1 Settings below capture only the operationally bound min/max/speed/resolution fields.
 
 | Setting | Value |
 | --- | --- |

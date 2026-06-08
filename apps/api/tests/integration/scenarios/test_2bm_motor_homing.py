@@ -119,19 +119,37 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000352501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000352701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
 
-# Capabilities (3: motion controller + rotary + linear)
-_CAP_MOTION_CONTROLLER_ID = UUID("01900000-0000-7000-8000-000000352c21")
+# Capabilities (4: 2 motion controllers + rotary + linear). Each
+# DeviceSpec defines its own Family aggregate; the install ceremony
+# does not dedupe by name, so the two MotionController-family Assets
+# (Aerotech_Ensemble_drive and OMS_VME58_2bmb_drive) attach to
+# distinct Family aggregates that happen to share the name. In
+# production the operator-side define_family call runs once per
+# unique name; the per-DeviceSpec definition here is a test-fixture
+# convenience, not a semantic claim about Family identity.
+_CAP_MOTION_CONTROLLER_AEROTECH_ID = UUID("01900000-0000-7000-8000-000000352c21")
+_CAP_MOTION_CONTROLLER_OMS_2BMB_ID = UUID("01900000-0000-7000-8000-000000352c41")
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c01")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c11")
 
-# Devices: controller registered first (so the rotary's controller_id
-# back-reference targets an already-registered Asset stream), then the 2
-# motor stages. Camera + scintillator are passive and omitted.
+# Devices: controllers registered first (so each driven stage's
+# controller_id back-reference targets an already-registered Asset
+# stream), then the 2 motor stages. Camera + scintillator are passive
+# and omitted.
 # Aerotech_Ensemble_drive is the first MotionController Asset shipped
-# per [[project-controller-as-asset-stage1-design]]; it drives only
-# Aerotech_ABRS_rotary at v1, the other 6 controller hardware classes at
-# 2-BM remain deferred per [[project-controller-as-asset-research]].
+# (commit 4a0c7ac62), driving Aerotech_ABRS_rotary. OMS_VME58_2bmb_drive
+# is the fourth MotionController Asset shipped: the Oregon Micro Systems
+# VME58 motor controller in the 2-BM b-station IOC crate (`ioc2bmb`),
+# which drives the Kohzu m1-m91 motor band including Sample_top_X
+# (2bmb:m18) and Sample_top_Z (2bmb:m17). Only Sample_top_X is in this
+# scenario's inventory; Sample_top_Z's back-reference is set in the
+# focus-alignment scenario. The remaining 89 Kohzu motors on the 2bmb
+# crate are in the Pending table in `docs/deployments/2-bm/assets.md`.
+# The other 3 controller hardware classes at 2-BM (OMS-VME58 at 2bma,
+# Nanotec ST4118 inside Optique Peter, Schunk LPTM 30 inside camera
+# selector) remain deferred per [[project-controller-as-asset-research]].
 _ASSET_AEROTECH_ENSEMBLE_ID = UUID("01900000-0000-7000-8000-000000352a31")
+_ASSET_OMS_VME58_2BMB_DRIVE_ID = UUID("01900000-0000-7000-8000-000000352a41")
 _ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000352a11")
 _ASSET_SAMPLE_TOP_X_ID = UUID("01900000-0000-7000-8000-000000352a21")
 
@@ -151,9 +169,9 @@ _CAUTION_AEROTECH_INDEX_ID = UUID("01900000-0000-7000-8000-000000352f21")
 
 
 _DEVICES = (
-    # Controller comes first: register_asset for the controller must land
-    # before the rotary's register_asset (which carries
-    # `controller_id=_ASSET_AEROTECH_ENSEMBLE_ID`). The decider does not
+    # Controllers come first: register_asset for each controller must
+    # land before any driven stage's register_asset (which carries
+    # `controller_id=<controller_asset_id>`). The decider does not
     # verify the referenced stream exists (eventual-consistency stance
     # mirroring `parent_id` / `model_id` / `fixture_id`), but registering
     # in dependency order matches real-world ceremony.
@@ -161,7 +179,13 @@ _DEVICES = (
         "Aerotech_Ensemble_drive",
         _ASSET_AEROTECH_ENSEMBLE_ID,
         "MotionController",
-        _CAP_MOTION_CONTROLLER_ID,
+        _CAP_MOTION_CONTROLLER_AEROTECH_ID,
+    ),
+    DeviceSpec(
+        "OMS_VME58_2bmb_drive",
+        _ASSET_OMS_VME58_2BMB_DRIVE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_OMS_2BMB_ID,
     ),
     DeviceSpec(
         "Aerotech_ABRS_rotary",
@@ -170,7 +194,13 @@ _DEVICES = (
         _CAP_ROTARY_STAGE_ID,
         controller_id=_ASSET_AEROTECH_ENSEMBLE_ID,
     ),
-    DeviceSpec("Sample_top_X", _ASSET_SAMPLE_TOP_X_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    DeviceSpec(
+        "Sample_top_X",
+        _ASSET_SAMPLE_TOP_X_ID,
+        "LinearStage",
+        _CAP_LINEAR_STAGE_ID,
+        controller_id=_ASSET_OMS_VME58_2BMB_DRIVE_ID,
+    ),
 )
 
 
@@ -542,6 +572,7 @@ async def test_motor_homing_plays_out_end_to_end(
         _APS_SITE_ID,
         _2BM_UNIT_ID,
         _ASSET_AEROTECH_ENSEMBLE_ID,
+        _ASSET_OMS_VME58_2BMB_DRIVE_ID,
         _ASSET_AEROTECH_ABRS_ID,
         _ASSET_SAMPLE_TOP_X_ID,
     ):
@@ -560,6 +591,17 @@ async def test_motor_homing_plays_out_end_to_end(
     # chain at v1). Omit-when-None wire shape: key absent rather than
     # serialized as null.
     assert "controller_id" not in controller_events[0].payload
+
+    # ----- Assert: OMS-VME58 2bmb controller stream landed -----
+
+    oms_events, _ = await deps.event_store.load("Asset", _ASSET_OMS_VME58_2BMB_DRIVE_ID)
+    assert [e.event_type for e in oms_events] == [
+        "AssetRegistered",  # genesis (Commissioned)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # Same controller-is-leaf rule as Aerotech_Ensemble_drive: the VME
+    # crate carries no controller_id of its own. Omit-when-None wire.
+    assert "controller_id" not in oms_events[0].payload
 
     # ----- Assert: Aerotech rotary stream carries the full lifecycle + condition arc -----
 
@@ -587,9 +629,14 @@ async def test_motor_homing_plays_out_end_to_end(
         "AssetFamilyAdded",
         "AssetActivated",
     ]
-    # Sample_top_X has no modelled controller at v1 (sealed-in or
-    # unmodelled stepper); the field stays omit-when-None on the wire.
-    assert "controller_id" not in sample_events[0].payload
+    # Sample_top_X is driven by the OMS-VME58 in the b-station IOC crate
+    # (`ioc2bmb`, channel `2bmb:m18`); the controller_id back-reference
+    # is the addressability handle that lets controller-scoped Cautions
+    # (e.g. a VME-bus glitch on the OMS box) surface against Plans that
+    # target the stage only via the start_run scope-expansion shipped in
+    # commit cb50a69de.
+    sample_registered_payload = sample_events[0].payload
+    assert UUID(sample_registered_payload["controller_id"]) == _ASSET_OMS_VME58_2BMB_DRIVE_ID
 
     # ----- Assert: Procedure stream has the expected lifecycle (4 events) -----
 

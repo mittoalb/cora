@@ -139,12 +139,21 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000356501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000356701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000356a01")
 
-# Capabilities (sample-Z needs LinearStage; image chain needs Camera + Scintillator)
+# Capabilities (sample-Z motor needs LinearStage + the drive electronics
+# behind it needs MotionController; image chain needs Camera + Scintillator)
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000356c01")
 _CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000356c11")
 _CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000356c21")
+_CAP_MOTION_CONTROLLER_OMS_2BMB_ID = UUID("01900000-0000-7000-8000-000000356c31")
 
-# Devices (sample-Z motor + image chain)
+# Devices (sample-Z motor + image chain + the OMS-VME58 drive electronics
+# behind Sample_top_Z; the OMS-VME58 in the 2-BM b-station IOC crate
+# `ioc2bmb` drives Sample_top_Z on channel `2bmb:m17`; this is the fourth
+# MotionController Asset shipped at 2-BM per
+# [[project-controller-as-asset-stage1-design]]. Image chain Assets
+# (camera + scintillator) carry no controller_id; their drivers are
+# passive on this slice.
+_ASSET_OMS_VME58_2BMB_DRIVE_ID = UUID("01900000-0000-7000-8000-000000356a41")
 _ASSET_SAMPLE_TOP_Z_ID = UUID("01900000-0000-7000-8000-000000356a11")
 _ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000356a21")
 _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000356a31")
@@ -162,7 +171,25 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000356f12")
 
 
 _DEVICES = (
-    DeviceSpec("Sample_top_Z", _ASSET_SAMPLE_TOP_Z_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    # Controller comes first: register_asset for the OMS-VME58 must land
+    # before Sample_top_Z's register_asset (which carries
+    # `controller_id=_ASSET_OMS_VME58_2BMB_DRIVE_ID`). Decider does not
+    # validate the reference exists (eventual-consistency stance from
+    # the rotary anchor), but dependency-order registration matches
+    # real-world ceremony.
+    DeviceSpec(
+        "OMS_VME58_2bmb_drive",
+        _ASSET_OMS_VME58_2BMB_DRIVE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_OMS_2BMB_ID,
+    ),
+    DeviceSpec(
+        "Sample_top_Z",
+        _ASSET_SAMPLE_TOP_Z_ID,
+        "LinearStage",
+        _CAP_LINEAR_STAGE_ID,
+        controller_id=_ASSET_OMS_VME58_2BMB_DRIVE_ID,
+    ),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -462,6 +489,28 @@ async def test_focus_alignment_plays_out_end_to_end(
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
         assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
+
+    # ----- Assert: OMS-VME58 2bmb controller stream landed (Commissioned-only) -----
+
+    controller_events, _ = await deps.event_store.load("Asset", _ASSET_OMS_VME58_2BMB_DRIVE_ID)
+    assert [e.event_type for e in controller_events] == [
+        "AssetRegistered",  # genesis (Commissioned; not Activated this scenario)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # Controller-is-leaf rule: the VME crate carries no controller_id
+    # back-reference of its own. Omit-when-None wire shape.
+    assert "controller_id" not in controller_events[0].payload
+
+    # ----- Assert: Sample_top_Z's AssetRegistered payload carries controller_id -----
+
+    # Sample_top_Z is driven by the OMS-VME58 in `ioc2bmb` on channel
+    # `2bmb:m17`; the controller_id back-reference is the addressability
+    # handle that lets controller-scoped Cautions (e.g. a VME-bus glitch
+    # on the OMS box) surface against Plans that target the stage only,
+    # via the start_run scope-expansion shipped in commit cb50a69de.
+    sample_z_events, _ = await deps.event_store.load("Asset", _ASSET_SAMPLE_TOP_Z_ID)
+    sample_z_registered_payload = sample_z_events[0].payload
+    assert UUID(sample_z_registered_payload["controller_id"]) == _ASSET_OMS_VME58_2BMB_DRIVE_ID
 
     # ----- Assert: 13 step entries land in the projection in canonical order -----
 
