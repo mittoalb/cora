@@ -21,6 +21,7 @@ factory, and the projection / subscriber registration entry points;
 slices and projection modules attach to those entry points.
 """
 
+from cora.federation._bootstrap import bootstrap_federation
 from cora.federation._projections import register_federation_projections
 from cora.federation._subscribers import register_federation_subscribers
 from cora.federation.errors import FederationError, UnauthorizedError
@@ -32,6 +33,7 @@ __all__ = [
     "FederationError",
     "FederationHandlers",
     "UnauthorizedError",
+    "bootstrap_federation",
     "register_federation_projections",
     "register_federation_routes",
     "register_federation_subscribers",

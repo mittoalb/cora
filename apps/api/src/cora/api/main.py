@@ -104,6 +104,7 @@ from cora.equipment import (
 )
 from cora.federation import (
     FederationHandlers,
+    bootstrap_federation,
     register_federation_projections,
     register_federation_routes,
     register_federation_tools,
@@ -438,6 +439,14 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             # this check, a stale / unrestored DB silently 403s every
             # API call instead of failing visibly at startup.
             await verify_bootstrap_seed_present(deps)
+
+            # Federation BC self-Facility seed per
+            # project_facility_aggregate_design Sub-Slice D. Idempotent
+            # (ConcurrencyError-as-already-seeded); MUST run BEFORE any
+            # Federation slice consumes the self-Facility row.
+            # Misconfigured SELF_FACILITY_CODE fails the lifespan fast
+            # via InvalidFacilityCodeError raised in FacilityCode(...).
+            await bootstrap_federation(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`

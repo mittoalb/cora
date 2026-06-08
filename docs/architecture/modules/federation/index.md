@@ -1,10 +1,10 @@
-# Federation module <span class="md-maturity md-maturity--beta" title="Three aggregates: Permit authorizes a peer flow, Credential binds opaque secret material, Seal signs the per-facility head pointer.">beta</span>
+# Federation module <span class="md-maturity md-maturity--beta" title="Four aggregates: Facility carries cross-deployment convergent peer identity, Permit authorizes a peer flow, Credential binds opaque secret material, Seal signs the per-facility head pointer.">beta</span>
 
 ## Purpose & Scope
 
-The Federation module owns CORA's outgoing and incoming cross-facility data flows. Three aggregates carry the responsibility: `Permit` authorizes one federation flow between this facility and a named peer, `Credential` is a per-facility binding to an opaque secret-material handle for a single purpose, and `Seal` is the per-facility singleton that signs the head pointer over this facility's published registry tree.
+The Federation module owns CORA's outgoing and incoming cross-facility data flows. Four aggregates carry the responsibility: `Facility` is the peer-facility identity record with two-tier identity (opaque UUID PK plus cross-deployment convergent code), `Permit` authorizes one federation flow between this facility and a named peer, `Credential` is a per-facility binding to an opaque secret-material handle for a single purpose, and `Seal` is the per-facility singleton that signs the head pointer over this facility's published registry tree.
 
-Federation is the cross-facility seam. Trust governs who may do what inside this facility; Federation governs what crosses the boundary, in which direction, signed by which key, against which peer's accepted canonicalization. The three aggregates compose: a `Permit` names the `Credential` ids that may carry traffic under its terms, and the per-facility `Seal` pairs an online-signing `Credential` with an offline-root `Credential` to sign the head pointer that consumers of a federated registry follow.
+Federation is the cross-facility seam. Trust governs who may do what inside this facility; Federation governs what crosses the boundary, in which direction, signed by which key, against which peer's accepted canonicalization. The four aggregates compose: a `Facility` carries the cross-deployment convergent slug for one peer (or for the self-deployment), a `Permit` names the `Credential` ids that may carry traffic under its terms, and the per-facility `Seal` pairs an online-signing `Credential` with an offline-root `Credential` to sign the head pointer that consumers of a federated registry follow.
 
 <div class="cora-aside cora-aside--deferred" markdown>
 
@@ -23,11 +23,16 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
+| `Facility` | `id: FacilityId` (UUID; derived from `code` via UUID5) + `code: FacilityCode` (cross-deployment slug) | `id`, `code`, `display_name`, `kind: Site \| Area`, `parent_id?`, `trust_anchor_credential_ids: frozenset[CredentialId]`, `status`, `persistent_id?`, `alternate_identifiers`, `registered_at`, `registered_by`, `decommissioned_at?`, `decommissioned_by?` | yes (2-state) |
 | `Permit` | `id: UUID` | `id`, `peer_facility_id: str`, `direction`, `allowed_credential_ids: frozenset[UUID]`, `allowed_payload_types`, `allowed_artifact_kinds`, `abi_tier_floor`, `expires_at`, `defined_by_actor_id`, `status`, `terms: OutboundTerms \| InboundTerms` | yes (4-state) |
 | `Credential` | `id: UUID` (unique triple `(facility_id, audience, purpose)`) | `id`, `facility_id`, `audience`, `purpose`, `secret_ref`, `public_material_ref?`, `expires_at?`, `registered_by_actor_id`, `rotation_pending_secret_ref?`, `rotation_pending_public_material_ref?`, `status` | yes (3-state + rotation overlay) |
 | `Seal` | `facility_id: str` (singleton per facility) | `facility_id`, `online_credential_id`, `offline_credential_id`, `current_head_hash?`, `current_sequence_number`, `initialized_by_actor_id`, `status` | yes (mini-FSM, `Live <-> Republishing`) |
 
+A `Facility` is one peer-facility record, with two-tier identity per the locked design: `id: FacilityId` is the opaque UUID PK for spine references within this deployment, derived deterministically from `code` via `uuid5`; `code: FacilityCode` is the cross-deployment convergent slug (lowercase ASCII alphanumeric plus dash, 1-32 chars). Cross-BC and cross-deployment references to a facility MUST use `code`, not `id`; the `test_cross_bc_refs_facility_code_not_id.py` architecture fitness pins the rule. The aggregate is additive in this slice (no Asset / Supply / Federation binding yet; those land in slices 6-9 of the structural-scope masquerade resolution per [project_facility_aggregate_design](../../../../memory/project_facility_aggregate_design.md)).
+
 A `Permit` authorizes one federation flow between this facility and one peer in one direction. The polymorphic `terms` field carries the direction-specific contractual fields, and the aggregate's `direction` enum mirrors `type(terms)` as a query-convenience discriminator that read-side filters and projections can index on without crossing the polymorphic boundary. A `Credential` is a per-facility binding for one of six purposes; the aggregate holds opaque pointers only and the actual bytes live behind the `SecretStore` port. A `Seal` is the singleton-per-facility record of the current head pointer over this facility's published registry, signed by an online-signing Credential with an offline-root Credential held in reserve for online-key rotation and full republish.
+
+The self-Facility row (the deployment's own facility identity in the cross-deployment convergent code namespace) is seeded at lifespan startup by `bootstrap_federation` from `settings.self_facility_code` (env var `SELF_FACILITY_CODE`; default `"cora"`, production overrides without exception). Idempotent across boots via the `ConcurrencyError`-as-already-seeded pattern. The seed runs BEFORE any Federation slice consumes the self-Facility row.
 
 `Seal.facility_id` is a string (not a UUID) because the per-facility singleton is keyed on a human-readable facility identifier. The handler mints the event-store stream UUID deterministically via UUID5 over the federation namespace and the `facility_id` string, so the stream is addressable from the same string the operator types.
 
@@ -37,6 +42,12 @@ A `Permit` authorizes one federation flow between this facility and one peer in 
 
 | Name | Shape | Where used |
 |---|---|---|
+| `FacilityCode` | trimmed `value: str` matching `^[a-z0-9-]{1,32}$` | `Facility.code`; future `Seal.facility_id` / `Permit.peer_facility_id` typing once slice 6 binding lands |
+| `FacilityName` | trimmed `value: str`, 1-200 chars | `Facility.display_name` |
+| `FacilityKind` | closed StrEnum: `Site` \| `Area` | `Facility.kind` (Institution + Sector deferred per the design memo) |
+| `FacilityStatus` | closed StrEnum: `Active` \| `Decommissioned` | `Facility.status` |
+| `FacilityId` | `NewType[UUID]` co-located at `cora.federation.aggregates._value_types` | `Facility.id`, `Facility.parent_id` (intra-aggregate only; cross-BC refs use `code`) |
+| `CredentialId` | `NewType[UUID]` co-located at `cora.federation.aggregates._value_types` | `Facility.trust_anchor_credential_ids` member type (slice 6 binding populates the frozenset) |
 | `Direction` | closed StrEnum: `Outbound` \| `Inbound` | `Permit.direction` (mirrors `type(terms)`) |
 | `PermitStatus` | closed StrEnum: `Defined` \| `Active` \| `Suspended` \| `Revoked` | `Permit.status` |
 | `OutboundTerms` | `(scope_set: frozenset[ScopeRef], read_scope, onward_action_scope)` | `Permit.terms` when `direction == Outbound` |
@@ -57,6 +68,20 @@ A `Permit` authorizes one federation flow between this facility and one peer in 
 `AbiTier` lives in the Permit module as its canonical home; the Seal aggregate consumes it through the same import. Hoist to a federation-level value-types module the moment a third symbol fires rule-of-three.
 
 ## FSM
+
+The Facility aggregate runs a two-state terminal lifecycle. Genesis lands in `Active`; `decommission_facility` is the terminal transition. The aggregate is strict-not-idempotent on re-decommission (the second call raises `FacilityCannotDecommissionError` rather than no-opping). A decommissioned facility's `code` stays reserved by the projection's `UNIQUE INDEX` on `code` (no partial `WHERE` clause); re-registering with the same code is forbidden.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: register_facility
+    Active --> Decommissioned: decommission_facility
+    Decommissioned --> [*]
+```
+
+| From | To | Command | Event |
+|---|---|---|---|
+| `[*]` | `Active` | `register_facility` | `FacilityRegistered` |
+| `Active` | `Decommissioned` | `decommission_facility` | `FacilityDecommissioned` |
 
 The Permit aggregate runs a four-state lifecycle, shared across both directions:
 
