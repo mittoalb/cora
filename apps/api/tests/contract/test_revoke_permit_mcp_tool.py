@@ -17,7 +17,7 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 def _register_args() -> dict[str, Any]:
     return {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": "Outbound",
         "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],

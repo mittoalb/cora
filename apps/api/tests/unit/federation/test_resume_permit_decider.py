@@ -28,6 +28,7 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import resume_permit
 from cora.federation.features.resume_permit import ResumePermit
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
@@ -48,7 +49,7 @@ def _terms() -> OutboundTerms:
 def _existing_permit(*, status: PermitStatus) -> Permit:
     return Permit(
         id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code=FacilityCode("aps-2bm"),
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset(),
         allowed_payload_types=frozenset({"application/cora.dataset+json"}),

@@ -52,11 +52,11 @@ def test_get_federation_permits_accepts_status_filter() -> None:
 
 
 @pytest.mark.contract
-def test_get_federation_permits_accepts_peer_facility_id_filter() -> None:
+def test_get_federation_permits_accepts_peer_facility_code_filter() -> None:
     with TestClient(create_app()) as client:
         response = client.get(
             "/federation/permits",
-            params={"peer_facility_id": "aps-2bm"},
+            params={"peer_facility_code": "aps-2bm"},
         )
     assert response.status_code == 200
     assert response.json()["items"] == []
@@ -71,7 +71,7 @@ def test_get_federation_permits_accepts_full_filter_set() -> None:
             params={
                 "direction": "Outbound",
                 "status": "Suspended",
-                "peer_facility_id": "aps-2bm",
+                "peer_facility_code": "aps-2bm",
                 "limit": "25",
             },
         )
@@ -124,10 +124,10 @@ def test_get_federation_permits_returns_403_when_authorize_denies() -> None:
 
 @pytest.mark.contract
 def test_get_federation_permits_does_not_surface_peer_facility_uuid_field() -> None:
-    """peer_facility_id is an opaque external string; should not need to be UUID."""
+    """peer_facility_code is an opaque external string; should not need to be UUID."""
     with TestClient(create_app()) as client:
         response = client.get(
             "/federation/permits",
-            params={"peer_facility_id": str(uuid4())},
+            params={"peer_facility_code": str(uuid4())},
         )
     assert response.status_code == 200

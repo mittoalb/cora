@@ -6,7 +6,7 @@ generated inputs:
 
   - state=None + valid OutboundTerms command emits a single
     PermitDefined with the injected ids / now and trimmed
-    peer_facility_id.
+    peer_facility_code.
   - state=Permit always raises PermitAlreadyExistsError, regardless
     of command.
   - expires_at <= now always raises InvalidPermitScopeError.
@@ -40,13 +40,15 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import define_permit
 from cora.federation.features.define_permit import DefinePermit
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from tests._strategies import aware_datetimes, printable_ascii_text
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-_PEER_FACILITY = printable_ascii_text(min_size=1, max_size=64)
+# FacilityCode regex: lowercase ASCII alphanumeric + dash, 1-32 chars.
+_PEER_FACILITY = st.from_regex(r"^[a-z0-9-]{1,32}$", fullmatch=True)
 _PAYLOAD_TYPE = printable_ascii_text(min_size=1, max_size=32)
 _ARTIFACT_KIND = printable_ascii_text(min_size=1, max_size=32)
 _ABI_TIER = st.sampled_from(list(AbiTier))
@@ -70,7 +72,7 @@ def _inbound_terms() -> InboundTerms:
 
 def _command(
     *,
-    peer_facility_id: str,
+    peer_facility_code: str,
     direction: Direction,
     expires_at: datetime,
     credential_id: UUID,
@@ -80,7 +82,7 @@ def _command(
     terms: OutboundTerms | InboundTerms,
 ) -> DefinePermit:
     return DefinePermit(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=direction,
         allowed_credential_ids=frozenset({credential_id}),
         allowed_payload_types=frozenset({payload_type}),
@@ -94,7 +96,7 @@ def _command(
 def _existing_permit(permit_id: UUID, actor_id: UUID) -> Permit:
     return Permit(
         id=permit_id,
-        peer_facility_id="aps-2bm",
+        peer_facility_code=FacilityCode("aps-2bm"),
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset({actor_id}),
         allowed_payload_types=frozenset({"application/json"}),
@@ -110,7 +112,7 @@ def _existing_permit(permit_id: UUID, actor_id: UUID) -> Permit:
 
 @pytest.mark.unit
 @given(
-    peer_facility_id=_PEER_FACILITY,
+    peer_facility_code=_PEER_FACILITY,
     payload_type=_PAYLOAD_TYPE,
     artifact_kind=_ARTIFACT_KIND,
     abi_tier=_ABI_TIER,
@@ -120,7 +122,7 @@ def _existing_permit(permit_id: UUID, actor_id: UUID) -> Permit:
     credential_id=st.uuids(),
 )
 def test_define_permit_emits_exactly_one_event_with_injected_fields(
-    peer_facility_id: str,
+    peer_facility_code: str,
     payload_type: str,
     artifact_kind: str,
     abi_tier: AbiTier,
@@ -133,7 +135,7 @@ def test_define_permit_emits_exactly_one_event_with_injected_fields(
     expires_at = now + timedelta(days=30)
     terms = _outbound_terms()
     command = _command(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=Direction.OUTBOUND,
         expires_at=expires_at,
         credential_id=credential_id,
@@ -154,7 +156,7 @@ def test_define_permit_emits_exactly_one_event_with_injected_fields(
     assert event.permit_id == new_id
     assert event.occurred_at == now
     assert event.defined_by == actor_id
-    assert event.peer_facility_id == peer_facility_id
+    assert event.peer_facility_code == FacilityCode(peer_facility_code)
     assert event.direction is Direction.OUTBOUND
     assert event.terms == terms
 
@@ -162,7 +164,7 @@ def test_define_permit_emits_exactly_one_event_with_injected_fields(
 @pytest.mark.unit
 @given(
     existing_id=st.uuids(),
-    peer_facility_id=_PEER_FACILITY,
+    peer_facility_code=_PEER_FACILITY,
     payload_type=_PAYLOAD_TYPE,
     artifact_kind=_ARTIFACT_KIND,
     abi_tier=_ABI_TIER,
@@ -173,7 +175,7 @@ def test_define_permit_emits_exactly_one_event_with_injected_fields(
 )
 def test_define_permit_on_existing_state_always_raises_already_exists(
     existing_id: UUID,
-    peer_facility_id: str,
+    peer_facility_code: str,
     payload_type: str,
     artifact_kind: str,
     abi_tier: AbiTier,
@@ -184,7 +186,7 @@ def test_define_permit_on_existing_state_always_raises_already_exists(
 ) -> None:
     """Any non-None state -> PermitAlreadyExistsError, regardless of command."""
     command = _command(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=Direction.OUTBOUND,
         expires_at=now + timedelta(days=30),
         credential_id=credential_id,
@@ -206,7 +208,7 @@ def test_define_permit_on_existing_state_always_raises_already_exists(
 
 @pytest.mark.unit
 @given(
-    peer_facility_id=_PEER_FACILITY,
+    peer_facility_code=_PEER_FACILITY,
     payload_type=_PAYLOAD_TYPE,
     artifact_kind=_ARTIFACT_KIND,
     abi_tier=_ABI_TIER,
@@ -217,7 +219,7 @@ def test_define_permit_on_existing_state_always_raises_already_exists(
     backshift_seconds=st.integers(min_value=0, max_value=86_400 * 365),
 )
 def test_define_permit_with_expired_at_in_past_always_raises_invalid_scope(
-    peer_facility_id: str,
+    peer_facility_code: str,
     payload_type: str,
     artifact_kind: str,
     abi_tier: AbiTier,
@@ -230,7 +232,7 @@ def test_define_permit_with_expired_at_in_past_always_raises_invalid_scope(
     """expires_at <= now -> InvalidPermitScopeError."""
     expires_at = now - timedelta(seconds=backshift_seconds)
     command = _command(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=Direction.OUTBOUND,
         expires_at=expires_at,
         credential_id=credential_id,
@@ -251,7 +253,7 @@ def test_define_permit_with_expired_at_in_past_always_raises_invalid_scope(
 
 @pytest.mark.unit
 @given(
-    peer_facility_id=_PEER_FACILITY,
+    peer_facility_code=_PEER_FACILITY,
     payload_type=_PAYLOAD_TYPE,
     artifact_kind=_ARTIFACT_KIND,
     abi_tier=_ABI_TIER,
@@ -262,7 +264,7 @@ def test_define_permit_with_expired_at_in_past_always_raises_invalid_scope(
     direction=st.sampled_from(list(Direction)),
 )
 def test_define_permit_with_direction_mismatched_terms_always_raises(
-    peer_facility_id: str,
+    peer_facility_code: str,
     payload_type: str,
     artifact_kind: str,
     abi_tier: AbiTier,
@@ -281,7 +283,7 @@ def test_define_permit_with_direction_mismatched_terms_always_raises(
         _inbound_terms() if direction is Direction.OUTBOUND else _outbound_terms()
     )
     command = _command(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=direction,
         expires_at=now + timedelta(days=30),
         credential_id=credential_id,
@@ -302,7 +304,7 @@ def test_define_permit_with_direction_mismatched_terms_always_raises(
 
 @pytest.mark.unit
 @given(
-    peer_facility_id=_PEER_FACILITY,
+    peer_facility_code=_PEER_FACILITY,
     payload_type=_PAYLOAD_TYPE,
     artifact_kind=_ARTIFACT_KIND,
     abi_tier=_ABI_TIER,
@@ -312,7 +314,7 @@ def test_define_permit_with_direction_mismatched_terms_always_raises(
     credential_id=st.uuids(),
 )
 def test_define_permit_is_pure_same_input_same_output(
-    peer_facility_id: str,
+    peer_facility_code: str,
     payload_type: str,
     artifact_kind: str,
     abi_tier: AbiTier,
@@ -325,7 +327,7 @@ def test_define_permit_is_pure_same_input_same_output(
     assume(now < datetime.max.replace(tzinfo=UTC) - timedelta(days=31))
     expires_at = now + timedelta(days=30)
     command = _command(
-        peer_facility_id=peer_facility_id,
+        peer_facility_code=peer_facility_code,
         direction=Direction.OUTBOUND,
         expires_at=expires_at,
         credential_id=credential_id,

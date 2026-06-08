@@ -62,7 +62,7 @@ def _build_deps(
 
 def _command(**overrides: object) -> DefinePermit:
     base: dict[str, object] = {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": Direction.OUTBOUND,
         "allowed_credential_ids": frozenset({_CREDENTIAL_ID}),
         "allowed_payload_types": frozenset({"application/json"}),

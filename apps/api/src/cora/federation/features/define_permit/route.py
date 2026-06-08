@@ -1,6 +1,6 @@
 """HTTP route for the `define_permit` slice.
 
-`POST /federation/permits` with body carrying peer_facility_id +
+`POST /federation/permits` with body carrying peer_facility_code +
 direction + the allowed-credential / payload-type / artifact-kind
 scope sets + abi_tier_floor + expires_at + a discriminated `terms`
 union (`OutboundTerms | InboundTerms`). Returns 201 + `{permit_id}`
@@ -80,12 +80,12 @@ _TermsRequest = Annotated[
 class DefinePermitRequest(BaseModel):
     """Body for `POST /federation/permits`."""
 
-    peer_facility_id: str = Field(
+    peer_facility_code: str = Field(
         ...,
         min_length=1,
         description=(
-            "Opaque string id of the peer facility. Federation peers are "
-            "external entities; CORA does NOT mint their ids."
+            "FacilityCode of the peer facility. Federation peers are "
+            "external entities; CORA does NOT mint their codes."
         ),
     )
     direction: Direction = Field(
@@ -177,7 +177,7 @@ router = APIRouter(tags=["federation"])
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
-                "Domain invariant violated (empty peer_facility_id, empty "
+                "Domain invariant violated (empty peer_facility_code, empty "
                 "scope sets, expires_at in the past, direction / terms "
                 "mismatch, or whitespace-only payload-type / artifact-kind "
                 "entry)."
@@ -227,7 +227,7 @@ async def post_federation_permits(
 ) -> DefinePermitResponse:
     permit_id = await handler(
         DefinePermit(
-            peer_facility_id=body.peer_facility_id,
+            peer_facility_code=body.peer_facility_code,
             direction=body.direction,
             allowed_credential_ids=frozenset(body.allowed_credential_ids),
             allowed_payload_types=frozenset(body.allowed_payload_types),

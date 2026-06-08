@@ -86,6 +86,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 
@@ -238,9 +239,11 @@ class InboundTerms:
 class Permit:
     """Aggregate root: federation-flow authorization for one peer + direction.
 
-    `peer_facility_id` is the opaque string identifier of the peer
-    facility. String-typed (not UUID) because federation peers are
-    external entities; CORA does NOT mint their ids.
+    `peer_facility_code` is the cross-deployment convergent
+    `FacilityCode` for the peer facility. Federation peers are
+    external entities; CORA does NOT mint their ids. The bare slug
+    string remains the cross-deployment identity on the event log
+    (disk JSON key stays `"peer_facility_id"` per anti-hook).
 
     `direction` mirrors `type(terms)` and is the read-side query
     discriminator; the decider enforces the invariant on every
@@ -266,7 +269,7 @@ class Permit:
     """
 
     id: UUID
-    peer_facility_id: str
+    peer_facility_code: FacilityCode
     direction: Direction
     allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]

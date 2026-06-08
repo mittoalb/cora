@@ -1,7 +1,7 @@
 """HTTP route for the `list_permits` query slice.
 
 `GET /federation/permits` accepts these optional query params:
-`cursor`, `limit`, `direction`, `status`, `peer_facility_id`.
+`cursor`, `limit`, `direction`, `status`, `peer_facility_code`.
 Returns `{"items": [...], "next_cursor": "..." | null}`.
 
 Per-arc terms detail (read_scope / scopes /
@@ -37,7 +37,7 @@ class PermitSummaryDTO(BaseModel):
     """One permit in a paginated list."""
 
     permit_id: UUID
-    peer_facility_id: str = Field(..., min_length=1)
+    peer_facility_code: str = Field(..., min_length=1)
     direction: Direction
     allowed_credential_ids: list[UUID] = Field(default_factory=list[UUID])
     allowed_payload_types: list[str] = Field(default_factory=list[str])
@@ -84,7 +84,7 @@ router = APIRouter(tags=["federation"])
     },
     summary=(
         "List federation Permits with cursor pagination + direction / status / "
-        "peer_facility_id filters. Per-arc terms detail not surfaced (fetch "
+        "peer_facility_code filters. Per-arc terms detail not surfaced (fetch "
         "get_permit for the full polymorphic terms VO)."
     ),
 )
@@ -115,12 +115,12 @@ async def list_permits(
             ),
         ),
     ] = None,
-    peer_facility_id: Annotated[
+    peer_facility_code: Annotated[
         str | None,
         Query(
             description=(
-                "Optional opaque peer-facility-id filter; matches the "
-                "external string id of the peer facility."
+                "Optional peer-facility-code filter; matches the "
+                "FacilityCode string of the peer facility."
             ),
         ),
     ] = None,
@@ -131,7 +131,7 @@ async def list_permits(
             limit=limit,
             direction=direction,
             status=status_filter,
-            peer_facility_id=peer_facility_id,
+            peer_facility_code=peer_facility_code,
         ),
         principal_id=principal_id,
         correlation_id=cid,
@@ -141,7 +141,7 @@ async def list_permits(
         items=[
             PermitSummaryDTO(
                 permit_id=item.permit_id,
-                peer_facility_id=item.peer_facility_id,
+                peer_facility_code=item.peer_facility_code,
                 direction=Direction(item.direction),
                 allowed_credential_ids=[UUID(str(c)) for c in item.allowed_credential_ids],
                 allowed_payload_types=[str(p) for p in item.allowed_payload_types],

@@ -22,7 +22,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 class PermitSummaryItemOutput(BaseModel):
     permit_id: UUID
-    peer_facility_id: str = Field(..., min_length=1)
+    peer_facility_code: str = Field(..., min_length=1)
     direction: Direction
     allowed_credential_ids: list[UUID] = Field(default_factory=list[UUID])
     allowed_payload_types: list[str] = Field(default_factory=list[str])
@@ -54,7 +54,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         description=(
             "List federation Permits with cursor pagination + 3 optional "
             "filters: direction (Outbound / Inbound) / status (Defined / "
-            "Active / Suspended / Revoked) / peer_facility_id. Returns "
+            "Active / Suspended / Revoked) / peer_facility_code. Returns "
             "sorted by defined_at ASC. Per-arc terms detail (scopes / "
             "read_scope / onward_action_scope / accepted_canonicalization_versions "
             "/ etc.) is NOT in the response; fetch get_permit for the full "
@@ -77,9 +77,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             PermitStatusFilter | None,
             Field(default=None, description="Status filter."),
         ] = None,
-        peer_facility_id: Annotated[
+        peer_facility_code: Annotated[
             str | None,
-            Field(default=None, description="Peer-facility-id filter (opaque string)."),
+            Field(default=None, description="Peer-facility-code filter (opaque string)."),
         ] = None,
     ) -> ListPermitsOutput:
         handler = get_handler()
@@ -89,7 +89,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                 limit=limit,
                 direction=direction,
                 status=status,
-                peer_facility_id=peer_facility_id,
+                peer_facility_code=peer_facility_code,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
@@ -99,7 +99,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 PermitSummaryItemOutput(
                     permit_id=item.permit_id,
-                    peer_facility_id=item.peer_facility_id,
+                    peer_facility_code=item.peer_facility_code,
                     direction=Direction(item.direction),
                     allowed_credential_ids=[UUID(str(c)) for c in item.allowed_credential_ids],
                     allowed_payload_types=[str(p) for p in item.allowed_payload_types],

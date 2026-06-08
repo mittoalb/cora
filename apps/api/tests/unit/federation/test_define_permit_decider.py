@@ -28,6 +28,7 @@ from cora.federation.aggregates.permit import (
 )
 from cora.federation.features import define_permit
 from cora.federation.features.define_permit import DefinePermit
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
@@ -61,7 +62,7 @@ def _inbound_terms() -> InboundTerms:
 
 def _command(**overrides: object) -> DefinePermit:
     base: dict[str, object] = {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": Direction.OUTBOUND,
         "allowed_credential_ids": frozenset({_CREDENTIAL_ID}),
         "allowed_payload_types": frozenset({"application/json"}),
@@ -77,7 +78,7 @@ def _command(**overrides: object) -> DefinePermit:
 def _existing_state() -> Permit:
     return Permit(
         id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code=FacilityCode("aps-2bm"),
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset({_CREDENTIAL_ID}),
         allowed_payload_types=frozenset({"application/json"}),
@@ -103,7 +104,7 @@ def test_define_permit_emits_event_for_valid_outbound_command() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.permit_id == _NEW_ID
-    assert event.peer_facility_id == "aps-2bm"
+    assert event.peer_facility_code == FacilityCode("aps-2bm")
     assert event.direction is Direction.OUTBOUND
     assert event.allowed_credential_ids == frozenset({_CREDENTIAL_ID})
     assert event.allowed_payload_types == frozenset({"application/json"})
@@ -131,15 +132,15 @@ def test_define_permit_emits_event_for_valid_inbound_command() -> None:
 
 
 @pytest.mark.unit
-def test_define_permit_trims_peer_facility_id() -> None:
+def test_define_permit_trims_peer_facility_code() -> None:
     events = define_permit.decide(
         state=None,
-        command=_command(peer_facility_id="  aps-2bm  "),
+        command=_command(peer_facility_code="  aps-2bm  "),
         now=_NOW,
         new_id=_NEW_ID,
         defined_by=_PRINCIPAL_ID,
     )
-    assert events[0].peer_facility_id == "aps-2bm"
+    assert events[0].peer_facility_code == FacilityCode("aps-2bm")
 
 
 @pytest.mark.unit
@@ -155,11 +156,11 @@ def test_define_permit_rejects_when_state_already_exists() -> None:
 
 
 @pytest.mark.unit
-def test_define_permit_rejects_empty_peer_facility_id() -> None:
+def test_define_permit_rejects_empty_peer_facility_code() -> None:
     with pytest.raises(InvalidPermitScopeError):
         define_permit.decide(
             state=None,
-            command=_command(peer_facility_id=""),
+            command=_command(peer_facility_code=""),
             now=_NOW,
             new_id=_NEW_ID,
             defined_by=_PRINCIPAL_ID,
@@ -167,11 +168,11 @@ def test_define_permit_rejects_empty_peer_facility_id() -> None:
 
 
 @pytest.mark.unit
-def test_define_permit_rejects_whitespace_only_peer_facility_id() -> None:
+def test_define_permit_rejects_whitespace_only_peer_facility_code() -> None:
     with pytest.raises(InvalidPermitScopeError):
         define_permit.decide(
             state=None,
-            command=_command(peer_facility_id="   "),
+            command=_command(peer_facility_code="   "),
             now=_NOW,
             new_id=_NEW_ID,
             defined_by=_PRINCIPAL_ID,

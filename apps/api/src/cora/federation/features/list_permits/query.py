@@ -1,7 +1,7 @@
 """The `ListPermits` query: intent dataclass for this read slice.
 
 Mirrors `ListClearances`: cursor pagination + optional direction /
-status / peer_facility_id filters. Each filter is optional; passing
+status / peer_facility_code filters. Each filter is optional; passing
 None means "do not filter on this dimension".
 
 `limit` defaults to 50 (capped at 100 in the route layer per the
@@ -44,7 +44,7 @@ class ListPermits:
     limit: int = 50
     direction: PermitDirectionFilter | None = None
     status: PermitStatusFilter | None = None
-    peer_facility_id: str | None = None
+    peer_facility_code: str | None = None
 
 
 __all__ = ["ListPermits", "PermitDirectionFilter", "PermitStatusFilter"]

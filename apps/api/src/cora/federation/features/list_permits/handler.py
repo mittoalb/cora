@@ -2,7 +2,7 @@
 
 Reads `proj_federation_permit_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Three
-optional scalar filters: `direction` / `status` / `peer_facility_id`.
+optional scalar filters: `direction` / `status` / `peer_facility_code`.
 Cursor pagination keyed on `(defined_at, permit_id)`.
 
 List output deliberately OMITS the per-arc terms detail
@@ -36,7 +36,7 @@ class PermitSummaryItem:
     """One row from the permit projection (shared cross-direction fields only)."""
 
     permit_id: UUID
-    peer_facility_id: str
+    peer_facility_code: str
     direction: str
     allowed_credential_ids: list[Any]
     allowed_payload_types: list[Any]
@@ -85,7 +85,7 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> PermitSummaryItem:
     return PermitSummaryItem(
         permit_id=row["permit_id"],
-        peer_facility_id=str(row["peer_facility_id"]),
+        peer_facility_code=str(row["peer_facility_id"]),
         direction=str(row["direction"]),
         allowed_credential_ids=list(row["allowed_credential_ids"]),
         allowed_payload_types=list(row["allowed_payload_types"]),
@@ -107,7 +107,7 @@ def _log_fields(query: ListPermits) -> dict[str, Any]:
     return {
         "direction": query.direction,
         "status": query.status,
-        "peer_facility_id": query.peer_facility_id,
+        "peer_facility_code": query.peer_facility_code,
     }
 
 
@@ -125,7 +125,7 @@ def bind(deps: Kernel) -> Handler:
         filters=[
             ScalarFilter(attr="direction"),
             ScalarFilter(attr="status"),
-            ScalarFilter(attr="peer_facility_id"),
+            ScalarFilter(attr="peer_facility_code", column="peer_facility_id"),
         ],
         row_to_item=_row_to_item,
         item_cursor_at=lambda item: item.defined_at,

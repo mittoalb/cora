@@ -2,9 +2,10 @@
 
 Carries the caller-controlled fields for defining a new Permit:
 
-  - `peer_facility_id`: opaque string id of the peer facility this
-    permit binds to. String-typed because federation peers are
-    external entities; CORA does NOT mint their ids.
+  - `peer_facility_code`: opaque string code of the peer facility this
+    permit binds to. String-typed at the wire because federation peers
+    are external entities; CORA does NOT mint their codes. The decider
+    canonicalizes and wraps into `FacilityCode`.
   - `direction`: query-convenience discriminator mirroring
     `type(terms)`. The decider enforces
     `direction == Outbound iff isinstance(terms, OutboundTerms)`.
@@ -41,7 +42,7 @@ from cora.federation.aggregates.permit import (
 class DefinePermit:
     """Define a new Permit (genesis; lands in Defined)."""
 
-    peer_facility_id: str
+    peer_facility_code: str
     direction: Direction
     allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]

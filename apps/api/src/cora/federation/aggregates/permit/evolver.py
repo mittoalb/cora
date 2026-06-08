@@ -35,7 +35,7 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
     match event:
         case PermitDefined(
             permit_id=permit_id,
-            peer_facility_id=peer_facility_id,
+            peer_facility_code=peer_facility_code,
             direction=direction,
             allowed_credential_ids=allowed_credential_ids,
             allowed_payload_types=allowed_payload_types,
@@ -49,7 +49,7 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
             _ = state
             return Permit(
                 id=permit_id,
-                peer_facility_id=peer_facility_id,
+                peer_facility_code=peer_facility_code,
                 direction=direction,
                 allowed_credential_ids=allowed_credential_ids,
                 allowed_payload_types=allowed_payload_types,
@@ -83,7 +83,7 @@ def evolve(state: Permit | None, event: PermitEvent) -> Permit:
 def _replace_status(prior: Permit, new_status: PermitStatus) -> Permit:
     return Permit(
         id=prior.id,
-        peer_facility_id=prior.peer_facility_id,
+        peer_facility_code=prior.peer_facility_code,
         direction=prior.direction,
         allowed_credential_ids=prior.allowed_credential_ids,
         allowed_payload_types=prior.allowed_payload_types,

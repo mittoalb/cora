@@ -31,7 +31,7 @@ _ACTOR_ID = UUID("01900000-0000-7000-8000-000000000099")
 def _outbound_view() -> PermitView:
     return PermitView(
         permit_id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code="aps-2bm",
         direction="Outbound",
         allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
@@ -59,7 +59,7 @@ def _outbound_view() -> PermitView:
 def _inbound_view() -> PermitView:
     return PermitView(
         permit_id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code="aps-2bm",
         direction="Inbound",
         allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],
@@ -99,7 +99,7 @@ def test_get_federation_permit_returns_200_with_outbound_terms() -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["id"] == str(_PERMIT_ID)
-    assert body["peer_facility_id"] == "aps-2bm"
+    assert body["peer_facility_code"] == "aps-2bm"
     assert body["direction"] == "Outbound"
     assert body["status"] == "Active"
     assert body["allowed_credential_ids"] == [str(_CREDENTIAL_ID)]

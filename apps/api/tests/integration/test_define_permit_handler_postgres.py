@@ -45,7 +45,7 @@ _CREDENTIAL_ID = UUID("01900000-0000-7000-8000-000000fed003")
 
 def _command() -> DefinePermit:
     return DefinePermit(
-        peer_facility_id="aps-2bm",
+        peer_facility_code="aps-2bm",
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset({_CREDENTIAL_ID}),
         allowed_payload_types=frozenset({"application/json"}),
@@ -77,7 +77,7 @@ async def test_define_permit_writes_both_streams_atomically(
     assert permit is not None
     assert permit.id == permit_id
     assert permit.status is PermitStatus.DEFINED
-    assert permit.peer_facility_id == "aps-2bm"
+    assert permit.peer_facility_code.value == "aps-2bm"
     assert permit.direction is Direction.OUTBOUND
     assert isinstance(permit.terms, OutboundTerms)
 

@@ -4816,10 +4816,10 @@
             "title": "Expires At",
             "type": "string"
           },
-          "peer_facility_id": {
-            "description": "Opaque string id of the peer facility. Federation peers are external entities; CORA does NOT mint their ids.",
+          "peer_facility_code": {
+            "description": "FacilityCode of the peer facility. Federation peers are external entities; CORA does NOT mint their codes.",
             "minLength": 1,
-            "title": "Peer Facility Id",
+            "title": "Peer Facility Code",
             "type": "string"
           },
           "terms": {
@@ -4843,7 +4843,7 @@
           }
         },
         "required": [
-          "peer_facility_id",
+          "peer_facility_code",
           "direction",
           "allowed_credential_ids",
           "allowed_payload_types",
@@ -7255,8 +7255,8 @@
             "title": "Id",
             "type": "string"
           },
-          "peer_facility_id": {
-            "title": "Peer Facility Id",
+          "peer_facility_code": {
+            "title": "Peer Facility Code",
             "type": "string"
           },
           "resumed_at": {
@@ -7320,7 +7320,7 @@
         },
         "required": [
           "id",
-          "peer_facility_id",
+          "peer_facility_code",
           "direction",
           "allowed_credential_ids",
           "allowed_payload_types",
@@ -7404,9 +7404,9 @@
             "title": "Expires At",
             "type": "string"
           },
-          "peer_facility_id": {
+          "peer_facility_code": {
             "minLength": 1,
-            "title": "Peer Facility Id",
+            "title": "Peer Facility Code",
             "type": "string"
           },
           "permit_id": {
@@ -7459,7 +7459,7 @@
         },
         "required": [
           "permit_id",
-          "peer_facility_id",
+          "peer_facility_code",
           "direction",
           "abi_tier_floor",
           "expires_at",
@@ -25441,9 +25441,9 @@
             }
           },
           {
-            "description": "Optional opaque peer-facility-id filter; matches the external string id of the peer facility.",
+            "description": "Optional peer-facility-code filter; matches the FacilityCode string of the peer facility.",
             "in": "query",
-            "name": "peer_facility_id",
+            "name": "peer_facility_code",
             "required": false,
             "schema": {
               "anyOf": [
@@ -25454,8 +25454,8 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional opaque peer-facility-id filter; matches the external string id of the peer facility.",
-              "title": "Peer Facility Id"
+              "description": "Optional peer-facility-code filter; matches the FacilityCode string of the peer facility.",
+              "title": "Peer Facility Code"
             }
           },
           {
@@ -25503,7 +25503,7 @@
             "description": "Query parameters failed validation OR `cursor` was malformed."
           }
         },
-        "summary": "List federation Permits with cursor pagination + direction / status / peer_facility_id filters. Per-arc terms detail not surfaced (fetch get_permit for the full polymorphic terms VO).",
+        "summary": "List federation Permits with cursor pagination + direction / status / peer_facility_code filters. Per-arc terms detail not surfaced (fetch get_permit for the full polymorphic terms VO).",
         "tags": [
           "federation"
         ]
@@ -25578,7 +25578,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (empty peer_facility_id, empty scope sets, expires_at in the past, direction / terms mismatch, or whitespace-only payload-type / artifact-kind entry)."
+            "description": "Domain invariant violated (empty peer_facility_code, empty scope sets, expires_at in the past, direction / terms mismatch, or whitespace-only payload-type / artifact-kind entry)."
           },
           "403": {
             "content": {

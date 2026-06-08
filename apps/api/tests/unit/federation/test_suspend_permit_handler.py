@@ -31,8 +31,9 @@ from cora.federation.features import suspend_permit
 from cora.federation.features.suspend_permit import SuspendPermit
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
-from cora.infrastructure.kernel import Kernel
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
+from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import (
     seed_active_permit,
@@ -328,7 +329,7 @@ async def test_suspend_permit_handler_records_principal_as_suspended_by() -> Non
     # should still be recorded as the invoking principal.
     genesis = PermitDefined(
         permit_id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code=FacilityCode("aps-2bm"),
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset({UUID("01900000-0000-7000-8000-00000000c001")}),
         allowed_payload_types=frozenset({"application/vnd.cora.dataset+json"}),

@@ -98,7 +98,7 @@ def test_mcp_list_permits_tool_accepts_status_filter() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_list_permits_tool_accepts_peer_facility_id_filter() -> None:
+def test_mcp_list_permits_tool_accepts_peer_facility_code_filter() -> None:
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -109,7 +109,7 @@ def test_mcp_list_permits_tool_accepts_peer_facility_id_filter() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "list_permits",
-                    "arguments": _args(peer_facility_id="aps-2bm"),
+                    "arguments": _args(peer_facility_code="aps-2bm"),
                 },
             },
             headers=session_headers,

@@ -14,7 +14,7 @@ _REASON_MAX_LENGTH = 500
 
 def _register_args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": "Outbound",
         "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/vnd.cora.dataset+json"],

@@ -101,7 +101,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Define a new federation Permit (genesis; lands in Defined). "
             "Atomically emits a DecisionRegistered audit on the Decision "
-            "stream. Required: peer_facility_id, direction, "
+            "stream. Required: peer_facility_code, direction, "
             "allowed_credential_ids, allowed_payload_types, "
             "allowed_artifact_kinds, abi_tier_floor, expires_at, terms. "
             "`terms.kind` discriminates Outbound vs Inbound and must match "
@@ -110,9 +110,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def define_permit_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        peer_facility_id: Annotated[
+        peer_facility_code: Annotated[
             str,
-            Field(min_length=1, description="Opaque peer facility id."),
+            Field(min_length=1, description="Peer facility code (FacilityCode)."),
         ],
         direction: Annotated[
             Direction,
@@ -146,7 +146,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         permit_id = await handler(
             DefinePermit(
-                peer_facility_id=peer_facility_id,
+                peer_facility_code=peer_facility_code,
                 direction=direction,
                 allowed_credential_ids=frozenset(allowed_credential_ids),
                 allowed_payload_types=frozenset(allowed_payload_types),

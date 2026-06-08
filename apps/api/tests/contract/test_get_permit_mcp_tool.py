@@ -30,7 +30,7 @@ _ACTOR_ID = UUID("01900000-0000-7000-8000-000000000099")
 def _outbound_view() -> PermitView:
     return PermitView(
         permit_id=_PERMIT_ID,
-        peer_facility_id="aps-2bm",
+        peer_facility_code="aps-2bm",
         direction="Outbound",
         allowed_credential_ids=[_CREDENTIAL_ID],
         allowed_payload_types=["application/vnd.cora.dataset+json"],

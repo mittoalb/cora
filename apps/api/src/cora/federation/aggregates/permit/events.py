@@ -45,8 +45,9 @@ from cora.federation.aggregates.permit.state import (
     ScopeRef,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
-from cora.infrastructure.ports.event_store import StoredEvent
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
+from cora.infrastructure.ports.event_store import StoredEvent
 
 
 def _serialize_scopes(scopes: frozenset[ScopeRef]) -> list[list[str | None]]:
@@ -120,7 +121,7 @@ def deserialize_terms(raw: dict[str, Any]) -> OutboundTerms | InboundTerms:
 @dataclass(frozen=True, slots=True)
 class PermitDefined:
     permit_id: UUID
-    peer_facility_id: str
+    peer_facility_code: FacilityCode
     direction: Direction
     allowed_credential_ids: frozenset[UUID]
     allowed_payload_types: frozenset[str]
@@ -215,7 +216,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
     match event:
         case PermitDefined(
             permit_id=permit_id,
-            peer_facility_id=peer_facility_id,
+            peer_facility_code=peer_facility_code,
             direction=direction,
             allowed_credential_ids=allowed_credential_ids,
             allowed_payload_types=allowed_payload_types,
@@ -228,7 +229,7 @@ def to_payload(event: PermitEvent) -> dict[str, Any]:
         ):
             return {
                 "permit_id": str(permit_id),
-                "peer_facility_id": peer_facility_id,
+                "peer_facility_id": peer_facility_code.value,
                 "direction": direction.value,
                 "allowed_credential_ids": sorted(str(c) for c in allowed_credential_ids),
                 "allowed_payload_types": sorted(allowed_payload_types),
@@ -321,7 +322,7 @@ def from_stored(stored: StoredEvent) -> PermitEvent:
                 "PermitDefined",
                 lambda: PermitDefined(
                     permit_id=UUID(payload["permit_id"]),
-                    peer_facility_id=payload["peer_facility_id"],
+                    peer_facility_code=FacilityCode(payload["peer_facility_id"]),
                     direction=Direction(payload["direction"]),
                     allowed_credential_ids=frozenset(
                         UUID(c) for c in payload["allowed_credential_ids"]

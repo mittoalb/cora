@@ -28,7 +28,7 @@ _EXPIRES_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=UTC).isoformat()
 
 def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": "Outbound",
         "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
@@ -74,9 +74,9 @@ def test_post_federation_permits_accepts_inbound_terms() -> None:
 
 @pytest.mark.contract
 def test_post_federation_permits_rejects_missing_required_body_field_with_422() -> None:
-    """peer_facility_id missing -> Pydantic 422 before reaching the decider."""
+    """peer_facility_code missing -> Pydantic 422 before reaching the decider."""
     body = _body()
-    del body["peer_facility_id"]
+    del body["peer_facility_code"]
     with TestClient(create_app()) as client:
         response = client.post("/federation/permits", json=body)
     assert response.status_code == 422
@@ -105,13 +105,13 @@ def test_post_federation_permits_rejects_expires_at_in_past_with_400() -> None:
 
 
 @pytest.mark.contract
-def test_post_federation_permits_rejects_whitespace_only_peer_facility_id_with_400() -> None:
+def test_post_federation_permits_rejects_whitespace_only_peer_facility_code_with_400() -> None:
     """Pydantic min_length=1 doesn't trim, so '   ' reaches the decider
     and surfaces as InvalidPermitScopeError -> 400."""
     with TestClient(create_app()) as client:
         response = client.post(
             "/federation/permits",
-            json=_body(peer_facility_id="   "),
+            json=_body(peer_facility_code="   "),
         )
     assert response.status_code == 400
 

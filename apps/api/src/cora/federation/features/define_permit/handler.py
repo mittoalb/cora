@@ -106,7 +106,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "define_permit.start",
             command_name=_COMMAND_NAME,
-            peer_facility_id=command.peer_facility_id,
+            peer_facility_code=command.peer_facility_code,
             direction=command.direction.value,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
@@ -123,7 +123,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "define_permit.denied",
                 command_name=_COMMAND_NAME,
-                peer_facility_id=command.peer_facility_id,
+                peer_facility_code=command.peer_facility_code,
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,

@@ -6,7 +6,7 @@ command slices:
     from cora.federation.features import define_permit
 
     cmd = define_permit.DefinePermit(
-        peer_facility_id="aps-2bm",
+        peer_facility_code="aps-2bm",
         direction=Direction.OUTBOUND,
         allowed_credential_ids=frozenset({...}),
         allowed_payload_types=frozenset({"dataset/v1"}),

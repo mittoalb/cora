@@ -66,7 +66,7 @@ class PermitView:
     """
 
     permit_id: UUID
-    peer_facility_id: str
+    peer_facility_code: str
     direction: str
     allowed_credential_ids: list[UUID]
     allowed_payload_types: list[str]
@@ -109,7 +109,7 @@ def _row_to_view(row: Any) -> PermitView:
     raw_credentials = _jsonb_to_list(row["allowed_credential_ids"]) or []
     return PermitView(
         permit_id=row["permit_id"],
-        peer_facility_id=row["peer_facility_id"],
+        peer_facility_code=row["peer_facility_id"],
         direction=row["direction"],
         allowed_credential_ids=[UUID(c) if isinstance(c, str) else c for c in raw_credentials],
         allowed_payload_types=_jsonb_to_list(row["allowed_payload_types"]) or [],

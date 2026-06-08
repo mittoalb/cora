@@ -18,7 +18,8 @@ BC's domain invariants.
 Invariants:
   - State must be None (genesis-only)
     -> PermitAlreadyExistsError
-  - peer_facility_id non-empty after trim
+  - peer_facility_code non-empty after trim AND a well-formed
+    FacilityCode
     -> InvalidPermitScopeError
   - expires_at must lie strictly after now
     -> InvalidPermitScopeError
@@ -56,6 +57,7 @@ from cora.federation.aggregates.permit import (
     ReadScope,
 )
 from cora.federation.features.define_permit.command import DefinePermit
+from cora.shared.facility_code import FacilityCode, InvalidFacilityCodeError
 from cora.shared.identity import ActorId
 
 
@@ -71,8 +73,8 @@ def decide(
 
     Invariants:
       - State must be None (genesis-only) -> PermitAlreadyExistsError
-      - peer_facility_id must be non-empty after trim
-        -> InvalidPermitScopeError
+      - peer_facility_code non-empty after trim AND a well-formed
+        FacilityCode -> InvalidPermitScopeError
       - expires_at must lie strictly after now
         -> InvalidPermitScopeError
       - allowed_credential_ids must be non-empty
@@ -92,9 +94,15 @@ def decide(
     if state is not None:
         raise PermitAlreadyExistsError(state.id)
 
-    peer_facility_id = command.peer_facility_id.strip()
-    if not peer_facility_id:
-        raise InvalidPermitScopeError("peer_facility_id must be non-empty")
+    canonical_facility = command.peer_facility_code.strip()
+    if not canonical_facility:
+        raise InvalidPermitScopeError("peer_facility_code must be non-empty")
+    try:
+        peer_facility_code = FacilityCode(canonical_facility)
+    except InvalidFacilityCodeError as exc:
+        raise InvalidPermitScopeError(
+            "peer_facility_code is not a well-formed FacilityCode"
+        ) from exc
 
     if command.expires_at <= now:
         raise InvalidPermitScopeError(
@@ -129,7 +137,7 @@ def decide(
     return [
         PermitDefined(
             permit_id=new_id,
-            peer_facility_id=peer_facility_id,
+            peer_facility_code=peer_facility_code,
             direction=command.direction,
             allowed_credential_ids=command.allowed_credential_ids,
             allowed_payload_types=command.allowed_payload_types,

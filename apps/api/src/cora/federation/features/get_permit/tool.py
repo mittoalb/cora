@@ -63,7 +63,7 @@ class GetPermitOutput(BaseModel):
     """
 
     id: UUID
-    peer_facility_id: str
+    peer_facility_code: str
     direction: str
     allowed_credential_ids: list[UUID]
     allowed_payload_types: list[str]
@@ -108,7 +108,7 @@ def _terms_output(view: PermitView) -> _TermsOutput:
 def _output_from_view(view: PermitView) -> GetPermitOutput:
     return GetPermitOutput(
         id=view.permit_id,
-        peer_facility_id=view.peer_facility_id,
+        peer_facility_code=view.peer_facility_code,
         direction=view.direction,
         allowed_credential_ids=list(view.allowed_credential_ids),
         allowed_payload_types=list(view.allowed_payload_types),

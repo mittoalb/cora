@@ -19,7 +19,7 @@ _EXPIRES_AT = datetime(2027, 1, 1, 0, 0, 0, tzinfo=UTC).isoformat()
 
 def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "peer_facility_id": "aps-2bm",
+        "peer_facility_code": "aps-2bm",
         "direction": "Outbound",
         "allowed_credential_ids": [str(uuid4())],
         "allowed_payload_types": ["application/json"],
@@ -131,11 +131,11 @@ def test_mcp_define_permit_tool_returns_iserror_on_outbound_terms_collapse() -> 
 
 @pytest.mark.contract
 def test_mcp_define_permit_tool_rejects_missing_required_argument() -> None:
-    """Pydantic-layer rejection (peer_facility_id missing) bubbles as isError: true."""
+    """Pydantic-layer rejection (peer_facility_code missing) bubbles as isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         args = _args()
-        del args["peer_facility_id"]
+        del args["peer_facility_code"]
         response = client.post(
             "/mcp",
             json={
