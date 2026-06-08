@@ -29,20 +29,7 @@ from tests.architecture.conftest import BCS, CORA_ROOT, tracked_python_files
 # OR pre-existing drift this test surfaced and which is being
 # cleaned up in a follow-up. Each entry MUST have a comment.
 # Empty each entry as the slice ships / drift is fixed.
-WIP_ERRORS: dict[str, frozenset[str]] = {
-    # FacilityNotFoundError + FacilityCannotDecommissionError ship with
-    # the decommission_facility slice in Session 5 Slice 5 Sub-Slice C.
-    # The Sub-Slice B register_facility wiring already registered the
-    # other 5 Facility error classes (Already-exists, Site-cannot-have-
-    # parent, Area-must-have-parent, Area-cannot-have-trust-anchors,
-    # InvalidFacilityName). Per project_facility_aggregate_design.
-    "federation": frozenset(
-        {
-            "FacilityCannotDecommissionError",
-            "FacilityNotFoundError",
-        }
-    ),
-}
+WIP_ERRORS: dict[str, frozenset[str]] = {}
 
 
 def _bc_module(bc: str) -> Any:

@@ -125,6 +125,11 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # endpoint contract test alongside register_facility's first
         # integration test or after Sub-Slice C ships decommission_facility.
         "cora.federation.features.register_facility",
+        # decommission_facility (Session 5 Slice 5 Sub-Slice C): same
+        # deferral as register_facility's REST contract test. Decider +
+        # handler unit tests + projection apply test (FacilityDecommissioned
+        # branch) + OpenAPI snapshot cover the behavior surface.
+        "cora.federation.features.decommission_facility",
     }
 )
 
@@ -167,6 +172,9 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         # register_facility (Session 5 Slice 5 Sub-Slice B): MCP contract
         # test deferred alongside the REST contract test. Same rationale.
         "cora.federation.features.register_facility",
+        # decommission_facility (Session 5 Slice 5 Sub-Slice C): MCP
+        # contract test deferred alongside REST. Same rationale.
+        "cora.federation.features.decommission_facility",
     }
 )
 
@@ -210,6 +218,10 @@ EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
         # Backfill alongside Sub-Slice C's decommission_facility or
         # after Sub-Slice D lands the bootstrap.
         "cora.federation.features.register_facility",
+        # decommission_facility (Session 5 Slice 5 Sub-Slice C): same
+        # deferral. Decider + handler unit tests + projection apply
+        # cover the behavior surface.
+        "cora.federation.features.decommission_facility",
     }
 )
 

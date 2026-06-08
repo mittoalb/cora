@@ -41,6 +41,7 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    decommission_facility,
     define_permit,
     get_credential,
     get_permit,
@@ -93,6 +94,7 @@ class FederationHandlers:
     start_seal_republishing: start_seal_republishing.Handler
     complete_seal_republishing: complete_seal_republishing.Handler
     register_facility: register_facility.IdempotentHandler
+    decommission_facility: decommission_facility.Handler
     list_permits: list_permits.Handler
     get_permit: get_permit.Handler
     list_credentials: list_credentials.Handler
@@ -210,6 +212,11 @@ def wire_federation(deps: Kernel) -> FederationHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterFacility",
+            bc=_BC,
+        ),
+        decommission_facility=with_tracing(
+            decommission_facility.bind(deps),
+            command_name="DecommissionFacility",
             bc=_BC,
         ),
         list_permits=with_tracing(

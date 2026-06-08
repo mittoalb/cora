@@ -4141,6 +4141,26 @@
         "title": "DecisionSummaryDTO",
         "type": "object"
       },
+      "DecommissionFacilityBody": {
+        "additionalProperties": false,
+        "description": "Optional decommission-facility request body.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied reason for decommissioning the facility (audit-log breadcrumb). Flows onto the FacilityDecommissioned event payload.",
+            "title": "Reason"
+          }
+        },
+        "title": "DecommissionFacilityBody",
+        "type": "object"
+      },
       "DecommissionFrameRequest": {
         "description": "Body for `DELETE /frames/{frame_id}`.",
         "properties": {
@@ -24976,6 +24996,110 @@
           }
         },
         "summary": "Register a new federation Facility (single-stream genesis)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/facilities/{facility_id}/decommission": {
+      "post": {
+        "operationId": "post_federation_facilities_decommission_federation_facilities__facility_id__decommission_post",
+        "parameters": [
+          {
+            "description": "Target facility's id.",
+            "in": "path",
+            "name": "facility_id",
+            "required": true,
+            "schema": {
+              "description": "Target facility's id.",
+              "format": "uuid",
+              "title": "Facility Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DecommissionFacilityBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No facility exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Facility is already Decommissioned (decommission_facility is strict-not-idempotent; Decommissioned is terminal). The code stays reserved even after decommissioning; re-registering with the same code is forbidden."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decommission a Facility (terminal: Active -> Decommissioned)",
         "tags": [
           "federation"
         ]

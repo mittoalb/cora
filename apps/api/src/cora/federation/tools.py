@@ -26,6 +26,9 @@ from cora.federation.features.complete_credential_rotation import (
 from cora.federation.features.complete_seal_republishing import (
     tool as complete_seal_republishing_tool,
 )
+from cora.federation.features.decommission_facility import (
+    tool as decommission_facility_tool,
+)
 from cora.federation.features.define_permit import tool as define_permit_tool
 from cora.federation.features.get_credential import tool as get_credential_tool
 from cora.federation.features.get_permit import tool as get_permit_tool
@@ -126,6 +129,10 @@ def register_federation_tools(
     register_facility_tool.register(
         mcp,
         get_handler=lambda: get_handlers().register_facility,
+    )
+    decommission_facility_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().decommission_facility,
     )
     list_permits_tool.register(
         mcp,

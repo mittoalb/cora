@@ -40,6 +40,8 @@ from cora.federation.aggregates.facility import (
     FacilityAlreadyExistsError,
     FacilityAreaCannotHaveTrustAnchorsError,
     FacilityAreaMustHaveParentError,
+    FacilityCannotDecommissionError,
+    FacilityNotFoundError,
     FacilitySiteCannotHaveParentError,
     InvalidFacilityNameError,
 )
@@ -76,6 +78,7 @@ from cora.federation.features import (
     activate_permit,
     complete_credential_rotation,
     complete_seal_republishing,
+    decommission_facility,
     define_permit,
     get_credential,
     get_permit,
@@ -175,6 +178,7 @@ def register_federation_routes(app: FastAPI) -> None:
     app.include_router(start_seal_republishing.router)
     app.include_router(complete_seal_republishing.router)
     app.include_router(register_facility.router)
+    app.include_router(decommission_facility.router)
     app.include_router(list_permits.router)
     app.include_router(get_permit.router)
     app.include_router(list_credentials.router)
@@ -204,6 +208,7 @@ def register_federation_routes(app: FastAPI) -> None:
     for not_found_cls in (
         PermitNotFoundError,
         CredentialNotFoundError,
+        FacilityNotFoundError,
         SealNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
@@ -221,6 +226,7 @@ def register_federation_routes(app: FastAPI) -> None:
         PermitCannotRevokeError,
         CredentialCannotRotateError,
         CredentialCannotRevokeError,
+        FacilityCannotDecommissionError,
         SealCannotSignError,
         SealCannotRotateError,
         SealCannotInitializeWithInactiveCredentialError,
