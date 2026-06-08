@@ -99,8 +99,16 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
+from cora.equipment.aggregates._partition_rule import (
+    SolverReference,
+    SolverTransportKind,
+)
 from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
+from cora.equipment.features.update_asset_partition_rule import UpdateAssetPartitionRule
+from cora.equipment.features.update_asset_partition_rule import (
+    bind as bind_update_asset_partition_rule,
+)
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
 from cora.operation.features.append_procedure_steps import (
@@ -143,9 +151,12 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000357501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000357701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000357a01")
 
-# Capabilities (4: rotary + linear-tilt + camera + scintillator)
+# Capabilities (4: rotary + pseudo-axis roll + camera + scintillator).
+# Sample_top_Roll is a PseudoAxis (virtual DoF over an underlying solver),
+# not a LinearStage. See project_pitch_roll_retag memo for the partial-fix
+# rationale; the remaining four hexapod DoFs are deferred until trigger.
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000357c01")
-_CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000357c11")
+_CAP_PSEUDO_AXIS_ID = UUID("01900000-0000-7000-8000-000000357c11")
 _CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000357c21")
 _CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000357c31")
 
@@ -171,7 +182,7 @@ _DEVICES = (
     DeviceSpec(
         "Aerotech_ABRS_rotary", _ASSET_AEROTECH_ABRS_ID, "RotaryStage", _CAP_ROTARY_STAGE_ID
     ),
-    DeviceSpec("Sample_top_Roll", _ASSET_SAMPLE_TOP_ROLL_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    DeviceSpec("Sample_top_Roll", _ASSET_SAMPLE_TOP_ROLL_ID, "PseudoAxis", _CAP_PSEUDO_AXIS_ID),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -194,6 +205,8 @@ def _id_queue() -> list[UUID]:
         e(),
         e(),
         e(),
+        e(),
+        # update_asset_partition_rule for Sample_top_Roll (PseudoAxis): event_id only
         e(),
         # define_method: method_id, event_id
         _METHOD_ROLL_ID,
@@ -328,6 +341,31 @@ async def test_roll_alignment_plays_out_end_to_end(
             correlation_id=_CORRELATION_ID,
         )
 
+    # ----- Equipment BC: set partition_rule on the Sample_top_Roll PseudoAxis -----
+    #
+    # SolverReference points at the 2bmHXP hexapod-kinematics solver. The
+    # constituent topology is not wired here (no Plan wires in this
+    # scenario, runtime eval_solver_reference is NotImplemented); the
+    # data-substrate retag only needs the rule to construct + pass the
+    # Family-membership gate.
+
+    await bind_update_asset_partition_rule(deps)(
+        UpdateAssetPartitionRule(
+            asset_id=_ASSET_SAMPLE_TOP_ROLL_ID,
+            partition_rule=SolverReference(
+                solver_id="2bmHXP",
+                solver_version="1.0.0",
+                solver_transport_kind=SolverTransportKind.SOFT_IOC_RECORD,
+                residual_tolerance_limit=0.001,
+                singularity_threshold=0.01,
+                invertible=True,
+                readback_aggregator_kind=None,
+            ),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
     # ----- Recipe BC: Method + Practice + Plan for the roll routine -----
 
     await seed_capability_postgres(
@@ -344,7 +382,7 @@ async def test_roll_alignment_plays_out_end_to_end(
             needed_family_ids=frozenset(
                 {
                     _CAP_ROTARY_STAGE_ID,
-                    _CAP_LINEAR_STAGE_ID,
+                    _CAP_PSEUDO_AXIS_ID,
                     _CAP_CAMERA_ID,
                     _CAP_SCINTILLATOR_ID,
                 }
@@ -508,16 +546,28 @@ async def test_roll_alignment_plays_out_end_to_end(
     ]
 
     # ----- Assert: each target Asset reached Active lifecycle -----
+    #
+    # Sample_top_Roll carries an extra AssetPartitionRuleUpdated event
+    # from the SolverReference rule set above; the other 3 Assets have
+    # the canonical 3-event sequence.
 
     for asset_id in (
         _ASSET_AEROTECH_ABRS_ID,
-        _ASSET_SAMPLE_TOP_ROLL_ID,
         _ASSET_ORYX_5MP_ID,
         _ASSET_SCINTILLATOR_LUAG_ID,
     ):
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
         assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
+
+    roll_events, _ = await deps.event_store.load("Asset", _ASSET_SAMPLE_TOP_ROLL_ID)
+    roll_event_types = [e.event_type for e in roll_events]
+    assert roll_event_types == [
+        "AssetRegistered",
+        "AssetFamilyAdded",
+        "AssetActivated",
+        "AssetPartitionRuleUpdated",
+    ]
 
     # ----- Assert: 14 step entries land in the projection in canonical order -----
 

@@ -14,8 +14,8 @@ The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset r
 | `Aerotech_ABRS_rotary` | `Device` | `RotaryStage` | `2-BM` |
 | `Sample_top_X` | `Device` | `LinearStage` | `2-BM` |
 | `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` |
-| `Sample_top_Roll` | `Device` | `LinearStage` | `2-BM` |
-| `Sample_top_Pitch` | `Device` | `LinearStage` | `2-BM` |
+| `Sample_top_Roll` | `Device` | `PseudoAxis` | `2-BM` |
+| `Sample_top_Pitch` | `Device` | `PseudoAxis` | `2-BM` |
 | `Hexapod_2BM` | `Device` | `Hexapod` | `2-BM` |
 | `Optique_Peter_focus_Z` | `Device` | `LinearStage` | `2-BM` (bound into MCTOptics Fixture) |
 | `MCTOptics_lens_turret` | `Device` | `RotaryStage` (pending) | `2-BM` (bound into MCTOptics Fixture) |
@@ -59,7 +59,7 @@ Part-number suffix conventions vary by vendor: Aerotech's `HEX300-230HL-E1-PL4-T
 
 The Aerotech Ensemble HLE10-40-A-MXH drive box (companion to `aerotech_hexgen_hex300_230hl`) and the OMS-VME58 boxes (companions to the Kohzu stages) are intentionally not modelled as separate Assets in v1; whether controllers earn first-class Asset status is tracked in `project_controller_as_asset_research` (Stage-0 seed, deferred-with-trigger).
 
-`Sample_top_Pitch` and `Sample_top_Roll` are NOT yet bound to a Model: the 2-BM source page reports them as hexapod axes 2bmHXP:m4/m5 (not standalone Kohzu stages), so the Model-binding question waits on the HIGH-severity Family retag (PseudoAxis-with-Hexapod-constituent under the Hexapod_2BM Asset, see `project_pitch_roll_retag` watch item). The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
+`Sample_top_Pitch` and `Sample_top_Roll` are PseudoAxis Assets (virtual DoFs over the 2bmHXP hexapod-kinematics solver) and do not bind to a vendor Model. The Model-binding flow (PIDINST) targets physical commissioned hardware; the underlying constituents (the Hexapod_2BM physical axes) carry the Model binding. The remaining four hexapod DoFs (X, Y, Z, Yaw) and the constituent-port wiring from Hexapod_2BM to the virtual DoFs are deferred until the trigger named in `project_pitch_roll_retag`. The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
 
 ## Family settings schemas
 
