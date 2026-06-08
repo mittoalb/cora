@@ -33,9 +33,9 @@ from uuid import UUID
 
 from cora.federation.aggregates.credential.state import CredentialPurpose
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.ports.event_store import StoredEvent
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
-from cora.infrastructure.ports.event_store import StoredEvent
 
 
 @dataclass(frozen=True)

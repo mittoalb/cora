@@ -45,9 +45,9 @@ from cora.federation.aggregates.permit.state import (
     ScopeRef,
 )
 from cora.infrastructure.event_payload import deserialize_or_raise
+from cora.infrastructure.ports.event_store import StoredEvent
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
-from cora.infrastructure.ports.event_store import StoredEvent
 
 
 def _serialize_scopes(scopes: frozenset[ScopeRef]) -> list[list[str | None]]:

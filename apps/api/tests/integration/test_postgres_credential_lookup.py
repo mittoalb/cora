@@ -33,8 +33,8 @@ from cora.federation.features import (
 from cora.federation.features.register_credential import RegisterCredential
 from cora.federation.features.revoke_credential import RevokeCredential
 from cora.federation.features.start_credential_rotation import StartCredentialRotation
-from cora.shared.facility_code import FacilityCode
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
+from cora.shared.facility_code import FacilityCode
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 31, 12, 0, 0, tzinfo=UTC)
