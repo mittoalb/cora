@@ -125,12 +125,26 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000355501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000355701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000355a01")
 
-# Capabilities (focus motor needs LinearStage; image chain needs Camera + Scintillator)
+# Capabilities (focus motor needs LinearStage; image chain needs Camera +
+# Scintillator; the focus motor's drive electronics is a separate
+# MotionController Asset per [[project-controller-as-asset-stage1-design]])
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000355c01")
 _CAP_CAMERA_ID = UUID("01900000-0000-7000-8000-000000355c11")
 _CAP_SCINTILLATOR_ID = UUID("01900000-0000-7000-8000-000000355c21")
+_CAP_MOTION_CONTROLLER_ID = UUID("01900000-0000-7000-8000-000000355c31")
 
-# Devices (Optique Peter focus-Z motor + image chain)
+# Devices: the focus motor's controller (Aerotech_2bmbAERO_drive) is
+# registered FIRST so Optique_Peter_focus_Z's controller_id back-
+# reference targets an already-registered Asset stream. Image chain
+# (camera + scintillator) is passive and carries no controller_id.
+# Aerotech_2bmbAERO_drive is the THIRD MotionController Asset shipped
+# at 2-BM (rotary + hexapod first); the drive's specific product line
+# is not named on the 2-BM source page (operators address it via the
+# IOC handle `2bmbAERO`; the drive itself is almost certainly Aerotech
+# Ensemble-family but unconfirmed), so the Asset name uses the IOC
+# handle and settings carry `unknown-pending-confirmation` placeholders
+# per the intentional-modeling rule.
+_ASSET_AEROTECH_2BMBAERO_DRIVE_ID = UUID("01900000-0000-7000-8000-000000355a41")
 _ASSET_FOCUS_Z_ID = UUID("01900000-0000-7000-8000-000000355a11")
 _ASSET_ORYX_5MP_ID = UUID("01900000-0000-7000-8000-000000355a21")
 _ASSET_SCINTILLATOR_LUAG_ID = UUID("01900000-0000-7000-8000-000000355a31")
@@ -148,7 +162,19 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000355f12")
 
 
 _DEVICES = (
-    DeviceSpec("Optique_Peter_focus_Z", _ASSET_FOCUS_Z_ID, "LinearStage", _CAP_LINEAR_STAGE_ID),
+    DeviceSpec(
+        "Aerotech_2bmbAERO_drive",
+        _ASSET_AEROTECH_2BMBAERO_DRIVE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_ID,
+    ),
+    DeviceSpec(
+        "Optique_Peter_focus_Z",
+        _ASSET_FOCUS_Z_ID,
+        "LinearStage",
+        _CAP_LINEAR_STAGE_ID,
+        controller_id=_ASSET_AEROTECH_2BMBAERO_DRIVE_ID,
+    ),
     DeviceSpec("Oryx_5MP_camera", _ASSET_ORYX_5MP_ID, "Camera", _CAP_CAMERA_ID),
     DeviceSpec(
         "Scintillator_LuAG", _ASSET_SCINTILLATOR_LUAG_ID, "Scintillator", _CAP_SCINTILLATOR_ID
@@ -283,10 +309,14 @@ def _postgres_step_store(db_pool: asyncpg.Pool):
 async def test_resolution_alignment_plays_out_end_to_end(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Seed facility + 3 Assets (focus-Z motor + image chain), run an
-    iterative focus-peak search Procedure on a Siemens-star resolution
-    target, assert the auditable record carries 4 iterations bracketing
-    the peak plus one final lock setpoint."""
+    """Seed facility + focus-Z motor + image chain + the focus motor's
+    drive-electronics controller (`Aerotech_2bmbAERO_drive`, the third
+    MotionController Asset shipped at 2-BM per the controller-as-Asset
+    design). Run an iterative focus-peak search Procedure on a
+    Siemens-star resolution target. Assert the auditable record carries
+    4 iterations bracketing the peak plus one final lock setpoint, AND
+    that the focus motor's `controller_id` back-reference targets the
+    controller Asset stream that the install ceremony registered."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
     # ----- Install the 2-BM facility hierarchy (Argonne -> APS -> Unit) + the 3 Devices -----
@@ -451,6 +481,33 @@ async def test_resolution_alignment_plays_out_end_to_end(
         asset_events, _ = await deps.event_store.load("Asset", asset_id)
         event_types = [e.event_type for e in asset_events]
         assert event_types == ["AssetRegistered", "AssetFamilyAdded", "AssetActivated"]
+
+    # ----- Assert: Aerotech_2bmbAERO_drive controller stream landed -----
+    # Controller stays Commissioned (not activated): controllers are the
+    # leaf of the drive-electronics chain at v1, and activation is a
+    # stage-side ceremony. Same shape as the rotary anchor's
+    # Aerotech_Ensemble_drive and the hexapod's Aerotech_Hexapod_drive.
+
+    controller_events, _ = await deps.event_store.load("Asset", _ASSET_AEROTECH_2BMBAERO_DRIVE_ID)
+    assert [e.event_type for e in controller_events] == [
+        "AssetRegistered",  # genesis (Commissioned)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # The controller carries no controller_id back-reference of its own.
+    # Omit-when-None wire shape: key absent rather than serialized as null.
+    assert "controller_id" not in controller_events[0].payload
+
+    # ----- Assert: focus_Z's AssetRegistered carries the controller_id back-reference -----
+
+    focus_z_events, _ = await deps.event_store.load("Asset", _ASSET_FOCUS_Z_ID)
+    focus_z_registered_payload = focus_z_events[0].payload
+    assert UUID(focus_z_registered_payload["controller_id"]) == _ASSET_AEROTECH_2BMBAERO_DRIVE_ID
+
+    # ----- Assert: passive image-chain Assets omit controller_id (no modelled drive) -----
+
+    for passive_asset_id in (_ASSET_ORYX_5MP_ID, _ASSET_SCINTILLATOR_LUAG_ID):
+        passive_events, _ = await deps.event_store.load("Asset", passive_asset_id)
+        assert "controller_id" not in passive_events[0].payload
 
     # ----- Assert: 13 step entries land in the projection in canonical order -----
 

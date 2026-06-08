@@ -19,7 +19,8 @@ The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset r
 | `Sample_top_Pitch` | `Device` | `PseudoAxis` | `2-BM` |
 | `Aerotech_Hexapod_drive` | `Device` | `MotionController` | `2-BM` |
 | `Hexapod_2BM` | `Device` | `Hexapod` | `2-BM` (driven by `Aerotech_Hexapod_drive`) |
-| `Optique_Peter_focus_Z` | `Device` | `LinearStage` | `2-BM` (bound into MCTOptics Fixture) |
+| `Aerotech_2bmbAERO_drive` | `Device` | `MotionController` | `2-BM` |
+| `Optique_Peter_focus_Z` | `Device` | `LinearStage` | `2-BM` (bound into MCTOptics Fixture; driven by `Aerotech_2bmbAERO_drive`) |
 | `MCTOptics_lens_turret` | `Device` | `RotaryStage` (pending) | `2-BM` (bound into MCTOptics Fixture) |
 | `MCTOptics_objective_0` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
 | `MCTOptics_objective_1` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
@@ -59,12 +60,13 @@ Per-Asset Model bindings carry the vendor identity that PIDINST Property 6 (Manu
 | `aerotech_abs250mp_m_as` | Aerotech | `ABS250MP-M-AS` | `RotaryStage` | `Aerotech_ABRS_rotary` |
 | `aerotech_ensemble_hle10_40_a_mxh` | Aerotech | `HLE10-40-A-MXH` | `MotionController` | `Aerotech_Ensemble_drive` |
 | `aerotech_hexapod_drive_unknown_pn` | Aerotech | `unknown-pending-confirmation` | `MotionController` | `Aerotech_Hexapod_drive` |
+| `aerotech_2bmbaero_drive_unknown_pn` | Aerotech | `unknown-pending-confirmation` | `MotionController` | `Aerotech_2bmbAERO_drive` |
 | `aerotech_pro225sl_1000` | Aerotech | `PRO225SL-1000` | `LinearStage` | `Optique_Peter_focus_Z` |
 | `kohzu_cyat_070` | Kohzu | `CYAT-070` | `LinearStage` | `Sample_top_X`, `Sample_top_Z` |
 
 Part-number suffix conventions vary by vendor: Aerotech's `HEX300-230HL-E1-PL4-TAS` encodes operationally significant variants (`-E1` incremental encoder, `-PL4` ultra-high-accuracy preload, `-TAS` thermal-actively-stabilized); `ABS250MP-M-AS` follows the same pattern (`-M` mid-precision class, `-AS` air-bearing series); `PRO225SL-1000` carries the `-1000` mm travel suffix natively. v1 stores the full type designation as a single `part_number` string; the catalog convention upgrades to suffix decomposition at the second case where a suffix axis crosses Model boundaries (rule-of-three), or at the first APS imaging stage+drive registration, whichever fires first.
 
-The Aerotech Ensemble HLE10-40-A-MXH (companion drive for `aerotech_abs250mp_m_as`) IS now modelled as a separate Asset (`Aerotech_Ensemble_drive`) at the Device level under 2-BM, with `Aerotech_ABRS_rotary.controller_id` carrying the back-reference. This was the FIRST `MotionController` Asset shipped, anchoring the controller-as-Asset slice on the unambiguously-identified rotary drive per `project_controller_as_asset_stage1_design`. A SECOND `MotionController` Asset (`Aerotech_Hexapod_drive`) now models the drive for `Hexapod_2BM`, with `Hexapod_2BM.controller_id` carrying the back-reference; the 2-BM source page does not name the drive's specific product line (the EPICS interface is "native Aerotech Ensemble" but the box is not identified, nor is rack-separate vs sealed-in integration confirmed), so the Model row uses `unknown-pending-confirmation` for the part number and the per-Asset Settings block carries placeholders that operators replace via `update_asset_settings` once the physical hardware is verified. PARTIAL SHIP today is 2 of 7 controller hardware classes; the remaining 5 (OMS-VME58 at 2bma, OMS-VME58 at 2bmb, the Aerotech `2bmbAERO` IOC, the Nanotec ST4118 stepper inside Optique Peter, and the Schunk LPTM 30 inside the camera selector) remain deferred per `project_controller_as_asset_research`; each earns its own Stage-1 call when its own trigger fires.
+The Aerotech Ensemble HLE10-40-A-MXH (companion drive for `aerotech_abs250mp_m_as`) IS now modelled as a separate Asset (`Aerotech_Ensemble_drive`) at the Device level under 2-BM, with `Aerotech_ABRS_rotary.controller_id` carrying the back-reference. This was the FIRST `MotionController` Asset shipped, anchoring the controller-as-Asset slice on the unambiguously-identified rotary drive per `project_controller_as_asset_stage1_design`. A SECOND `MotionController` Asset (`Aerotech_Hexapod_drive`) now models the drive for `Hexapod_2BM`, with `Hexapod_2BM.controller_id` carrying the back-reference; the 2-BM source page does not name the drive's specific product line (the EPICS interface is "native Aerotech Ensemble" but the box is not identified, nor is rack-separate vs sealed-in integration confirmed), so the Model row uses `unknown-pending-confirmation` for the part number and the per-Asset Settings block carries placeholders that operators replace via `update_asset_settings` once the physical hardware is verified. A THIRD `MotionController` Asset (`Aerotech_2bmbAERO_drive`) models the drive electronics that the `2bmbAERO` EPICS IOC manages on behalf of `Optique_Peter_focus_Z`; the Asset name uses the IOC handle (the most stable operator-facing identifier; the drive's product line is almost certainly Aerotech Ensemble-family but unconfirmed on the source page), and the same `unknown-pending-confirmation` pattern carries the per-unit identity placeholders. PARTIAL SHIP today is 3 of 7 controller hardware classes; the remaining 4 (OMS-VME58 at 2bma, OMS-VME58 at 2bmb, the Nanotec ST4118 stepper inside Optique Peter, and the Schunk LPTM 30 inside the camera selector) remain deferred per `project_controller_as_asset_research`; each earns its own Stage-1 call when its own trigger fires.
 
 `Sample_top_Pitch` and `Sample_top_Roll` are PseudoAxis Assets (virtual DoFs over the 2bmHXP hexapod-kinematics solver) and do not bind to a vendor Model. The Model-binding flow (PIDINST) targets physical commissioned hardware; the underlying constituents (the Hexapod_2BM physical axes) carry the Model binding. The remaining four hexapod DoFs (X, Y, Z, Yaw) and the constituent-port wiring from Hexapod_2BM to the virtual DoFs are deferred until the trigger named in `project_pitch_roll_retag`. The Kohzu SA16A-RM goniometer (`Sample_pitch_lam` in the 2-BM source page, possibly the same physical thing as `Sample_top_Pitch` or a third stage) gets its own Model row when the operator-naming question lands.
 
@@ -128,6 +130,23 @@ Identity + configuration + connectivity of a separately-modelled drive-electroni
 Bound to Model `aerotech_ensemble_hle10_40_a_mxh`. The Aerotech Ensemble HLE10-40-A-MXH digital drive that runs `Aerotech_ABRS_rotary`. First `MotionController` Asset shipped at 2-BM; the back-reference lives on `Aerotech_ABRS_rotary.controller_id`.
 
 Placeholder values below are intentional. The controller-as-Asset design ships the substrate for reproducibility provenance now; the actual operator-confirmed firmware version and serial number land via `update_asset_settings` once 2-BM staff verifies them on the physical hardware. Leaving the fields out entirely would silently re-create the 2-BM ad-hoc absence-of-tracking that the slice exists to address.
+
+| Setting | Value |
+| --- | --- |
+| `serial_number` | `unknown-pending-confirmation` |
+| `firmware_version` | `unknown-pending-confirmation` |
+| `axis_count` | `1` |
+| `protocol` | `Aerotech_Native` |
+
+`ip_address` is omitted at v1 pending operator confirmation; the field is optional on the schema.
+
+### `Aerotech_2bmbAERO_drive`
+
+Bound to Model `aerotech_2bmbaero_drive_unknown_pn`. The Aerotech drive electronics that the `2bmbAERO` EPICS IOC manages on behalf of `Optique_Peter_focus_Z`. Third `MotionController` Asset shipped at 2-BM; the back-reference lives on `Optique_Peter_focus_Z.controller_id`.
+
+Operators address the focus motor via `2bmbAERO:m1` (IOC name + motor channel); the IOC is software (an EPICS process) while the Asset modelled here is the hardware drive box behind it (per OPC UA DI / AAS DigitalNameplate alignment, CORA models field-replaceable, firmware-versioned drive electronics rather than the software process talking to them). The drive's specific product line is not named on the [2-BM source page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html); the Asset name carries the IOC handle (the most stable operator-facing identifier) and settings placeholders cover identity details that operators verify on the physical hardware.
+
+`axis_count=1` reflects the 1:1 binding to the single focus_Z stage; `protocol=Aerotech_Native` matches the rotary anchor's posture for the same vendor family.
 
 | Setting | Value |
 | --- | --- |
