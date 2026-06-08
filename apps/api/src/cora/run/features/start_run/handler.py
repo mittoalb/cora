@@ -210,6 +210,22 @@ def bind(deps: Kernel) -> Handler:
         # into the decider + the genesis event.
         new_id = deps.id_generator.new_id()
 
+        # Cross-BC scope expansion: when an Asset carries a
+        # `controller_id` back-reference to its drive-electronics
+        # controller (per the controller-as-Asset design), a Caution
+        # or Clearance targeted at the controller is operationally
+        # relevant to every Plan that targets a driven stage. The
+        # lookup ports query `target_id = ANY(asset_ids)`; without
+        # expansion, controller-scoped warnings stay invisible to
+        # Plans that target only the stage. Expand once here so both
+        # downstream lookups see the same Run scope. Already-loaded
+        # Assets are in `assets`; reading `controller_id` is free.
+        # Only `controller_id` is expanded today; `parent_id` and
+        # `fixture_id` traversals are left as separate design calls.
+        scoped_asset_ids = plan.asset_ids | {
+            asset.controller_id for asset in assets.values() if asset.controller_id is not None
+        }
+
         # cross-BC clearance gate: query Safety's
         # clearance projection for every clearance whose bindings
         # reference this Run's scope. Decider partitions on Active.
@@ -217,7 +233,7 @@ def bind(deps: Kernel) -> Handler:
             await deps.clearance_lookup.find_referencing_run(
                 run_id=new_id,
                 subject_id=command.subject_id,
-                asset_ids=plan.asset_ids,
+                asset_ids=scoped_asset_ids,
             )
         )
 
@@ -233,7 +249,7 @@ def bind(deps: Kernel) -> Handler:
         # driven runs (Watch item for the start_procedure consumer).
         active_cautions = tuple(
             await deps.caution_lookup.find_active_for_run(
-                asset_ids=plan.asset_ids,
+                asset_ids=scoped_asset_ids,
                 procedure_ids=frozenset(),
             )
         )

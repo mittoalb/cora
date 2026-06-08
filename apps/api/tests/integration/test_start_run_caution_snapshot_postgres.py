@@ -302,6 +302,173 @@ async def test_run_start_snapshot_is_empty_when_no_cautions_seeded(
 
 
 @pytest.mark.integration
+async def test_run_start_snapshots_controller_caution_via_controller_id_back_reference(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Active Caution on a stage Asset's controller surfaces on
+    RunStarted even when the Plan targets only the stage. Pins the
+    start_run handler's scope expansion of `plan.asset_ids` via
+    `Asset.controller_id` back-references before calling
+    `caution_lookup.find_active_for_run`. Without expansion, this
+    Caution would be silent at Run start (controller is not in the
+    Plan's asset_ids; the lookup queries `target_id = ANY(asset_ids)`)
+    and the controller-as-Asset honesty win would be lost at the
+    operator-facing surface."""
+    controller_asset_id = uuid4()
+    stage_asset_id = uuid4()
+    plan_id = uuid4()
+    subject_id = uuid4()
+    controller_family_id = uuid4()
+    stage_family_id = uuid4()
+    queue = [
+        controller_family_id,
+        uuid4(),  # controller family event
+        controller_asset_id,
+        uuid4(),  # controller register event
+        uuid4(),  # controller addfamily event
+        stage_family_id,
+        uuid4(),  # stage family event
+        stage_asset_id,
+        uuid4(),  # stage register event
+        uuid4(),  # stage addfamily event
+        uuid4(),  # method_id
+        uuid4(),  # method event
+        uuid4(),  # practice_id
+        uuid4(),  # practice event
+        plan_id,
+        uuid4(),  # plan event
+        subject_id,
+        uuid4(),  # subject register event
+        uuid4(),  # subject mount event
+        uuid4(),  # run_id
+        uuid4(),  # run event
+        *[uuid4() for _ in range(30)],  # caution + clearance walk overhead
+    ]
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=queue,
+        clearance_lookup=PostgresClearanceLookup(db_pool),
+        caution_lookup=PostgresCautionLookup(db_pool),
+    )
+
+    # Controller Family + Controller Asset (parent root). Plays the
+    # MotionController role from project_controller_as_asset_stage1_design;
+    # the Family name does not matter to this test (controller-id
+    # traversal is purely an Equipment-state shape, not a Family-name
+    # shape) but is named honestly.
+    await define_family.bind(deps)(
+        DefineFamily(name="MotionController", affordances=frozenset()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(name="ControllerBox", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=controller_asset_id, family_id=controller_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Stage Family + Stage Asset bound to controller via controller_id.
+    # Stage is Enterprise level to keep parent ceremony minimal; the
+    # controller_id is the field under test, not the parent hierarchy.
+    await define_family.bind(deps)(
+        DefineFamily(name="StageUnderTest", affordances=frozenset()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(
+            name="StageDrivenByController",
+            level=AssetLevel.ENTERPRISE,
+            parent_id=None,
+            controller_id=controller_asset_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=stage_asset_id, family_id=stage_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Standard Method + Practice + Plan + Subject chain. Plan binds to
+    # the STAGE only (not the controller); this is the production-
+    # shape pattern where Procedures target the driven stage.
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
+    await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=_CAPABILITY_ID,
+            name="StageScan",
+            needed_family_ids=frozenset({stage_family_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_practice.bind(deps)(
+        DefinePractice(name="APS StageScan", method_id=queue[10], site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_plan.bind(deps)(
+        DefinePlan(
+            name="ScanOfStage",
+            practice_id=queue[12],
+            asset_ids=frozenset({stage_asset_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_subject.bind(deps)(
+        RegisterSubject(name="ScanSubject"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    mount_asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
+    await mount_subject.bind(deps)(
+        MountSubject(subject_id=subject_id, asset_id=mount_asset_id, reason=""),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Clearance covering the Subject so the 11a-c-3 gate passes.
+    await _walk_clearance_to_active(deps, subject_id)
+
+    # The load-bearing seed: a Caution targeting the CONTROLLER, not
+    # the stage. Without scope expansion via controller_id, this never
+    # surfaces at Run start of a stage-targeting Plan.
+    caution_id = await _seed_active_caution_on_asset(
+        deps,
+        asset_id=controller_asset_id,
+        text="controller locks up under sustained load",
+    )
+    await _drain_all(db_pool)
+
+    run_id = await start_run.bind(deps)(
+        StartRun(name="StageRun", plan_id=plan_id, subject_id=subject_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    event = await _read_run_started(deps, run_id)
+    assert len(event.acknowledged_cautions) == 1, (
+        "controller-side Caution must surface on a Plan targeting the "
+        "driven stage; controller_id back-reference traversal is the fix"
+    )
+    ack = event.acknowledged_cautions[0]
+    assert ack.caution_id == caution_id
+    assert ack.target_kind == "Asset"
+    assert ack.target_id == controller_asset_id
+    assert ack.text_excerpt == "controller locks up under sustained load"
+
+
+@pytest.mark.integration
 async def test_run_start_excludes_retired_caution_from_snapshot(
     db_pool: asyncpg.Pool,
 ) -> None:
