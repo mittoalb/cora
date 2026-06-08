@@ -140,6 +140,18 @@ def bind(deps: Kernel) -> Handler:
         now = deps.clock.now()
 
         existing = await load_facility(deps.event_store, facility_id)
+
+        # Cross-stream parent lookup (Sub-Slice A of Slice 6; closes the
+        # Slice 5 deferral). When command.parent_id is None this short-
+        # circuits to None and the decider's Site/Area structural-
+        # invariant arm handles the rest. When non-None, the FacilityLookup
+        # port returns a projection row OR None for not-found; the
+        # decider translates None to FacilityParentNotFoundError (404)
+        # and partitions on result.kind for the Site requirement.
+        parent_lookup_result = None
+        if command.parent_id is not None:
+            parent_lookup_result = await deps.facility_lookup.lookup(command.parent_id)
+
         facility_domain_events = decide(
             state=existing,
             command=command,
@@ -147,6 +159,7 @@ def bind(deps: Kernel) -> Handler:
             facility_id=facility_id,
             code=code,
             registered_by=ActorId(principal_id),
+            parent_lookup_result=parent_lookup_result,
         )
 
         facility_new_events = [

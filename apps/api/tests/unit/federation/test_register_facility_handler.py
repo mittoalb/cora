@@ -23,6 +23,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features import register_facility
 from cora.federation.features.register_facility import RegisterFacility
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
 from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
@@ -40,6 +41,7 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
+    facility_lookup: InMemoryFacilityLookup | None = None,
 ) -> Kernel:
     # register_facility consumes 1 id (the FacilityRegistered event_id);
     # the Facility stream_id derives from FacilityCode via facility_stream_id,
@@ -49,7 +51,20 @@ def _build_deps(
         now=_NOW,
         event_store=event_store,
         deny=deny,
+        facility_lookup=facility_lookup,
     )
+
+
+def _facility_lookup_with_site_parent() -> InMemoryFacilityLookup:
+    """Test helper: seed an InMemoryFacilityLookup with a Site-tier
+    parent at _PARENT_FACILITY_ID for Area-registration tests."""
+    lookup = InMemoryFacilityLookup()
+    lookup.register(
+        facility_id=_PARENT_FACILITY_ID,
+        code="aps",
+        kind=FacilityKind.SITE.value,
+    )
+    return lookup
 
 
 def _site_command(**overrides: object) -> RegisterFacility:
@@ -246,7 +261,8 @@ async def test_register_facility_handler_denied_writes_nothing() -> None:
 @pytest.mark.unit
 async def test_register_facility_handler_area_carries_parent_id() -> None:
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    facility_lookup = _facility_lookup_with_site_parent()
+    deps = _build_deps(event_store=store, facility_lookup=facility_lookup)
     handler = register_facility.bind(deps)
     await handler(
         _area_command(),
@@ -259,3 +275,47 @@ async def test_register_facility_handler_area_carries_parent_id() -> None:
     payload = facility_events[0].payload
     assert payload["kind"] == "Area"
     assert payload["parent_id"] == str(_PARENT_FACILITY_ID)
+
+
+@pytest.mark.unit
+async def test_register_facility_handler_area_with_missing_parent_raises() -> None:
+    """Slice 6 Sub-Slice A: handler calls FacilityLookup; missing parent
+    surfaces FacilityParentNotFoundError (route maps to 404)."""
+    from cora.federation.aggregates.facility import FacilityParentNotFoundError
+
+    store = InMemoryEventStore()
+    # facility_lookup defaults to empty InMemoryFacilityLookup; parent_id
+    # lookup returns None.
+    deps = _build_deps(event_store=store)
+    handler = register_facility.bind(deps)
+    with pytest.raises(FacilityParentNotFoundError):
+        await handler(
+            _area_command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+
+
+@pytest.mark.unit
+async def test_register_facility_handler_area_with_area_parent_raises() -> None:
+    """Slice 6 Sub-Slice A: handler calls FacilityLookup; Area parent
+    surfaces FacilityAreaParentMustBeSiteError (route maps to 422)."""
+    from cora.federation.aggregates.facility import (
+        FacilityAreaParentMustBeSiteError,
+    )
+
+    store = InMemoryEventStore()
+    facility_lookup = InMemoryFacilityLookup()
+    facility_lookup.register(
+        facility_id=_PARENT_FACILITY_ID,
+        code="2-bm-parent",
+        kind=FacilityKind.AREA.value,
+    )
+    deps = _build_deps(event_store=store, facility_lookup=facility_lookup)
+    handler = register_facility.bind(deps)
+    with pytest.raises(FacilityAreaParentMustBeSiteError):
+        await handler(
+            _area_command(),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )

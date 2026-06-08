@@ -1,8 +1,10 @@
 """Pure decider for the `RegisterFacility` command.
 
-Pure function: given the (always None) Facility state and a
-`RegisterFacility` command, returns the events to append on the
-Facility stream. No I/O, no awaits, no side effects.
+Pure function: given the (always None) Facility state, a
+`RegisterFacility` command, and (post-Slice 6 Sub-Slice A) an
+optional `parent_lookup_result` carrying the projection row for the
+supplied `parent_id`, returns the events to append on the Facility
+stream. No I/O, no awaits, no side effects.
 
 `now`, `code`, `display_name`, and `registered_by` are constructed
 by the application handler at the port edge (FacilityCode + FacilityName
@@ -15,6 +17,15 @@ The Facility id is derived deterministically by the handler from
 namespace); the decider receives the derived id and uses it verbatim
 in the genesis event.
 
+`parent_lookup_result` is the FacilityLookup projection row for the
+supplied `parent_id`, OR `None` to signal "parent does not exist".
+The handler issues the lookup at the port edge (capture, don't
+recompute) and threads the result into the decider so it stays pure.
+When `command.parent_id is None` the handler passes `None` here too
+(the structural invariant Site-no-parent / Area-must-have-parent
+checks below distinguish "parent_id absent" from "parent absent",
+matching the locked field-vs-lookup discipline).
+
 Invariants enforced by this decider (belt-and-braces with the Facility
 dataclass `__post_init__`):
   - State must be None (genesis-only)
@@ -23,11 +34,12 @@ dataclass `__post_init__`):
     -> FacilitySiteCannotHaveParentError
   - kind=Area implies parent_id is non-None
     -> FacilityAreaMustHaveParentError
-
-Cross-stream invariants NOT enforced here (deferred to slice 6 with
-the FacilityLookup port surface):
-  - parent_id, if non-None, must reference an existing Facility row
-    whose kind is Site.
+  - kind=Area + parent_id is non-None: parent_lookup_result must not
+    be None (else `FacilityParentNotFoundError` at 404)
+  - kind=Area + parent_id is non-None + parent_lookup_result is
+    present: parent_lookup_result.kind must equal FacilityKind.SITE.value
+    (else `FacilityAreaParentMustBeSiteError` at 422; closes the
+    Slice 5 cross-stream deferral)
 
 `code`, `display_name`, `kind`, and `alternate_identifiers` are
 validated at the Pydantic + VO boundary (route / tool); the decider
@@ -41,13 +53,16 @@ from cora.federation.aggregates.facility import (
     Facility,
     FacilityAlreadyExistsError,
     FacilityAreaMustHaveParentError,
+    FacilityAreaParentMustBeSiteError,
     FacilityKind,
+    FacilityParentNotFoundError,
     FacilityRegistered,
     FacilitySiteCannotHaveParentError,
 )
 from cora.federation.features.register_facility.command import RegisterFacility
 from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
+from cora.infrastructure.ports import FacilityLookupResult
 
 
 def decide(
@@ -58,6 +73,7 @@ def decide(
     facility_id: FacilityId,
     code: FacilityCode,
     registered_by: ActorId,
+    parent_lookup_result: FacilityLookupResult | None = None,
 ) -> list[FacilityRegistered]:
     """Decide the events produced by registering a new Facility.
 
@@ -65,6 +81,10 @@ def decide(
       - State must be None (genesis-only) -> FacilityAlreadyExistsError
       - kind=Site + parent_id is not None -> FacilitySiteCannotHaveParentError
       - kind=Area + parent_id is None     -> FacilityAreaMustHaveParentError
+      - kind=Area + parent_id is not None + parent_lookup_result is None
+        -> FacilityParentNotFoundError
+      - kind=Area + parent_lookup_result.kind != "Site"
+        -> FacilityAreaParentMustBeSiteError
     """
     if state is not None:
         raise FacilityAlreadyExistsError(state.code)
@@ -74,6 +94,16 @@ def decide(
 
     if command.kind is FacilityKind.AREA and command.parent_id is None:
         raise FacilityAreaMustHaveParentError(code)
+
+    if command.kind is FacilityKind.AREA and command.parent_id is not None:
+        if parent_lookup_result is None:
+            raise FacilityParentNotFoundError(code, command.parent_id)
+        if parent_lookup_result.kind != FacilityKind.SITE.value:
+            raise FacilityAreaParentMustBeSiteError(
+                code,
+                command.parent_id,
+                parent_lookup_result.kind,
+            )
 
     return [
         FacilityRegistered(

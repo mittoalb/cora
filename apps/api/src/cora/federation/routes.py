@@ -40,8 +40,10 @@ from cora.federation.aggregates.facility import (
     FacilityAlreadyExistsError,
     FacilityAreaCannotHaveTrustAnchorsError,
     FacilityAreaMustHaveParentError,
+    FacilityAreaParentMustBeSiteError,
     FacilityCannotDecommissionError,
     FacilityNotFoundError,
+    FacilityParentNotFoundError,
     FacilitySiteCannotHaveParentError,
     InvalidFacilityNameError,
 )
@@ -200,6 +202,7 @@ def register_federation_routes(app: FastAPI) -> None:
         FacilitySiteCannotHaveParentError,
         FacilityAreaMustHaveParentError,
         FacilityAreaCannotHaveTrustAnchorsError,
+        FacilityAreaParentMustBeSiteError,
         SealKeyCollisionError,
         SealKeyPurposeMismatchError,
         SealSequenceNumberRegressionError,
@@ -209,6 +212,7 @@ def register_federation_routes(app: FastAPI) -> None:
         PermitNotFoundError,
         CredentialNotFoundError,
         FacilityNotFoundError,
+        FacilityParentNotFoundError,
         SealNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)

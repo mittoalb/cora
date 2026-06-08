@@ -110,7 +110,7 @@ from cora.federation import (
     register_federation_tools,
     wire_federation,
 )
-from cora.federation.adapters import PostgresCredentialLookup
+from cora.federation.adapters import PostgresCredentialLookup, PostgresFacilityLookup
 from cora.federation.adapters.in_memory_permit_lookup import InMemoryPermitLookup
 from cora.federation.adapters.in_memory_publish_port import InMemoryPublishPort
 from cora.federation.adapters.in_memory_signature_port import InMemorySignaturePort
@@ -401,6 +401,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 capability_lookup_factory=PostgresCapabilityLookup,
                 supply_lookup_factory=PostgresSupplyLookup,
                 credential_lookup_factory=PostgresCredentialLookup,
+                facility_lookup_factory=PostgresFacilityLookup,
                 # publish_revision slice deps: in-memory adapters
                 # wired by default until the rule-of-two trigger
                 # fires per project_federation_port_design.md.

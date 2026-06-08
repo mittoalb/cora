@@ -41,6 +41,10 @@ from cora.infrastructure.ports.event_store import (
     StoredEvent,
     StreamAppend,
 )
+from cora.infrastructure.ports.facility_lookup import (
+    FacilityLookup,
+    FacilityLookupResult,
+)
 from cora.infrastructure.ports.id_generator import (
     FixedIdGenerator,
     FixedIdGeneratorExhaustedError,
@@ -132,6 +136,8 @@ __all__ = [
     "Deny",
     "EventPublisher",
     "EventStore",
+    "FacilityLookup",
+    "FacilityLookupResult",
     "FakeClock",
     "FakeLLM",
     "FakeLLMExhaustedError",

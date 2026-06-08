@@ -41,6 +41,7 @@ from cora.federation.features import register_facility
 from cora.federation.features.register_facility import RegisterFacility
 from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
+from cora.infrastructure.ports import FacilityLookupResult
 from tests._strategies import aware_datetimes, printable_ascii_text
 
 if TYPE_CHECKING:
@@ -135,7 +136,15 @@ def test_register_facility_area_emits_single_event_with_parent(
     parent_facility_id: UUID,
     actor_id: UUID,
 ) -> None:
-    """Empty stream + valid AREA command (parent_id non-None) -> single FacilityRegistered."""
+    """Empty stream + valid AREA command (parent_id non-None) + Site
+    parent_lookup_result -> single FacilityRegistered."""
+    parent_lookup = FacilityLookupResult(
+        id=FacilityId(parent_facility_id),
+        code=_CODE,
+        kind=FacilityKind.SITE.value,
+        status=FacilityStatus.ACTIVE.value,
+        trust_anchor_credential_ids=frozenset(),
+    )
     events = register_facility.decide(
         state=None,
         command=_command(
@@ -148,6 +157,7 @@ def test_register_facility_area_emits_single_event_with_parent(
         facility_id=FacilityId(facility_id),
         code=_AREA_CODE,
         registered_by=ActorId(actor_id),
+        parent_lookup_result=parent_lookup,
     )
     assert len(events) == 1
     event = events[0]

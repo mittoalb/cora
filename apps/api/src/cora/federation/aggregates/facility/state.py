@@ -246,6 +246,54 @@ class FacilityAreaCannotHaveTrustAnchorsError(Exception):
         self.code = code
 
 
+class FacilityParentNotFoundError(Exception):
+    """An `Area` Facility was registered with a `parent_id` that resolves to no
+    existing Facility row.
+
+    Raised by `register_facility` decider in Sub-Slice A of Slice 6 when
+    the FacilityLookup port returns None for the supplied parent_id.
+    Mirrors the cross-aggregate not-found shape of `AssetNotFoundError`
+    / `CredentialNotFoundError`. HTTP 404 at the route.
+    """
+
+    def __init__(self, code: FacilityCode, parent_id: FacilityId) -> None:
+        super().__init__(
+            f"Facility {code.value!r} parent_id={parent_id} resolves to no existing Facility"
+        )
+        self.code = code
+        self.parent_id = parent_id
+
+
+class FacilityAreaParentMustBeSiteError(Exception):
+    """An `Area` Facility was registered with a `parent_id` whose `kind` is not `Site`.
+
+    Day-one `FacilityKind` is closed at `{Site, Area}` with the
+    structural rule "Areas live within Sites". Cross-stream parent
+    existence + parent-kind=Site checks land in Sub-Slice A of Slice 6
+    via the FacilityLookup port. Declarative-constraint shape continues
+    the `FacilitySiteCannotHaveParentError` / `FacilityAreaMustHaveParentError`
+    sibling-error family. HTTP 422 at the route (invariant violation
+    on supplied input, not a missing resource).
+
+    When a future widening adds a third tier (Floor / Building), this
+    invariant generalizes; today it is binary Site/Area only.
+    """
+
+    def __init__(
+        self,
+        code: FacilityCode,
+        parent_id: FacilityId,
+        parent_kind: str,
+    ) -> None:
+        super().__init__(
+            f"Facility {code.value!r} parent_id={parent_id} has kind={parent_kind!r}; "
+            "Area-tier facilities must have a Site-tier parent"
+        )
+        self.code = code
+        self.parent_id = parent_id
+        self.parent_kind = parent_kind
+
+
 @dataclass(frozen=True)
 class Facility:
     """Aggregate root: a per-code Facility singleton.

@@ -51,6 +51,7 @@ from cora.infrastructure.ports import (
     CredentialLookup,
     Deny,
     EventStore,
+    FacilityLookup,
     FakeClock,
     FixedIdGenerator,
     ProfileStore,
@@ -118,6 +119,7 @@ def build_deps(
     llm: LLM | None = None,
     profile_store: ProfileStore | None = None,
     credential_lookup: CredentialLookup | None = None,
+    facility_lookup: FacilityLookup | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
@@ -146,6 +148,12 @@ def build_deps(
     credential summaries) so Seal handler tests can pre-register the
     refs the slice will resolve before invoking the decider. Defaults
     to a fresh empty `InMemoryCredentialLookup` per call.
+
+    `facility_lookup` injects a pre-built `FacilityLookup` adapter
+    (typically `InMemoryFacilityLookup` seeded with one or more
+    facility summaries) so `register_facility`-with-parent tests can
+    pre-register the parent Facility before invoking the decider.
+    Defaults to a fresh empty `InMemoryFacilityLookup` per call.
     """
     if authz is None:
         authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
@@ -167,6 +175,7 @@ def build_deps(
         llm=llm,
         profile_store=profile_store,
         credential_lookup=credential_lookup,
+        facility_lookup=facility_lookup,
         publish_port=InMemoryPublishPort(),
         signature_port=InMemorySignaturePort(),
         permit_lookup=InMemoryPermitLookup(),

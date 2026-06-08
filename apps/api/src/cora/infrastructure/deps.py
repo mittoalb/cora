@@ -60,6 +60,7 @@ from cora.infrastructure.adapters.default_canonicalization_adapter import (
 )
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
 from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
 from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
@@ -83,6 +84,7 @@ from cora.infrastructure.ports import (
     Clock,
     CredentialLookup,
     EventStore,
+    FacilityLookup,
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
@@ -143,6 +145,7 @@ def make_postgres_kernel(
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
+    facility_lookup: FacilityLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -202,6 +205,14 @@ def make_postgres_kernel(
     `build_kernel` injects the real `PostgresCredentialLookup` via the
     `credential_lookup_factory` argument.
 
+    `facility_lookup` defaults to a fresh `InMemoryFacilityLookup`
+    (empty record map). register_facility-with-parent + future
+    add_facility_trust_anchor_credential tests seed facilities
+    explicitly via the adapter's `register(...)` helper; tests that
+    register only Site facilities (parent_id=None) never touch it.
+    Production's `build_kernel` injects the real
+    `PostgresFacilityLookup` via the `facility_lookup_factory` argument.
+
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
     `build_kernel` injects `AnthropicLLM` when
@@ -238,6 +249,9 @@ def make_postgres_kernel(
         credential_lookup=(
             credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
         ),
+        facility_lookup=(
+            facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
+        ),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -264,6 +278,7 @@ def make_inmemory_kernel(
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
+    facility_lookup: FacilityLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -315,6 +330,13 @@ def make_inmemory_kernel(
     `register(...)` helper; tests that don't touch the seal slices
     leave the dict empty (the default).
 
+    `facility_lookup` defaults to a fresh `InMemoryFacilityLookup`
+    for the same reason: no projection worker, no
+    `proj_federation_facility_summary` table to read from.
+    register_facility-with-parent + future trust-anchor-add tests
+    seed facilities via the adapter's `register(...)` helper; tests
+    that register only Site facilities (parent_id=None) never touch it.
+
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
     tests that DO exercise the LLM path inject `FakeLLM`
@@ -350,6 +372,9 @@ def make_inmemory_kernel(
         supply_lookup=(supply_lookup if supply_lookup is not None else AllSatisfiedSupplyLookup()),
         credential_lookup=(
             credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
+        ),
+        facility_lookup=(
+            facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
@@ -469,6 +494,25 @@ class CredentialLookupFactory(Protocol):
     ) -> CredentialLookup: ...
 
 
+class FacilityLookupFactory(Protocol):
+    """Builds the production FacilityLookup port for the Kernel.
+
+    Federation BC's `cora.federation.adapters.PostgresFacilityLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `CredentialLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryFacilityLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> FacilityLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -503,6 +547,7 @@ async def build_kernel(
     capability_lookup_factory: CapabilityLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
     credential_lookup_factory: CredentialLookupFactory | None = None,
+    facility_lookup_factory: FacilityLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
     permit_lookup_factory: "Callable[[], PermitLookup] | None" = None,
@@ -606,6 +651,11 @@ async def build_kernel(
         if credential_lookup_factory is not None
         else InMemoryCredentialLookup()
     )
+    facility_lookup: FacilityLookup = (
+        facility_lookup_factory(pool)
+        if facility_lookup_factory is not None
+        else InMemoryFacilityLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -620,6 +670,7 @@ async def build_kernel(
         capability_lookup=capability_lookup,
         supply_lookup=supply_lookup,
         credential_lookup=credential_lookup,
+        facility_lookup=facility_lookup,
         llm=llm,
         token_verifier=token_verifier,
         publish_port=publish_port_factory() if publish_port_factory is not None else None,
@@ -696,6 +747,7 @@ __all__ = [
     "CautionLookupFactory",
     "ClearanceLookupFactory",
     "CredentialLookupFactory",
+    "FacilityLookupFactory",
     "LLMFactory",
     "build_kernel",
     "make_inmemory_kernel",

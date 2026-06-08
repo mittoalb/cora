@@ -47,6 +47,7 @@ from cora.infrastructure.ports import (
     Clock,
     CredentialLookup,
     EventStore,
+    FacilityLookup,
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
@@ -141,6 +142,21 @@ class Kernel:
     the slice's context dataclass, keeping the decider pure (mirrors
     the start_run -> ClearanceLookup pattern).
 
+    `facility_lookup`: cross-aggregate port consumed by Federation BC's
+    `register_facility` handler to validate parent.kind=Site at
+    cross-stream boundary (per [[project-slice6-design]] L2; closes the
+    Slice 5 deferral). Future Slice 6 Sub-Slice B consumers
+    (`add_facility_trust_anchor_credential` decider) will also consume
+    this port. Federation BC ships `PostgresFacilityLookup` as the
+    production adapter (reads `proj_federation_facility_summary` shipped
+    Slice 5 Sub-Slice B, keyed by `facility_id`). Test environments
+    default to `InMemoryFacilityLookup`; register_facility handler /
+    decider tests seed facilities explicitly via the adapter's
+    `register(...)` helper. Mirrors the credential_lookup pattern: the
+    handler does the async lookup and threads the result through to the
+    decider as the slice's parent-lookup parameter, keeping the decider
+    pure.
+
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
     `AnthropicLLM` when `Settings.anthropic_api_key` is set;
@@ -194,6 +210,7 @@ class Kernel:
     capability_lookup: CapabilityLookup
     supply_lookup: SupplyLookup
     credential_lookup: CredentialLookup
+    facility_lookup: FacilityLookup
     profile_store: ProfileStore
     canonicalization_registry: CanonicalizationRegistry
     signing_registry: SigningRegistry
