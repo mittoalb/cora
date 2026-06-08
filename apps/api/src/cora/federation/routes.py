@@ -71,7 +71,7 @@ from cora.federation.aggregates.seal.state import (
     SealCannotRotateWithInactiveCredentialError,
     SealCannotSignError,
     SealCannotStartRepublishingError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
     SealKeyCollisionError,
     SealKeyPurposeMismatchError,
     SealNotFoundError,
@@ -247,7 +247,7 @@ def register_federation_routes(app: FastAPI) -> None:
         SealCannotRotateWithInactiveCredentialError,
         SealCannotStartRepublishingError,
         SealCannotCompleteRepublishingError,
-        SealCrossFacilityBindingError,
+        SealCredentialNotTrustAnchorError,
     ):
         app.add_exception_handler(conflict_cls, _handle_conflict)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

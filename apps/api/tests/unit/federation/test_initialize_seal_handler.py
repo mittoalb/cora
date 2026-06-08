@@ -27,6 +27,7 @@ from cora.federation.aggregates.credential import (
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     SealCannotInitializeWithInactiveCredentialError,
     SealKeyCollisionError,
@@ -38,6 +39,10 @@ from cora.federation.features import initialize_seal
 from cora.federation.features.initialize_seal import InitializeSeal
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_facility_lookup import (
+    InMemoryFacilityLookup,
+)
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.ports.event_store import ConcurrencyError
 from tests.unit._helpers import build_deps as _build_deps_shared
@@ -76,6 +81,28 @@ def _seed_active_credentials(
     )
 
 
+def _build_facility_lookup(
+    *,
+    trust_anchors: frozenset[UUID] = frozenset({_ONLINE_KEY_REF, _OFFLINE_KEY_REF}),
+    code: str = _FACILITY_ID,
+) -> InMemoryFacilityLookup:
+    """Seed an `InMemoryFacilityLookup` row for the test's self-Facility.
+
+    Default trust-anchor set covers both seal-slot credentials so the
+    Slice 6 Sub-Slice C structural set-membership check passes on the
+    happy path. Override `trust_anchors=frozenset()` to exercise the
+    SealCredentialNotTrustAnchorError arm.
+    """
+    lookup = InMemoryFacilityLookup()
+    lookup.register(
+        facility_id=facility_stream_id(FacilityCode(code)),
+        code=code,
+        kind="Site",
+        trust_anchor_credential_ids=trust_anchors,
+    )
+    return lookup
+
+
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
@@ -83,6 +110,7 @@ def _build_deps(
     ids: list[UUID] | None = None,
     credential_lookup: InMemoryCredentialLookup | None = None,
     seed_credentials: bool = True,
+    facility_lookup: InMemoryFacilityLookup | None = None,
 ) -> Kernel:
     # initialize_seal consumes 3 ids in order:
     #   1) decision_id (the audit Decision's stream id; aggregate stream
@@ -98,6 +126,9 @@ def _build_deps(
         event_store=event_store,
         deny=deny,
         credential_lookup=lookup,
+        facility_lookup=(
+            facility_lookup if facility_lookup is not None else _build_facility_lookup()
+        ),
     )
 
 
@@ -354,6 +385,7 @@ async def test_initialize_seal_handler_derives_stream_id_from_facility_id() -> N
         ids=other_ids,
         credential_lookup=other_lookup,
         seed_credentials=False,
+        facility_lookup=_build_facility_lookup(code=other_facility),
     )
     handler = initialize_seal.bind(deps)
     result = await handler(

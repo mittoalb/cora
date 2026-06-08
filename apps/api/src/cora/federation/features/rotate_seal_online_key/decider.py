@@ -29,14 +29,18 @@ raises `SealKeyCollisionError` when `new_online_credential_id` would equal
   - Current status must be Live -> SealCannotRotateError
   - new_online_credential_id must differ from current online_credential_id
     -> SealCannotRotateError (no-op rotation rejected)
+  - self_facility must not be None
+    -> FacilityNotFoundError
   - new_online_credential must not be None (the projection must know
     the ref) -> CredentialNotFoundError (per the start_run ->
     PlanNotFoundError / MethodNotFoundError precedent)
   - new_online_credential.purpose must equal "SealOnlineSigning"
     -> SealKeyPurposeMismatchError (HTTP 422)
-  - new_online_credential.facility_id must equal state.facility_id
-    -> SealCrossFacilityBindingError (HTTP 409; cross-tenant key
-    mounting defense)
+  - command.new_online_credential_id must appear in
+    self_facility.trust_anchor_credential_ids
+    -> SealCredentialNotTrustAnchorError (HTTP 409; structural cross-
+    tenant defense; operator pre-seeds via
+    add_facility_trust_anchor_credential)
   - new_online_credential.status must equal "Active"
     -> SealCannotRotateWithInactiveCredentialError (HTTP 409;
     Rotating or Revoked secrets cannot back a Seal)
@@ -47,16 +51,19 @@ raises `SealKeyCollisionError` when `new_online_credential_id` would equal
 from dataclasses import replace
 from datetime import datetime
 
+from cora.federation.aggregates._value_types import FacilityId
 from cora.federation.aggregates.credential import (
     CredentialNotFoundError,
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.federation.aggregates.facility import FacilityNotFoundError
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     Seal,
     SealCannotRotateError,
     SealCannotRotateWithInactiveCredentialError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
     SealKeyPurposeMismatchError,
     SealNotFoundError,
     SealOnlineKeyRotated,
@@ -66,8 +73,10 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.rotate_seal_online_key.command import (
     RotateSealOnlineKey,
 )
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 
 _ONLINE_SLOT = "online_credential_id"
 
@@ -79,6 +88,7 @@ def decide(
     now: datetime,
     rotated_by: ActorId,
     new_online_credential: CredentialLookupResult | None,
+    self_facility: FacilityLookupResult | None,
 ) -> list[SealOnlineKeyRotated]:
     """Decide the events produced by rotating the Seal online key.
 
@@ -87,12 +97,15 @@ def decide(
       - state.status must be Live -> SealCannotRotateError
       - new_online_credential_id must differ from state.online_credential_id
         -> SealCannotRotateError (no-op rotation rejected)
+      - self_facility must not be None
+        -> FacilityNotFoundError
       - new_online_credential must not be None
         -> CredentialNotFoundError (unknown credential ref)
       - new_online_credential.purpose must be SealOnlineSigning
         -> SealKeyPurposeMismatchError
-      - new_online_credential.facility_id must equal state.facility_id
-        -> SealCrossFacilityBindingError
+      - command.new_online_credential_id must be in
+        self_facility.trust_anchor_credential_ids
+        -> SealCredentialNotTrustAnchorError
       - new_online_credential.status must be Active
         -> SealCannotRotateWithInactiveCredentialError
       - new_online_credential_id must differ from state.offline_credential_id
@@ -105,6 +118,9 @@ def decide(
     if command.new_online_credential_id == state.online_credential_id:
         raise SealCannotRotateError(state.facility_id, state.status)
 
+    if self_facility is None:
+        raise FacilityNotFoundError(FacilityId(facility_stream_id(FacilityCode(state.facility_id))))
+
     if new_online_credential is None:
         raise CredentialNotFoundError(command.new_online_credential_id)
     if new_online_credential.purpose != CredentialPurpose.SEAL_ONLINE_SIGNING.value:
@@ -115,15 +131,14 @@ def decide(
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
             actual_purpose=new_online_credential.purpose,
         )
-    # CredentialLookupResult.facility_id is a FacilityCode VO post Slice 3
-    # of project_structural_scope_design; Seal.facility_id stays a bare
-    # string on disk per the wire-payload-immutability constraint. Extract
-    # `.value` inline so the SEC-FED-01 AST fitness test still recognizes
-    # the binding comparison.
-    if new_online_credential.facility_id.value != state.facility_id:
-        raise SealCrossFacilityBindingError(
-            expected_facility_id=state.facility_id,
-            actual_facility_id=new_online_credential.facility_id.value,
+    # Structural cross-tenant defense (Slice 6 Sub-Slice C): the new
+    # online credential id must be in the bound Facility's trust-anchor
+    # set. Replaces the deleted SealCrossFacilityBindingError string-
+    # equality check.
+    if command.new_online_credential_id not in self_facility.trust_anchor_credential_ids:
+        raise SealCredentialNotTrustAnchorError(
+            facility_id=state.facility_id,
+            credential_id=command.new_online_credential_id,
             key_ref_role="online",
         )
     if new_online_credential.status != CredentialStatus.ACTIVE.value:

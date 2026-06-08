@@ -54,6 +54,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.aggregates.decision import (
     to_payload as decision_to_payload,
 )
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     event_type_name,
     fold,
@@ -67,6 +68,7 @@ from cora.federation.features.rotate_seal_online_key.command import (
 )
 from cora.federation.features.rotate_seal_online_key.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -148,6 +150,12 @@ def bind(deps: Kernel) -> Handler:
         new_online_credential = await deps.credential_lookup.lookup(
             command.new_online_credential_id
         )
+        try:
+            self_facility_id = facility_stream_id(FacilityCode(command.facility_id))
+        except ValueError:
+            self_facility = None
+        else:
+            self_facility = await deps.facility_lookup.lookup(self_facility_id)
 
         now = deps.clock.now()
 
@@ -157,6 +165,7 @@ def bind(deps: Kernel) -> Handler:
             now=now,
             rotated_by=ActorId(principal_id),
             new_online_credential=new_online_credential,
+            self_facility=self_facility,
         )
 
         decision_id = deps.id_generator.new_id()

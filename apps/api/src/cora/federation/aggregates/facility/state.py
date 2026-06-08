@@ -60,15 +60,16 @@ PIDINST day-one carriage per locked design:
     deferred (mirrors Asset's separate `assign_asset_persistent_id`
     slice; trigger is first Facility-tier DOI mint).
 
-Trust-anchor binding day-one carriage per locked design:
+Trust-anchor binding per locked design:
 
-  - `trust_anchor_credential_ids: frozenset[CredentialId]` ships on
-    state with empty default. The structural fold of the
-    `SealCrossFacilityBindingError` defense-in-depth string-equality
-    check lives here; populated only when `kind=Site`. The
-    `add_facility_trust_anchor_credential` and `remove_*` slices land
-    in slice 6 when the FacilityLookup port surface ships and
-    SealCrossFacilityBindingError gets deleted.
+  - `trust_anchor_credential_ids: frozenset[CredentialId]` carries the
+    set of Credential ids the Facility trusts as Seal anchors;
+    populated only when `kind=Site`. The Seal decider checks set-
+    membership against this field (initialize_seal +
+    rotate_seal_online_key) to enforce the structural cross-tenant
+    defense, raising `SealCredentialNotTrustAnchorError` on miss.
+    Mutated via `add_facility_trust_anchor_credential` and
+    `remove_facility_trust_anchor_credential`.
 """
 
 from dataclasses import dataclass
@@ -234,8 +235,8 @@ class FacilityAreaCannotHaveTrustAnchorsError(Exception):
 
     Trust anchors bind credentials to the Site root, NOT to its Area
     children; Area facilities inherit the parent Site's trust posture.
-    The structural fold of the SealCrossFacilityBindingError
-    defense-in-depth check is therefore Site-only.
+    The Seal decider's set-membership check against
+    `trust_anchor_credential_ids` is therefore Site-only.
     """
 
     def __init__(self, code: FacilityCode) -> None:

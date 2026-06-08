@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from cora.api.main import create_app
 from cora.federation.aggregates.seal import (
     SealCannotRotateError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
     SealKeyCollisionError,
     SealNotFoundError,
     SealStatus,
@@ -130,16 +130,18 @@ def test_post_rotate_seal_online_key_returns_422_on_key_collision() -> None:
 
 
 @pytest.mark.contract
-def test_post_rotate_seal_online_key_returns_409_on_cross_facility_binding() -> None:
-    """SealCrossFacilityBindingError (cross-tenant key mounting defense)
+def test_post_rotate_seal_online_key_returns_409_on_credential_not_trust_anchor() -> None:
+    """SealCredentialNotTrustAnchorError (structural cross-tenant defense
+    via set-membership against Facility.trust_anchor_credential_ids)
     surfaces as 409 conflict per the federation routes mapping."""
     app = create_app()
+    candidate_id = uuid4()
 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
-        raise SealCrossFacilityBindingError(
-            expected_facility_id="aps-2bm",
-            actual_facility_id="aps-32id",
+        raise SealCredentialNotTrustAnchorError(
+            facility_id="aps-2bm",
+            credential_id=candidate_id,
             key_ref_role="online",
         )
 
@@ -147,10 +149,13 @@ def test_post_rotate_seal_online_key_returns_409_on_cross_facility_binding() -> 
     with TestClient(app) as client:
         response = client.post(
             "/federation/seals/aps-2bm/online-key/rotate",
-            json={"new_online_credential_id": str(uuid4()), "signed_by_offline_root": True},
+            json={
+                "new_online_credential_id": str(candidate_id),
+                "signed_by_offline_root": True,
+            },
         )
     assert response.status_code == 409
-    assert "facility_id" in response.json()["detail"]
+    assert "trust anchor" in response.json()["detail"]
 
 
 @pytest.mark.contract

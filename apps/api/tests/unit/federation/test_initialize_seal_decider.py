@@ -17,17 +17,20 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.federation.aggregates._value_types import CredentialId, FacilityId
 from cora.federation.aggregates.credential import (
     CredentialNotFoundError,
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.federation.aggregates.facility import FacilityNotFoundError
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     InvalidSealFacilityIdError,
     Seal,
     SealAlreadyExistsError,
     SealCannotInitializeWithInactiveCredentialError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
     SealKeyCollisionError,
     SealKeyPurposeMismatchError,
     SealStatus,
@@ -37,6 +40,7 @@ from cora.federation.features.initialize_seal import InitializeSeal
 from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed101"))
@@ -44,6 +48,20 @@ _OTHER_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed102"))
 _FACILITY_ID = "aps-2bm"
 _ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
+
+
+def _self_facility(
+    *,
+    trust_anchors: frozenset[UUID] = frozenset({_ONLINE_KEY_REF, _OFFLINE_KEY_REF}),
+) -> FacilityLookupResult:
+    """Build a self-Facility lookup row anchored on the test credentials by default."""
+    return FacilityLookupResult(
+        id=FacilityId(facility_stream_id(FacilityCode(_FACILITY_ID))),
+        code=FacilityCode(_FACILITY_ID),
+        kind="Site",
+        status="Active",
+        trust_anchor_credential_ids=frozenset(CredentialId(cid) for cid in trust_anchors),
+    )
 
 
 def _command(**overrides: object) -> InitializeSeal:
@@ -108,6 +126,7 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
+        self_facility=_self_facility(),
     )
     assert len(events) == 1
     event = events[0]
@@ -132,6 +151,7 @@ def test_initialize_seal_rejects_non_canonical_facility_id() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.value == "  aps-2bm  "
 
@@ -147,6 +167,7 @@ def test_initialize_seal_raises_already_exists_when_state_present() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
 
@@ -161,6 +182,7 @@ def test_initialize_seal_rejects_empty_facility_id() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.value == ""
 
@@ -175,6 +197,7 @@ def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.value == "   "
 
@@ -192,6 +215,7 @@ def test_initialize_seal_raises_collision_when_keys_equal() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.shared_credential_id == shared
@@ -215,6 +239,7 @@ def test_initialize_seal_rejects_non_canonical_before_collision_check() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(credential_id=shared),
             offline_credential=_offline_cred(credential_id=shared),
+            self_facility=_self_facility(),
         )
     assert exc.value.value == "  aps-2bm  "
 
@@ -234,6 +259,7 @@ def test_initialize_seal_accepts_distinct_keys() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(credential_id=new_online),
         offline_credential=_offline_cred(credential_id=new_offline),
+        self_facility=_self_facility(trust_anchors=frozenset({new_online, new_offline})),
     )
     assert events[0].online_credential_id != events[0].offline_credential_id
 
@@ -249,6 +275,7 @@ def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=online,
         offline_credential=offline,
+        self_facility=_self_facility(),
     )
     second = initialize_seal.decide(
         state=None,
@@ -257,6 +284,7 @@ def test_initialize_seal_is_pure_same_inputs_same_outputs() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=online,
         offline_credential=offline,
+        self_facility=_self_facility(),
     )
     assert first == second
 
@@ -271,6 +299,7 @@ def test_initialize_seal_uses_handler_injected_actor_id_verbatim() -> None:
         initialized_by=injected,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
+        self_facility=_self_facility(),
     )
     assert events[0].initialized_by == injected
 
@@ -285,6 +314,7 @@ def test_initialize_seal_uses_handler_injected_now_verbatim() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
+        self_facility=_self_facility(),
     )
     assert events[0].occurred_at == custom_now
 
@@ -300,6 +330,7 @@ def test_initialize_seal_records_distinct_principals_independently() -> None:
         initialized_by=_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
+        self_facility=_self_facility(),
     )
     second = initialize_seal.decide(
         state=None,
@@ -308,6 +339,7 @@ def test_initialize_seal_records_distinct_principals_independently() -> None:
         initialized_by=_OTHER_PRINCIPAL_ID,
         online_credential=_online_cred(),
         offline_credential=_offline_cred(),
+        self_facility=_self_facility(),
     )
     assert first[0].initialized_by == _PRINCIPAL_ID
     assert second[0].initialized_by == _OTHER_PRINCIPAL_ID
@@ -325,6 +357,7 @@ def test_initialize_seal_raises_not_found_when_online_credential_missing() -> No
             initialized_by=_PRINCIPAL_ID,
             online_credential=None,
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.credential_id == _ONLINE_KEY_REF
 
@@ -340,6 +373,7 @@ def test_initialize_seal_raises_not_found_when_offline_credential_missing() -> N
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=None,
+            self_facility=_self_facility(),
         )
     assert exc.value.credential_id == _OFFLINE_KEY_REF
 
@@ -355,6 +389,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_online_wrong_purpose() -> 
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(purpose=CredentialPurpose.SIGNING.value),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.slot == "online_credential_id"
@@ -374,6 +409,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_offline_wrong_purpose() ->
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.slot == "offline_credential_id"
@@ -393,6 +429,7 @@ def test_initialize_seal_raises_inactive_when_online_status_rotating() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(status=CredentialStatus.ROTATING.value),
             offline_credential=_offline_cred(),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.slot == "online_credential_id"
@@ -411,6 +448,7 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
             offline_credential=_offline_cred(status=CredentialStatus.REVOKED.value),
+            self_facility=_self_facility(),
         )
     assert exc.value.facility_id == _FACILITY_ID
     assert exc.value.slot == "offline_credential_id"
@@ -419,57 +457,77 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
 
 
 @pytest.mark.unit
-def test_initialize_seal_rejects_online_credential_from_other_facility() -> None:
-    """Cross-tenant key mounting defense: online credential's facility_id
-    must equal command.facility_id (sec gate SEC-FED-01)."""
-    with pytest.raises(SealCrossFacilityBindingError) as exc:
-        initialize_seal.decide(
-            state=None,
-            command=_command(),
-            now=_NOW,
-            initialized_by=_PRINCIPAL_ID,
-            online_credential=_online_cred(facility_id="aps-32id"),
-            offline_credential=_offline_cred(),
-        )
-    assert exc.value.expected_facility_id == _FACILITY_ID
-    assert exc.value.actual_facility_id == "aps-32id"
-    assert exc.value.key_ref_role == "online"
-
-
-@pytest.mark.unit
-def test_initialize_seal_rejects_offline_credential_from_other_facility() -> None:
-    """Cross-tenant key mounting defense: offline credential's facility_id
-    must equal command.facility_id (sec gate SEC-FED-01)."""
-    with pytest.raises(SealCrossFacilityBindingError) as exc:
+def test_initialize_seal_rejects_online_credential_not_in_trust_anchors() -> None:
+    """Structural cross-tenant defense (SEC-FED-01): online credential id
+    must be in self_facility.trust_anchor_credential_ids."""
+    with pytest.raises(SealCredentialNotTrustAnchorError) as exc:
         initialize_seal.decide(
             state=None,
             command=_command(),
             now=_NOW,
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
-            offline_credential=_offline_cred(facility_id="aps-32id"),
+            offline_credential=_offline_cred(),
+            self_facility=_self_facility(trust_anchors=frozenset({_OFFLINE_KEY_REF})),
         )
-    assert exc.value.expected_facility_id == _FACILITY_ID
-    assert exc.value.actual_facility_id == "aps-32id"
-    assert exc.value.key_ref_role == "offline"
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.credential_id == _ONLINE_KEY_REF
+    assert exc.value.key_ref_role == "online"
 
 
 @pytest.mark.unit
-def test_initialize_seal_rejects_when_both_credentials_from_other_facility() -> None:
-    """Both credentials issued under a foreign facility: the online check
-    fires first per the decider's declared order, surfacing the foreign
-    facility_id on the error payload. The disagreement-between-credentials
-    branch is defense-in-depth (transitively unreachable once the per-
-    credential checks pass)."""
-    with pytest.raises(SealCrossFacilityBindingError) as exc:
+def test_initialize_seal_rejects_offline_credential_not_in_trust_anchors() -> None:
+    """Structural cross-tenant defense (SEC-FED-01): offline credential id
+    must be in self_facility.trust_anchor_credential_ids."""
+    with pytest.raises(SealCredentialNotTrustAnchorError) as exc:
         initialize_seal.decide(
             state=None,
             command=_command(),
             now=_NOW,
             initialized_by=_PRINCIPAL_ID,
-            online_credential=_online_cred(facility_id="aps-32id"),
-            offline_credential=_offline_cred(facility_id="aps-32id"),
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
+            self_facility=_self_facility(trust_anchors=frozenset({_ONLINE_KEY_REF})),
         )
-    assert exc.value.expected_facility_id == _FACILITY_ID
-    assert exc.value.actual_facility_id == "aps-32id"
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.credential_id == _OFFLINE_KEY_REF
+    assert exc.value.key_ref_role == "offline"
+
+
+@pytest.mark.unit
+def test_initialize_seal_rejects_when_no_credentials_in_trust_anchors() -> None:
+    """Both credentials absent from the trust-anchor set: the online check
+    fires first per the decider's declared order. The previous
+    `online_vs_offline` defense-in-depth check collapses under the
+    structural-fold rewrite because set-membership against the same
+    Facility is per-credential, not cross-credential."""
+    with pytest.raises(SealCredentialNotTrustAnchorError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
+            self_facility=_self_facility(trust_anchors=frozenset()),
+        )
+    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.key_ref_role == "online"
+
+
+@pytest.mark.unit
+def test_initialize_seal_rejects_when_self_facility_missing() -> None:
+    """Self-Facility lookup miss surfaces as FacilityNotFoundError; the
+    bootstrap should always seed the row so this fires only on misconfig."""
+    with pytest.raises(FacilityNotFoundError) as exc:
+        initialize_seal.decide(
+            state=None,
+            command=_command(),
+            now=_NOW,
+            initialized_by=_PRINCIPAL_ID,
+            online_credential=_online_cred(),
+            offline_credential=_offline_cred(),
+            self_facility=None,
+        )
+    assert exc.value.facility_id == facility_stream_id(FacilityCode(_FACILITY_ID))

@@ -52,6 +52,7 @@ from cora.decision.aggregates.decision import (
 from cora.decision.aggregates.decision import (
     to_payload as decision_to_payload,
 )
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     event_type_name,
     to_payload,
@@ -61,6 +62,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.initialize_seal.command import InitializeSeal
 from cora.federation.features.initialize_seal.decider import decide
 from cora.infrastructure.event_envelope import to_new_event
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
@@ -151,6 +153,16 @@ def bind(deps: Kernel) -> Handler:
 
         online_credential = await deps.credential_lookup.lookup(command.online_credential_id)
         offline_credential = await deps.credential_lookup.lookup(command.offline_credential_id)
+        # Skip the FacilityLookup when the command facility_id is not a
+        # well-formed FacilityCode; the decider's canonical-form arm fires
+        # first and surfaces InvalidSealFacilityIdError (400) before the
+        # self_facility=None check would surface FacilityNotFoundError.
+        try:
+            self_facility_id = facility_stream_id(FacilityCode(command.facility_id.strip()))
+        except ValueError:
+            self_facility = None
+        else:
+            self_facility = await deps.facility_lookup.lookup(self_facility_id)
 
         now = deps.clock.now()
 
@@ -161,6 +173,7 @@ def bind(deps: Kernel) -> Handler:
             initialized_by=ActorId(principal_id),
             online_credential=online_credential,
             offline_credential=offline_credential,
+            self_facility=self_facility,
         )
 
         decision_id = deps.id_generator.new_id()

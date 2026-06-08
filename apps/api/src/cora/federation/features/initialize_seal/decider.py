@@ -1,27 +1,34 @@
 """Pure decider for the `InitializeSeal` command.
 
-Pure function: given the (always None) Seal state and an
-`InitializeSeal` command plus two `CredentialLookupResult` snapshots
-(one per slot), returns the events to append on the Seal stream. No
-I/O, no awaits, no side effects.
+Pure function: given the (always None) Seal state, an `InitializeSeal`
+command, two `CredentialLookupResult` snapshots, and the self-Facility's
+`FacilityLookupResult`, returns the events to append on the Seal
+stream. No I/O, no awaits, no side effects.
 
-`now` and `initialized_by` are injected by the application
-handler from the Clock port and the request envelope (non-determinism
-principle: capture, don't recompute).
+`now` and `initialized_by` are injected by the application handler from
+the Clock port and the request envelope (non-determinism principle:
+capture, don't recompute).
 
 `online_credential` and `offline_credential` are likewise handler-
-injected: the handler resolves each ref via the `CredentialLookup`
-port BEFORE invoking the decider, and the decider partitions on the
+injected: the handler resolves each ref via the `CredentialLookup` port
+BEFORE invoking the decider, and the decider partitions on the
 `purpose` / `status` of each projection row. Mirrors the
-`rotate_seal_online_key` precedent (Pass 2) and the `start_run`
-pattern (handler loads upstream projections, threads them into the
-pure decider). The decider stays pure: no I/O, no await.
+`rotate_seal_online_key` precedent (Pass 2) and the `start_run` pattern
+(handler loads upstream projections, threads them into the pure
+decider). The decider stays pure: no I/O, no await.
 
-The cross-BC `DecisionRegistered` audit event on the Decision
-stream is built directly by the handler (not by this decider) and
-written atomically alongside the `SealInitialized` event via
-`EventStore.append_streams`. Decider stays focused on the Seal
-BC's domain invariants.
+`self_facility` is the third handler-injected projection row: the
+Facility row whose `code` equals `command.facility_id`. The decider
+checks that BOTH credential ids appear in
+`self_facility.trust_anchor_credential_ids`, replacing the deleted
+`SealCrossFacilityBindingError` string-equality three-way check (Slice
+6 Sub-Slice C structural fold).
+
+The cross-BC `DecisionRegistered` audit event on the Decision stream is
+built directly by the handler (not by this decider) and written
+atomically alongside the `SealInitialized` event via
+`EventStore.append_streams`. Decider stays focused on the Seal BC's
+domain invariants.
 
 ## Validation
 
@@ -31,10 +38,12 @@ BC's domain invariants.
     or trailing whitespace); avoids auto-normalization that could mask
     a peer-facility credential drift in the binding check
     -> InvalidSealFacilityIdError
-  - online_credential_id != offline_credential_id (key-separation invariant;
-    enforced by building the prospective post-state and calling
-    `verify_key_separation` per sec-4 AH#15)
+  - online_credential_id != offline_credential_id (key-separation
+    invariant; enforced by building the prospective post-state and
+    calling `verify_key_separation` per sec-4 AH#15)
     -> SealKeyCollisionError
+  - self_facility must not be None
+    -> FacilityNotFoundError
   - online_credential must not be None (projection must know the ref)
     -> CredentialNotFoundError (per the start_run -> PlanNotFoundError
     precedent)
@@ -44,14 +53,14 @@ BC's domain invariants.
     -> SealKeyPurposeMismatchError (HTTP 422)
   - offline_credential.purpose must equal "SealOfflineRoot"
     -> SealKeyPurposeMismatchError (HTTP 422)
-  - online_credential.facility_id must equal command.facility_id
-    -> SealCrossFacilityBindingError (HTTP 409; cross-tenant key
-    mounting defense)
-  - offline_credential.facility_id must equal command.facility_id
-    -> SealCrossFacilityBindingError (HTTP 409)
-  - online_credential.facility_id must equal offline_credential.facility_id
-    -> SealCrossFacilityBindingError (HTTP 409; defense-in-depth even
-    if both match command, catches misconfigured tests)
+  - command.online_credential_id must appear in
+    self_facility.trust_anchor_credential_ids
+    -> SealCredentialNotTrustAnchorError (HTTP 409; structural cross-
+    tenant defense; operator pre-seeds via
+    add_facility_trust_anchor_credential)
+  - command.offline_credential_id must appear in
+    self_facility.trust_anchor_credential_ids
+    -> SealCredentialNotTrustAnchorError (HTTP 409)
   - online_credential.status must equal "Active"
     -> SealCannotInitializeWithInactiveCredentialError (HTTP 409;
     Rotating or Revoked secrets cannot back a Seal)
@@ -61,25 +70,30 @@ BC's domain invariants.
 
 from datetime import datetime
 
+from cora.federation.aggregates._value_types import FacilityId
 from cora.federation.aggregates.credential import (
     CredentialNotFoundError,
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.federation.aggregates.facility import FacilityNotFoundError
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     InvalidSealFacilityIdError,
     Seal,
     SealAlreadyExistsError,
     SealCannotInitializeWithInactiveCredentialError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
     SealInitialized,
     SealKeyPurposeMismatchError,
     SealStatus,
     verify_key_separation,
 )
 from cora.federation.features.initialize_seal.command import InitializeSeal
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 
 _ONLINE_SLOT = "online_credential_id"
 _OFFLINE_SLOT = "offline_credential_id"
@@ -93,6 +107,7 @@ def decide(
     initialized_by: ActorId,
     online_credential: CredentialLookupResult | None,
     offline_credential: CredentialLookupResult | None,
+    self_facility: FacilityLookupResult | None,
 ) -> list[SealInitialized]:
     """Decide the events produced by initializing a Seal singleton.
 
@@ -103,6 +118,8 @@ def decide(
         -> InvalidSealFacilityIdError
       - online_credential_id must differ from offline_credential_id
         -> SealKeyCollisionError (via verify_key_separation)
+      - self_facility must not be None
+        -> FacilityNotFoundError
       - online_credential must not be None
         -> CredentialNotFoundError (unknown credential ref)
       - offline_credential must not be None
@@ -111,12 +128,12 @@ def decide(
         -> SealKeyPurposeMismatchError
       - offline_credential.purpose must be SealOfflineRoot
         -> SealKeyPurposeMismatchError
-      - online_credential.facility_id must equal command facility_id
-        -> SealCrossFacilityBindingError
-      - offline_credential.facility_id must equal command facility_id
-        -> SealCrossFacilityBindingError
-      - online_credential.facility_id must equal offline_credential.facility_id
-        -> SealCrossFacilityBindingError
+      - command.online_credential_id must be in
+        self_facility.trust_anchor_credential_ids
+        -> SealCredentialNotTrustAnchorError
+      - command.offline_credential_id must be in
+        self_facility.trust_anchor_credential_ids
+        -> SealCredentialNotTrustAnchorError
       - online_credential.status must be Active
         -> SealCannotInitializeWithInactiveCredentialError
       - offline_credential.status must be Active
@@ -141,6 +158,9 @@ def decide(
     )
     verify_key_separation(prospective)
 
+    if self_facility is None:
+        raise FacilityNotFoundError(FacilityId(facility_stream_id(FacilityCode(facility_id))))
+
     if online_credential is None:
         raise CredentialNotFoundError(command.online_credential_id)
     if offline_credential is None:
@@ -163,28 +183,23 @@ def decide(
             actual_purpose=offline_credential.purpose,
         )
 
-    # CredentialLookupResult.facility_id is a FacilityCode VO post Slice 3
-    # of project_structural_scope_design; aggregate-stored facility_id
-    # (Seal + command DTO) stays a bare string on disk per the wire-payload-
-    # immutability constraint. Extract `.value` inline so the SEC-FED-01
-    # AST fitness test still recognizes the binding comparison.
-    if online_credential.facility_id.value != command.facility_id:
-        raise SealCrossFacilityBindingError(
-            expected_facility_id=command.facility_id,
-            actual_facility_id=online_credential.facility_id.value,
+    # Structural cross-tenant defense (Slice 6 Sub-Slice C): both
+    # credential ids must be in the self-Facility's trust-anchor set.
+    # Replaces the deleted SealCrossFacilityBindingError 3-arm string-
+    # equality check. The "online_vs_offline" third defense-in-depth
+    # check collapses entirely: set-membership against the same Facility
+    # makes the cross-check redundant.
+    if command.online_credential_id not in self_facility.trust_anchor_credential_ids:
+        raise SealCredentialNotTrustAnchorError(
+            facility_id=facility_id,
+            credential_id=command.online_credential_id,
             key_ref_role="online",
         )
-    if offline_credential.facility_id.value != command.facility_id:
-        raise SealCrossFacilityBindingError(
-            expected_facility_id=command.facility_id,
-            actual_facility_id=offline_credential.facility_id.value,
+    if command.offline_credential_id not in self_facility.trust_anchor_credential_ids:
+        raise SealCredentialNotTrustAnchorError(
+            facility_id=facility_id,
+            credential_id=command.offline_credential_id,
             key_ref_role="offline",
-        )
-    if online_credential.facility_id.value != offline_credential.facility_id.value:
-        raise SealCrossFacilityBindingError(
-            expected_facility_id=online_credential.facility_id.value,
-            actual_facility_id=offline_credential.facility_id.value,
-            key_ref_role="online_vs_offline",
         )
 
     if online_credential.status != CredentialStatus.ACTIVE.value:

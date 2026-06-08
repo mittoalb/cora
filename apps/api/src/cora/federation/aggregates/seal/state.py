@@ -202,36 +202,41 @@ class SealKeyPurposeMismatchError(Exception):
         self.actual_purpose = actual_purpose
 
 
-class SealCrossFacilityBindingError(Exception):
-    """A key ref points at a Credential whose `facility_id` does not match the Seal.
+class SealCredentialNotTrustAnchorError(Exception):
+    """A key ref points at a Credential id that is not in the Facility's trust anchors.
 
-    Defense against cross-tenant key-mounting: a Credential issued under
-    facility A must never back the Seal of facility B. Initialization
-    checks both online and offline credentials against
-    `command.facility_id`, plus a defense-in-depth cross-check that
-    online and offline credentials share the same `facility_id`.
-    Rotation checks the new online credential against
-    `state.facility_id`. Surfaced as HTTP 409 by the federation routes
+    Structural defense against cross-tenant key-mounting (Slice 6
+    Sub-Slice C): replaces the deleted `SealCrossFacilityBindingError`
+    string-equality three-way check with set-membership against
+    `Facility.trust_anchor_credential_ids`. An operator binds a
+    Credential as a trust anchor via `add_facility_trust_anchor_credential`
+    before the Seal can use it as `online_credential_id` or
+    `offline_credential_id`.
+
+    Both `initialize_seal` and `rotate_seal_online_key` raise this when
+    the candidate credential id is absent from the bound Facility's
+    trust-anchor set. Surfaced as HTTP 409 by the federation routes
     (mirrors `SealCannotRotateWithInactiveCredentialError`; the binding
     is structurally valid but operationally conflicting).
 
-    `key_ref_role` is one of: `"online"`, `"offline"`, or
-    `"online_vs_offline"` (the defense-in-depth cross-check).
+    `key_ref_role` is `"online"` or `"offline"`; the deleted error's
+    `"online_vs_offline"` third defense collapses entirely because
+    set-membership against the same Facility makes the cross-check
+    structurally redundant.
     """
 
     def __init__(
         self,
-        expected_facility_id: str,
-        actual_facility_id: str,
+        facility_id: str,
+        credential_id: UUID,
         key_ref_role: str,
     ) -> None:
         super().__init__(
-            f"Seal {key_ref_role} credential facility_id "
-            f"{actual_facility_id!r} does not match expected "
-            f"{expected_facility_id!r}"
+            f"Seal {key_ref_role} credential {credential_id} is not a "
+            f"trust anchor for facility {facility_id!r}"
         )
-        self.expected_facility_id = expected_facility_id
-        self.actual_facility_id = actual_facility_id
+        self.facility_id = facility_id
+        self.credential_id = credential_id
         self.key_ref_role = key_ref_role
 
 

@@ -22,9 +22,10 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     SealAlreadyExistsError,
-    SealCrossFacilityBindingError,
+    SealCredentialNotTrustAnchorError,
 )
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.aggregates.seal.state import InvalidSealFacilityIdError
@@ -32,6 +33,7 @@ from cora.federation.errors import UnauthorizedError
 from cora.federation.features.initialize_seal.route import (
     _get_handler as _get_initialize_seal_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from cora.infrastructure.facility_code import FacilityCode
 
 _ONLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0a1"
 _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
@@ -49,7 +51,12 @@ def _body(**overrides: object) -> dict[str, Any]:
 
 def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
     """Seed both seal-slot credentials in the in-memory CredentialLookup
-    adapter so the decider's purpose-binding + status-Active checks pass."""
+    adapter so the decider's purpose-binding + status-Active checks pass.
+
+    Also seeds the matching self-Facility row in the in-memory
+    FacilityLookup adapter with both credential ids as trust anchors so
+    the Slice 6 Sub-Slice C structural set-membership check passes.
+    """
     lookup = app.state.deps.credential_lookup
     lookup.register(
         credential_id=UUID(_ONLINE_KEY_REF),
@@ -62,6 +69,13 @@ def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
         facility_id=facility_id,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
+    )
+    facility_lookup = app.state.deps.facility_lookup
+    facility_lookup.register(
+        facility_id=facility_stream_id(FacilityCode(facility_id)),
+        code=facility_id,
+        kind="Site",
+        trust_anchor_credential_ids=frozenset({UUID(_ONLINE_KEY_REF), UUID(_OFFLINE_KEY_REF)}),
     )
 
 
@@ -192,16 +206,17 @@ def test_post_federation_seals_returns_400_when_handler_raises_invalid_facility_
 
 
 @pytest.mark.contract
-def test_post_federation_seals_returns_409_on_cross_facility_binding() -> None:
-    """SealCrossFacilityBindingError (cross-tenant key mounting defense)
+def test_post_federation_seals_returns_409_on_credential_not_trust_anchor() -> None:
+    """SealCredentialNotTrustAnchorError (structural cross-tenant defense
+    via set-membership against Facility.trust_anchor_credential_ids)
     surfaces as 409 conflict per the federation routes mapping."""
     app = create_app()
 
     async def fake_handler(*args: object, **kwargs: object) -> UUID:
         _ = (args, kwargs)
-        raise SealCrossFacilityBindingError(
-            expected_facility_id="aps-2bm",
-            actual_facility_id="aps-32id",
+        raise SealCredentialNotTrustAnchorError(
+            facility_id="aps-2bm",
+            credential_id=UUID(_ONLINE_KEY_REF),
             key_ref_role="online",
         )
 
@@ -209,7 +224,7 @@ def test_post_federation_seals_returns_409_on_cross_facility_binding() -> None:
     with TestClient(app) as client:
         response = client.post("/federation/seals", json=_body())
     assert response.status_code == 409
-    assert "facility_id" in response.json()["detail"]
+    assert "trust anchor" in response.json()["detail"]
 
 
 @pytest.mark.contract

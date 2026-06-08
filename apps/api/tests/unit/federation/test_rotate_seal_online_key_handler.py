@@ -22,6 +22,7 @@ from cora.federation.aggregates.credential import (
     CredentialPurpose,
     CredentialStatus,
 )
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.aggregates.seal import (
     SealCannotRotateError,
     SealCannotRotateWithInactiveCredentialError,
@@ -37,6 +38,10 @@ from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.infrastructure.adapters.in_memory_facility_lookup import (
+    InMemoryFacilityLookup,
+)
+from cora.infrastructure.facility_code import FacilityCode
 from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import (
@@ -90,12 +95,35 @@ def _build_lookup(
     return lookup
 
 
+def _build_facility_lookup(
+    *,
+    trust_anchors: frozenset[UUID] = frozenset(
+        {_CURRENT_ONLINE_KEY, _OFFLINE_KEY, _NEW_ONLINE_KEY}
+    ),
+) -> InMemoryFacilityLookup:
+    """Seed an `InMemoryFacilityLookup` row for the test's self-Facility.
+
+    Default trust-anchor set covers the current online, offline, and
+    new online credentials so the Slice 6 Sub-Slice C structural set-
+    membership check passes on the happy path.
+    """
+    lookup = InMemoryFacilityLookup()
+    lookup.register(
+        facility_id=facility_stream_id(FacilityCode(_FACILITY_ID)),
+        code=_FACILITY_ID,
+        kind="Site",
+        trust_anchor_credential_ids=trust_anchors,
+    )
+    return lookup
+
+
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
     ids: list[UUID] | None = None,
     credential_lookup: InMemoryCredentialLookup | None = None,
+    facility_lookup: InMemoryFacilityLookup | None = None,
 ) -> Kernel:
     # rotate_seal_online_key consumes 3 ids per successful call:
     #   1) decision_id (fresh Decision stream id)
@@ -107,6 +135,9 @@ def _build_deps(
         event_store=event_store,
         deny=deny,
         credential_lookup=(credential_lookup if credential_lookup is not None else _build_lookup()),
+        facility_lookup=(
+            facility_lookup if facility_lookup is not None else _build_facility_lookup()
+        ),
     )
 
 
