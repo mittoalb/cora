@@ -1,7 +1,7 @@
 """HTTP route for the `sign_seal_pointer` slice.
 
 Action endpoint at
-`POST /federation/seals/{facility_id}/pointer/sign`. The path identifies
+`POST /federation/seals/{facility_code}/pointer/sign`. The path identifies
 the per-facility singleton; the body carries the new head hash and the
 monotonic sequence number for the signed pointer. 204 No Content on
 success.
@@ -31,7 +31,7 @@ from cora.infrastructure.routing import (
 
 
 class SignSealPointerRequest(BaseModel):
-    """Body for `POST /federation/seals/{facility_id}/pointer/sign`."""
+    """Body for `POST /federation/seals/{facility_code}/pointer/sign`."""
 
     new_head_hash: str = Field(
         ...,
@@ -63,7 +63,7 @@ router = APIRouter(tags=["federation"])
 
 
 @router.post(
-    "/federation/seals/{facility_id}/pointer/sign",
+    "/federation/seals/{facility_code}/pointer/sign",
     status_code=status.HTTP_204_NO_CONTENT,
     operation_id="sign_seal_pointer",
     responses={
@@ -77,7 +77,7 @@ router = APIRouter(tags=["federation"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No Seal exists for the given facility_id.",
+            "description": "No Seal exists for the given facility code.",
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
@@ -96,7 +96,7 @@ router = APIRouter(tags=["federation"])
     summary="Sign a new head pointer on a Live Seal (Live -> Live)",
 )
 async def post_federation_seals_pointer_sign(
-    facility_id: Annotated[str, Path(min_length=1, description="Target facility's id.")],
+    facility_code: Annotated[str, Path(min_length=1, description="Target facility's code.")],
     body: SignSealPointerRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -105,7 +105,7 @@ async def post_federation_seals_pointer_sign(
 ) -> None:
     await handler(
         SignSealPointer(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_head_hash=body.new_head_hash,
             new_sequence_number=body.new_sequence_number,
         ),

@@ -1,14 +1,14 @@
 """HTTP route for the `start_seal_republishing` slice.
 
 Action endpoint at
-`POST /federation/seals/{facility_id}/republishing/start`. The path
+`POST /federation/seals/{facility_code}/republishing/start`. The path
 identifies the target Seal singleton by facility; the body carries
 the optional operator `reason` note. 204 No Content on success.
 
 Mirrors the action-endpoint shape of
 `POST /federation/credentials/{credential_id}/rotation/start`, but
-takes `facility_id` (str) as the singleton key rather than a UUID
-because the Seal's domain identity is the facility string; the
+takes `facility_code` (str) as the singleton key rather than a UUID
+because the Seal's domain identity is the facility code string; the
 handler derives the stream UUID via UUID5.
 
 No Idempotency-Key header because transition handlers use strict-
@@ -35,7 +35,7 @@ from cora.infrastructure.routing import (
 
 
 class StartSealRepublishingRequest(BaseModel):
-    """Body for `POST /federation/seals/{facility_id}/republishing/start`."""
+    """Body for `POST /federation/seals/{facility_code}/republishing/start`."""
 
     reason: str | None = Field(
         None,
@@ -59,7 +59,7 @@ router = APIRouter(tags=["federation"])
 
 
 @router.post(
-    "/federation/seals/{facility_id}/republishing/start",
+    "/federation/seals/{facility_code}/republishing/start",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -86,7 +86,7 @@ router = APIRouter(tags=["federation"])
     summary="Start a republishing window on the Live Seal (Live -> Republishing)",
 )
 async def post_federation_seals_republishing_start(
-    facility_id: Annotated[str, Path(description="Target Seal's facility id.")],
+    facility_code: Annotated[str, Path(description="Target Seal's facility code.")],
     body: StartSealRepublishingRequest,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -95,7 +95,7 @@ async def post_federation_seals_republishing_start(
 ) -> None:
     await handler(
         StartSealRepublishing(
-            facility_id=facility_id,
+            facility_code=facility_code,
             reason=body.reason,
         ),
         principal_id=principal_id,

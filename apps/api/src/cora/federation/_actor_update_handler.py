@@ -22,12 +22,12 @@ parameter.
 ## Stream-id derivation
 
 The Seal aggregate is a per-facility singleton: its event-store stream
-UUID is derived from `command.facility_id` via `seal_stream_id`
+UUID is derived from `command.facility_code` via `seal_stream_id`
 (UUID5), not pulled from a UUID command attribute. The optional
 `resolve_stream_id` knob lets Seal slices override the default
 `getattr(command, target_id_attr)` while keeping `target_id_attr` as
-the log-line field name (so Seal slices log `facility_id=...` as a
-str, matching the pre-refactor log shape).
+the log-line field name (so Seal slices log `facility_code=...` as a
+str, matching the per-aggregate logging convention).
 
 ## BC-local, not cross-BC
 
@@ -327,15 +327,16 @@ def make_seal_update_handler(
 ) -> _ActorUpdateHandler:
     """Build an actor-stamping handler for one Seal transition slice.
 
-    Seal slices key the event-store stream by `seal_stream_id(facility_id)`
-    (UUID5 over the federation namespace) so the per-facility singleton
-    stays addressable from `command.facility_id: str`. The log line
-    still reports `facility_id=<str>` (no UUID exposure).
+    Seal slices key the event-store stream by
+    `seal_stream_id(facility_code)` (UUID5 over the federation
+    namespace) so the per-facility singleton stays addressable from
+    `command.facility_code: str`. The log line reports
+    `facility_code=<str>` (no UUID exposure).
     """
     return make_actor_update_handler(
         deps,
         stream_type="Seal",
-        target_id_attr="facility_id",
+        target_id_attr="facility_code",
         from_stored=seal_from_stored,
         to_payload=seal_to_payload,
         event_type_name=seal_event_type_name,
@@ -345,7 +346,7 @@ def make_seal_update_handler(
         log_prefix=log_prefix,
         decide_fn=decide_fn,
         actor_kwarg=actor_kwarg,
-        resolve_stream_id=lambda cmd: seal_stream_id(cmd.facility_id),
+        resolve_stream_id=lambda cmd: seal_stream_id(cmd.facility_code),
     )
 
 

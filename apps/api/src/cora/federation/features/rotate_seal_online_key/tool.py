@@ -25,7 +25,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class RotateSealOnlineKeyOutput(BaseModel):
     """Structured output of the `rotate_seal_online_key` MCP tool."""
 
-    facility_id: str
+    facility_code: str
     new_online_credential_id: UUID
     signed_by_offline_root: bool
 
@@ -45,9 +45,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def rotate_seal_online_key_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        facility_id: Annotated[
+        facility_code: Annotated[
             str,
-            Field(description="Target Seal's facility id."),
+            Field(description="Target Seal's facility code."),
         ],
         new_online_credential_id: Annotated[
             UUID,
@@ -73,7 +73,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             RotateSealOnlineKey(
-                facility_id=facility_id,
+                facility_code=facility_code,
                 new_online_credential_id=new_online_credential_id,
                 signed_by_offline_root=signed_by_offline_root,
             ),
@@ -82,7 +82,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             surface_id=get_mcp_surface_id(),
         )
         return RotateSealOnlineKeyOutput(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=signed_by_offline_root,
         )

@@ -74,7 +74,7 @@ def test_mcp_lists_rotate_seal_online_key_tool() -> None:
 @pytest.mark.contract
 def test_mcp_rotate_seal_online_key_tool_returns_structured_ids() -> None:
     """Happy path via handler override: tool returns structured
-    facility_id + new_online_credential_id (matches REST 204 + body contract)."""
+    facility_code + new_online_credential_id (matches REST 204 + body contract)."""
     app = create_app()
     new_online_credential_id = uuid4()
 
@@ -91,14 +91,14 @@ def test_mcp_rotate_seal_online_key_tool_returns_structured_ids() -> None:
             request_id=20,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(new_online_credential_id),
                 "signed_by_offline_root": True,
             },
         )
     result = body["result"]
     assert result["isError"] is False, result
-    assert result["structuredContent"]["facility_id"] == "aps-2bm"
+    assert result["structuredContent"]["facility_code"] == "aps-2bm"
     assert result["structuredContent"]["new_online_credential_id"] == str(new_online_credential_id)
     assert result["structuredContent"]["signed_by_offline_root"] is True
     UUID(result["structuredContent"]["new_online_credential_id"])
@@ -123,7 +123,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_when_republishing() -> 
             request_id=30,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(uuid4()),
                 "signed_by_offline_root": True,
             },
@@ -150,7 +150,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_noop_rotation() -> N
             request_id=35,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(uuid4()),
                 "signed_by_offline_root": True,
             },
@@ -177,7 +177,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_key_collision() -> N
             request_id=40,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(shared_ref),
                 "signed_by_offline_root": True,
             },
@@ -204,7 +204,7 @@ def test_mcp_rotate_seal_online_key_tool_returns_iserror_on_unknown_seal() -> No
             request_id=50,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(uuid4()),
                 "signed_by_offline_root": True,
             },
@@ -223,7 +223,7 @@ def test_mcp_rotate_seal_online_key_tool_rejects_missing_required_argument() -> 
             headers=headers,
             request_id=60,
             name="rotate_seal_online_key",
-            arguments={"facility_id": "aps-2bm"},
+            arguments={"facility_code": "aps-2bm"},
         )
     assert body["result"]["isError"] is True
 
@@ -239,7 +239,7 @@ def test_mcp_rotate_seal_online_key_tool_rejects_malformed_uuid() -> None:
             request_id=70,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": "not-a-uuid",
                 "signed_by_offline_root": True,
             },
@@ -258,7 +258,7 @@ def test_mcp_rotate_seal_online_key_tool_rejects_missing_signed_by_offline_root(
             request_id=80,
             name="rotate_seal_online_key",
             arguments={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "new_online_credential_id": str(uuid4()),
             },
         )

@@ -58,9 +58,9 @@ def decide(
         -> SealSequenceNumberRegressionError
     """
     if state is None:
-        raise SealNotFoundError(command.facility_id)
+        raise SealNotFoundError(command.facility_code)
     if state.status is not SealStatus.LIVE:
-        raise SealCannotSignError(state.facility_id, state.status)
+        raise SealCannotSignError(state.facility_code.value, state.status)
 
     head_hash = command.new_head_hash.strip()
     if not head_hash:
@@ -71,14 +71,14 @@ def decide(
 
     if command.new_sequence_number <= state.current_sequence_number:
         raise SealSequenceNumberRegressionError(
-            facility_id=state.facility_id,
+            facility_id=state.facility_code.value,
             prior_sequence_number=state.current_sequence_number,
             proposed_sequence_number=command.new_sequence_number,
         )
 
     return [
         SealPointerSigned(
-            facility_id=state.facility_id,
+            facility_code=state.facility_code,
             head_hash=head_hash,
             sequence_number=command.new_sequence_number,
             signed_at=now,

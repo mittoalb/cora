@@ -34,8 +34,8 @@ from tests.unit.federation._helpers import (
 _T0 = datetime(2026, 5, 30, 10, 0, 0, tzinfo=UTC)
 _T1 = datetime(2026, 5, 30, 11, 0, 0, tzinfo=UTC)
 _T2 = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
-_STREAM_ID = seal_stream_id(_FACILITY_ID)
+_FACILITY_CODE = "aps-2bm"
+_STREAM_ID = seal_stream_id(_FACILITY_CODE)
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed001")
 _REPUBLISHING_STARTED_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed002")
 _NEXT_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed003")
@@ -60,7 +60,7 @@ def _build_deps(
 
 
 def _command(*, reason: str | None = "root rotation drill") -> StartSealRepublishing:
-    return StartSealRepublishing(facility_id=_FACILITY_ID, reason=reason)
+    return StartSealRepublishing(facility_code=_FACILITY_CODE, reason=reason)
 
 
 @pytest.mark.unit
@@ -73,7 +73,7 @@ async def test_start_seal_republishing_handler_appends_event_to_live_seal() -> N
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = start_seal_republishing.bind(deps)
@@ -86,7 +86,7 @@ async def test_start_seal_republishing_handler_appends_event_to_live_seal() -> N
     assert version == 2
     stored = events[-1]
     assert stored.event_type == "SealRepublishingStarted"
-    assert stored.payload["facility_id"] == _FACILITY_ID
+    assert stored.payload["facility_id"] == _FACILITY_CODE
     assert stored.payload["started_by"] == str(_PRINCIPAL_ID)
     assert stored.payload["reason"] == "root rotation drill"
     assert stored.correlation_id == _CORRELATION_ID
@@ -104,7 +104,7 @@ async def test_start_seal_republishing_handler_propagates_causation_id() -> None
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     causation = UUID("01900000-0000-7000-8000-0000000000cc")
     deps = _build_deps(event_store=store)
@@ -144,7 +144,7 @@ async def test_start_seal_republishing_handler_raises_cannot_start_when_republis
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = start_seal_republishing.bind(deps)
@@ -167,7 +167,7 @@ async def test_start_seal_republishing_handler_replay_raises_cannot_start_error(
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, ids=[_NEXT_EVENT_ID, _FOLLOWUP_EVENT_ID])
     handler = start_seal_republishing.bind(deps)
@@ -198,7 +198,7 @@ async def test_start_seal_republishing_handler_denies_via_authorize_port() -> No
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = start_seal_republishing.bind(deps)
@@ -221,7 +221,7 @@ async def test_start_seal_republishing_handler_denied_does_not_write_to_stream()
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = start_seal_republishing.bind(deps)
@@ -248,7 +248,7 @@ async def test_start_seal_republishing_handler_records_started_by() -> None:
         correlation_id=_CORRELATION_ID,
         principal_id=_OTHER_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = start_seal_republishing.bind(deps)
@@ -273,7 +273,7 @@ async def test_start_seal_republishing_handler_event_payload_records_none_reason
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = start_seal_republishing.bind(deps)

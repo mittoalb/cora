@@ -1,7 +1,7 @@
 """MCP tool for the `complete_seal_republishing` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. Returns the facility_id back so the caller can
+Context Protocol tool. Returns the facility_code back so the caller can
 chain follow-up tools (sign_seal_pointer / rotate_seal_online_key /
 get_seal).
 """
@@ -24,7 +24,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class CompleteSealRepublishingOutput(BaseModel):
     """Structured output of the `complete_seal_republishing` MCP tool."""
 
-    facility_id: str
+    facility_code: str
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
@@ -42,9 +42,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def complete_seal_republishing_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        facility_id: Annotated[
+        facility_code: Annotated[
             str,
-            Field(description="Target Seal's facility_id."),
+            Field(description="Target Seal's facility code."),
         ],
         new_head_hash: Annotated[
             str | None,
@@ -72,7 +72,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             CompleteSealRepublishing(
-                facility_id=facility_id,
+                facility_code=facility_code,
                 new_head_hash=new_head_hash,
                 new_sequence_number=new_sequence_number,
             ),
@@ -80,4 +80,4 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
         )
-        return CompleteSealRepublishingOutput(facility_id=facility_id)
+        return CompleteSealRepublishingOutput(facility_code=facility_code)

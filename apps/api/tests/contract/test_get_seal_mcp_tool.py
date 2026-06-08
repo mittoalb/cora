@@ -1,7 +1,7 @@
 """Contract tests for the `get_seal` MCP tool.
 
 Pins tool registration, happy-path structured output (per-facility
-singleton fields keyed on `facility_id`), and the null-on-miss path
+singleton fields keyed on `facility_code`), and the null-on-miss path
 (FastMCP wraps `T | None` returns under `structuredContent.result`).
 """
 
@@ -14,6 +14,8 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
+from cora.shared.facility_code import FacilityCode
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 _ONLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0a1"
@@ -22,7 +24,7 @@ _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
 
 def _initialize_args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
+        "facility_code": f"aps-2bm-{uuid4().hex[:8]}",
         "online_credential_id": _ONLINE_KEY_REF,
         "offline_credential_id": _OFFLINE_KEY_REF,
     }
@@ -30,19 +32,26 @@ def _initialize_args(**overrides: object) -> dict[str, Any]:
     return base
 
 
-def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
+def _seed_active_credentials(app: FastAPI, *, facility_code: str) -> None:
     lookup = app.state.deps.credential_lookup
     lookup.register(
         credential_id=UUID(_ONLINE_KEY_REF),
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     lookup.register(
         credential_id=UUID(_OFFLINE_KEY_REF),
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
+    )
+    facility_lookup = app.state.deps.facility_lookup
+    facility_lookup.register(
+        facility_id=facility_stream_id(FacilityCode(facility_code)),
+        code=facility_code,
+        kind="Site",
+        trust_anchor_credential_ids=frozenset({UUID(_ONLINE_KEY_REF), UUID(_OFFLINE_KEY_REF)}),
     )
 
 
@@ -52,7 +61,7 @@ def _seed_seal(
     session_headers: dict[str, str],
 ) -> str:
     args = _initialize_args()
-    _seed_active_credentials(app, facility_id=str(args["facility_id"]))
+    _seed_active_credentials(app, facility_code=str(args["facility_code"]))
     response = client.post(
         "/mcp",
         json={
@@ -66,7 +75,7 @@ def _seed_seal(
     assert response.status_code == 200, response.text
     body = parse_sse_data(response.text)
     assert body["result"]["isError"] is False, body
-    return str(args["facility_id"])
+    return str(args["facility_code"])
 
 
 @pytest.mark.contract
@@ -89,7 +98,7 @@ def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
     app = create_app()
     with TestClient(app) as client:
         session_headers = open_session(client)
-        facility_id = _seed_seal(app, client, session_headers)
+        facility_code = _seed_seal(app, client, session_headers)
         response = client.post(
             "/mcp",
             json={
@@ -98,7 +107,7 @@ def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "get_seal",
-                    "arguments": {"facility_id": facility_id},
+                    "arguments": {"facility_code": facility_code},
                 },
             },
             headers=session_headers,
@@ -111,7 +120,7 @@ def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
     # structuredContent (see test_mcp_get_seal_tool_returns_null_on_miss).
     payload = result["structuredContent"]["result"]
     assert payload is not None
-    assert payload["facility_id"] == facility_id
+    assert payload["facility_code"] == facility_code
     assert payload["online_credential_id"] == _ONLINE_KEY_REF
     assert payload["offline_credential_id"] == _OFFLINE_KEY_REF
     assert payload["current_head_hash"] is None
@@ -121,7 +130,7 @@ def test_mcp_get_seal_tool_returns_full_structured_state() -> None:
 
 @pytest.mark.contract
 def test_mcp_get_seal_tool_returns_null_on_miss() -> None:
-    """Tool returns null for unknown facility_id (matches REST 404 semantically)."""
+    """Tool returns null for unknown facility_code (matches REST 404 semantically)."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -132,7 +141,7 @@ def test_mcp_get_seal_tool_returns_null_on_miss() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "get_seal",
-                    "arguments": {"facility_id": f"no-such-facility-{uuid4().hex[:8]}"},
+                    "arguments": {"facility_code": f"no-such-facility-{uuid4().hex[:8]}"},
                 },
             },
             headers=session_headers,
@@ -146,8 +155,8 @@ def test_mcp_get_seal_tool_returns_null_on_miss() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_get_seal_tool_rejects_empty_facility_id() -> None:
-    """`min_length=1` on the facility_id argument bubbles as isError: true
+def test_mcp_get_seal_tool_rejects_empty_facility_code() -> None:
+    """`min_length=1` on the facility_code argument bubbles as isError: true
     when an empty string is passed."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
@@ -159,7 +168,7 @@ def test_mcp_get_seal_tool_rejects_empty_facility_id() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "get_seal",
-                    "arguments": {"facility_id": ""},
+                    "arguments": {"facility_code": ""},
                 },
             },
             headers=session_headers,

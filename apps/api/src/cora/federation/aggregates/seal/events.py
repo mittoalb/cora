@@ -24,6 +24,10 @@ payload so the projection's `last_signed_at` reflects domain time
 Wire shape is flat primitives: UUIDs render as strings, datetimes as
 ISO-8601, SealStatus does not travel on payloads (the event
 type IS the state-change indicator per the cross-aggregate convention).
+`facility_code` is typed `FacilityCode` on the in-memory event
+dataclass but serialises under the legacy disk JSON key `facility_id`
+with its bare `.value` string per [[project_slice6_design]] L7
+(event log + cryptographic chain anchor immutability).
 """
 
 from dataclasses import dataclass
@@ -32,8 +36,9 @@ from typing import Any, assert_never
 from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
-from cora.infrastructure.ports.event_store import StoredEvent
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
+from cora.infrastructure.ports.event_store import StoredEvent
 
 
 @dataclass(frozen=True)
@@ -46,7 +51,7 @@ class SealInitialized:
     `initial_head_hash` is None (no pointer signed yet).
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     online_credential_id: UUID
     offline_credential_id: UUID
     initialized_by: ActorId
@@ -68,7 +73,7 @@ class SealPointerSigned:
     `established_at`).
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     head_hash: str
     sequence_number: int
     signed_at: datetime
@@ -91,7 +96,7 @@ class SealOnlineKeyRotated:
     the offline signature itself is out of scope here).
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     new_online_credential_id: UUID
     signed_by_offline_root: bool
     rotated_by: ActorId
@@ -107,7 +112,7 @@ class SealRepublishingStarted:
     to defer trust.
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     started_by: ActorId
     occurred_at: datetime
     reason: str | None = None
@@ -122,7 +127,7 @@ class SealRepublishingCompleted:
     greater than the prior value (the decider rejects regressions).
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     new_head_hash: str
     new_sequence_number: int
     completed_by: ActorId
@@ -147,21 +152,21 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
     """Serialise a Seal event to a JSON-friendly dict for jsonb storage."""
     match event:
         case SealInitialized(
-            facility_id=facility_id,
+            facility_code=facility_code,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
             initialized_by=initialized_by,
             occurred_at=occurred_at,
         ):
             return {
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "online_credential_id": str(online_credential_id),
                 "offline_credential_id": str(offline_credential_id),
                 "initialized_by": str(initialized_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealPointerSigned(
-            facility_id=facility_id,
+            facility_code=facility_code,
             head_hash=head_hash,
             sequence_number=sequence_number,
             signed_at=signed_at,
@@ -169,7 +174,7 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
             occurred_at=occurred_at,
         ):
             return {
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "head_hash": head_hash,
                 "sequence_number": sequence_number,
                 "signed_at": signed_at.isoformat(),
@@ -177,40 +182,40 @@ def to_payload(event: SealEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealOnlineKeyRotated(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=signed_by_offline_root,
             rotated_by=rotated_by,
             occurred_at=occurred_at,
         ):
             return {
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "new_online_credential_id": str(new_online_credential_id),
                 "signed_by_offline_root": signed_by_offline_root,
                 "rotated_by": str(rotated_by),
                 "occurred_at": occurred_at.isoformat(),
             }
         case SealRepublishingStarted(
-            facility_id=facility_id,
+            facility_code=facility_code,
             started_by=started_by,
             occurred_at=occurred_at,
             reason=reason,
         ):
             return {
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "started_by": str(started_by),
                 "occurred_at": occurred_at.isoformat(),
                 "reason": reason,
             }
         case SealRepublishingCompleted(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_head_hash=new_head_hash,
             new_sequence_number=new_sequence_number,
             completed_by=completed_by,
             occurred_at=occurred_at,
         ):
             return {
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "new_head_hash": new_head_hash,
                 "new_sequence_number": new_sequence_number,
                 "completed_by": str(completed_by),
@@ -233,56 +238,61 @@ def from_stored(stored: StoredEvent) -> SealEvent:
             return deserialize_or_raise(
                 "SealInitialized",
                 lambda: SealInitialized(
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     online_credential_id=UUID(payload["online_credential_id"]),
                     offline_credential_id=UUID(payload["offline_credential_id"]),
                     initialized_by=ActorId(UUID(payload["initialized_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
+                extra=(ValueError,),
             )
         case "SealPointerSigned":
             return deserialize_or_raise(
                 "SealPointerSigned",
                 lambda: SealPointerSigned(
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     head_hash=payload["head_hash"],
                     sequence_number=payload["sequence_number"],
                     signed_at=datetime.fromisoformat(payload["signed_at"]),
                     signed_by=ActorId(UUID(payload["signed_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
+                extra=(ValueError,),
             )
         case "SealOnlineKeyRotated":
             return deserialize_or_raise(
                 "SealOnlineKeyRotated",
                 lambda: SealOnlineKeyRotated(
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     new_online_credential_id=UUID(payload["new_online_credential_id"]),
                     signed_by_offline_root=payload["signed_by_offline_root"],
                     rotated_by=ActorId(UUID(payload["rotated_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
+                extra=(ValueError,),
             )
         case "SealRepublishingStarted":
             return deserialize_or_raise(
                 "SealRepublishingStarted",
                 lambda: SealRepublishingStarted(
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     started_by=ActorId(UUID(payload["started_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                     reason=payload.get("reason"),
                 ),
+                extra=(ValueError,),
             )
         case "SealRepublishingCompleted":
             return deserialize_or_raise(
                 "SealRepublishingCompleted",
                 lambda: SealRepublishingCompleted(
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     new_head_hash=payload["new_head_hash"],
                     new_sequence_number=payload["new_sequence_number"],
                     completed_by=ActorId(UUID(payload["completed_by"])),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
+                extra=(ValueError,),
             )
         case unknown:
             msg = f"Unknown Seal event type: {unknown!r}"

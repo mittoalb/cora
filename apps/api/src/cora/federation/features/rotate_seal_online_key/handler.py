@@ -7,7 +7,7 @@ Decision BC stream in ONE Postgres transaction via
 touching action whose audit emission is atomic with the domain event.
 
 The Seal aggregate is a per-facility singleton; the stream UUID is
-derived deterministically from `command.facility_id` via UUID5 over a
+derived deterministically from `command.facility_code` via UUID5 over a
 fixed federation namespace (see `_stream_id.seal_stream_id`). The
 expected version on append is the loaded `current_version`, not zero
 (Seal must already have been initialized).
@@ -109,12 +109,12 @@ def bind(deps: Kernel) -> Handler:
         causation_id: UUID | None = None,
         surface_id: UUID = NIL_SENTINEL_ID,
     ) -> None:
-        stream_id = seal_stream_id(command.facility_id)
+        stream_id = seal_stream_id(command.facility_code)
 
         _log.info(
             "rotate_seal_online_key.start",
             command_name=_COMMAND_NAME,
-            facility_id=command.facility_id,
+            facility_code=command.facility_code,
             stream_id=str(stream_id),
             new_online_credential_id=str(command.new_online_credential_id),
             principal_id=str(principal_id),
@@ -132,7 +132,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "rotate_seal_online_key.denied",
                 command_name=_COMMAND_NAME,
-                facility_id=command.facility_id,
+                facility_code=command.facility_code,
                 stream_id=str(stream_id),
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
@@ -151,7 +151,7 @@ def bind(deps: Kernel) -> Handler:
             command.new_online_credential_id
         )
         try:
-            self_facility_id = facility_stream_id(FacilityCode(command.facility_id))
+            self_facility_id = facility_stream_id(FacilityCode(command.facility_code))
         except ValueError:
             self_facility = None
         else:
@@ -173,7 +173,7 @@ def bind(deps: Kernel) -> Handler:
             decision_id=decision_id,
             decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
-            choice=str(command.facility_id),
+            choice=str(command.facility_code),
             parent_id=None,
             override_kind=None,
             rule=None,
@@ -232,7 +232,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "rotate_seal_online_key.success",
             command_name=_COMMAND_NAME,
-            facility_id=command.facility_id,
+            facility_code=command.facility_code,
             stream_id=str(stream_id),
             decision_id=str(decision_id),
             principal_id=str(principal_id),

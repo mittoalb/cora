@@ -1,11 +1,12 @@
 """HTTP route for the `initialize_seal` slice.
 
-`POST /federation/seals` with body carrying facility_id +
+`POST /federation/seals` with body carrying facility_code +
 online_credential_id + offline_credential_id. Returns 201 +
-`{seal_stream_id, facility_id}` on success. The Seal singleton is
-keyed on the human-readable facility_id (str); the response
-additionally surfaces the deterministic stream UUID derived via
-UUID5 so callers can address the stream directly when polling
+`{seal_stream_id, facility_code}` on success. The Seal singleton is
+keyed on the cross-deployment convergent facility_code (typed
+`FacilityCode` on aggregate state, bare `str` on the wire); the
+response additionally surfaces the deterministic stream UUID derived
+via UUID5 so callers can address the stream directly when polling
 read-side surfaces.
 
 Per sec-4 AH#15 strengthening the decider invokes the
@@ -32,13 +33,14 @@ from cora.infrastructure.routing import (
 class InitializeSealRequest(BaseModel):
     """Body for `POST /federation/seals`."""
 
-    facility_id: str = Field(
+    facility_code: str = Field(
         ...,
         min_length=1,
         description=(
-            "Opaque string id of the facility this Seal binds to. Facility "
-            "identity is external to CORA; we do NOT mint facility ids. "
-            "Doubles as the singleton identity (one Seal per facility)."
+            "Cross-deployment convergent facility slug this Seal binds to. "
+            "Validated against the FacilityCode VO pattern (lowercase ASCII "
+            "alphanumeric and dash, 1-32 chars) at the handler edge. Doubles "
+            "as the singleton identity (one Seal per facility)."
         ),
     )
     online_credential_id: UUID = Field(
@@ -63,7 +65,7 @@ class InitializeSealResponse(BaseModel):
     """Response body for `POST /federation/seals`."""
 
     seal_stream_id: UUID
-    facility_id: str
+    facility_code: str
 
 
 def _get_handler(request: Request) -> IdempotentHandler:
@@ -81,7 +83,10 @@ router = APIRouter(tags=["federation"])
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Domain invariant violated (whitespace-only facility_id).",
+            "description": (
+                "Domain invariant violated (whitespace-only facility_code, "
+                "or facility_code value outside the FacilityCode pattern)."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
@@ -128,7 +133,7 @@ async def post_federation_seals(
 ) -> InitializeSealResponse:
     stream_id = await handler(
         InitializeSeal(
-            facility_id=body.facility_id,
+            facility_code=body.facility_code,
             online_credential_id=body.online_credential_id,
             offline_credential_id=body.offline_credential_id,
         ),
@@ -137,4 +142,4 @@ async def post_federation_seals(
         surface_id=surface_id,
         idempotency_key=idempotency_key,
     )
-    return InitializeSealResponse(seal_stream_id=stream_id, facility_id=body.facility_id)
+    return InitializeSealResponse(seal_stream_id=stream_id, facility_code=body.facility_code)

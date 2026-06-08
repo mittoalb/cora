@@ -1,4 +1,4 @@
-"""Contract tests for `POST /federation/seals/{facility_id}/republishing/complete`.
+"""Contract tests for `POST /federation/seals/{facility_code}/republishing/complete`.
 
 The happy-path Republishing -> Live transition is exercised end-to-
 end in the handler tests; here we pin the status-code mappings via
@@ -26,7 +26,7 @@ from cora.federation.features.complete_seal_republishing.route import (
     _get_handler as _get_complete_handler,  # pyright: ignore[reportPrivateUsage]
 )
 
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 
 
 @pytest.mark.contract
@@ -41,7 +41,7 @@ def test_post_complete_seal_republishing_returns_204_via_handler_override() -> N
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": 1,
@@ -62,7 +62,7 @@ def test_post_complete_seal_republishing_returns_204_without_body() -> None:
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
         )
     assert response.status_code == 204, response.text
 
@@ -79,7 +79,7 @@ def test_post_complete_seal_republishing_returns_204_with_empty_body() -> None:
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={},
         )
     assert response.status_code == 204, response.text
@@ -110,14 +110,14 @@ def test_post_complete_seal_republishing_returns_409_when_live() -> None:
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise SealCannotCompleteRepublishingError(
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             current_status=SealStatus.LIVE,
         )
 
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
         )
     assert response.status_code == 409
     assert "cannot complete" in response.json()["detail"].lower()
@@ -131,7 +131,7 @@ def test_post_complete_seal_republishing_returns_422_on_sequence_regression() ->
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise SealSequenceNumberRegressionError(
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             prior_sequence_number=5,
             proposed_sequence_number=3,
         )
@@ -139,7 +139,7 @@ def test_post_complete_seal_republishing_returns_422_on_sequence_regression() ->
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={"new_head_hash": "b" * 64, "new_sequence_number": 3},
         )
     assert response.status_code == 422
@@ -156,7 +156,7 @@ def test_post_complete_seal_republishing_returns_403_when_authorize_denies() -> 
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"
@@ -179,7 +179,7 @@ def test_post_complete_seal_republishing_returns_400_on_pair_invariant_violation
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={"new_sequence_number": 6},
         )
     assert response.status_code == 400
@@ -195,7 +195,7 @@ def test_post_complete_seal_republishing_returns_400_when_prior_head_missing() -
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise InvalidSealHeadHashError(
-            f"Seal for facility {_FACILITY_ID!r}: "
+            f"Seal for facility {_FACILITY_CODE!r}: "
             "complete_seal_republishing without new_head_hash requires "
             "a prior signing (current_head_hash is None)"
         )
@@ -203,7 +203,7 @@ def test_post_complete_seal_republishing_returns_400_when_prior_head_missing() -
     app.dependency_overrides[_get_complete_handler] = lambda: fake_handler
     with TestClient(app) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
         )
     assert response.status_code == 400
     assert "current_head_hash is None" in response.json()["detail"]
@@ -214,7 +214,7 @@ def test_post_complete_seal_republishing_rejects_extra_field_with_422() -> None:
     """`extra=forbid` on the request body schema rejects unknown fields."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": 1,
@@ -229,7 +229,7 @@ def test_post_complete_seal_republishing_rejects_non_integer_sequence_with_422()
     """Pydantic integer coercion failure surfaces as 422."""
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/federation/seals/{_FACILITY_ID}/republishing/complete",
+            f"/federation/seals/{_FACILITY_CODE}/republishing/complete",
             json={
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": "not-an-int",
@@ -239,8 +239,8 @@ def test_post_complete_seal_republishing_rejects_non_integer_sequence_with_422()
 
 
 @pytest.mark.contract
-def test_post_complete_seal_republishing_passes_facility_id_to_handler() -> None:
-    """The path's `facility_id` reaches the handler as the command field."""
+def test_post_complete_seal_republishing_passes_facility_code_to_handler() -> None:
+    """The path's `facility_code` reaches the handler as the command field."""
     app = create_app()
     captured: dict[str, object] = {}
 
@@ -255,6 +255,6 @@ def test_post_complete_seal_republishing_passes_facility_id_to_handler() -> None
         )
     assert response.status_code == 204
     cmd = captured["command"]
-    assert cmd.facility_id == "aps-2bm"  # type: ignore[attr-defined]
+    assert cmd.facility_code == "aps-2bm"  # type: ignore[attr-defined]
     assert cmd.new_head_hash is None  # type: ignore[attr-defined]
     assert cmd.new_sequence_number is None  # type: ignore[attr-defined]

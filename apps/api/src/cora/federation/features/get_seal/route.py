@@ -1,9 +1,9 @@
 """HTTP route for the `get_seal` query slice.
 
-`GET /federation/seals/{facility_id}` returns 200 + `SealResponse` on
+`GET /federation/seals/{facility_code}` returns 200 + `SealResponse` on
 hit, 404 on miss. The Seal is a per-facility singleton keyed on the
-human-readable `facility_id` (str); there is no separate seal_id in
-the URL.
+cross-deployment convergent `facility_code` (`str` on the wire); there
+is no separate seal_id in the URL.
 
 `initialized_at` and `initialized_by` are sourced from aggregate
 state (folded from the genesis envelope per the fold-symmetry Path C
@@ -40,7 +40,7 @@ class SealResponse(BaseModel):
     references (their referenced secrets never cross this wire).
     """
 
-    facility_id: str
+    facility_code: str
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None
@@ -58,7 +58,7 @@ def _response_from_view(
     last_signed_by: UUID | None,
 ) -> SealResponse:
     return SealResponse(
-        facility_id=seal.facility_id,
+        facility_code=seal.facility_code.value,
         online_credential_id=seal.online_credential_id,
         offline_credential_id=seal.offline_credential_id,
         current_head_hash=seal.current_head_hash,
@@ -80,7 +80,7 @@ router = APIRouter(tags=["federation"])
 
 
 @router.get(
-    "/federation/seals/{facility_id}",
+    "/federation/seals/{facility_code}",
     status_code=status.HTTP_200_OK,
     response_model=SealResponse,
     responses={
@@ -99,11 +99,11 @@ router = APIRouter(tags=["federation"])
     summary="Get the per-facility Seal singleton",
 )
 async def get_federation_seal(
-    facility_id: Annotated[
+    facility_code: Annotated[
         str,
         Path(
             min_length=1,
-            description="Target facility's opaque string id.",
+            description="Target facility's cross-deployment convergent code.",
         ),
     ],
     handler: Annotated[Handler, Depends(_get_handler)],
@@ -112,7 +112,7 @@ async def get_federation_seal(
     surface_id: Annotated[UUID, Depends(get_surface_id)],
 ) -> SealResponse:
     view = await handler(
-        GetSeal(facility_id=facility_id),
+        GetSeal(facility_code=facility_code),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
@@ -120,7 +120,7 @@ async def get_federation_seal(
     if view is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Seal for facility {facility_id!r} not found",
+            detail=f"Seal for facility {facility_code!r} not found",
         )
     return _response_from_view(
         view.seal,

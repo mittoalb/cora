@@ -18,7 +18,7 @@ BEFORE invoking the decider, and the decider partitions on the
 decider). The decider stays pure: no I/O, no await.
 
 `self_facility` is the third handler-injected projection row: the
-Facility row whose `code` equals `command.facility_id`. The decider
+Facility row whose `code` equals `command.facility_code`. The decider
 checks that BOTH credential ids appear in
 `self_facility.trust_anchor_credential_ids`, replacing the deleted
 `SealCrossFacilityBindingError` string-equality three-way check (Slice
@@ -34,7 +34,7 @@ domain invariants.
 
   - State must be None (genesis-only; Seal is a per-facility singleton)
     -> SealAlreadyExistsError
-  - facility_id non-empty AND already in canonical form (no leading
+  - facility_code non-empty AND already in canonical form (no leading
     or trailing whitespace); avoids auto-normalization that could mask
     a peer-facility credential drift in the binding check
     -> InvalidSealFacilityIdError
@@ -90,10 +90,10 @@ from cora.federation.aggregates.seal import (
     verify_key_separation,
 )
 from cora.federation.features.initialize_seal.command import InitializeSeal
+from cora.shared.facility_code import FacilityCode, InvalidFacilityCodeError
+from cora.shared.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
-from cora.shared.facility_code import FacilityCode
-from cora.shared.identity import ActorId
 
 _ONLINE_SLOT = "online_credential_id"
 _OFFLINE_SLOT = "offline_credential_id"
@@ -114,7 +114,7 @@ def decide(
     Invariants:
       - State must be None (genesis-only singleton)
         -> SealAlreadyExistsError
-      - facility_id non-empty AND canonical (no surrounding whitespace)
+      - facility_code non-empty AND canonical (no surrounding whitespace)
         -> InvalidSealFacilityIdError
       - online_credential_id must differ from offline_credential_id
         -> SealKeyCollisionError (via verify_key_separation)
@@ -140,14 +140,23 @@ def decide(
         -> SealCannotInitializeWithInactiveCredentialError
     """
     if state is not None:
-        raise SealAlreadyExistsError(state.facility_id)
+        raise SealAlreadyExistsError(state.facility_code.value)
 
-    facility_id = command.facility_id.strip()
-    if not facility_id or facility_id != command.facility_id:
-        raise InvalidSealFacilityIdError(command.facility_id)
+    canonical = command.facility_code.strip()
+    if not canonical or canonical != command.facility_code:
+        raise InvalidSealFacilityIdError(command.facility_code)
+    try:
+        facility_code = FacilityCode(canonical)
+    except InvalidFacilityCodeError as exc:
+        # Codepoint / length rejections inside the typed VO surface as
+        # the slice's domain error class (HTTP 400) per the
+        # InvalidSealFacilityIdError route mapping; keeps the wire-level
+        # rejection shape unchanged from the pre-rename behavior where
+        # the decider only enforced trim + non-empty.
+        raise InvalidSealFacilityIdError(command.facility_code) from exc
 
     prospective = Seal(
-        facility_id=facility_id,
+        facility_code=facility_code,
         online_credential_id=command.online_credential_id,
         offline_credential_id=command.offline_credential_id,
         current_head_hash=None,
@@ -159,7 +168,7 @@ def decide(
     verify_key_separation(prospective)
 
     if self_facility is None:
-        raise FacilityNotFoundError(FacilityId(facility_stream_id(FacilityCode(facility_id))))
+        raise FacilityNotFoundError(FacilityId(facility_stream_id(facility_code)))
 
     if online_credential is None:
         raise CredentialNotFoundError(command.online_credential_id)
@@ -168,7 +177,7 @@ def decide(
 
     if online_credential.purpose != CredentialPurpose.SEAL_ONLINE_SIGNING.value:
         raise SealKeyPurposeMismatchError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             slot=_ONLINE_SLOT,
             credential_id=command.online_credential_id,
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
@@ -176,7 +185,7 @@ def decide(
         )
     if offline_credential.purpose != CredentialPurpose.SEAL_OFFLINE_ROOT.value:
         raise SealKeyPurposeMismatchError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             slot=_OFFLINE_SLOT,
             credential_id=command.offline_credential_id,
             expected_purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
@@ -191,27 +200,27 @@ def decide(
     # makes the cross-check redundant.
     if command.online_credential_id not in self_facility.trust_anchor_credential_ids:
         raise SealCredentialNotTrustAnchorError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             credential_id=command.online_credential_id,
             key_ref_role="online",
         )
     if command.offline_credential_id not in self_facility.trust_anchor_credential_ids:
         raise SealCredentialNotTrustAnchorError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             credential_id=command.offline_credential_id,
             key_ref_role="offline",
         )
 
     if online_credential.status != CredentialStatus.ACTIVE.value:
         raise SealCannotInitializeWithInactiveCredentialError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             slot=_ONLINE_SLOT,
             credential_id=command.online_credential_id,
             actual_status=online_credential.status,
         )
     if offline_credential.status != CredentialStatus.ACTIVE.value:
         raise SealCannotInitializeWithInactiveCredentialError(
-            facility_id=facility_id,
+            facility_id=facility_code.value,
             slot=_OFFLINE_SLOT,
             credential_id=command.offline_credential_id,
             actual_status=offline_credential.status,
@@ -219,7 +228,7 @@ def decide(
 
     return [
         SealInitialized(
-            facility_id=facility_id,
+            facility_code=facility_code,
             online_credential_id=command.online_credential_id,
             offline_credential_id=command.offline_credential_id,
             initialized_by=initialized_by,

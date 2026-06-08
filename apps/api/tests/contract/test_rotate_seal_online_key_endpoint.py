@@ -1,4 +1,4 @@
-"""Contract tests for `POST /federation/seals/{facility_id}/online-key/rotate`.
+"""Contract tests for `POST /federation/seals/{facility_code}/online-key/rotate`.
 
 Live -> Live mid-lifecycle transition that swaps the online (warm) key.
 Strict-not-idempotent: re-rotating to the same ref raises 409; rotating

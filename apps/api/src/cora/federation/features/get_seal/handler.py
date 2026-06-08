@@ -18,11 +18,13 @@ convention; timestamps live on the projection. Non-HTTP/MCP consumers
 that only need the domain `Seal` should call `load_seal` directly,
 sidestepping the projection read entirely.
 
-Singleton-per-facility: the query carries the human-readable
-`facility_id` (str); the handler derives the deterministic stream
-UUID via `seal_stream_id(facility_id)` before invoking `load_seal`.
-`load_seal_timestamps` is keyed on the same `facility_id` directly
-(the projection PK is `TEXT`).
+Singleton-per-facility: the query carries the cross-deployment
+convergent `facility_code` (`str` on the wire); the handler derives
+the deterministic stream UUID via `seal_stream_id(facility_code)`
+before invoking `load_seal`. `load_seal_timestamps` is keyed on the
+same string directly (the projection PK column is `TEXT facility_id`
+per storage immutability; the in-memory parameter and DTO field name
+follow the `facility_code` rename).
 
 Query handlers do NOT emit `causation_id` log fields, queries have
 no causation chain.
@@ -89,7 +91,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "get_seal.start",
             query_name=_QUERY_NAME,
-            facility_id=query.facility_id,
+            facility_code=query.facility_code,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
         )
@@ -104,20 +106,20 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "get_seal.denied",
                 query_name=_QUERY_NAME,
-                facility_id=query.facility_id,
+                facility_code=query.facility_code,
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 reason=decision.reason,
             )
             raise UnauthorizedError(decision.reason)
 
-        stream_id = seal_stream_id(query.facility_id)
+        stream_id = seal_stream_id(query.facility_code)
         seal = await load_seal(deps.event_store, stream_id)
         if seal is None:
             _log.info(
                 "get_seal.success",
                 query_name=_QUERY_NAME,
-                facility_id=query.facility_id,
+                facility_code=query.facility_code,
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 found=False,
@@ -126,12 +128,12 @@ def bind(deps: Kernel) -> Handler:
 
         timestamps: SealLifecycleTimestamps | None = None
         if deps.pool is not None:
-            timestamps = await load_seal_timestamps(deps.pool, query.facility_id)
+            timestamps = await load_seal_timestamps(deps.pool, query.facility_code)
 
         _log.info(
             "get_seal.success",
             query_name=_QUERY_NAME,
-            facility_id=query.facility_id,
+            facility_code=query.facility_code,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             found=True,

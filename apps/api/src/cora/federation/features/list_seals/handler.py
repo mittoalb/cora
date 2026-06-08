@@ -29,9 +29,14 @@ from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 @dataclass(frozen=True)
 class SealSummaryItem:
-    """One row from the Seal singleton-per-facility projection."""
+    """One row from the Seal singleton-per-facility projection.
 
-    facility_id: str
+    `facility_code` is the in-memory field name (matches the aggregate
+    state rename in Sub-Slice E); the source SQL column stays named
+    `facility_id` per storage-wire-payload immutability.
+    """
+
+    facility_code: str
     seal_stream_id: UUID
     online_credential_id: UUID
     offline_credential_id: UUID
@@ -76,7 +81,7 @@ _SELECT_COLUMNS = (
 
 def _row_to_item(row: Any) -> SealSummaryItem:
     return SealSummaryItem(
-        facility_id=str(row["facility_id"]),
+        facility_code=str(row["facility_id"]),
         seal_stream_id=row["seal_stream_id"],
         online_credential_id=row["online_credential_id"],
         offline_credential_id=row["offline_credential_id"],

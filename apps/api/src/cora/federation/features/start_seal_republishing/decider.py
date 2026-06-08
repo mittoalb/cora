@@ -51,13 +51,13 @@ def decide(
       - Current status must be Live -> SealCannotStartRepublishingError
     """
     if state is None:
-        raise SealNotFoundError(command.facility_id)
+        raise SealNotFoundError(command.facility_code)
     if state.status is not SealStatus.LIVE:
-        raise SealCannotStartRepublishingError(state.facility_id, state.status)
+        raise SealCannotStartRepublishingError(state.facility_code.value, state.status)
 
     return [
         SealRepublishingStarted(
-            facility_id=state.facility_id,
+            facility_code=state.facility_code,
             started_by=started_by,
             occurred_at=now,
             reason=command.reason,

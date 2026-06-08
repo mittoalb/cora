@@ -3,12 +3,13 @@
 Update-style handler (loads the Seal aggregate, validates posture +
 sequence-number monotonicity, appends a `SealPointerSigned` event).
 
-Singleton stream identity: the Seal aggregate is keyed by `facility_id`
-(str) but the event store keys streams by UUID. The handler derives a
-deterministic stream UUID via `seal_stream_id(facility_id)` (UUID5 over
-the canonical federation namespace) so the same facility always maps
-to the same stream. The shared factory threads that derivation through
-`resolve_stream_id`.
+Singleton stream identity: the Seal aggregate is keyed by
+`facility_code` (typed `FacilityCode` on aggregate state, bare `str`
+on the wire) but the event store keys streams by UUID. The handler
+derives a deterministic stream UUID via
+`seal_stream_id(facility_code)` (UUID5 over the canonical federation
+namespace) so the same facility always maps to the same stream. The
+shared factory threads that derivation through `resolve_stream_id`.
 
 Not idempotency-wrapped at wire.py: sign_seal_pointer is a strict-not-
 idempotent transition (signing from a non-Live posture raises

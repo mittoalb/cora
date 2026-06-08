@@ -3,7 +3,7 @@
 Pins the canonical Seal stream-id derivation across the Seal singleton
 slices: `initialize_seal` (genesis) and `sign_seal_pointer` (Live ->
 Live transition) MUST land on the SAME Seal stream UUID for a given
-`facility_id`. Earlier each slice inlined its own
+`facility_code`. Earlier each slice inlined its own
 `_seal_stream_id` helper with diverging namespace UUIDs; this test
 catches a regression where any Seal slice drifts off the canonical
 `seal_stream_id` helper.
@@ -51,34 +51,34 @@ _HEAD_HASH = "a" * 64
 _SEQUENCE_NUMBER = 1
 
 
-def _init_command(*, facility_id: str) -> InitializeSeal:
+def _init_command(*, facility_code: str) -> InitializeSeal:
     return InitializeSeal(
-        facility_id=facility_id,
+        facility_code=facility_code,
         online_credential_id=_ONLINE_KEY_REF,
         offline_credential_id=_OFFLINE_KEY_REF,
     )
 
 
-def _credential_lookup_for(facility_id: str) -> InMemoryCredentialLookup:
+def _credential_lookup_for(facility_code: str) -> InMemoryCredentialLookup:
     lookup = InMemoryCredentialLookup()
     lookup.register(
         credential_id=_ONLINE_KEY_REF,
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     lookup.register(
         credential_id=_OFFLINE_KEY_REF,
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
     )
     return lookup
 
 
-def _sign_command(*, facility_id: str) -> SignSealPointer:
+def _sign_command(*, facility_code: str) -> SignSealPointer:
     return SignSealPointer(
-        facility_id=facility_id,
+        facility_code=facility_code,
         new_head_hash=_HEAD_HASH,
         new_sequence_number=_SEQUENCE_NUMBER,
     )
@@ -88,17 +88,17 @@ def _sign_command(*, facility_id: str) -> SignSealPointer:
 async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
     db_pool: asyncpg.Pool,
 ) -> None:
-    facility_id = f"aps-2bm-{uuid4().hex[:8]}"
-    expected_stream_id = seal_stream_id(facility_id)
+    facility_code = f"aps-2bm-{uuid4().hex[:8]}"
+    expected_stream_id = seal_stream_id(facility_code)
 
     init_deps = build_postgres_deps(
         db_pool,
         now=_INIT_NOW,
         ids=[uuid4() for _ in range(5)],
-        credential_lookup=_credential_lookup_for(facility_id),
+        credential_lookup=_credential_lookup_for(facility_code),
     )
     init_stream_id = await initialize_seal.bind(init_deps)(
-        _init_command(facility_id=facility_id),
+        _init_command(facility_code=facility_code),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -106,14 +106,14 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
 
     sign_deps = build_postgres_deps(db_pool, now=_SIGN_NOW, ids=[uuid4() for _ in range(3)])
     await sign_seal_pointer.bind(sign_deps)(
-        _sign_command(facility_id=facility_id),
+        _sign_command(facility_code=facility_code),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
     seal = await load_seal(sign_deps.event_store, expected_stream_id)
     assert seal is not None
-    assert seal.facility_id == facility_id
+    assert seal.facility_code.value == facility_code
     assert seal.status is SealStatus.LIVE
     assert seal.current_head_hash == _HEAD_HASH
     assert seal.current_sequence_number == _SEQUENCE_NUMBER
@@ -143,10 +143,10 @@ async def test_sign_seal_pointer_roundtrip_lands_on_same_stream(
               FROM proj_federation_seal_summary
              WHERE facility_id = $1
             """,
-            facility_id,
+            facility_code,
         )
     assert row is not None
-    assert row["facility_id"] == facility_id
+    assert row["facility_id"] == facility_code
     assert row["current_head_hash"] == _HEAD_HASH
     assert row["current_sequence_number"] == _SEQUENCE_NUMBER
     assert row["last_signed_by"] == _PRINCIPAL_ID

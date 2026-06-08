@@ -23,7 +23,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.sign_seal_pointer.handler import Handler
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _NEW_HEAD_HASH = "b" * 64
 
 
@@ -71,8 +71,8 @@ def test_mcp_lists_sign_seal_pointer_tool() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_sign_seal_pointer_tool_returns_structured_facility_id() -> None:
-    """Happy path via handler override: tool returns structured facility_id and
+def test_mcp_sign_seal_pointer_tool_returns_structured_facility_code() -> None:
+    """Happy path via handler override: tool returns structured facility_code and
     new_sequence_number (matches REST 204 + path-id contract)."""
     app = create_app()
 
@@ -89,14 +89,14 @@ def test_mcp_sign_seal_pointer_tool_returns_structured_facility_id() -> None:
             request_id=20,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 1,
             },
         )
     result = body["result"]
     assert result["isError"] is False, result
-    assert result["structuredContent"]["facility_id"] == _FACILITY_ID
+    assert result["structuredContent"]["facility_code"] == _FACILITY_CODE
     assert result["structuredContent"]["new_sequence_number"] == 1
 
 
@@ -108,7 +108,7 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_republishing_seal() -> No
 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
-        raise SealCannotSignError(_FACILITY_ID, SealStatus.REPUBLISHING)
+        raise SealCannotSignError(_FACILITY_CODE, SealStatus.REPUBLISHING)
 
     with TestClient(app) as client:
         _override_handler(app, fake_handler)
@@ -119,7 +119,7 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_republishing_seal() -> No
             request_id=30,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 2,
             },
@@ -135,7 +135,7 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_sequence_regression() -> 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise SealSequenceNumberRegressionError(
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             prior_sequence_number=5,
             proposed_sequence_number=5,
         )
@@ -149,7 +149,7 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_sequence_regression() -> 
             request_id=31,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 5,
             },
@@ -175,7 +175,7 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_unknown_facility() -> Non
             request_id=40,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 1,
             },
@@ -185,8 +185,8 @@ def test_mcp_sign_seal_pointer_tool_returns_iserror_on_unknown_facility() -> Non
 
 
 @pytest.mark.contract
-def test_mcp_sign_seal_pointer_tool_rejects_missing_facility_id() -> None:
-    """Pydantic-layer rejection (missing facility_id) bubbles as isError."""
+def test_mcp_sign_seal_pointer_tool_rejects_missing_facility_code() -> None:
+    """Pydantic-layer rejection (missing facility_code) bubbles as isError."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         body = _call_tool(
@@ -213,7 +213,7 @@ def test_mcp_sign_seal_pointer_tool_rejects_missing_new_head_hash() -> None:
             request_id=61,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_sequence_number": 1,
             },
         )
@@ -231,7 +231,7 @@ def test_mcp_sign_seal_pointer_tool_rejects_missing_new_sequence_number() -> Non
             request_id=62,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
             },
         )
@@ -249,7 +249,7 @@ def test_mcp_sign_seal_pointer_tool_rejects_empty_new_head_hash() -> None:
             request_id=70,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": "",
                 "new_sequence_number": 1,
             },
@@ -268,7 +268,7 @@ def test_mcp_sign_seal_pointer_tool_rejects_zero_sequence_number() -> None:
             request_id=71,
             name="sign_seal_pointer",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": _NEW_HEAD_HASH,
                 "new_sequence_number": 0,
             },

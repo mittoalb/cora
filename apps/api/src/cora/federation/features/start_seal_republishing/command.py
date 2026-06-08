@@ -1,6 +1,6 @@
 """The `StartSealRepublishing` command: intent dataclass for this slice.
 
-`facility_id` is the singleton Seal's identity. The handler derives
+`facility_code` is the singleton Seal's identity. The handler derives
 the deterministic stream UUID from it (UUID5 with the federation
 namespace) per the singleton convention locked on
 `cora.federation.aggregates.seal.state`.
@@ -34,5 +34,5 @@ class StartSealRepublishing:
     singleton to `Live`.
     """
 
-    facility_id: str
+    facility_code: str
     reason: str | None

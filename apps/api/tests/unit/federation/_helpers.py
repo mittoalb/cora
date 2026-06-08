@@ -47,6 +47,7 @@ from cora.federation.aggregates.seal import (
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _DEFAULT_SEAL_ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
@@ -350,13 +351,13 @@ async def seed_live_seal(
     correlation_id: UUID,
     principal_id: UUID,
     initialized_at: datetime,
-    facility_id: str = "aps-2bm",
+    facility_code: str = "aps-2bm",
     online_credential_id: UUID = _DEFAULT_SEAL_ONLINE_KEY_REF,
     offline_credential_id: UUID = _DEFAULT_SEAL_OFFLINE_KEY_REF,
 ) -> None:
     """Append a single `SealInitialized` event so the Seal lands in `Live`."""
     genesis = SealInitialized(
-        facility_id=facility_id,
+        facility_code=FacilityCode(facility_code),
         online_credential_id=online_credential_id,
         offline_credential_id=offline_credential_id,
         initialized_by=ActorId(principal_id),
@@ -391,7 +392,7 @@ async def seed_republishing_seal(
     principal_id: UUID,
     initialized_at: datetime,
     republishing_started_at: datetime,
-    facility_id: str = "aps-2bm",
+    facility_code: str = "aps-2bm",
 ) -> None:
     """Seed Initialized (Live) then RepublishingStarted; stream version ends at 2."""
     await seed_live_seal(
@@ -401,10 +402,10 @@ async def seed_republishing_seal(
         correlation_id=correlation_id,
         principal_id=principal_id,
         initialized_at=initialized_at,
-        facility_id=facility_id,
+        facility_code=facility_code,
     )
     started = SealRepublishingStarted(
-        facility_id=facility_id,
+        facility_code=FacilityCode(facility_code),
         started_by=ActorId(principal_id),
         occurred_at=republishing_started_at,
     )

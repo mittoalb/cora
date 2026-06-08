@@ -1,6 +1,6 @@
 """The `SignSealPointer` command: intent dataclass for this slice.
 
-`facility_id` is the per-facility singleton identity. `new_head_hash`
+`facility_code` is the per-facility singleton identity. `new_head_hash`
 is the SHA-256 (lowercase hex) of the canonicalized head pointer body
 just signed. `new_sequence_number` is the monotonic counter for the
 signed pointer chain; the decider rejects values that do not strictly
@@ -32,6 +32,6 @@ class SignSealPointer:
     strictly exceed the prior value).
     """
 
-    facility_id: str
+    facility_code: str
     new_head_hash: str
     new_sequence_number: int

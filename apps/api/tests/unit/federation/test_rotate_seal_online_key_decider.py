@@ -52,7 +52,7 @@ from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed101"))
 _OTHER_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed102"))
 _INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fed199"))
@@ -69,8 +69,8 @@ def _self_facility(
 ) -> FacilityLookupResult:
     """Build a self-Facility lookup row anchored on the test credentials by default."""
     return FacilityLookupResult(
-        id=FacilityId(facility_stream_id(FacilityCode(_FACILITY_ID))),
-        code=FacilityCode(_FACILITY_ID),
+        id=FacilityId(facility_stream_id(FacilityCode(_FACILITY_CODE))),
+        code=FacilityCode(_FACILITY_CODE),
         kind="Site",
         status="Active",
         trust_anchor_credential_ids=frozenset(CredentialId(cid) for cid in trust_anchors),
@@ -86,7 +86,7 @@ def _seal(
     current_sequence_number: int = 0,
 ) -> Seal:
     return Seal(
-        facility_id=_FACILITY_ID,
+        facility_code=FacilityCode(_FACILITY_CODE),
         online_credential_id=online_credential_id,
         offline_credential_id=offline_credential_id,
         current_head_hash=current_head_hash,
@@ -103,7 +103,7 @@ def _command(
     signed_by_offline_root: bool = True,
 ) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_online_credential_id=new_online_credential_id,
         signed_by_offline_root=signed_by_offline_root,
     )
@@ -114,7 +114,7 @@ def _credential(
     *,
     purpose: str = CredentialPurpose.SEAL_ONLINE_SIGNING.value,
     status: str = CredentialStatus.ACTIVE.value,
-    facility_id: str = _FACILITY_ID,
+    facility_id: str = _FACILITY_CODE,
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
@@ -137,7 +137,7 @@ def test_rotate_seal_online_key_emits_event_from_live() -> None:
     )
     assert events == [
         SealOnlineKeyRotated(
-            facility_id=_FACILITY_ID,
+            facility_code=FacilityCode(_FACILITY_CODE),
             new_online_credential_id=_NEW_ONLINE_KEY,
             signed_by_offline_root=True,
             rotated_by=_PRINCIPAL_ID,
@@ -185,7 +185,7 @@ def test_rotate_seal_online_key_raises_not_found_when_state_is_none() -> None:
             new_online_credential=_credential(),
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
 
 
 @pytest.mark.unit
@@ -200,7 +200,7 @@ def test_rotate_seal_online_key_raises_cannot_rotate_when_republishing() -> None
             new_online_credential=_credential(),
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
     assert exc_info.value.current_status is SealStatus.REPUBLISHING
 
 
@@ -217,7 +217,7 @@ def test_rotate_seal_online_key_raises_cannot_rotate_when_ref_equals_current_onl
             new_online_credential=_credential(credential_id=_CURRENT_ONLINE_KEY),
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
 
 
 @pytest.mark.unit
@@ -233,7 +233,7 @@ def test_rotate_seal_online_key_raises_collision_when_new_ref_equals_offline() -
             new_online_credential=_credential(credential_id=_OFFLINE_KEY),
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
     assert exc_info.value.shared_credential_id == _OFFLINE_KEY
 
 
@@ -326,8 +326,8 @@ def test_rotate_seal_online_key_preserves_offline_ref_on_emitted_event() -> None
 
 
 @pytest.mark.unit
-def test_rotate_seal_online_key_emits_event_with_state_facility_id() -> None:
-    """The emitted facility_id comes from state, not the command (defensive
+def test_rotate_seal_online_key_emits_event_with_state_facility_code() -> None:
+    """The emitted facility_code comes from state, not the command (defensive
     against caller-side facility mismatch; state is the canonical source)."""
     state = _seal(SealStatus.LIVE)
     events = rotate_seal_online_key.decide(
@@ -338,7 +338,7 @@ def test_rotate_seal_online_key_emits_event_with_state_facility_id() -> None:
         new_online_credential=_credential(),
         self_facility=_self_facility(),
     )
-    assert events[0].facility_id == state.facility_id
+    assert events[0].facility_code == state.facility_code
 
 
 @pytest.mark.unit
@@ -385,7 +385,7 @@ def test_rotate_seal_online_key_raises_purpose_mismatch_when_credential_is_offli
             new_online_credential=wrong_purpose,
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
     assert exc_info.value.slot == "online_credential_id"
     assert exc_info.value.credential_id == _NEW_ONLINE_KEY
     assert exc_info.value.expected_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
@@ -406,7 +406,7 @@ def test_rotate_seal_online_key_raises_inactive_when_credential_is_rotating() ->
             new_online_credential=rotating,
             self_facility=_self_facility(),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
     assert exc_info.value.slot == "online_credential_id"
     assert exc_info.value.credential_id == _NEW_ONLINE_KEY
     assert exc_info.value.actual_status == CredentialStatus.ROTATING.value
@@ -445,7 +445,7 @@ def test_rotate_seal_online_key_rejects_credential_not_in_trust_anchors() -> Non
                 trust_anchors=frozenset({_CURRENT_ONLINE_KEY, _OFFLINE_KEY}),
             ),
         )
-    assert exc_info.value.facility_id == _FACILITY_ID
+    assert exc_info.value.facility_id == _FACILITY_CODE
     assert exc_info.value.credential_id == _NEW_ONLINE_KEY
     assert exc_info.value.key_ref_role == "online"
 
@@ -463,4 +463,4 @@ def test_rotate_seal_online_key_rejects_when_self_facility_missing() -> None:
             new_online_credential=_credential(),
             self_facility=None,
         )
-    assert exc_info.value.facility_id == facility_stream_id(FacilityCode(_FACILITY_ID))
+    assert exc_info.value.facility_id == facility_stream_id(FacilityCode(_FACILITY_CODE))

@@ -1,7 +1,7 @@
 """Unit tests for the `initialize_seal` slice's pure decider.
 
 Pin the singleton-genesis guard, key-separation invariant via the
-shared helper, facility_id trim-before-capture, the genesis defaults
+shared helper, facility_code trim-before-capture, the genesis defaults
 (current_head_hash=None, current_sequence_number=0 land via the
 evolver not the event), purity (same inputs -> same outputs), and
 handler-injected `now` / `initialized_by` capture per the
@@ -45,7 +45,7 @@ from cora.shared.identity import ActorId
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed101"))
 _OTHER_PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fed102"))
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-00000000c0b1")
 
@@ -56,8 +56,8 @@ def _self_facility(
 ) -> FacilityLookupResult:
     """Build a self-Facility lookup row anchored on the test credentials by default."""
     return FacilityLookupResult(
-        id=FacilityId(facility_stream_id(FacilityCode(_FACILITY_ID))),
-        code=FacilityCode(_FACILITY_ID),
+        id=FacilityId(facility_stream_id(FacilityCode(_FACILITY_CODE))),
+        code=FacilityCode(_FACILITY_CODE),
         kind="Site",
         status="Active",
         trust_anchor_credential_ids=frozenset(CredentialId(cid) for cid in trust_anchors),
@@ -66,7 +66,7 @@ def _self_facility(
 
 def _command(**overrides: object) -> InitializeSeal:
     base: dict[str, object] = {
-        "facility_id": _FACILITY_ID,
+        "facility_code": _FACILITY_CODE,
         "online_credential_id": _ONLINE_KEY_REF,
         "offline_credential_id": _OFFLINE_KEY_REF,
     }
@@ -79,7 +79,7 @@ def _online_cred(
     *,
     purpose: str = CredentialPurpose.SEAL_ONLINE_SIGNING.value,
     status: str = CredentialStatus.ACTIVE.value,
-    facility_id: str = _FACILITY_ID,
+    facility_id: str = _FACILITY_CODE,
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
@@ -94,7 +94,7 @@ def _offline_cred(
     *,
     purpose: str = CredentialPurpose.SEAL_OFFLINE_ROOT.value,
     status: str = CredentialStatus.ACTIVE.value,
-    facility_id: str = _FACILITY_ID,
+    facility_id: str = _FACILITY_CODE,
 ) -> CredentialLookupResult:
     return CredentialLookupResult(
         id=credential_id,
@@ -106,7 +106,7 @@ def _offline_cred(
 
 def _existing_state() -> Seal:
     return Seal(
-        facility_id=_FACILITY_ID,
+        facility_code=FacilityCode(_FACILITY_CODE),
         online_credential_id=_ONLINE_KEY_REF,
         offline_credential_id=_OFFLINE_KEY_REF,
         current_head_hash=None,
@@ -130,7 +130,7 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
     )
     assert len(events) == 1
     event = events[0]
-    assert event.facility_id == _FACILITY_ID
+    assert event.facility_code == FacilityCode(_FACILITY_CODE)
     assert event.online_credential_id == _ONLINE_KEY_REF
     assert event.offline_credential_id == _OFFLINE_KEY_REF
     assert event.initialized_by == _PRINCIPAL_ID
@@ -139,14 +139,14 @@ def test_initialize_seal_emits_event_for_valid_command() -> None:
 
 @pytest.mark.unit
 def test_initialize_seal_rejects_non_canonical_facility_id() -> None:
-    """Padded facility_id is rejected (canonical form required) so the
-    cross-facility binding check compares against `command.facility_id`
+    """Padded facility_code is rejected (canonical form required) so the
+    cross-facility binding check compares against `command.facility_code`
     directly without auto-normalization that could mask a peer-facility
     credential drift."""
     with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
-            command=_command(facility_id="  aps-2bm  "),
+            command=_command(facility_code="  aps-2bm  "),
             now=_NOW,
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
@@ -169,7 +169,7 @@ def test_initialize_seal_raises_already_exists_when_state_present() -> None:
             offline_credential=_offline_cred(),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
 
 
 @pytest.mark.unit
@@ -177,7 +177,7 @@ def test_initialize_seal_rejects_empty_facility_id() -> None:
     with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
-            command=_command(facility_id=""),
+            command=_command(facility_code=""),
             now=_NOW,
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
@@ -192,7 +192,7 @@ def test_initialize_seal_rejects_whitespace_only_facility_id() -> None:
     with pytest.raises(InvalidSealFacilityIdError) as exc:
         initialize_seal.decide(
             state=None,
-            command=_command(facility_id="   "),
+            command=_command(facility_code="   "),
             now=_NOW,
             initialized_by=_PRINCIPAL_ID,
             online_credential=_online_cred(),
@@ -217,7 +217,7 @@ def test_initialize_seal_raises_collision_when_keys_equal() -> None:
             offline_credential=_offline_cred(credential_id=shared),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.shared_credential_id == shared
 
 
@@ -231,7 +231,7 @@ def test_initialize_seal_rejects_non_canonical_before_collision_check() -> None:
         initialize_seal.decide(
             state=None,
             command=_command(
-                facility_id="  aps-2bm  ",
+                facility_code="  aps-2bm  ",
                 online_credential_id=shared,
                 offline_credential_id=shared,
             ),
@@ -391,7 +391,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_online_wrong_purpose() -> 
             offline_credential=_offline_cred(),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.slot == "online_credential_id"
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.expected_purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
@@ -411,7 +411,7 @@ def test_initialize_seal_raises_purpose_mismatch_when_offline_wrong_purpose() ->
             offline_credential=_offline_cred(purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.slot == "offline_credential_id"
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.expected_purpose == CredentialPurpose.SEAL_OFFLINE_ROOT.value
@@ -431,7 +431,7 @@ def test_initialize_seal_raises_inactive_when_online_status_rotating() -> None:
             offline_credential=_offline_cred(),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.slot == "online_credential_id"
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.actual_status == CredentialStatus.ROTATING.value
@@ -450,7 +450,7 @@ def test_initialize_seal_raises_inactive_when_offline_status_revoked() -> None:
             offline_credential=_offline_cred(status=CredentialStatus.REVOKED.value),
             self_facility=_self_facility(),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.slot == "offline_credential_id"
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.actual_status == CredentialStatus.REVOKED.value
@@ -470,7 +470,7 @@ def test_initialize_seal_rejects_online_credential_not_in_trust_anchors() -> Non
             offline_credential=_offline_cred(),
             self_facility=_self_facility(trust_anchors=frozenset({_OFFLINE_KEY_REF})),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.key_ref_role == "online"
 
@@ -489,7 +489,7 @@ def test_initialize_seal_rejects_offline_credential_not_in_trust_anchors() -> No
             offline_credential=_offline_cred(),
             self_facility=_self_facility(trust_anchors=frozenset({_ONLINE_KEY_REF})),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.credential_id == _OFFLINE_KEY_REF
     assert exc.value.key_ref_role == "offline"
 
@@ -511,7 +511,7 @@ def test_initialize_seal_rejects_when_no_credentials_in_trust_anchors() -> None:
             offline_credential=_offline_cred(),
             self_facility=_self_facility(trust_anchors=frozenset()),
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.credential_id == _ONLINE_KEY_REF
     assert exc.value.key_ref_role == "online"
 
@@ -530,4 +530,4 @@ def test_initialize_seal_rejects_when_self_facility_missing() -> None:
             offline_credential=_offline_cred(),
             self_facility=None,
         )
-    assert exc.value.facility_id == facility_stream_id(FacilityCode(_FACILITY_ID))
+    assert exc.value.facility_id == facility_stream_id(FacilityCode(_FACILITY_CODE))

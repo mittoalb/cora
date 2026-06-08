@@ -1,10 +1,10 @@
 """Contract tests for `POST /federation/seals` (initialize_seal endpoint).
 
-201 happy path returns the deterministic seal_stream_id + facility_id;
+201 happy path returns the deterministic seal_stream_id + facility_code;
 422 covers Pydantic-layer rejections (missing body field, malformed
 UUID) AND the decider-layer SealKeyCollisionError (mapped to 422
 by federation routes); 400 surfaces the decider-layer
-InvalidSealFacilityIdError (whitespace-only facility_id slips past
+InvalidSealFacilityIdError (whitespace-only facility_code slips past
 Pydantic min_length=1); 403 surfaces Authorize-port denial; 409
 surfaces the SealAlreadyExistsError singleton guard.
 
@@ -41,7 +41,7 @@ _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
 
 def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
+        "facility_code": f"aps-2bm-{uuid4().hex[:8]}",
         "online_credential_id": _ONLINE_KEY_REF,
         "offline_credential_id": _OFFLINE_KEY_REF,
     }
@@ -49,7 +49,7 @@ def _body(**overrides: object) -> dict[str, Any]:
     return base
 
 
-def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
+def _seed_active_credentials(app: FastAPI, *, facility_code: str) -> None:
     """Seed both seal-slot credentials in the in-memory CredentialLookup
     adapter so the decider's purpose-binding + status-Active checks pass.
 
@@ -60,45 +60,45 @@ def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
     lookup = app.state.deps.credential_lookup
     lookup.register(
         credential_id=UUID(_ONLINE_KEY_REF),
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     lookup.register(
         credential_id=UUID(_OFFLINE_KEY_REF),
-        facility_id=facility_id,
+        facility_id=facility_code,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
     )
     facility_lookup = app.state.deps.facility_lookup
     facility_lookup.register(
-        facility_id=facility_stream_id(FacilityCode(facility_id)),
-        code=facility_id,
+        facility_id=facility_stream_id(FacilityCode(facility_code)),
+        code=facility_code,
         kind="Site",
         trust_anchor_credential_ids=frozenset({UUID(_ONLINE_KEY_REF), UUID(_OFFLINE_KEY_REF)}),
     )
 
 
 @pytest.mark.contract
-def test_post_federation_seals_returns_201_with_stream_id_and_facility_id() -> None:
+def test_post_federation_seals_returns_201_with_stream_id_and_facility_code() -> None:
     body = _body()
     app = create_app()
     with TestClient(app) as client:
-        _seed_active_credentials(app, facility_id=body["facility_id"])
+        _seed_active_credentials(app, facility_code=body["facility_code"])
         response = client.post("/federation/seals", json=body)
     assert response.status_code == 201, response.text
     payload = response.json()
     assert "seal_stream_id" in payload
-    assert "facility_id" in payload
-    assert payload["facility_id"] == body["facility_id"]
-    assert UUID(payload["seal_stream_id"]) == seal_stream_id(body["facility_id"])
+    assert "facility_code" in payload
+    assert payload["facility_code"] == body["facility_code"]
+    assert UUID(payload["seal_stream_id"]) == seal_stream_id(body["facility_code"])
 
 
 @pytest.mark.contract
 def test_post_federation_seals_rejects_missing_required_body_field_with_422() -> None:
-    """facility_id missing -> Pydantic 422 before reaching the decider."""
+    """facility_code missing -> Pydantic 422 before reaching the decider."""
     body = _body()
-    del body["facility_id"]
+    del body["facility_code"]
     with TestClient(create_app()) as client:
         response = client.post("/federation/seals", json=body)
     assert response.status_code == 422
@@ -123,10 +123,10 @@ def test_post_federation_seals_rejects_missing_offline_credential_id_with_422() 
 
 
 @pytest.mark.contract
-def test_post_federation_seals_rejects_empty_facility_id_with_422() -> None:
-    """min_length=1 on facility_id rejects empty strings at Pydantic."""
+def test_post_federation_seals_rejects_empty_facility_code_with_422() -> None:
+    """min_length=1 on facility_code rejects empty strings at Pydantic."""
     with TestClient(create_app()) as client:
-        response = client.post("/federation/seals", json=_body(facility_id=""))
+        response = client.post("/federation/seals", json=_body(facility_code=""))
     assert response.status_code == 422
 
 
@@ -180,11 +180,11 @@ def test_post_federation_seals_returns_409_on_already_exists() -> None:
 
 
 @pytest.mark.contract
-def test_post_federation_seals_returns_400_on_whitespace_only_facility_id() -> None:
-    """Whitespace-only facility_id slips past Pydantic min_length=1 and
+def test_post_federation_seals_returns_400_on_whitespace_only_facility_code() -> None:
+    """Whitespace-only facility_code slips past Pydantic min_length=1 and
     surfaces as 400 via the decider's InvalidSealFacilityIdError."""
     with TestClient(create_app()) as client:
-        response = client.post("/federation/seals", json=_body(facility_id="   "))
+        response = client.post("/federation/seals", json=_body(facility_code="   "))
     assert response.status_code == 400
     assert "facility_id" in response.json()["detail"]
 

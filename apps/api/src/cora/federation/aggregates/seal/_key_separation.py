@@ -37,7 +37,7 @@ def verify_key_separation(state: Seal) -> None:
     """
     if state.online_credential_id == state.offline_credential_id:
         raise SealKeyCollisionError(
-            facility_id=state.facility_id,
+            facility_id=state.facility_code.value,
             shared_credential_id=state.online_credential_id,
         )
 

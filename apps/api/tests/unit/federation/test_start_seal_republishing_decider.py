@@ -24,10 +24,11 @@ from cora.federation.features import start_seal_republishing
 from cora.federation.features.start_seal_republishing import (
     StartSealRepublishing,
 )
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec001"))
 _INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 _ONLINE_KEY_REF = UUID("01900000-0000-7000-8000-000000fec0a1")
@@ -36,7 +37,7 @@ _OFFLINE_KEY_REF = UUID("01900000-0000-7000-8000-000000fec0b1")
 
 def _seal(status: SealStatus) -> Seal:
     return Seal(
-        facility_id=_FACILITY_ID,
+        facility_code=FacilityCode(_FACILITY_CODE),
         online_credential_id=_ONLINE_KEY_REF,
         offline_credential_id=_OFFLINE_KEY_REF,
         current_head_hash=None,
@@ -48,7 +49,7 @@ def _seal(status: SealStatus) -> Seal:
 
 
 def _command(*, reason: str | None = "root rotation drill") -> StartSealRepublishing:
-    return StartSealRepublishing(facility_id=_FACILITY_ID, reason=reason)
+    return StartSealRepublishing(facility_code=_FACILITY_CODE, reason=reason)
 
 
 @pytest.mark.unit
@@ -62,7 +63,7 @@ def test_start_seal_republishing_emits_event_when_state_is_live() -> None:
     )
     assert events == [
         SealRepublishingStarted(
-            facility_id=_FACILITY_ID,
+            facility_code=FacilityCode(_FACILITY_CODE),
             started_by=_PRINCIPAL_ID,
             occurred_at=_NOW,
             reason="root rotation drill",
@@ -93,7 +94,7 @@ def test_start_seal_republishing_raises_cannot_start_when_already_republishing()
             started_by=_PRINCIPAL_ID,
         )
     assert exc.value.current_status is SealStatus.REPUBLISHING
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
 
 
 @pytest.mark.unit
@@ -110,7 +111,7 @@ def test_start_seal_republishing_defaults_reason_to_none_when_omitted() -> None:
     assert len(events) == 1
     event = events[0]
     assert isinstance(event, SealRepublishingStarted)
-    assert event.facility_id == _FACILITY_ID
+    assert event.facility_code == FacilityCode(_FACILITY_CODE)
     assert event.reason is None
 
 

@@ -26,6 +26,7 @@ from cora.federation.features import complete_seal_republishing
 from cora.federation.features.complete_seal_republishing import (
     CompleteSealRepublishing,
 )
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
@@ -34,7 +35,7 @@ _OTHER_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec002"))
 _INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
 _ONLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0a1")
 _OFFLINE_KEY = UUID("01900000-0000-7000-8000-00000000c0b1")
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _PRIOR_HEAD_HASH = "a" * 64
 _NEW_HEAD_HASH = "b" * 64
 
@@ -46,7 +47,7 @@ def _seal(
     current_sequence_number: int = 5,
 ) -> Seal:
     return Seal(
-        facility_id=_FACILITY_ID,
+        facility_code=FacilityCode(_FACILITY_CODE),
         online_credential_id=_ONLINE_KEY,
         offline_credential_id=_OFFLINE_KEY,
         current_head_hash=current_head_hash,
@@ -63,7 +64,7 @@ def _command(
     new_sequence_number: int | None = 6,
 ) -> CompleteSealRepublishing:
     return CompleteSealRepublishing(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_head_hash=new_head_hash,
         new_sequence_number=new_sequence_number,
     )
@@ -80,7 +81,7 @@ def test_complete_seal_republishing_emits_event_when_state_is_republishing() -> 
     )
     assert events == [
         SealRepublishingCompleted(
-            facility_id=_FACILITY_ID,
+            facility_code=FacilityCode(_FACILITY_CODE),
             new_head_hash=_NEW_HEAD_HASH,
             new_sequence_number=6,
             completed_by=_PRINCIPAL_ID,
@@ -111,7 +112,7 @@ def test_complete_seal_republishing_raises_cannot_complete_when_live() -> None:
             now=_NOW,
             completed_by=_PRINCIPAL_ID,
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.current_status is SealStatus.LIVE
 
 
@@ -263,7 +264,7 @@ def test_complete_seal_republishing_actor_id_independent_of_initialized_by() -> 
 
 
 @pytest.mark.unit
-def test_complete_seal_republishing_reuses_facility_id_from_state() -> None:
+def test_complete_seal_republishing_reuses_facility_code_from_state() -> None:
     """Transitions reuse the aggregate identity from state; only genesis mints."""
     state = _seal(SealStatus.REPUBLISHING)
     events = complete_seal_republishing.decide(
@@ -272,4 +273,4 @@ def test_complete_seal_republishing_reuses_facility_id_from_state() -> None:
         now=_NOW,
         completed_by=_PRINCIPAL_ID,
     )
-    assert events[0].facility_id == state.facility_id
+    assert events[0].facility_code == state.facility_code

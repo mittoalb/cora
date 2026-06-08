@@ -10,10 +10,11 @@ commands but without a decider (queries don't emit events). The
 handler is a thin wrapper around `load_seal` +
 `load_seal_timestamps` (Path C composition).
 
-Singleton-per-facility identity: a Seal is keyed on the human-readable
-`facility_id` (str), not by a UUID. The handler derives the
-deterministic stream UUID via `seal_stream_id(facility_id)` before
-loading aggregate state.
+Singleton-per-facility identity: a Seal is keyed on the
+cross-deployment convergent `facility_code` (typed `FacilityCode` on
+aggregate state, bare `str` on the wire), not by a UUID. The handler
+derives the deterministic stream UUID via
+`seal_stream_id(facility_code)` before loading aggregate state.
 """
 
 from dataclasses import dataclass
@@ -23,4 +24,4 @@ from dataclasses import dataclass
 class GetSeal:
     """Read the current state of the per-facility Seal singleton."""
 
-    facility_id: str
+    facility_code: str

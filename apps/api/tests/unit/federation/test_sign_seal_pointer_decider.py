@@ -24,10 +24,11 @@ from cora.federation.aggregates.seal import (
 )
 from cora.federation.features import sign_seal_pointer
 from cora.federation.features.sign_seal_pointer import SignSealPointer
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _PRINCIPAL_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec001"))
 _OTHER_ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000fec002"))
 _INITIALIZED_BY = ActorId(UUID("01900000-0000-7000-8000-000000fec099"))
@@ -44,7 +45,7 @@ def _seal(
     current_sequence_number: int = 1,
 ) -> Seal:
     return Seal(
-        facility_id=_FACILITY_ID,
+        facility_code=FacilityCode(_FACILITY_CODE),
         online_credential_id=_ONLINE_KEY,
         offline_credential_id=_OFFLINE_KEY,
         current_head_hash=current_head_hash,
@@ -61,7 +62,7 @@ def _command(
     new_sequence_number: int = 2,
 ) -> SignSealPointer:
     return SignSealPointer(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_head_hash=new_head_hash,
         new_sequence_number=new_sequence_number,
     )
@@ -78,7 +79,7 @@ def test_sign_seal_pointer_emits_event_when_state_is_live() -> None:
     )
     assert events == [
         SealPointerSigned(
-            facility_id=_FACILITY_ID,
+            facility_code=FacilityCode(_FACILITY_CODE),
             head_hash=_NEW_HEAD_HASH,
             sequence_number=2,
             signed_at=_NOW,
@@ -110,7 +111,7 @@ def test_sign_seal_pointer_raises_cannot_sign_when_republishing() -> None:
             now=_NOW,
             signed_by=_PRINCIPAL_ID,
         )
-    assert exc.value.facility_id == _FACILITY_ID
+    assert exc.value.facility_id == _FACILITY_CODE
     assert exc.value.current_status is SealStatus.REPUBLISHING
 
 
@@ -276,8 +277,8 @@ def test_sign_seal_pointer_actor_id_independent_of_initialized_by() -> None:
 
 
 @pytest.mark.unit
-def test_sign_seal_pointer_reuses_facility_id_from_state() -> None:
-    """Transitions reuse the facility id from state; only genesis mints identity."""
+def test_sign_seal_pointer_reuses_facility_code_from_state() -> None:
+    """Transitions reuse the facility code from state; only genesis mints identity."""
     state = _seal(SealStatus.LIVE)
     events = sign_seal_pointer.decide(
         state=state,
@@ -285,4 +286,4 @@ def test_sign_seal_pointer_reuses_facility_id_from_state() -> None:
         now=_NOW,
         signed_by=_PRINCIPAL_ID,
     )
-    assert events[0].facility_id == state.facility_id
+    assert events[0].facility_code == state.facility_code

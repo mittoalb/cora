@@ -21,7 +21,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.complete_seal_republishing.handler import Handler
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 
 
 def _call_tool(
@@ -68,8 +68,8 @@ def test_mcp_lists_complete_seal_republishing_tool() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_complete_seal_republishing_tool_returns_structured_facility_id() -> None:
-    """Happy path via handler override: tool returns structured facility_id
+def test_mcp_complete_seal_republishing_tool_returns_structured_facility_code() -> None:
+    """Happy path via handler override: tool returns structured facility_code
     (matches REST 204 + path-id contract)."""
     app = create_app()
 
@@ -86,14 +86,14 @@ def test_mcp_complete_seal_republishing_tool_returns_structured_facility_id() ->
             request_id=20,
             name="complete_seal_republishing",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": 1,
             },
         )
     result = body["result"]
     assert result["isError"] is False, result
-    assert result["structuredContent"]["facility_id"] == _FACILITY_ID
+    assert result["structuredContent"]["facility_code"] == _FACILITY_CODE
 
 
 @pytest.mark.contract
@@ -114,7 +114,7 @@ def test_mcp_complete_seal_republishing_tool_accepts_omitted_pair_fields() -> No
             headers=headers,
             request_id=21,
             name="complete_seal_republishing",
-            arguments={"facility_id": _FACILITY_ID},
+            arguments={"facility_code": _FACILITY_CODE},
         )
     assert body["result"]["isError"] is False, body
 
@@ -128,7 +128,7 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_when_live() -> None
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise SealCannotCompleteRepublishingError(
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             current_status=SealStatus.LIVE,
         )
 
@@ -140,7 +140,7 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_when_live() -> None
             headers=headers,
             request_id=30,
             name="complete_seal_republishing",
-            arguments={"facility_id": _FACILITY_ID},
+            arguments={"facility_code": _FACILITY_CODE},
         )
     assert body["result"]["isError"] is True
 
@@ -162,7 +162,7 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_on_unknown_seal() -
             headers=headers,
             request_id=40,
             name="complete_seal_republishing",
-            arguments={"facility_id": "unknown-facility"},
+            arguments={"facility_code": "unknown-facility"},
         )
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
@@ -176,7 +176,7 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_on_sequence_regress
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
         raise SealSequenceNumberRegressionError(
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             prior_sequence_number=5,
             proposed_sequence_number=3,
         )
@@ -190,7 +190,7 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_on_sequence_regress
             request_id=50,
             name="complete_seal_republishing",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": 3,
             },
@@ -199,8 +199,8 @@ def test_mcp_complete_seal_republishing_tool_returns_iserror_on_sequence_regress
 
 
 @pytest.mark.contract
-def test_mcp_complete_seal_republishing_tool_rejects_missing_facility_id() -> None:
-    """Pydantic-layer rejection (missing facility_id) bubbles as isError."""
+def test_mcp_complete_seal_republishing_tool_rejects_missing_facility_code() -> None:
+    """Pydantic-layer rejection (missing facility_code) bubbles as isError."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         body = _call_tool(
@@ -224,7 +224,7 @@ def test_mcp_complete_seal_republishing_tool_rejects_non_integer_sequence() -> N
             request_id=70,
             name="complete_seal_republishing",
             arguments={
-                "facility_id": _FACILITY_ID,
+                "facility_code": _FACILITY_CODE,
                 "new_head_hash": "b" * 64,
                 "new_sequence_number": "not-an-int",
             },

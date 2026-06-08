@@ -17,7 +17,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class SealSummaryItemOutput(BaseModel):
-    facility_id: str
+    facility_code: str
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None = None
@@ -70,7 +70,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         return ListSealsOutput(
             items=[
                 SealSummaryItemOutput(
-                    facility_id=item.facility_id,
+                    facility_code=item.facility_code,
                     online_credential_id=item.online_credential_id,
                     offline_credential_id=item.offline_credential_id,
                     current_head_hash=item.current_head_hash,

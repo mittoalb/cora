@@ -37,7 +37,7 @@ from cora.infrastructure.routing import (
 class SealSummaryDTO(BaseModel):
     """One Seal singleton in a paginated list."""
 
-    facility_id: str
+    facility_code: str
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None = None
@@ -111,7 +111,7 @@ async def list_seals(
     return SealListResponse(
         items=[
             SealSummaryDTO(
-                facility_id=item.facility_id,
+                facility_code=item.facility_code,
                 online_credential_id=item.online_credential_id,
                 offline_credential_id=item.offline_credential_id,
                 current_head_hash=item.current_head_hash,

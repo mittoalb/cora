@@ -1,7 +1,7 @@
 """HTTP route for the `complete_seal_republishing` slice.
 
 Action endpoint at
-`POST /federation/seals/{facility_id}/republishing/complete`. Optional
+`POST /federation/seals/{facility_code}/republishing/complete`. Optional
 JSON body carrying the fresh head pointer (`new_head_hash` +
 `new_sequence_number`, supplied together or omitted together). 204 No
 Content on success. The `republishing/complete` sub-path mirrors the
@@ -60,7 +60,7 @@ router = APIRouter(tags=["federation"])
 
 
 @router.post(
-    "/federation/seals/{facility_id}/republishing/complete",
+    "/federation/seals/{facility_code}/republishing/complete",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_400_BAD_REQUEST: {
@@ -78,7 +78,7 @@ router = APIRouter(tags=["federation"])
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "No Seal exists for the given facility_id.",
+            "description": "No Seal exists for the given facility code.",
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
@@ -100,7 +100,7 @@ router = APIRouter(tags=["federation"])
     summary="Complete an in-flight Seal republish (Republishing -> Live)",
 )
 async def post_federation_seals_republishing_complete(
-    facility_id: Annotated[str, Path(description="Target Seal's facility_id.")],
+    facility_code: Annotated[str, Path(description="Target Seal's facility code.")],
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
@@ -109,7 +109,7 @@ async def post_federation_seals_republishing_complete(
 ) -> None:
     await handler(
         CompleteSealRepublishing(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_head_hash=body.new_head_hash if body is not None else None,
             new_sequence_number=body.new_sequence_number if body is not None else None,
         ),

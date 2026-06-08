@@ -52,8 +52,8 @@ from tests.unit.federation._helpers import (
 _T0 = datetime(2026, 5, 30, 10, 0, 0, tzinfo=UTC)
 _T1 = datetime(2026, 5, 30, 11, 0, 0, tzinfo=UTC)
 _T2 = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
-_STREAM_ID = seal_stream_id(_FACILITY_ID)
+_FACILITY_CODE = "aps-2bm"
+_STREAM_ID = seal_stream_id(_FACILITY_CODE)
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed201")
 _REPUBLISHING_STARTED_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed202")
 _DECISION_ID = UUID("01900000-0000-7000-8000-000000fed205")
@@ -88,7 +88,7 @@ def _build_lookup(
     if register_default:
         lookup.register(
             credential_id=new_online_credential_id,
-            facility_id=_FACILITY_ID,
+            facility_id=_FACILITY_CODE,
             purpose=purpose,
             status=status,
         )
@@ -109,8 +109,8 @@ def _build_facility_lookup(
     """
     lookup = InMemoryFacilityLookup()
     lookup.register(
-        facility_id=facility_stream_id(FacilityCode(_FACILITY_ID)),
-        code=_FACILITY_ID,
+        facility_id=facility_stream_id(FacilityCode(_FACILITY_CODE)),
+        code=_FACILITY_CODE,
         kind="Site",
         trust_anchor_credential_ids=trust_anchors,
     )
@@ -147,7 +147,7 @@ def _command(
     signed_by_offline_root: bool = True,
 ) -> RotateSealOnlineKey:
     return RotateSealOnlineKey(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_online_credential_id=new_online_credential_id,
         signed_by_offline_root=signed_by_offline_root,
     )
@@ -161,7 +161,7 @@ async def _seed_live(store: InMemoryEventStore) -> None:
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         online_credential_id=_CURRENT_ONLINE_KEY,
         offline_credential_id=_OFFLINE_KEY,
     )
@@ -184,7 +184,7 @@ async def test_rotate_seal_online_key_handler_appends_event_from_live() -> None:
     assert version == 2
     transition = events[-1]
     assert transition.event_type == "SealOnlineKeyRotated"
-    assert transition.payload["facility_id"] == _FACILITY_ID
+    assert transition.payload["facility_id"] == _FACILITY_CODE
     assert transition.payload["new_online_credential_id"] == str(_NEW_ONLINE_KEY)
     assert transition.payload["signed_by_offline_root"] is True
     assert transition.payload["rotated_by"] == str(_PRINCIPAL_ID)
@@ -241,7 +241,7 @@ async def test_rotate_seal_online_key_handler_appends_to_both_seal_and_decision_
 @pytest.mark.unit
 async def test_rotate_seal_online_key_handler_decision_audit_carries_actor_and_choice() -> None:
     """The co-written DecisionRegistered audit pins actor_id == principal_id,
-    context == 'SealOnlineKeyRotated', and choice == facility_id for
+    context == 'SealOnlineKeyRotated', and choice == facility_code for
     cross-stream correlation."""
     store = InMemoryEventStore()
     await _seed_live(store)
@@ -258,7 +258,7 @@ async def test_rotate_seal_online_key_handler_decision_audit_carries_actor_and_c
     assert payload["decision_id"] == str(_DECISION_ID)
     assert payload["actor_id"] == str(_PRINCIPAL_ID)
     assert payload["context"] == "SealOnlineKeyRotated"
-    assert payload["choice"] == _FACILITY_ID
+    assert payload["choice"] == _FACILITY_CODE
     assert payload["occurred_at"] == _T2.isoformat()
 
 
@@ -330,7 +330,7 @@ async def test_rotate_seal_online_key_handler_raises_cannot_rotate_when_republis
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = rotate_seal_online_key.bind(deps)
@@ -374,7 +374,7 @@ async def test_rotate_seal_online_key_handler_raises_collision_when_ref_equals_o
     lookup = _build_lookup(register_default=False)
     lookup.register(
         credential_id=_OFFLINE_KEY,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
@@ -477,7 +477,7 @@ async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by() 
         correlation_id=_CORRELATION_ID,
         principal_id=_OTHER_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         online_credential_id=_CURRENT_ONLINE_KEY,
         offline_credential_id=_OFFLINE_KEY,
     )
@@ -496,7 +496,7 @@ async def test_rotate_seal_online_key_handler_records_principal_as_rotated_by() 
 
 @pytest.mark.unit
 async def test_rotate_seal_online_key_handler_targets_deterministic_stream_id() -> None:
-    """The handler derives the stream UUID via `seal_stream_id(facility_id)`;
+    """The handler derives the stream UUID via `seal_stream_id(facility_code)`;
     the rotation event lands on that same deterministic stream."""
     store = InMemoryEventStore()
     await _seed_live(store)
@@ -507,7 +507,7 @@ async def test_rotate_seal_online_key_handler_targets_deterministic_stream_id() 
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    expected_stream_id = seal_stream_id(_FACILITY_ID)
+    expected_stream_id = seal_stream_id(_FACILITY_CODE)
     events, version = await store.load("Seal", expected_stream_id)
     assert version == 2
     assert events[-1].event_type == "SealOnlineKeyRotated"

@@ -1,6 +1,6 @@
 """The `RotateSealOnlineKey` command: intent dataclass for this slice.
 
-`facility_id` selects the Seal singleton; `new_online_credential_id` is the
+`facility_code` selects the Seal singleton; `new_online_credential_id` is the
 fresh Credential.id to install in the online (warm) slot. The principal
 id of the invoker is supplied separately by the application handler at
 call time and stamped onto `SealOnlineKeyRotated` as
@@ -44,6 +44,6 @@ class RotateSealOnlineKey:
     where the offline root countersigned from those where it did not.
     """
 
-    facility_id: str
+    facility_code: str
     new_online_credential_id: UUID
     signed_by_offline_root: bool

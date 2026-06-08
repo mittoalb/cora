@@ -6185,10 +6185,10 @@
         "additionalProperties": false,
         "description": "Body for `POST /federation/seals`.",
         "properties": {
-          "facility_id": {
-            "description": "Opaque string id of the facility this Seal binds to. Facility identity is external to CORA; we do NOT mint facility ids. Doubles as the singleton identity (one Seal per facility).",
+          "facility_code": {
+            "description": "Cross-deployment convergent facility slug this Seal binds to. Validated against the FacilityCode VO pattern (lowercase ASCII alphanumeric and dash, 1-32 chars) at the handler edge. Doubles as the singleton identity (one Seal per facility).",
             "minLength": 1,
-            "title": "Facility Id",
+            "title": "Facility Code",
             "type": "string"
           },
           "offline_credential_id": {
@@ -6205,7 +6205,7 @@
           }
         },
         "required": [
-          "facility_id",
+          "facility_code",
           "online_credential_id",
           "offline_credential_id"
         ],
@@ -6215,8 +6215,8 @@
       "InitializeSealResponse": {
         "description": "Response body for `POST /federation/seals`.",
         "properties": {
-          "facility_id": {
-            "title": "Facility Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "seal_stream_id": {
@@ -6227,7 +6227,7 @@
         },
         "required": [
           "seal_stream_id",
-          "facility_id"
+          "facility_code"
         ],
         "title": "InitializeSealResponse",
         "type": "object"
@@ -11457,8 +11457,8 @@
             "title": "Current Sequence Number",
             "type": "integer"
           },
-          "facility_id": {
-            "title": "Facility Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "initialized_at": {
@@ -11510,7 +11510,7 @@
           }
         },
         "required": [
-          "facility_id",
+          "facility_code",
           "online_credential_id",
           "offline_credential_id",
           "current_head_hash",
@@ -11549,8 +11549,8 @@
             "title": "Current Sequence Number",
             "type": "integer"
           },
-          "facility_id": {
-            "title": "Facility Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "initialized_at": {
@@ -11602,7 +11602,7 @@
           }
         },
         "required": [
-          "facility_id",
+          "facility_code",
           "online_credential_id",
           "offline_credential_id",
           "current_sequence_number",
@@ -11615,7 +11615,7 @@
       },
       "SignSealPointerRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /federation/seals/{facility_id}/pointer/sign`.",
+        "description": "Body for `POST /federation/seals/{facility_code}/pointer/sign`.",
         "properties": {
           "new_head_hash": {
             "description": "SHA-256 lowercase hex of the canonicalized head pointer body just signed by the online key.",
@@ -11990,7 +11990,7 @@
       },
       "StartSealRepublishingRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /federation/seals/{facility_id}/republishing/start`.",
+        "description": "Body for `POST /federation/seals/{facility_code}/republishing/start`.",
         "properties": {
           "reason": {
             "anyOf": [
@@ -26253,7 +26253,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (whitespace-only facility_id)."
+            "description": "Domain invariant violated (whitespace-only facility_code, or facility_code value outside the FacilityCode pattern)."
           },
           "403": {
             "content": {
@@ -26292,19 +26292,19 @@
         ]
       }
     },
-    "/federation/seals/{facility_id}": {
+    "/federation/seals/{facility_code}": {
       "get": {
-        "operationId": "get_federation_seal_federation_seals__facility_id__get",
+        "operationId": "get_federation_seal_federation_seals__facility_code__get",
         "parameters": [
           {
-            "description": "Target facility's opaque string id.",
+            "description": "Target facility's cross-deployment convergent code.",
             "in": "path",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": true,
             "schema": {
-              "description": "Target facility's opaque string id.",
+              "description": "Target facility's cross-deployment convergent code.",
               "minLength": 1,
-              "title": "Facility Id",
+              "title": "Facility Code",
               "type": "string"
             }
           },
@@ -26369,18 +26369,18 @@
         ]
       }
     },
-    "/federation/seals/{facility_id}/online-key/rotate": {
+    "/federation/seals/{facility_code}/online-key/rotate": {
       "post": {
-        "operationId": "post_federation_seals_rotate_online_key_federation_seals__facility_id__online_key_rotate_post",
+        "operationId": "post_federation_seals_rotate_online_key_federation_seals__facility_code__online_key_rotate_post",
         "parameters": [
           {
-            "description": "Target Seal's facility id.",
+            "description": "Target Seal's facility code.",
             "in": "path",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": true,
             "schema": {
-              "description": "Target Seal's facility id.",
-              "title": "Facility Id",
+              "description": "Target Seal's facility code.",
+              "title": "Facility Code",
               "type": "string"
             }
           },
@@ -26465,19 +26465,19 @@
         ]
       }
     },
-    "/federation/seals/{facility_id}/pointer/sign": {
+    "/federation/seals/{facility_code}/pointer/sign": {
       "post": {
         "operationId": "sign_seal_pointer",
         "parameters": [
           {
-            "description": "Target facility's id.",
+            "description": "Target facility's code.",
             "in": "path",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": true,
             "schema": {
-              "description": "Target facility's id.",
+              "description": "Target facility's code.",
               "minLength": 1,
-              "title": "Facility Id",
+              "title": "Facility Code",
               "type": "string"
             }
           },
@@ -26543,7 +26543,7 @@
                 }
               }
             },
-            "description": "No Seal exists for the given facility_id."
+            "description": "No Seal exists for the given facility code."
           },
           "409": {
             "content": {
@@ -26572,18 +26572,18 @@
         ]
       }
     },
-    "/federation/seals/{facility_id}/republishing/complete": {
+    "/federation/seals/{facility_code}/republishing/complete": {
       "post": {
-        "operationId": "post_federation_seals_republishing_complete_federation_seals__facility_id__republishing_complete_post",
+        "operationId": "post_federation_seals_republishing_complete_federation_seals__facility_code__republishing_complete_post",
         "parameters": [
           {
-            "description": "Target Seal's facility_id.",
+            "description": "Target Seal's facility code.",
             "in": "path",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": true,
             "schema": {
-              "description": "Target Seal's facility_id.",
-              "title": "Facility Id",
+              "description": "Target Seal's facility code.",
+              "title": "Facility Code",
               "type": "string"
             }
           },
@@ -26656,7 +26656,7 @@
                 }
               }
             },
-            "description": "No Seal exists for the given facility_id."
+            "description": "No Seal exists for the given facility code."
           },
           "409": {
             "content": {
@@ -26685,18 +26685,18 @@
         ]
       }
     },
-    "/federation/seals/{facility_id}/republishing/start": {
+    "/federation/seals/{facility_code}/republishing/start": {
       "post": {
-        "operationId": "post_federation_seals_republishing_start_federation_seals__facility_id__republishing_start_post",
+        "operationId": "post_federation_seals_republishing_start_federation_seals__facility_code__republishing_start_post",
         "parameters": [
           {
-            "description": "Target Seal's facility id.",
+            "description": "Target Seal's facility code.",
             "in": "path",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": true,
             "schema": {
-              "description": "Target Seal's facility id.",
-              "title": "Facility Id",
+              "description": "Target Seal's facility code.",
+              "title": "Facility Code",
               "type": "string"
             }
           },

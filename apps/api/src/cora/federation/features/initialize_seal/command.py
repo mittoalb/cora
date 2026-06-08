@@ -3,12 +3,12 @@
 Carries the caller-controlled fields for minting the Seal singleton
 for a facility:
 
-  - `facility_id`: opaque string id of the facility this Seal binds
-    to. String-typed because facility identity is external to CORA;
-    we do NOT mint facility ids. Required, non-empty after trim.
-    Doubles as the singleton identity (one Seal per facility); the
-    handler derives the stream UUID deterministically via
-    `seal_stream_id(facility_id)`.
+  - `facility_code`: cross-deployment convergent facility slug. Bare
+    `str` on the command DTO; the handler wraps it as a `FacilityCode`
+    VO at the port edge before threading it into the decider, the
+    facility lookup, and the `seal_stream_id` derivation. Required,
+    non-empty after trim. Doubles as the singleton identity (one
+    Seal per facility).
   - `online_credential_id`: Credential.id of the warm signing key
     (purpose `SealOnlineSigning`). MUST differ from
     `offline_credential_id` (key-separation invariant enforced by the
@@ -34,6 +34,6 @@ from uuid import UUID
 class InitializeSeal:
     """Initialize the Seal singleton for a facility (genesis; lands in Live)."""
 
-    facility_id: str
+    facility_code: str
     online_credential_id: UUID
     offline_credential_id: UUID

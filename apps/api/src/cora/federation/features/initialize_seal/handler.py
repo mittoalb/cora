@@ -14,13 +14,14 @@ by the handler and used as the new Decision stream id; `choice`
 carries the facility_id so the audit row correlates back to the
 singleton.
 
-Stream-id derivation: the Seal singleton is keyed on facility_id
-(str), but the event store still keys streams by UUID. The handler
-derives a deterministic stream UUID via
-`seal_stream_id(facility_id)` (UUID5 over a fixed federation
-namespace) so the genesis write targets the canonical stream and
-later transitions reach the same stream without out-of-band id
-coordination.
+Stream-id derivation: the Seal singleton is keyed on
+`facility_code` (`FacilityCode`), but the event store still keys
+streams by UUID. The handler derives a deterministic stream UUID
+via `seal_stream_id(facility_code.value)` (UUID5 over a fixed
+federation namespace, threading the bare slug string at the
+cryptographic chain boundary) so the genesis write targets the
+canonical stream and later transitions reach the same stream
+without out-of-band id coordination.
 
 The handler also resolves BOTH `online_credential_id` and `offline_credential_id`
 through `deps.credential_lookup` BEFORE invoking the decider and
@@ -125,7 +126,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "initialize_seal.start",
             command_name=_COMMAND_NAME,
-            facility_id=command.facility_id,
+            facility_code=command.facility_code,
             principal_id=str(principal_id),
             correlation_id=str(correlation_id),
             causation_id=str(causation_id) if causation_id is not None else None,
@@ -141,7 +142,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "initialize_seal.denied",
                 command_name=_COMMAND_NAME,
-                facility_id=command.facility_id,
+                facility_code=command.facility_code,
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,
@@ -149,16 +150,16 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        stream_id = seal_stream_id(command.facility_id.strip())
+        stream_id = seal_stream_id(command.facility_code.strip())
 
         online_credential = await deps.credential_lookup.lookup(command.online_credential_id)
         offline_credential = await deps.credential_lookup.lookup(command.offline_credential_id)
-        # Skip the FacilityLookup when the command facility_id is not a
+        # Skip the FacilityLookup when the command facility_code is not a
         # well-formed FacilityCode; the decider's canonical-form arm fires
         # first and surfaces InvalidSealFacilityIdError (400) before the
         # self_facility=None check would surface FacilityNotFoundError.
         try:
-            self_facility_id = facility_stream_id(FacilityCode(command.facility_id.strip()))
+            self_facility_id = facility_stream_id(FacilityCode(command.facility_code.strip()))
         except ValueError:
             self_facility = None
         else:
@@ -181,7 +182,7 @@ def bind(deps: Kernel) -> Handler:
             decision_id=decision_id,
             decided_by=ActorId(principal_id),
             context=_AUDIT_CONTEXT,
-            choice=str(command.facility_id),
+            choice=str(command.facility_code),
             parent_id=None,
             override_kind=None,
             rule=None,
@@ -240,7 +241,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "initialize_seal.success",
             command_name=_COMMAND_NAME,
-            facility_id=command.facility_id,
+            facility_code=command.facility_code,
             stream_id=str(stream_id),
             decision_id=str(decision_id),
             principal_id=str(principal_id),

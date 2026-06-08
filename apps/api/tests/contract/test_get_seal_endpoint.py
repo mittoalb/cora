@@ -1,7 +1,7 @@
-"""Contract tests for `GET /federation/seals/{facility_id}`.
+"""Contract tests for `GET /federation/seals/{facility_code}`.
 
 Singleton-per-facility: the URL carries the human-readable
-`facility_id` (str), not the deterministic seal_stream_id UUID.
+`facility_code` (str), not the deterministic seal_stream_id UUID.
 200 happy path returns the aggregate state plus nullable Path C
 lifecycle timestamps; 404 covers the not-found path; 422 covers the
 Pydantic-layer rejection of an empty path parameter; 403 surfaces
@@ -17,10 +17,12 @@ from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
 from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.federation.features.get_seal.route import (
     _get_handler as _get_get_seal_handler,  # pyright: ignore[reportPrivateUsage]
 )
+from cora.shared.facility_code import FacilityCode
 
 _ONLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0a1"
 _OFFLINE_KEY_REF = "01900000-0000-7000-8000-00000000c0b1"
@@ -40,6 +42,13 @@ def _seed_active_credentials(app: FastAPI, *, facility_id: str) -> None:
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
     )
+    facility_lookup = app.state.deps.facility_lookup
+    facility_lookup.register(
+        facility_id=facility_stream_id(FacilityCode(facility_id)),
+        code=facility_id,
+        kind="Site",
+        trust_anchor_credential_ids=frozenset({UUID(_ONLINE_KEY_REF), UUID(_OFFLINE_KEY_REF)}),
+    )
 
 
 def _seed(
@@ -48,26 +57,26 @@ def _seed(
     **overrides: object,
 ) -> tuple[str, dict[str, Any]]:
     body: dict[str, Any] = {
-        "facility_id": f"aps-2bm-{uuid4().hex[:8]}",
+        "facility_code": f"aps-2bm-{uuid4().hex[:8]}",
         "online_credential_id": _ONLINE_KEY_REF,
         "offline_credential_id": _OFFLINE_KEY_REF,
     }
     body.update(overrides)
-    _seed_active_credentials(app, facility_id=str(body["facility_id"]))
+    _seed_active_credentials(app, facility_id=str(body["facility_code"]))
     response = client.post("/federation/seals", json=body)
     assert response.status_code == 201, response.text
-    return str(body["facility_id"]), body
+    return str(body["facility_code"]), body
 
 
 @pytest.mark.contract
 def test_get_federation_seal_returns_200_with_full_state() -> None:
     app = create_app()
     with TestClient(app) as client:
-        facility_id, seeded = _seed(app, client)
-        response = client.get(f"/federation/seals/{facility_id}")
+        facility_code, seeded = _seed(app, client)
+        response = client.get(f"/federation/seals/{facility_code}")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["facility_id"] == facility_id
+    assert body["facility_code"] == facility_code
     assert body["online_credential_id"] == seeded["online_credential_id"]
     assert body["offline_credential_id"] == seeded["offline_credential_id"]
     assert body["current_head_hash"] is None

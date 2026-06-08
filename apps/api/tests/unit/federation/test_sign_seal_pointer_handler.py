@@ -30,7 +30,7 @@ from tests.unit.federation._helpers import seed_live_seal, seed_republishing_sea
 _T0 = datetime(2026, 5, 30, 10, 0, 0, tzinfo=UTC)
 _T1 = datetime(2026, 5, 30, 11, 0, 0, tzinfo=UTC)
 _T2 = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _GENESIS_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed101")
 _START_REPUB_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed102")
 _NEXT_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed103")
@@ -62,7 +62,7 @@ def _command(
     new_sequence_number: int = 1,
 ) -> SignSealPointer:
     return SignSealPointer(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_head_hash=new_head_hash,
         new_sequence_number=new_sequence_number,
     )
@@ -73,12 +73,12 @@ async def test_sign_seal_pointer_handler_appends_event_to_live_seal() -> None:
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = sign_seal_pointer.bind(deps)
@@ -87,11 +87,11 @@ async def test_sign_seal_pointer_handler_appends_event_to_live_seal() -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    events, version = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    events, version = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert version == 2
     stored = events[-1]
     assert stored.event_type == "SealPointerSigned"
-    assert stored.payload["facility_id"] == _FACILITY_ID
+    assert stored.payload["facility_id"] == _FACILITY_CODE
     assert stored.payload["head_hash"] == _NEW_HEAD_HASH
     assert stored.payload["sequence_number"] == 1
     assert stored.payload["signed_by"] == str(_PRINCIPAL_ID)
@@ -105,12 +105,12 @@ async def test_sign_seal_pointer_handler_propagates_causation_id() -> None:
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     causation = UUID("01900000-0000-7000-8000-0000000000cc")
     deps = _build_deps(event_store=store)
@@ -121,7 +121,7 @@ async def test_sign_seal_pointer_handler_propagates_causation_id() -> None:
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
     )
-    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert events[-1].causation_id == causation
 
 
@@ -143,14 +143,14 @@ async def test_sign_seal_pointer_handler_raises_cannot_sign_when_republishing() 
     store = InMemoryEventStore()
     await seed_republishing_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         start_event_id=_START_REPUB_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = sign_seal_pointer.bind(deps)
@@ -168,12 +168,12 @@ async def test_sign_seal_pointer_handler_raises_on_empty_new_head_hash() -> None
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = sign_seal_pointer.bind(deps)
@@ -191,12 +191,12 @@ async def test_sign_seal_pointer_handler_raises_sequence_regression_on_lower_seq
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, ids=[_NEXT_EVENT_ID, _FOLLOWUP_EVENT_ID])
     handler = sign_seal_pointer.bind(deps)
@@ -219,12 +219,12 @@ async def test_sign_seal_pointer_handler_raises_cannot_sign_when_sequence_regres
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, ids=[_NEXT_EVENT_ID, _FOLLOWUP_EVENT_ID])
     handler = sign_seal_pointer.bind(deps)
@@ -246,12 +246,12 @@ async def test_sign_seal_pointer_handler_denies_via_authorize_port() -> None:
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = sign_seal_pointer.bind(deps)
@@ -269,12 +269,12 @@ async def test_sign_seal_pointer_handler_denied_does_not_write_to_stream() -> No
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = sign_seal_pointer.bind(deps)
@@ -284,7 +284,7 @@ async def test_sign_seal_pointer_handler_denied_does_not_write_to_stream() -> No
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    _, version = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    _, version = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert version == 1  # untouched after SealInitialized seed
 
 
@@ -296,12 +296,12 @@ async def test_sign_seal_pointer_handler_records_signed_by() -> None:
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_OTHER_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = sign_seal_pointer.bind(deps)
@@ -310,7 +310,7 @@ async def test_sign_seal_pointer_handler_records_signed_by() -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert events[-1].payload["signed_by"] == str(_PRINCIPAL_ID)
 
 
@@ -321,12 +321,12 @@ async def test_sign_seal_pointer_handler_captures_signed_at_from_clock() -> None
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = sign_seal_pointer.bind(deps)
@@ -335,7 +335,7 @@ async def test_sign_seal_pointer_handler_captures_signed_at_from_clock() -> None
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    events, _ = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert events[-1].payload["signed_at"] == _T2.isoformat()
     assert events[-1].occurred_at == _T2
 
@@ -346,12 +346,12 @@ async def test_sign_seal_pointer_handler_accepts_monotonic_sequence_chain() -> N
     store = InMemoryEventStore()
     await seed_live_seal(
         store,
-        stream_id=seal_stream_id(_FACILITY_ID),
+        stream_id=seal_stream_id(_FACILITY_CODE),
         genesis_event_id=_GENESIS_EVENT_ID,
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, ids=[_NEXT_EVENT_ID, _FOLLOWUP_EVENT_ID])
     handler = sign_seal_pointer.bind(deps)
@@ -365,7 +365,7 @@ async def test_sign_seal_pointer_handler_accepts_monotonic_sequence_chain() -> N
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    events, version = await store.load("Seal", seal_stream_id(_FACILITY_ID))
+    events, version = await store.load("Seal", seal_stream_id(_FACILITY_CODE))
     assert version == 3
     assert events[-2].payload["sequence_number"] == 1
     assert events[-1].payload["sequence_number"] == 2

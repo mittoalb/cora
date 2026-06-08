@@ -12,9 +12,11 @@ Credential references with distinct purposes:
 
 Key invariants per [[project_federation_port_design]]:
 
-  - Singleton identity: `facility_id` (str). One Seal stream
-    per facility; the stream's UUID is deterministic per facility
-    (the handler mints it via UUID5 with the federation namespace).
+  - Singleton identity: `facility_code` (`FacilityCode`). One Seal
+    stream per facility; the stream's UUID is deterministic per
+    facility (the handler mints it via UUID5 with the federation
+    namespace, threading `facility_code.value` through the boundary
+    so the cryptographic chain anchor remains the bare slug string).
   - Key separation: `online_credential_id` and `offline_credential_id` MUST
     differ at every transition. Helper `verify_key_separation` at
     `cora.federation.aggregates.seal._key_separation` is called by
@@ -67,6 +69,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 
@@ -377,9 +380,10 @@ class SealSequenceNumberRegressionError(Exception):
 class Seal:
     """Aggregate root: the per-facility singleton that signs the head pointer.
 
-    Identity is `facility_id` (str). One stream per facility (the
-    handler mints a deterministic stream UUID; the domain identity
-    that matters is the human-readable facility string).
+    Identity is `facility_code` (`FacilityCode`). One stream per
+    facility (the handler mints a deterministic stream UUID from
+    `facility_code.value`; the domain identity that matters is the
+    cross-deployment convergent slug).
 
     `online_credential_id` and `offline_credential_id` are both Credential.id
     references and MUST never equal each other. Their referenced
@@ -410,7 +414,7 @@ class Seal:
     C reversal for the genesis arm.
     """
 
-    facility_id: str
+    facility_code: FacilityCode
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None

@@ -1,6 +1,6 @@
 """End-to-end integration test: list_seals + projection round-trip.
 
-Seeds 3 Seal singletons (one per unique facility_id suffix) via
+Seeds 3 Seal singletons (one per unique facility_code suffix) via
 `initialize_seal`, transitions one of them into `Republishing` via
 `start_seal_republishing`, drains the SealSummaryProjection, then queries
 `list_seals` and verifies:
@@ -11,7 +11,7 @@ Seeds 3 Seal singletons (one per unique facility_id suffix) via
   - cursor pagination produces disjoint pages whose union covers the
     seeded set (status='Live' scopes tightly to this test's rows)
 
-Each test mints unique facility_id suffixes so the
+Each test mints unique facility_code suffixes so the
 `proj_federation_seal_summary` singleton PK on `facility_id` does not collide
 across runs sharing the same db_pool. The list-query factory enforces
 its cursor over a UUID id; the slice derives that UUID from the row's
@@ -27,6 +27,7 @@ import pytest
 
 from cora.federation._projections import register_federation_projections
 from cora.federation.aggregates.credential import CredentialPurpose, CredentialStatus
+from cora.federation.aggregates.facility._stream_id import facility_stream_id
 from cora.federation.features import (
     initialize_seal,
     list_seals,
@@ -38,6 +39,10 @@ from cora.federation.features.start_seal_republishing import StartSealRepublishi
 from cora.infrastructure.adapters.in_memory_credential_lookup import (
     InMemoryCredentialLookup,
 )
+from cora.infrastructure.adapters.in_memory_facility_lookup import (
+    InMemoryFacilityLookup,
+)
+from cora.shared.facility_code import FacilityCode
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -53,7 +58,7 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 def _facility(tag: str) -> str:
-    """Unique facility_id per test seed: collision-free across runs."""
+    """Unique facility_code per test seed: collision-free across runs."""
     return f"aps-{tag}-{uuid4().hex[:8]}"
 
 
@@ -78,14 +83,38 @@ def _register_seal_credentials(
     )
 
 
+def _register_seal_facility(
+    lookup: InMemoryFacilityLookup,
+    *,
+    facility_code: str,
+    online_credential_id: UUID,
+    offline_credential_id: UUID,
+) -> None:
+    """Seed the self-Facility row so initialize_seal's FacilityLookup hits.
+
+    Trust anchors include both seal-slot credentials so the
+    Slice 6 Sub-Slice C structural set-membership check passes
+    (SealCredentialNotTrustAnchorError otherwise).
+    """
+    code = FacilityCode(facility_code)
+    lookup.register(
+        facility_id=facility_stream_id(code),
+        code=code,
+        kind="Site",
+        trust_anchor_credential_ids=frozenset({online_credential_id, offline_credential_id}),
+    )
+
+
 @pytest.mark.integration
 async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
     lookup = InMemoryCredentialLookup()
+    facility_lookup = InMemoryFacilityLookup()
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,
         ids=[uuid4() for _ in range(40)],
         credential_lookup=lookup,
+        facility_lookup=facility_lookup,
     )
 
     # Seed 3 Seals on distinct facilities:
@@ -106,9 +135,15 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
         )
+        _register_seal_facility(
+            facility_lookup,
+            facility_code=fid,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
+        )
         await initialize_seal.bind(deps)(
             InitializeSeal(
-                facility_id=fid,
+                facility_code=fid,
                 online_credential_id=online_credential_id,
                 offline_credential_id=offline_credential_id,
             ),
@@ -118,7 +153,7 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
 
     # Transition s2 to Republishing
     await start_seal_republishing.bind(deps)(
-        StartSealRepublishing(facility_id=f2, reason="integration-test"),
+        StartSealRepublishing(facility_code=f2, reason="integration-test"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -133,8 +168,8 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    facility_ids = {item.facility_id for item in page.items}
-    assert {f1, f2, f3}.issubset(facility_ids)
+    facility_codes = {item.facility_code for item in page.items}
+    assert {f1, f2, f3}.issubset(facility_codes)
 
     # status='Republishing' includes f2 but NOT f1/f3
     page = await handler(
@@ -142,10 +177,10 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    republishing_ids = {item.facility_id for item in page.items}
-    assert f2 in republishing_ids
-    assert f1 not in republishing_ids
-    assert f3 not in republishing_ids
+    republishing_codes = {item.facility_code for item in page.items}
+    assert f2 in republishing_codes
+    assert f1 not in republishing_codes
+    assert f3 not in republishing_codes
     for item in page.items:
         assert item.status == "Republishing"
 
@@ -155,10 +190,10 @@ async def test_list_seals_status_filter_postgres(db_pool: asyncpg.Pool) -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    live_ids = {item.facility_id for item in page.items}
-    assert f1 in live_ids
-    assert f3 in live_ids
-    assert f2 not in live_ids
+    live_codes = {item.facility_code for item in page.items}
+    assert f1 in live_codes
+    assert f3 in live_codes
+    assert f2 not in live_codes
     for item in page.items:
         assert item.status == "Live"
 
@@ -168,11 +203,13 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
     """Single Seal landed via initialize_seal surfaces every column
     on the SealSummaryItem with the expected genesis defaults."""
     lookup = InMemoryCredentialLookup()
+    facility_lookup = InMemoryFacilityLookup()
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,
         ids=[uuid4() for _ in range(5)],
         credential_lookup=lookup,
+        facility_lookup=facility_lookup,
     )
 
     fid = _facility("shape")
@@ -184,9 +221,15 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
         online_credential_id=online_credential_id,
         offline_credential_id=offline_credential_id,
     )
+    _register_seal_facility(
+        facility_lookup,
+        facility_code=fid,
+        online_credential_id=online_credential_id,
+        offline_credential_id=offline_credential_id,
+    )
     await initialize_seal.bind(deps)(
         InitializeSeal(
-            facility_id=fid,
+            facility_code=fid,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
         ),
@@ -200,7 +243,7 @@ async def test_list_seals_projection_row_shape_postgres(db_pool: asyncpg.Pool) -
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    matched = [item for item in page.items if item.facility_id == fid]
+    matched = [item for item in page.items if item.facility_code == fid]
     assert len(matched) == 1
     item = matched[0]
     assert item.online_credential_id == online_credential_id
@@ -219,7 +262,7 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
     """Pagination invariants: page size, non-null cursor mid-page,
     disjoint pages, union covers all 3 seeds.
 
-    The cursor encodes a UUID derived from facility_id via
+    The cursor encodes a UUID derived from facility_code via
     `seal_stream_id`; this test exercises that UUID5 round-trip
     through the list_query factory's base64 cursor encoder. The
     transition to Republishing on every seed (via
@@ -227,11 +270,13 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
     scope tightly to this test's rows.
     """
     lookup = InMemoryCredentialLookup()
+    facility_lookup = InMemoryFacilityLookup()
     deps = build_postgres_deps(
         db_pool,
         now=_NOW,
         ids=[uuid4() for _ in range(20)],
         credential_lookup=lookup,
+        facility_lookup=facility_lookup,
     )
 
     seeded: list[str] = []
@@ -245,9 +290,15 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
         )
+        _register_seal_facility(
+            facility_lookup,
+            facility_code=fid,
+            online_credential_id=online_credential_id,
+            offline_credential_id=offline_credential_id,
+        )
         await initialize_seal.bind(deps)(
             InitializeSeal(
-                facility_id=fid,
+                facility_code=fid,
                 online_credential_id=online_credential_id,
                 offline_credential_id=offline_credential_id,
             ),
@@ -257,7 +308,7 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
         # Transition each into Republishing so the status filter
         # scopes tightly to this test's rows.
         await start_seal_republishing.bind(deps)(
-            StartSealRepublishing(facility_id=fid, reason=f"pag{i}"),
+            StartSealRepublishing(facility_code=fid, reason=f"pag{i}"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -280,7 +331,7 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
     # additions), a limit=2 page must always be full + carry a cursor.
     assert len(page1.items) == 2
     assert page1.next_cursor is not None
-    page1_ids = {item.facility_id for item in page1.items}
+    page1_codes = {item.facility_code for item in page1.items}
 
     # Page 2: continue with cursor
     page2 = await handler(
@@ -288,15 +339,15 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    page2_ids = {item.facility_id for item in page2.items}
+    page2_codes = {item.facility_code for item in page2.items}
 
     # Disjoint pages, and the union covers every seed we registered
     # in this test (other tests' rows MAY surface in between but
     # cannot duplicate ours, and ours cannot appear in both pages).
-    assert page1_ids.isdisjoint(page2_ids)
+    assert page1_codes.isdisjoint(page2_codes)
     # Walk the cursor chain to gather every Republishing row, then
-    # confirm our 3 seeded facility_ids are present.
-    collected: set[str] = set(page1_ids) | set(page2_ids)
+    # confirm our 3 seeded facility_codes are present.
+    collected: set[str] = set(page1_codes) | set(page2_codes)
     cursor = page2.next_cursor
     while cursor is not None:
         page = await handler(
@@ -304,6 +355,6 @@ async def test_list_seals_cursor_pagination_postgres(db_pool: asyncpg.Pool) -> N
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-        collected.update(item.facility_id for item in page.items)
+        collected.update(item.facility_code for item in page.items)
         cursor = page.next_cursor
     assert set(seeded).issubset(collected)

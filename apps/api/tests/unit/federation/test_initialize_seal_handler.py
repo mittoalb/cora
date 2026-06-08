@@ -6,7 +6,7 @@ call writes ONE `SealInitialized` event on the Seal stream AND ONE
 `EventStore.append_streams`. Mirrors the `register_credential`
 precedent (`CredentialRegistered` + `DecisionRegistered`) with one
 distinction: the Seal stream id is DETERMINISTIC, derived from
-`facility_id` via UUID5, so the handler does not consume an id for
+`facility_code` via UUID5, so the handler does not consume an id for
 the aggregate (it mints only the audit `decision_id` plus per-event
 ids).
 
@@ -49,8 +49,8 @@ from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import seed_live_seal
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
-_FACILITY_ID = "aps-2bm"
-_STREAM_ID = seal_stream_id(_FACILITY_ID)
+_FACILITY_CODE = "aps-2bm"
+_STREAM_ID = seal_stream_id(_FACILITY_CODE)
 _DECISION_ID = UUID("01900000-0000-7000-8000-000000fed201")
 _SEAL_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed202")
 _DECISION_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed203")
@@ -65,7 +65,7 @@ def _seed_active_credentials(
     *,
     online_id: UUID = _ONLINE_KEY_REF,
     offline_id: UUID = _OFFLINE_KEY_REF,
-    facility_id: str = _FACILITY_ID,
+    facility_id: str = _FACILITY_CODE,
 ) -> None:
     lookup.register(
         credential_id=online_id,
@@ -84,7 +84,7 @@ def _seed_active_credentials(
 def _build_facility_lookup(
     *,
     trust_anchors: frozenset[UUID] = frozenset({_ONLINE_KEY_REF, _OFFLINE_KEY_REF}),
-    code: str = _FACILITY_ID,
+    code: str = _FACILITY_CODE,
 ) -> InMemoryFacilityLookup:
     """Seed an `InMemoryFacilityLookup` row for the test's self-Facility.
 
@@ -114,7 +114,7 @@ def _build_deps(
 ) -> Kernel:
     # initialize_seal consumes 3 ids in order:
     #   1) decision_id (the audit Decision's stream id; aggregate stream
-    #      id is deterministic via seal_stream_id(facility_id))
+    #      id is deterministic via seal_stream_id(facility_code))
     #   2) seal event_id (one SealInitialized event)
     #   3) decision event_id (one DecisionRegistered event)
     lookup = credential_lookup if credential_lookup is not None else InMemoryCredentialLookup()
@@ -134,7 +134,7 @@ def _build_deps(
 
 def _command(**overrides: object) -> InitializeSeal:
     base: dict[str, object] = {
-        "facility_id": _FACILITY_ID,
+        "facility_code": _FACILITY_CODE,
         "online_credential_id": _ONLINE_KEY_REF,
         "offline_credential_id": _OFFLINE_KEY_REF,
     }
@@ -190,7 +190,7 @@ async def test_initialize_seal_handler_writes_seal_payload_fields() -> None:
     )
     seal_events, _ = await store.load("Seal", _STREAM_ID)
     payload = seal_events[0].payload
-    assert payload["facility_id"] == _FACILITY_ID
+    assert payload["facility_id"] == _FACILITY_CODE
     assert payload["online_credential_id"] == str(_ONLINE_KEY_REF)
     assert payload["offline_credential_id"] == str(_OFFLINE_KEY_REF)
     assert payload["initialized_by"] == str(_PRINCIPAL_ID)
@@ -200,7 +200,7 @@ async def test_initialize_seal_handler_writes_seal_payload_fields() -> None:
 @pytest.mark.unit
 async def test_initialize_seal_handler_decision_audit_carries_actor_and_choice() -> None:
     """The co-written DecisionRegistered audit pins actor_id == principal_id,
-    context == 'SealInitialized', and choice == facility_id for cross-stream
+    context == 'SealInitialized', and choice == facility_code for cross-stream
     correlation against the singleton."""
     store = InMemoryEventStore()
     deps = _build_deps(event_store=store)
@@ -215,7 +215,7 @@ async def test_initialize_seal_handler_decision_audit_carries_actor_and_choice()
     assert payload["decision_id"] == str(_DECISION_ID)
     assert payload["actor_id"] == str(_PRINCIPAL_ID)
     assert payload["context"] == "SealInitialized"
-    assert payload["choice"] == _FACILITY_ID
+    assert payload["choice"] == _FACILITY_CODE
     assert payload["occurred_at"] == _NOW.isoformat()
 
 
@@ -305,7 +305,7 @@ async def test_initialize_seal_handler_raises_concurrency_error_when_seal_seeded
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=datetime(2026, 5, 30, 10, 0, 0, tzinfo=UTC),
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = initialize_seal.bind(deps)
@@ -370,8 +370,8 @@ async def test_initialize_seal_handler_records_initialized_by_from_principal() -
 
 
 @pytest.mark.unit
-async def test_initialize_seal_handler_derives_stream_id_from_facility_id() -> None:
-    """The returned stream_id matches seal_stream_id(facility_id); two
+async def test_initialize_seal_handler_derives_stream_id_from_facility_code() -> None:
+    """The returned stream_id matches seal_stream_id(facility_code); two
     distinct facilities mint distinct stream ids."""
     other_facility = "max-iv-balder"
     other_ids = [
@@ -389,7 +389,7 @@ async def test_initialize_seal_handler_derives_stream_id_from_facility_id() -> N
     )
     handler = initialize_seal.bind(deps)
     result = await handler(
-        _command(facility_id=other_facility),
+        _command(facility_code=other_facility),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -418,7 +418,7 @@ async def test_initialize_seal_handler_raises_credential_not_found_when_offline_
     lookup = InMemoryCredentialLookup()
     lookup.register(
         credential_id=_ONLINE_KEY_REF,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
@@ -439,13 +439,13 @@ async def test_initialize_seal_handler_raises_purpose_mismatch_when_online_wrong
     lookup = InMemoryCredentialLookup()
     lookup.register(
         credential_id=_ONLINE_KEY_REF,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SIGNING.value,
         status=CredentialStatus.ACTIVE.value,
     )
     lookup.register(
         credential_id=_OFFLINE_KEY_REF,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
     )
@@ -466,13 +466,13 @@ async def test_initialize_seal_handler_raises_inactive_when_online_rotating() ->
     lookup = InMemoryCredentialLookup()
     lookup.register(
         credential_id=_ONLINE_KEY_REF,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
         status=CredentialStatus.ROTATING.value,
     )
     lookup.register(
         credential_id=_OFFLINE_KEY_REF,
-        facility_id=_FACILITY_ID,
+        facility_id=_FACILITY_CODE,
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT.value,
         status=CredentialStatus.ACTIVE.value,
     )

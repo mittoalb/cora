@@ -4,9 +4,9 @@ Update-style handler (loads the Seal aggregate, validates the FSM
 transition, appends a `SealRepublishingStarted` event).
 
 The Seal stream UUID is deterministic per facility: the handler
-derives it via `seal_stream_id(facility_id)` (UUID5 over the canonical
+derives it via `seal_stream_id(facility_code)` (UUID5 over the canonical
 federation namespace) so every Seal slice agrees on the same stream
-identity for a given `facility_id`. The shared factory threads that
+identity for a given `facility_code`. The shared factory threads that
 derivation through `resolve_stream_id`.
 
 Not idempotency-wrapped at wire.py: start_seal_republishing is a

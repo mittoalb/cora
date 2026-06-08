@@ -3,7 +3,7 @@
 Pin tool listing, structured-content shape on the happy path (via
 handler override), and the `isError: true` mappings for the decider-
 layer FSM rejection plus the uninitialized-Seal branch plus
-Pydantic-layer rejection (missing `facility_id`, empty `facility_id`).
+Pydantic-layer rejection (missing `facility_code`, empty `facility_code`).
 """
 
 from typing import Any, cast
@@ -65,11 +65,11 @@ def test_mcp_lists_start_seal_republishing_tool() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_start_seal_republishing_tool_returns_structured_facility_id() -> None:
-    """Happy path via handler override: tool returns structured facility_id
+def test_mcp_start_seal_republishing_tool_returns_structured_facility_code() -> None:
+    """Happy path via handler override: tool returns structured facility_code
     (matches REST 204 + path-id contract)."""
     app = create_app()
-    facility_id = "aps-2bm"
+    facility_code = "aps-2bm"
 
     async def fake_handler(*args: object, **kwargs: object) -> None:
         _ = (args, kwargs)
@@ -84,13 +84,13 @@ def test_mcp_start_seal_republishing_tool_returns_structured_facility_id() -> No
             request_id=20,
             name="start_seal_republishing",
             arguments={
-                "facility_id": facility_id,
+                "facility_code": facility_code,
                 "reason": "root rotation drill",
             },
         )
     result = body["result"]
     assert result["isError"] is False, result
-    assert result["structuredContent"]["facility_id"] == facility_id
+    assert result["structuredContent"]["facility_code"] == facility_code
 
 
 @pytest.mark.contract
@@ -110,7 +110,7 @@ def test_mcp_start_seal_republishing_tool_accepts_omitted_reason() -> None:
             headers=headers,
             request_id=21,
             name="start_seal_republishing",
-            arguments={"facility_id": "aps-2bm"},
+            arguments={"facility_code": "aps-2bm"},
         )
     assert body["result"]["isError"] is False, body
 
@@ -133,7 +133,7 @@ def test_mcp_start_seal_republishing_tool_returns_iserror_on_republishing_seal()
             headers=headers,
             request_id=30,
             name="start_seal_republishing",
-            arguments={"facility_id": "aps-2bm"},
+            arguments={"facility_code": "aps-2bm"},
         )
     assert body["result"]["isError"] is True
 
@@ -155,15 +155,15 @@ def test_mcp_start_seal_republishing_tool_returns_iserror_on_uninitialized_seal(
             headers=headers,
             request_id=40,
             name="start_seal_republishing",
-            arguments={"facility_id": "aps-2bm"},
+            arguments={"facility_code": "aps-2bm"},
         )
     assert body["result"]["isError"] is True
     assert "not found" in body["result"]["content"][0]["text"].lower()
 
 
 @pytest.mark.contract
-def test_mcp_start_seal_republishing_tool_rejects_missing_facility_id() -> None:
-    """Pydantic-layer rejection (missing facility_id) bubbles as isError."""
+def test_mcp_start_seal_republishing_tool_rejects_missing_facility_code() -> None:
+    """Pydantic-layer rejection (missing facility_code) bubbles as isError."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
         body = _call_tool(
@@ -177,7 +177,7 @@ def test_mcp_start_seal_republishing_tool_rejects_missing_facility_id() -> None:
 
 
 @pytest.mark.contract
-def test_mcp_start_seal_republishing_tool_rejects_empty_facility_id() -> None:
+def test_mcp_start_seal_republishing_tool_rejects_empty_facility_code() -> None:
     """Pydantic min_length=1 enforcement bubbles as isError via FastMCP."""
     with TestClient(create_app()) as client:
         headers = open_session(client)
@@ -186,6 +186,6 @@ def test_mcp_start_seal_republishing_tool_rejects_empty_facility_id() -> None:
             headers=headers,
             request_id=70,
             name="start_seal_republishing",
-            arguments={"facility_id": ""},
+            arguments={"facility_code": ""},
         )
     assert body["result"]["isError"] is True

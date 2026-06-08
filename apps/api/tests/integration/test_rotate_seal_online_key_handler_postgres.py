@@ -81,7 +81,7 @@ async def _seed_live_seal(db_pool: asyncpg.Pool, facility_id: str) -> tuple[UUID
     )
     stream_id = await initialize_seal.bind(seed_deps)(
         InitializeSeal(
-            facility_id=facility_id,
+            facility_code=facility_id,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
         ),
@@ -131,7 +131,7 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
-            facility_id=facility_id,
+            facility_code=facility_id,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
@@ -141,7 +141,7 @@ async def test_rotate_seal_online_key_writes_both_streams_atomically(
 
     seal = await load_seal(rotate_deps.event_store, stream_id)
     assert seal is not None
-    assert seal.facility_id == facility_id
+    assert seal.facility_code.value == facility_id
     assert seal.status is SealStatus.LIVE
     assert seal.online_credential_id == new_online_credential_id
     assert seal.offline_credential_id == offline_credential_id
@@ -179,7 +179,7 @@ async def test_rotate_seal_online_key_shared_xid8_across_streams(
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
-            facility_id=facility_id,
+            facility_code=facility_id,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
@@ -234,7 +234,7 @@ async def test_rotate_seal_online_key_projection_lands_new_online_ref(
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
-            facility_id=facility_id,
+            facility_code=facility_id,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),
@@ -290,7 +290,7 @@ async def test_rotate_seal_online_key_targets_deterministic_stream_id(
     )
     await rotate_seal_online_key.bind(rotate_deps)(
         RotateSealOnlineKey(
-            facility_id=facility_id,
+            facility_code=facility_id,
             new_online_credential_id=new_online_credential_id,
             signed_by_offline_root=True,
         ),

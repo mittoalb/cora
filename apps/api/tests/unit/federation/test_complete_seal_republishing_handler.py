@@ -46,12 +46,12 @@ _FOLLOWUP_EVENT_ID = UUID("01900000-0000-7000-8000-000000fed104")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _OTHER_PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000088")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 _NEW_HEAD_HASH = "b" * 64
 
 
-def _seal_stream_id(facility_id: str = _FACILITY_ID) -> UUID:
-    return seal_stream_id(facility_id)
+def _seal_stream_id(facility_code: str = _FACILITY_CODE) -> UUID:
+    return seal_stream_id(facility_code)
 
 
 def _build_deps(
@@ -74,7 +74,7 @@ def _command(
     new_sequence_number: int | None = 1,
 ) -> CompleteSealRepublishing:
     return CompleteSealRepublishing(
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
         new_head_hash=new_head_hash,
         new_sequence_number=new_sequence_number,
     )
@@ -93,7 +93,7 @@ async def test_complete_seal_republishing_handler_appends_event_to_republishing_
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)
@@ -106,7 +106,7 @@ async def test_complete_seal_republishing_handler_appends_event_to_republishing_
     assert version == 3
     stored = events[-1]
     assert stored.event_type == "SealRepublishingCompleted"
-    assert stored.payload["facility_id"] == _FACILITY_ID
+    assert stored.payload["facility_id"] == _FACILITY_CODE
     assert stored.payload["new_head_hash"] == _NEW_HEAD_HASH
     assert stored.payload["new_sequence_number"] == 1
     assert stored.payload["completed_by"] == str(_PRINCIPAL_ID)
@@ -128,7 +128,7 @@ async def test_complete_seal_republishing_handler_propagates_causation_id() -> N
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     causation = UUID("01900000-0000-7000-8000-0000000000cc")
     deps = _build_deps(event_store=store)
@@ -167,7 +167,7 @@ async def test_complete_seal_republishing_handler_raises_cannot_complete_when_li
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)
@@ -198,7 +198,7 @@ async def test_complete_seal_republishing_handler_raises_sequence_regression_on_
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)
@@ -224,7 +224,7 @@ async def test_complete_seal_republishing_handler_raises_value_error_on_pair_imb
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)
@@ -250,7 +250,7 @@ async def test_complete_seal_republishing_handler_replay_raises_cannot_complete_
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, ids=[_NEXT_EVENT_ID, _FOLLOWUP_EVENT_ID])
     handler = complete_seal_republishing.bind(deps)
@@ -284,7 +284,7 @@ async def test_complete_seal_republishing_handler_denies_via_authorize_port() ->
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = complete_seal_republishing.bind(deps)
@@ -310,7 +310,7 @@ async def test_complete_seal_republishing_handler_denied_does_not_write_to_strea
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store, deny=True)
     handler = complete_seal_republishing.bind(deps)
@@ -340,7 +340,7 @@ async def test_complete_seal_republishing_handler_records_completed_by() -> None
         principal_id=_OTHER_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)
@@ -369,7 +369,7 @@ async def test_complete_seal_republishing_handler_raises_value_error_when_no_pri
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
         republishing_started_at=_T1,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps(event_store=store)
     handler = complete_seal_republishing.bind(deps)

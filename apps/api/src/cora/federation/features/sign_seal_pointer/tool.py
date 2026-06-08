@@ -1,7 +1,7 @@
 """MCP tool for the `sign_seal_pointer` slice.
 
 Surfaces the same handler the REST route uses, exposed as a Model
-Context Protocol tool. Returns the facility_id and the new sequence
+Context Protocol tool. Returns the facility_code and the new sequence
 number back so the caller can chain follow-up tools
 (get_seal / rotate_seal_online_key / start_seal_republishing).
 """
@@ -22,7 +22,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 class SignSealPointerOutput(BaseModel):
     """Structured output of the `sign_seal_pointer` MCP tool."""
 
-    facility_id: str
+    facility_code: str
     new_sequence_number: int
 
 
@@ -45,9 +45,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def sign_seal_pointer_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        facility_id: Annotated[
+        facility_code: Annotated[
             str,
-            Field(min_length=1, description="Target facility's id."),
+            Field(min_length=1, description="Target facility's code."),
         ],
         new_head_hash: Annotated[
             str,
@@ -74,7 +74,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         handler = get_handler()
         await handler(
             SignSealPointer(
-                facility_id=facility_id,
+                facility_code=facility_code,
                 new_head_hash=new_head_hash,
                 new_sequence_number=new_sequence_number,
             ),
@@ -83,6 +83,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             surface_id=get_mcp_surface_id(),
         )
         return SignSealPointerOutput(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_sequence_number=new_sequence_number,
         )

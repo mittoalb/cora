@@ -53,7 +53,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
     """Apply one event to the current state."""
     match event:
         case SealInitialized(
-            facility_id=facility_id,
+            facility_code=facility_code,
             online_credential_id=online_credential_id,
             offline_credential_id=offline_credential_id,
             initialized_by=initialized_by,
@@ -61,7 +61,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
         ):
             _ = state  # SealInitialized is the genesis event; prior state ignored
             return Seal(
-                facility_id=facility_id,
+                facility_code=facility_code,
                 online_credential_id=online_credential_id,
                 offline_credential_id=offline_credential_id,
                 current_head_hash=None,
@@ -76,7 +76,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
         ):
             prior = require_state(state, "SealPointerSigned")
             return Seal(
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 online_credential_id=prior.online_credential_id,
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=head_hash,
@@ -88,7 +88,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
         case SealOnlineKeyRotated(new_online_credential_id=new_online_credential_id):
             prior = require_state(state, "SealOnlineKeyRotated")
             return Seal(
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 online_credential_id=new_online_credential_id,
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
@@ -100,7 +100,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
         case SealRepublishingStarted():
             prior = require_state(state, "SealRepublishingStarted")
             return Seal(
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 online_credential_id=prior.online_credential_id,
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=prior.current_head_hash,
@@ -115,7 +115,7 @@ def evolve(state: Seal | None, event: SealEvent) -> Seal:
         ):
             prior = require_state(state, "SealRepublishingCompleted")
             return Seal(
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 online_credential_id=prior.online_credential_id,
                 offline_credential_id=prior.offline_credential_id,
                 current_head_hash=new_head_hash,

@@ -32,6 +32,7 @@ from cora.federation.aggregates.seal import (
 from cora.federation.aggregates.seal._stream_id import seal_stream_id
 from cora.federation.errors import UnauthorizedError
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.federation._helpers import (
@@ -51,7 +52,7 @@ _ACTIVATE_ID = UUID("01900000-0000-7000-8000-0000000aa004")
 _NEXT_EVENT_ID = UUID("01900000-0000-7000-8000-0000000aa005")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000aa99")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000aaaa")
-_FACILITY_ID = "aps-2bm"
+_FACILITY_CODE = "aps-2bm"
 
 
 class _BoomError(Exception):
@@ -279,9 +280,9 @@ async def test_credential_wrapper_stamps_actor_under_supplied_kwarg() -> None:
 
 @pytest.mark.unit
 async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
-    """Seal wrapper routes load/append through `seal_stream_id(facility_id)`
+    """Seal wrapper routes load/append through `seal_stream_id(facility_code)`
     so the per-facility singleton stream stays addressable from a str id."""
-    expected_stream = seal_stream_id(_FACILITY_ID)
+    expected_stream = seal_stream_id(_FACILITY_CODE)
 
     def fake_decide(
         *,
@@ -293,7 +294,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
         _ = state
         return [
             SealRepublishingStarted(
-                facility_id=command.facility_id,
+                facility_code=FacilityCode(command.facility_code),
                 started_by=started_by,
                 occurred_at=now,
             )
@@ -307,7 +308,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
         correlation_id=_CORRELATION_ID,
         principal_id=_PRINCIPAL_ID,
         initialized_at=_T0,
-        facility_id=_FACILITY_ID,
+        facility_code=_FACILITY_CODE,
     )
     deps = _build_deps_shared(ids=[_NEXT_EVENT_ID], now=_T2, event_store=store)
     handler = make_seal_update_handler(
@@ -319,7 +320,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
     )
 
     class _Cmd:
-        facility_id = _FACILITY_ID
+        facility_code = _FACILITY_CODE
 
     await handler(
         _Cmd(),
@@ -330,7 +331,7 @@ async def test_seal_wrapper_resolves_stream_via_seal_stream_id() -> None:
     assert version == 2
     assert events[-1].event_type == "SealRepublishingStarted"
     assert events[-1].payload["started_by"] == str(_PRINCIPAL_ID)
-    assert events[-1].payload["facility_id"] == _FACILITY_ID
+    assert events[-1].payload["facility_id"] == _FACILITY_CODE
 
 
 @pytest.mark.unit

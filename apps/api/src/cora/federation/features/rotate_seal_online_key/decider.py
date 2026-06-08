@@ -73,10 +73,9 @@ from cora.federation.aggregates.seal import (
 from cora.federation.features.rotate_seal_online_key.command import (
     RotateSealOnlineKey,
 )
+from cora.shared.identity import ActorId
 from cora.infrastructure.ports.credential_lookup import CredentialLookupResult
 from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
-from cora.shared.facility_code import FacilityCode
-from cora.shared.identity import ActorId
 
 _ONLINE_SLOT = "online_credential_id"
 
@@ -112,20 +111,20 @@ def decide(
         -> SealKeyCollisionError (via verify_key_separation)
     """
     if state is None:
-        raise SealNotFoundError(command.facility_id)
+        raise SealNotFoundError(command.facility_code)
     if state.status is not SealStatus.LIVE:
-        raise SealCannotRotateError(state.facility_id, state.status)
+        raise SealCannotRotateError(state.facility_code.value, state.status)
     if command.new_online_credential_id == state.online_credential_id:
-        raise SealCannotRotateError(state.facility_id, state.status)
+        raise SealCannotRotateError(state.facility_code.value, state.status)
 
     if self_facility is None:
-        raise FacilityNotFoundError(FacilityId(facility_stream_id(FacilityCode(state.facility_id))))
+        raise FacilityNotFoundError(FacilityId(facility_stream_id(state.facility_code)))
 
     if new_online_credential is None:
         raise CredentialNotFoundError(command.new_online_credential_id)
     if new_online_credential.purpose != CredentialPurpose.SEAL_ONLINE_SIGNING.value:
         raise SealKeyPurposeMismatchError(
-            facility_id=state.facility_id,
+            facility_id=state.facility_code.value,
             slot=_ONLINE_SLOT,
             credential_id=command.new_online_credential_id,
             expected_purpose=CredentialPurpose.SEAL_ONLINE_SIGNING.value,
@@ -137,13 +136,13 @@ def decide(
     # equality check.
     if command.new_online_credential_id not in self_facility.trust_anchor_credential_ids:
         raise SealCredentialNotTrustAnchorError(
-            facility_id=state.facility_id,
+            facility_id=state.facility_code.value,
             credential_id=command.new_online_credential_id,
             key_ref_role="online",
         )
     if new_online_credential.status != CredentialStatus.ACTIVE.value:
         raise SealCannotRotateWithInactiveCredentialError(
-            facility_id=state.facility_id,
+            facility_id=state.facility_code.value,
             slot=_ONLINE_SLOT,
             credential_id=command.new_online_credential_id,
             actual_status=new_online_credential.status,
@@ -154,7 +153,7 @@ def decide(
 
     return [
         SealOnlineKeyRotated(
-            facility_id=state.facility_id,
+            facility_code=state.facility_code,
             new_online_credential_id=command.new_online_credential_id,
             signed_by_offline_root=command.signed_by_offline_root,
             rotated_by=rotated_by,

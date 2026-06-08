@@ -1,6 +1,6 @@
 """The `CompleteSealRepublishing` command: intent dataclass for this slice.
 
-`facility_id` identifies the Seal singleton; the handler derives the
+`facility_code` identifies the Seal singleton; the handler derives the
 stream UUID deterministically via UUID5 with the federation namespace.
 `new_head_hash` and `new_sequence_number` are optional: when supplied
 together they refresh the head pointer and bump the monotonic sequence
@@ -26,6 +26,6 @@ class CompleteSealRepublishing:
     `current_sequence_number` (both must be provided together).
     """
 
-    facility_id: str
+    facility_code: str
     new_head_hash: str | None
     new_sequence_number: int | None

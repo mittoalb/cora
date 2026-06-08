@@ -8,17 +8,20 @@
 `load_seal(event_store, stream_id) -> Seal | None`
 mirrors `load_clearance` / `load_calibration`. The Seal is a
 per-facility singleton; the handler derives a deterministic stream
-UUID from the facility_id (UUID5 with the federation namespace) so
+UUID from the facility code (UUID5 with the federation namespace) so
 this helper retains the UUID-keyed signature shared across CORA
 aggregate read repos. The domain identity that matters
-(`Seal.facility_id`) is carried inside the aggregate state.
+(`Seal.facility_code`) is carried inside the aggregate state.
 
 `SealLifecycleTimestamps` + `load_seal_timestamps` mirror the
 Calibration Path C precedent
 (`project_template_aggregate_timestamps`): lifecycle bookkeeping
 timestamps live on the `proj_federation_seal_summary` projection table, not
 on the aggregate state, and read-side surfaces compose Seal +
-timestamps into a view DTO at the handler layer.
+timestamps into a view DTO at the handler layer. `load_seal_timestamps`
+accepts the facility code as a bare `str` parameter (the SQL column
+stays named `facility_id` per storage immutability; callers pass
+`state.facility_code.value`).
 """
 
 from dataclasses import dataclass
@@ -39,6 +42,9 @@ SELECT last_signed_at, last_signed_by
 FROM proj_federation_seal_summary
 WHERE facility_id = $1
 """
+# The projection column stays `facility_id` (storage wire immutability);
+# callers pass `state.facility_code.value` so the bind value matches the
+# bare slug string that was stored at the SealInitialized payload key.
 
 
 @dataclass(frozen=True)
@@ -68,7 +74,7 @@ async def load_seal(event_store: EventStore, stream_id: UUID) -> Seal | None:
 
 async def load_seal_timestamps(
     pool: asyncpg.Pool,
-    facility_id: str,
+    facility_code: str,
 ) -> SealLifecycleTimestamps | None:
     """Read the lifecycle-timestamp tuple from the projection.
 
@@ -76,10 +82,11 @@ async def load_seal_timestamps(
     to the caller, not this function (mirrors `load_calibration_timestamps`).
     Callers using this from a handler should gate on `deps.pool is not
     None` before invocation; calling with a closed/None pool raises an
-    asyncpg runtime error.
+    asyncpg runtime error. `facility_code` is bound positionally against
+    the `facility_id` projection column (storage wire immutability).
     """
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(_SELECT_TIMESTAMPS_SQL, facility_id)  # type: ignore[reportUnknownMemberType]
+        row = await conn.fetchrow(_SELECT_TIMESTAMPS_SQL, facility_code)  # type: ignore[reportUnknownMemberType]
     if row is None:
         return None
     return SealLifecycleTimestamps(

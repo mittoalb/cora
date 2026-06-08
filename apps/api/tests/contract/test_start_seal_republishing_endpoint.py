@@ -1,4 +1,4 @@
-"""Contract tests for `POST /federation/seals/{facility_id}/republishing/start`.
+"""Contract tests for `POST /federation/seals/{facility_code}/republishing/start`.
 
 The happy-path Live -> Republishing transition is exercised end-to-end
 in the handler tests; here we pin the status-code mappings via
@@ -144,7 +144,7 @@ def test_post_start_seal_republishing_rejects_extra_field_with_422() -> None:
 
 
 @pytest.mark.contract
-def test_post_start_seal_republishing_accepts_uuid_shaped_facility_id() -> None:
+def test_post_start_seal_republishing_accepts_uuid_shaped_facility_code() -> None:
     """The path parameter is a free-form str, including UUID-shaped values."""
     app = create_app()
 

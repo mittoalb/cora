@@ -27,7 +27,7 @@ class GetSealOutput(BaseModel):
     `SealResponse` shape.
     """
 
-    facility_id: str
+    facility_code: str
     online_credential_id: UUID
     offline_credential_id: UUID
     current_head_hash: str | None
@@ -45,7 +45,7 @@ def _output_from_view(
     last_signed_by: UUID | None,
 ) -> GetSealOutput:
     return GetSealOutput(
-        facility_id=seal.facility_id,
+        facility_code=seal.facility_code.value,
         online_credential_id=seal.online_credential_id,
         offline_credential_id=seal.offline_credential_id,
         current_head_hash=seal.current_head_hash,
@@ -72,14 +72,17 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     )
     async def get_seal_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        facility_id: Annotated[
+        facility_code: Annotated[
             str,
-            Field(description="Target facility's opaque string id.", min_length=1),
+            Field(
+                description="Target facility's cross-deployment convergent code.",
+                min_length=1,
+            ),
         ],
     ) -> GetSealOutput | None:
         handler = get_handler()
         view = await handler(
-            GetSeal(facility_id=facility_id),
+            GetSeal(facility_code=facility_code),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

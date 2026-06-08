@@ -1,7 +1,7 @@
 """HTTP route for the `rotate_seal_online_key` slice.
 
 Action endpoint at
-`POST /federation/seals/{facility_id}/online-key/rotate`. JSON body
+`POST /federation/seals/{facility_code}/online-key/rotate`. JSON body
 carries the new online key reference; 204 No Content on success.
 Mirrors the supply-BC and federation-Permit pattern of lifecycle
 transitions under the resource via verb, not as a PATCH or DELETE, so
@@ -59,7 +59,7 @@ router = APIRouter(tags=["federation"])
 
 
 @router.post(
-    "/federation/seals/{facility_id}/online-key/rotate",
+    "/federation/seals/{facility_code}/online-key/rotate",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_403_FORBIDDEN: {
@@ -89,7 +89,7 @@ router = APIRouter(tags=["federation"])
     summary="Rotate the Seal singleton's online (warm) signing key",
 )
 async def post_federation_seals_rotate_online_key(
-    facility_id: Annotated[str, Path(description="Target Seal's facility id.")],
+    facility_code: Annotated[str, Path(description="Target Seal's facility code.")],
     body: RotateSealOnlineKeyBody,
     handler: Annotated[Handler, Depends(_get_handler)],
     cid: Annotated[UUID, Depends(get_correlation_id)],
@@ -98,7 +98,7 @@ async def post_federation_seals_rotate_online_key(
 ) -> None:
     await handler(
         RotateSealOnlineKey(
-            facility_id=facility_id,
+            facility_code=facility_code,
             new_online_credential_id=body.new_online_credential_id,
             signed_by_offline_root=body.signed_by_offline_root,
         ),
