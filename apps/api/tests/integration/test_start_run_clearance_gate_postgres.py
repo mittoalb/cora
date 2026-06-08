@@ -43,7 +43,7 @@ from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
 from cora.safety._projections import register_safety_projections
 from cora.safety.adapters import PostgresClearanceLookup
-from cora.safety.aggregates.clearance import ClearanceKind, SubjectBinding
+from cora.safety.aggregates.clearance import AssetBinding, ClearanceKind, SubjectBinding
 from cora.safety.features import (
     activate_clearance,
     append_clearance_review_step,
@@ -285,3 +285,201 @@ async def test_run_start_raises_coverage_mismatch_when_only_defined(
             correlation_id=_CORRELATION_ID,
         )
     assert exc_info.value.referencing_clearance_count == 1
+
+
+@pytest.mark.integration
+async def test_run_start_succeeds_when_clearance_binds_controller_via_controller_id_back_reference(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Active Clearance with AssetBinding on a stage Asset's controller
+    covers a Run targeting only the stage. Pins the start_run handler's
+    scope expansion of `plan.asset_ids` via `Asset.controller_id`
+    back-references before calling `clearance_lookup.find_referencing_run`.
+    Without the expansion, the controller-bound Clearance is invisible at
+    Run start (the lookup's `$3 && asset_binding_ids` overlap finds
+    nothing because the controller id is not in the Plan's asset_ids) and
+    the safety gate raises RunRequiresActiveClearanceError. Symmetric to
+    the snapshot-side traversal pinned in
+    test_start_run_caution_snapshot_postgres.py
+    (test_run_start_snapshots_controller_caution_via_controller_id_back_reference):
+    same scope-expansion, different cross-BC lookup port, both load-bearing
+    for the controller-as-Asset honesty win shipped in cb50a69de."""
+    controller_asset_id = uuid4()
+    stage_asset_id = uuid4()
+    plan_id = uuid4()
+    subject_id = uuid4()
+    controller_family_id = uuid4()
+    stage_family_id = uuid4()
+    # seed_capability_postgres bypasses the id_generator (direct event
+    # store append), so no slot for it in the queue.
+    queue = [
+        controller_family_id,
+        uuid4(),  # controller family event
+        controller_asset_id,
+        uuid4(),  # controller register event
+        uuid4(),  # controller addfamily event
+        stage_family_id,
+        uuid4(),  # stage family event
+        stage_asset_id,
+        uuid4(),  # stage register event
+        uuid4(),  # stage addfamily event
+        uuid4(),  # method_id
+        uuid4(),  # method event
+        uuid4(),  # practice_id
+        uuid4(),  # practice event
+        plan_id,
+        uuid4(),  # plan event
+        subject_id,
+        uuid4(),  # subject register event
+        uuid4(),  # subject mount event
+        uuid4(),  # run_id
+        uuid4(),  # run event
+        *[uuid4() for _ in range(20)],  # clearance walk overhead
+    ]
+    deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=queue,
+        clearance_lookup=PostgresClearanceLookup(db_pool),
+    )
+
+    # Controller Asset + stage Asset bound via controller_id. The
+    # MotionController Family carries empty Affordances per
+    # project_controller_as_asset_stage1_design; the empty-Affordances
+    # shape is incidental to this test (the controller_id back-reference
+    # is the only state under test).
+    await define_family.bind(deps)(
+        DefineFamily(name="MotionController", affordances=frozenset()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(name="ControllerBox", level=AssetLevel.ENTERPRISE, parent_id=None),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=controller_asset_id, family_id=controller_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_family.bind(deps)(
+        DefineFamily(name="StageUnderTest", affordances=frozenset()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_asset.bind(deps)(
+        RegisterAsset(
+            name="StageDrivenByController",
+            level=AssetLevel.ENTERPRISE,
+            parent_id=None,
+            controller_id=controller_asset_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await add_asset_family.bind(deps)(
+        AddAssetFamily(asset_id=stage_asset_id, family_id=stage_family_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Standard Method + Practice + Plan + Subject chain. Plan binds the
+    # STAGE only; Subject is required to satisfy upstream invariants
+    # but the Clearance below is bound to the CONTROLLER, not the
+    # Subject, so the gate must find the Clearance via Asset overlap.
+    await seed_capability_postgres(deps.event_store, _CAPABILITY_ID)
+    await define_method.bind(deps)(
+        DefineMethod(
+            capability_id=_CAPABILITY_ID,
+            name="StageScan",
+            needed_family_ids=frozenset({stage_family_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_practice.bind(deps)(
+        DefinePractice(name="APS StageScan", method_id=queue[10], site_id=uuid4()),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await define_plan.bind(deps)(
+        DefinePlan(
+            name="ScanOfStage",
+            practice_id=queue[12],
+            asset_ids=frozenset({stage_asset_id}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await register_subject.bind(deps)(
+        RegisterSubject(name="ScanSubject"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    mount_asset_id = await seed_active_asset(
+        deps.event_store, now=_NOW, correlation_id=_CORRELATION_ID
+    )
+    await mount_subject.bind(deps)(
+        MountSubject(subject_id=subject_id, asset_id=mount_asset_id, reason=""),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    # Load-bearing: Active Clearance bound ONLY to the controller (no
+    # SubjectBinding). The scope-expansion is the only path that lets
+    # this Clearance cover the stage-targeting Run.
+    cid = await register_clearance.bind(deps)(
+        RegisterClearance(
+            kind=ClearanceKind.ESAF,
+            facility_asset_id=uuid4(),
+            title="Controller firmware lockout",
+            bindings=frozenset({AssetBinding(asset_id=controller_asset_id)}),
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await submit_clearance.bind(deps)(
+        SubmitClearance(clearance_id=cid),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await start_clearance_review.bind(deps)(
+        StartClearanceReview(clearance_id=cid, first_reviewer_role="ESH"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await append_clearance_review_step.bind(deps)(
+        AppendClearanceReviewStep(
+            clearance_id=cid,
+            step_index=0,
+            role="ESH",
+            actor_id=_PRINCIPAL_ID,
+            decision="Approved",
+            decided_at=_NOW,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await approve_clearance.bind(deps)(
+        ApproveClearance(clearance_id=cid),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await activate_clearance.bind(deps)(
+        ActivateClearance(clearance_id=cid),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await _drain_safety(db_pool)
+
+    returned_id = await start_run.bind(deps)(
+        StartRun(name="StageRun", plan_id=plan_id, subject_id=subject_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert returned_id is not None, (
+        "controller-bound Active Clearance must satisfy the safety gate "
+        "for a Plan targeting the driven stage; controller_id "
+        "back-reference traversal is the fix"
+    )

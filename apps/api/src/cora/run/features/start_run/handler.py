@@ -222,6 +222,16 @@ def bind(deps: Kernel) -> Handler:
         # Assets are in `assets`; reading `controller_id` is free.
         # Only `controller_id` is expanded today; `parent_id` and
         # `fixture_id` traversals are left as separate design calls.
+        #
+        # Snapshot-vs-gate asymmetry: the controller Asset itself is
+        # NOT loaded into `assets` (only Plan-bound stage Assets are),
+        # so a Decommissioned controller silently passes the
+        # `RunPlanAssetDecommissionedError` lifecycle gate above while
+        # its Cautions and Clearances still surface through the
+        # widened scope. Intentional. Snapshot semantics (Caution
+        # warn, Clearance authorize) widen freely; lifecycle gating
+        # stays anchored to Plan-bound Assets, with the stage's
+        # lifecycle the right gate for stage-targeting Plans.
         scoped_asset_ids = plan.asset_ids | {
             asset.controller_id for asset in assets.values() if asset.controller_id is not None
         }
