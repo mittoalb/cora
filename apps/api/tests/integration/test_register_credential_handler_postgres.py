@@ -40,13 +40,13 @@ _PUBLIC_REF = "vault://kv/cora/federation/aps-2bm/signing/pub#v1"
 
 def _command(
     *,
-    facility_id: str = "aps-2bm",
+    facility_code: str = "aps-2bm",
     audience: str = "peer.example.org",
     purpose: CredentialPurpose = CredentialPurpose.SIGNING,
     secret_ref: str = _SECRET_REF,
 ) -> RegisterCredential:
     return RegisterCredential(
-        facility_id=facility_id,
+        facility_code=facility_code,
         audience=audience,
         purpose=purpose,
         secret_ref=secret_ref,
@@ -76,7 +76,7 @@ async def test_register_credential_writes_both_streams_atomically(
     assert credential is not None
     assert credential.id == credential_id
     assert credential.status is CredentialStatus.ACTIVE
-    assert credential.facility_id == "aps-2bm"
+    assert credential.facility_code.value == "aps-2bm"
     assert credential.audience == f"peer-{suffix}.example.org"
     assert credential.purpose is CredentialPurpose.SIGNING
     assert credential.secret_ref == _SECRET_REF

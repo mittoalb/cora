@@ -30,6 +30,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 
@@ -95,7 +96,7 @@ class InvalidCredentialSecretRefError(ValueError):
     """The supplied opaque-pointer / identity field is empty or whitespace-only.
 
     Re-used across the Credential aggregate for every field-shape
-    violation: today the genesis fields (`facility_id`, `audience`,
+    violation: today the genesis fields (`facility_code`, `audience`,
     `secret_ref`) and the rotation field (`new_secret_ref`). The
     `field_name` argument keeps the message and the captured attribute
     accurate to whichever field actually tripped, so the error does
@@ -228,7 +229,7 @@ class Credential:
     """
 
     id: UUID
-    facility_id: str
+    facility_code: FacilityCode
     audience: str
     purpose: CredentialPurpose
     secret_ref: str

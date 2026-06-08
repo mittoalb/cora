@@ -26,6 +26,7 @@ from cora.federation.features import start_credential_rotation
 from cora.federation.features.start_credential_rotation import (
     StartCredentialRotation,
 )
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
@@ -48,7 +49,7 @@ def _credential(
 ) -> Credential:
     return Credential(
         id=_CREDENTIAL_ID,
-        facility_id="aps-2bm",
+        facility_code=FacilityCode("aps-2bm"),
         audience="peer-acme",
         purpose=CredentialPurpose.SIGNING,
         secret_ref=secret_ref,

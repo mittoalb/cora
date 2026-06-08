@@ -210,7 +210,7 @@ async def seed_active_credential(
     principal_id: UUID,
     registered_at: datetime,
     expires_at: datetime | None,
-    facility_id: str = "aps-2bm",
+    facility_code: str = "aps-2bm",
     audience: str = "peer-acme",
     purpose: CredentialPurpose = CredentialPurpose.SIGNING,
     secret_ref: str = "vault://current/v1",
@@ -219,7 +219,7 @@ async def seed_active_credential(
     """Append a single `CredentialRegistered` event so the credential lands in `Active`."""
     genesis = CredentialRegistered(
         credential_id=credential_id,
-        facility_id=facility_id,
+        facility_code=FacilityCode(facility_code),
         audience=audience,
         purpose=purpose,
         secret_ref=secret_ref,

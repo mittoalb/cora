@@ -1,6 +1,6 @@
 """HTTP route for the `register_credential` slice.
 
-`POST /federation/credentials` with body carrying facility_id +
+`POST /federation/credentials` with body carrying facility_code +
 audience + purpose + opaque secret_ref + optional
 public_material_ref + optional expires_at. Returns 201 +
 `{credential_id}` on success.
@@ -33,12 +33,13 @@ from cora.infrastructure.routing import (
 class RegisterCredentialRequest(BaseModel):
     """Body for `POST /federation/credentials`."""
 
-    facility_id: str = Field(
+    facility_code: str = Field(
         ...,
         min_length=1,
         description=(
-            "Opaque string id of the facility this credential binds to. "
-            "Facility identity is external to CORA; we do NOT mint facility ids."
+            "Cross-deployment convergent facility slug this credential binds to. "
+            "Validated against the FacilityCode VO pattern (lowercase ASCII "
+            "alphanumeric and dash, 1-32 chars) at the decider edge."
         ),
     )
     audience: str = Field(
@@ -104,7 +105,8 @@ router = APIRouter(tags=["federation"])
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
-                "Domain invariant violated (whitespace-only facility_id, audience, or secret_ref)."
+                "Domain invariant violated (whitespace-only facility_code, audience, or "
+                "secret_ref; or facility_code outside the FacilityCode pattern)."
             ),
         },
         status.HTTP_403_FORBIDDEN: {
@@ -152,7 +154,7 @@ async def post_federation_credentials(
 ) -> RegisterCredentialResponse:
     credential_id = await handler(
         RegisterCredential(
-            facility_id=body.facility_id,
+            facility_code=body.facility_code,
             audience=body.audience,
             purpose=body.purpose,
             secret_ref=body.secret_ref,

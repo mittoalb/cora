@@ -10,7 +10,7 @@ projection.
 
 Mirrors `test_register_credential_handler_postgres.py` for setup
 (per-test audience suffix avoids the projection's
-(facility_id, audience, purpose) UNIQUE collision).
+(facility_code, audience, purpose) UNIQUE collision).
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -48,7 +48,7 @@ async def _drain_federation(db_pool: asyncpg.Pool) -> None:
 
 def _register_command(audience: str) -> RegisterCredential:
     return RegisterCredential(
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=audience,
         purpose=CredentialPurpose.SIGNING,
         secret_ref=_SECRET_REF,
@@ -81,7 +81,7 @@ async def test_get_credential_returns_view_with_projection_timestamps(
 
     assert view is not None
     assert view.credential.id == credential_id
-    assert view.credential.facility_id == "aps-2bm"
+    assert view.credential.facility_code.value == "aps-2bm"
     assert view.credential.audience == f"peer-{suffix}.example.org"
     assert view.credential.purpose is CredentialPurpose.SIGNING
     assert view.credential.status is CredentialStatus.ACTIVE

@@ -37,7 +37,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         description=(
             "Register a new federation Credential (genesis; lands in Active). "
             "Atomically emits a DecisionRegistered audit on the Decision "
-            "stream. Required: facility_id, audience, purpose, secret_ref. "
+            "stream. Required: facility_code, audience, purpose, secret_ref. "
             "Optional: public_material_ref, expires_at. `secret_ref` is an "
             "opaque pointer (URI / KMS ARN / vault path); raw secret bytes "
             "must be landed in the SecretStore adapter BEFORE invoking this "
@@ -46,9 +46,12 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def register_credential_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        facility_id: Annotated[
+        facility_code: Annotated[
             str,
-            Field(min_length=1, description="Opaque facility id this credential binds to."),
+            Field(
+                min_length=1,
+                description="Cross-deployment convergent facility slug this credential binds to.",
+            ),
         ],
         audience: Annotated[
             str,
@@ -88,7 +91,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         credential_id = await handler(
             RegisterCredential(
-                facility_id=facility_id,
+                facility_code=facility_code,
                 audience=audience,
                 purpose=purpose,
                 secret_ref=secret_ref,

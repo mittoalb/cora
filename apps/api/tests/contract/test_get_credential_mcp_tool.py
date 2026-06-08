@@ -22,7 +22,7 @@ _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC).isoformat()
 
 def _register_args() -> dict[str, Any]:
     return {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": "Signing",
         "secret_ref": "vault://kv/cora/federation/aps-2bm/signing#v1",
@@ -89,7 +89,7 @@ def test_mcp_get_credential_tool_returns_full_structured_state() -> None:
     payload = result["structuredContent"]["result"]
     assert payload is not None
     assert payload["id"] == cid
-    assert payload["facility_id"] == "aps-2bm"
+    assert payload["facility_code"] == "aps-2bm"
     assert payload["audience"] == "peer.example.org"
     assert payload["purpose"] == "Signing"
     assert payload["secret_ref"] == _register_args()["secret_ref"]

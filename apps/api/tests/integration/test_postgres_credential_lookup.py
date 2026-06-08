@@ -33,6 +33,7 @@ from cora.federation.features import (
 from cora.federation.features.register_credential import RegisterCredential
 from cora.federation.features.revoke_credential import RevokeCredential
 from cora.federation.features.start_credential_rotation import StartCredentialRotation
+from cora.shared.facility_code import FacilityCode
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from tests.integration._helpers import build_postgres_deps
 
@@ -54,7 +55,7 @@ async def _drain_federation(db_pool: asyncpg.Pool) -> None:
 async def _seed_active_credential(
     db_pool: asyncpg.Pool,
     *,
-    facility_id: str,
+    facility_code: str,
     audience: str,
     purpose: CredentialPurpose,
     secret_ref: str = _SECRET_REF,
@@ -62,7 +63,7 @@ async def _seed_active_credential(
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(5)])
     return await register_credential.bind(deps)(
         RegisterCredential(
-            facility_id=facility_id,
+            facility_code=facility_code,
             audience=audience,
             purpose=purpose,
             secret_ref=secret_ref,
@@ -81,7 +82,7 @@ async def test_lookup_returns_all_four_fields_for_active_credential(
     suffix = uuid4().hex[:8]
     cid = await _seed_active_credential(
         db_pool,
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=f"peer-{suffix}.example.org",
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING,
     )
@@ -92,7 +93,7 @@ async def test_lookup_returns_all_four_fields_for_active_credential(
 
     assert result is not None
     assert result.id == cid
-    assert result.facility_id == "aps-2bm"
+    assert result.facility_id == FacilityCode("aps-2bm")
     assert result.purpose == CredentialPurpose.SEAL_ONLINE_SIGNING.value
     assert result.status == CredentialStatus.ACTIVE.value
 
@@ -113,7 +114,7 @@ async def test_lookup_returns_rotating_status(db_pool: asyncpg.Pool) -> None:
     suffix = uuid4().hex[:8]
     cid = await _seed_active_credential(
         db_pool,
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=f"peer-{suffix}.example.org",
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING,
     )
@@ -145,7 +146,7 @@ async def test_lookup_returns_revoked_status(db_pool: asyncpg.Pool) -> None:
     suffix = uuid4().hex[:8]
     cid = await _seed_active_credential(
         db_pool,
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=f"peer-{suffix}.example.org",
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT,
     )
@@ -174,13 +175,13 @@ async def test_lookup_isolates_records_by_id(db_pool: asyncpg.Pool) -> None:
     suffix_b = uuid4().hex[:8]
     cid_online = await _seed_active_credential(
         db_pool,
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=f"peer-a-{suffix_a}.example.org",
         purpose=CredentialPurpose.SEAL_ONLINE_SIGNING,
     )
     cid_offline = await _seed_active_credential(
         db_pool,
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=f"peer-b-{suffix_b}.example.org",
         purpose=CredentialPurpose.SEAL_OFFLINE_ROOT,
     )

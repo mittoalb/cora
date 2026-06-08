@@ -38,7 +38,7 @@ class GetCredentialOutput(BaseModel):
     """
 
     id: UUID
-    facility_id: str
+    facility_code: str
     audience: str
     purpose: CredentialPurpose
     secret_ref: str
@@ -58,7 +58,7 @@ def _output_from_view(
 ) -> GetCredentialOutput:
     return GetCredentialOutput(
         id=credential.id,
-        facility_id=credential.facility_id,
+        facility_code=credential.facility_code.value,
         audience=credential.audience,
         purpose=credential.purpose,
         secret_ref=credential.secret_ref,

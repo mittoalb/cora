@@ -23,7 +23,7 @@ _EXPIRES_AT = _EXPIRES_AT_DT.isoformat()
 
 def _seed(client: TestClient, **overrides: object) -> tuple[str, dict[str, Any]]:
     body: dict[str, Any] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": "Signing",
         "secret_ref": "vault://kv/cora/federation/aps-2bm/signing#v1",
@@ -44,7 +44,7 @@ def test_get_federation_credential_returns_200_with_full_state() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == cid
-    assert body["facility_id"] == seeded["facility_id"]
+    assert body["facility_code"] == seeded["facility_code"]
     assert body["audience"] == seeded["audience"]
     assert body["purpose"] == "Signing"
     assert body["secret_ref"] == seeded["secret_ref"]
@@ -63,7 +63,7 @@ def test_get_federation_credential_returns_200_with_full_state() -> None:
 def test_get_federation_credential_accepts_optional_field_omission() -> None:
     """public_material_ref and expires_at are nullable on the wire."""
     body: dict[str, Any] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": "Signing",
         "secret_ref": "vault://kv/cora/federation/aps-2bm/signing#v1",

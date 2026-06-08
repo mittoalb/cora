@@ -64,7 +64,7 @@ def test_mcp_list_credentials_tool_accepts_filters() -> None:
                 "params": {
                     "name": "list_credentials",
                     "arguments": {
-                        "facility_id": "aps-2bm",
+                        "facility_code": "aps-2bm",
                         "purpose": "Signing",
                         "status": "Active",
                         "limit": 25,

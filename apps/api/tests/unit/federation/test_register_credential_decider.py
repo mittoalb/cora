@@ -1,7 +1,7 @@
 """Unit tests for the `register_credential` slice's pure decider.
 
 Pin the genesis-collision guard, every field-shape rejection branch
-(facility_id / audience / secret_ref empty + whitespace),
+(facility_code / audience / secret_ref empty + whitespace),
 trimming-before-capture for those three fields, the optional
 expires_at strict-future guard, the six purpose enum arms, purity
 (same inputs -> same outputs), and handler-injected new_id /
@@ -24,6 +24,7 @@ from cora.federation.aggregates.credential import (
 )
 from cora.federation.features import register_credential
 from cora.federation.features.register_credential import RegisterCredential
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 30, 12, 0, 0, tzinfo=UTC)
@@ -38,7 +39,7 @@ _PUBLIC_REF = "vault://kv/cora/federation/aps-2bm/signing/pub#v1"
 
 def _command(**overrides: object) -> RegisterCredential:
     base: dict[str, object] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": CredentialPurpose.SIGNING,
         "secret_ref": _SECRET_REF,
@@ -52,7 +53,7 @@ def _command(**overrides: object) -> RegisterCredential:
 def _existing_state() -> Credential:
     return Credential(
         id=_CREDENTIAL_ID,
-        facility_id="aps-2bm",
+        facility_code=FacilityCode("aps-2bm"),
         audience="peer.example.org",
         purpose=CredentialPurpose.SIGNING,
         secret_ref=_SECRET_REF,
@@ -78,7 +79,7 @@ def test_register_credential_emits_event_for_valid_command() -> None:
     assert len(events) == 1
     event = events[0]
     assert event.credential_id == _NEW_ID
-    assert event.facility_id == "aps-2bm"
+    assert event.facility_code == FacilityCode("aps-2bm")
     assert event.audience == "peer.example.org"
     assert event.purpose is CredentialPurpose.SIGNING
     assert event.secret_ref == _SECRET_REF
@@ -128,15 +129,15 @@ def test_register_credential_accepts_every_purpose_arm(purpose: CredentialPurpos
 
 
 @pytest.mark.unit
-def test_register_credential_trims_facility_id_before_capture() -> None:
+def test_register_credential_trims_facility_code_before_capture() -> None:
     events = register_credential.decide(
         state=None,
-        command=_command(facility_id="  aps-2bm  "),
+        command=_command(facility_code="  aps-2bm  "),
         now=_NOW,
         new_id=_NEW_ID,
         registered_by=_PRINCIPAL_ID,
     )
-    assert events[0].facility_id == "aps-2bm"
+    assert events[0].facility_code == FacilityCode("aps-2bm")
 
 
 @pytest.mark.unit
@@ -178,30 +179,30 @@ def test_register_credential_rejects_when_state_already_exists() -> None:
 
 
 @pytest.mark.unit
-def test_register_credential_rejects_empty_facility_id() -> None:
+def test_register_credential_rejects_empty_facility_code() -> None:
     with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
-            command=_command(facility_id=""),
+            command=_command(facility_code=""),
             now=_NOW,
             new_id=_NEW_ID,
             registered_by=_PRINCIPAL_ID,
         )
-    assert exc.value.field_name == "facility_id"
-    assert "facility_id" in str(exc.value)
+    assert exc.value.field_name == "facility_code"
+    assert "facility_code" in str(exc.value)
 
 
 @pytest.mark.unit
-def test_register_credential_rejects_whitespace_only_facility_id() -> None:
+def test_register_credential_rejects_whitespace_only_facility_code() -> None:
     with pytest.raises(InvalidCredentialSecretRefError) as exc:
         register_credential.decide(
             state=None,
-            command=_command(facility_id="   "),
+            command=_command(facility_code="   "),
             now=_NOW,
             new_id=_NEW_ID,
             registered_by=_PRINCIPAL_ID,
         )
-    assert exc.value.field_name == "facility_id"
+    assert exc.value.field_name == "facility_code"
     assert exc.value.value == "   "
 
 

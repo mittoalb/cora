@@ -22,7 +22,7 @@ from cora.infrastructure.routing import get_mcp_surface_id
 
 class CredentialSummaryItemOutput(BaseModel):
     credential_id: UUID
-    facility_id: str
+    facility_code: str
     audience: str
     purpose: CredentialPurpose
     expires_at: datetime | None = None
@@ -46,7 +46,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="list_credentials",
         description=(
             "List credentials with cursor pagination + 3 optional filters: "
-            "facility_id / purpose / status. Returns sorted by "
+            "facility_code / purpose / status. Returns sorted by "
             "registered_at ASC. Opaque secret-material refs (secret_ref, "
             "public_material_ref, rotation_pending_*_ref) are NOT in the "
             "response; fetch get_credential for those."
@@ -60,7 +60,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         limit: Annotated[
             int, Field(default=50, ge=1, le=100, description="Page size (1-100).")
         ] = 50,
-        facility_id: Annotated[
+        facility_code: Annotated[
             str | None, Field(default=None, description="Facility filter.")
         ] = None,
         purpose: Annotated[
@@ -77,7 +77,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ListCredentials(
                 cursor=cursor,
                 limit=limit,
-                facility_id=facility_id,
+                facility_code=facility_code,
                 purpose=purpose,
                 status=status,
             ),
@@ -89,7 +89,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 CredentialSummaryItemOutput(
                     credential_id=item.credential_id,
-                    facility_id=item.facility_id,
+                    facility_code=item.facility_code,
                     audience=item.audience,
                     purpose=CredentialPurpose(item.purpose),
                     expires_at=item.expires_at,

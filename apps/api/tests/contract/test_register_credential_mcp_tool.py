@@ -20,7 +20,7 @@ _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC).isoformat()
 
 def _args(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": "Signing",
         "secret_ref": "vault://kv/cora/federation/aps-2bm/signing#v1",
@@ -118,11 +118,11 @@ def test_mcp_register_credential_tool_returns_iserror_on_whitespace_only_secret_
 
 @pytest.mark.contract
 def test_mcp_register_credential_tool_rejects_missing_required_argument() -> None:
-    """Pydantic-layer rejection (facility_id missing) bubbles as isError: true."""
+    """Pydantic-layer rejection (facility_code missing) bubbles as isError: true."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         args = _args()
-        del args["facility_id"]
+        del args["facility_code"]
         response = client.post(
             "/mcp",
             json={

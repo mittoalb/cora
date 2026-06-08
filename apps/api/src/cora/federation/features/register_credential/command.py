@@ -2,9 +2,10 @@
 
 Carries the caller-controlled fields for registering a new Credential:
 
-  - `facility_id`: opaque string id of the facility this credential
-    binds to. String-typed because facility identity is external to
-    CORA; we do NOT mint facility ids here.
+  - `facility_code`: cross-deployment convergent facility slug this
+    credential binds to. Bare `str` on the command DTO; the handler
+    wraps it as a `FacilityCode` VO via the decider before stamping
+    `CredentialRegistered`.
   - `audience`: opaque string scoping the credential to a particular
     peer / endpoint. Required, non-empty after trim.
   - `purpose`: closed enum (`CredentialPurpose`) selecting which of the
@@ -38,7 +39,7 @@ from cora.federation.aggregates.credential import CredentialPurpose
 class RegisterCredential:
     """Register a new Credential (genesis; lands in Active)."""
 
-    facility_id: str
+    facility_code: str
     audience: str
     purpose: CredentialPurpose
     secret_ref: str

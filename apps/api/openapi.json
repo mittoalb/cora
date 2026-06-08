@@ -3519,8 +3519,8 @@
             ],
             "title": "Expires At"
           },
-          "facility_id": {
-            "title": "Facility Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "id": {
@@ -3596,7 +3596,7 @@
         },
         "required": [
           "id",
-          "facility_id",
+          "facility_code",
           "audience",
           "purpose",
           "secret_ref",
@@ -3645,8 +3645,8 @@
             ],
             "title": "Expires At"
           },
-          "facility_id": {
-            "title": "Facility Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "purpose": {
@@ -3687,7 +3687,7 @@
         },
         "required": [
           "credential_id",
-          "facility_id",
+          "facility_code",
           "audience",
           "purpose",
           "status",
@@ -9602,10 +9602,10 @@
             "description": "Optional contractual upper bound. When set, must lie strictly after the server's now.",
             "title": "Expires At"
           },
-          "facility_id": {
-            "description": "Opaque string id of the facility this credential binds to. Facility identity is external to CORA; we do NOT mint facility ids.",
+          "facility_code": {
+            "description": "Cross-deployment convergent facility slug this credential binds to. Validated against the FacilityCode VO pattern (lowercase ASCII alphanumeric and dash, 1-32 chars) at the decider edge.",
             "minLength": 1,
-            "title": "Facility Id",
+            "title": "Facility Code",
             "type": "string"
           },
           "public_material_ref": {
@@ -9632,7 +9632,7 @@
           }
         },
         "required": [
-          "facility_id",
+          "facility_code",
           "audience",
           "purpose",
           "secret_ref"
@@ -24277,9 +24277,9 @@
             }
           },
           {
-            "description": "Optional facility filter; matches the credential's facility_id.",
+            "description": "Optional facility filter; matches the credential's facility_code.",
             "in": "query",
-            "name": "facility_id",
+            "name": "facility_code",
             "required": false,
             "schema": {
               "anyOf": [
@@ -24290,8 +24290,8 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional facility filter; matches the credential's facility_id.",
-              "title": "Facility Id"
+              "description": "Optional facility filter; matches the credential's facility_code.",
+              "title": "Facility Code"
             }
           },
           {
@@ -24388,7 +24388,7 @@
             "description": "Query parameters failed validation OR `cursor` was malformed."
           }
         },
-        "summary": "List credentials with cursor pagination + facility_id / purpose / status filters. Opaque secret refs are NOT surfaced; fetch get_credential for those.",
+        "summary": "List credentials with cursor pagination + facility_code / purpose / status filters. Opaque secret refs are NOT surfaced; fetch get_credential for those.",
         "tags": [
           "federation"
         ]
@@ -24463,7 +24463,7 @@
                 }
               }
             },
-            "description": "Domain invariant violated (whitespace-only facility_id, audience, or secret_ref)."
+            "description": "Domain invariant violated (whitespace-only facility_code, audience, or secret_ref; or facility_code outside the FacilityCode pattern)."
           },
           "403": {
             "content": {

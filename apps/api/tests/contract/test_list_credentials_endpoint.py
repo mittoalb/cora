@@ -63,7 +63,7 @@ def test_get_credentials_accepts_full_filter_set() -> None:
         response = client.get(
             "/federation/credentials",
             params={
-                "facility_id": "aps-2bm",
+                "facility_code": "aps-2bm",
                 "purpose": "Signing",
                 "status": "Active",
                 "limit": "25",

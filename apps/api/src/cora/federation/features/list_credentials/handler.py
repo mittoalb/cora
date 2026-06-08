@@ -2,7 +2,7 @@
 
 Reads `proj_federation_credential_summary` via the cross-BC
 `infrastructure.list_query.make_list_query_handler` factory. Three
-optional scalar filters: `facility_id`, `purpose`, `status`. Cursor
+optional scalar filters: `facility_code`, `purpose`, `status`. Cursor
 pagination keyed on `(registered_at, credential_id)`.
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC
@@ -37,7 +37,7 @@ class CredentialSummaryItem:
     """One row from the credential projection (opaque refs omitted)."""
 
     credential_id: UUID
-    facility_id: str
+    facility_code: str
     audience: str
     purpose: str
     expires_at: datetime | None
@@ -77,7 +77,7 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> CredentialSummaryItem:
     return CredentialSummaryItem(
         credential_id=row["credential_id"],
-        facility_id=str(row["facility_id"]),
+        facility_code=str(row["facility_id"]),
         audience=str(row["audience"]),
         purpose=str(row["purpose"]),
         expires_at=row["expires_at"],
@@ -90,7 +90,7 @@ def _row_to_item(row: Any) -> CredentialSummaryItem:
 
 def _log_fields(query: ListCredentials) -> dict[str, Any]:
     return {
-        "facility_id": query.facility_id,
+        "facility_code": query.facility_code,
         "purpose": query.purpose,
         "status": query.status,
     }
@@ -108,7 +108,7 @@ def bind(deps: Kernel) -> Handler:
         time_column="registered_at",
         id_column="credential_id",
         filters=[
-            ScalarFilter(attr="facility_id"),
+            ScalarFilter(attr="facility_code", column="facility_id"),
             ScalarFilter(attr="purpose"),
             ScalarFilter(attr="status"),
         ],

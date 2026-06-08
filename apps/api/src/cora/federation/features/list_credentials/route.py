@@ -1,7 +1,7 @@
 """HTTP route for the `list_credentials` query slice.
 
 `GET /federation/credentials` accepts these optional query params:
-`cursor`, `limit`, `facility_id`, `purpose`, `status`. Returns
+`cursor`, `limit`, `facility_code`, `purpose`, `status`. Returns
 `{"items": [...], "next_cursor": "..." | null}`.
 
 Opaque secret-material refs (`secret_ref`, `public_material_ref`,
@@ -35,7 +35,7 @@ class CredentialSummaryDTO(BaseModel):
     """One credential in a paginated list. Opaque refs intentionally omitted."""
 
     credential_id: UUID
-    facility_id: str
+    facility_code: str
     audience: str
     purpose: CredentialPurpose
     expires_at: datetime | None = None
@@ -74,7 +74,7 @@ router = APIRouter(tags=["federation"])
         },
     },
     summary=(
-        "List credentials with cursor pagination + facility_id / purpose / "
+        "List credentials with cursor pagination + facility_code / purpose / "
         "status filters. Opaque secret refs are NOT surfaced; fetch "
         "get_credential for those."
     ),
@@ -92,9 +92,9 @@ async def list_credentials(
         int,
         Query(ge=1, le=100, description="Page size; capped at 100."),
     ] = 50,
-    facility_id: Annotated[
+    facility_code: Annotated[
         str | None,
-        Query(description="Optional facility filter; matches the credential's facility_id."),
+        Query(description="Optional facility filter; matches the credential's facility_code."),
     ] = None,
     purpose: Annotated[
         CredentialPurposeFilter | None,
@@ -112,7 +112,7 @@ async def list_credentials(
         ListCredentials(
             cursor=cursor,
             limit=limit,
-            facility_id=facility_id,
+            facility_code=facility_code,
             purpose=purpose,
             status=status_filter,
         ),
@@ -124,7 +124,7 @@ async def list_credentials(
         items=[
             CredentialSummaryDTO(
                 credential_id=item.credential_id,
-                facility_id=item.facility_id,
+                facility_code=item.facility_code,
                 audience=item.audience,
                 purpose=CredentialPurpose(item.purpose),
                 expires_at=item.expires_at,

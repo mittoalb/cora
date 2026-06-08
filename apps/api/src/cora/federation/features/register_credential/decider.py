@@ -18,7 +18,7 @@ BC's domain invariants.
 Invariants:
   - State must be None (genesis-only)
     -> CredentialAlreadyExistsError
-  - facility_id non-empty after trim
+  - facility_code non-empty after trim AND a well-formed FacilityCode
     -> InvalidCredentialSecretRefError (re-used for field-shape
        violations across the aggregate per the shipped error class set)
   - audience non-empty after trim
@@ -43,6 +43,7 @@ from cora.federation.aggregates.credential import (
     InvalidCredentialSecretRefError,
 )
 from cora.federation.features.register_credential.command import RegisterCredential
+from cora.shared.facility_code import FacilityCode, InvalidFacilityCodeError
 from cora.shared.identity import ActorId
 
 
@@ -58,7 +59,8 @@ def decide(
 
     Invariants:
       - State must be None (genesis-only) -> CredentialAlreadyExistsError
-      - facility_id non-empty after trim -> InvalidCredentialSecretRefError
+      - facility_code non-empty after trim AND well-formed FacilityCode
+        -> InvalidCredentialSecretRefError
       - audience non-empty after trim -> InvalidCredentialSecretRefError
       - secret_ref non-empty after trim -> InvalidCredentialSecretRefError
       - When set, expires_at must lie strictly after now
@@ -67,9 +69,17 @@ def decide(
     if state is not None:
         raise CredentialAlreadyExistsError(state.id)
 
-    facility_id = command.facility_id.strip()
-    if not facility_id:
-        raise InvalidCredentialSecretRefError("facility_id", command.facility_id)
+    canonical_facility = command.facility_code.strip()
+    if not canonical_facility:
+        raise InvalidCredentialSecretRefError("facility_code", command.facility_code)
+    try:
+        facility_code = FacilityCode(canonical_facility)
+    except InvalidFacilityCodeError as exc:
+        # Codepoint / length rejections inside the typed VO surface as
+        # the slice's domain error class so the route mapping (HTTP 400)
+        # stays unchanged from the pre-rename behaviour where the decider
+        # only enforced non-empty after trim.
+        raise InvalidCredentialSecretRefError("facility_code", command.facility_code) from exc
 
     audience = command.audience.strip()
     if not audience:
@@ -85,7 +95,7 @@ def decide(
     return [
         CredentialRegistered(
             credential_id=new_id,
-            facility_id=facility_id,
+            facility_code=facility_code,
             audience=audience,
             purpose=command.purpose,
             secret_ref=secret_ref,

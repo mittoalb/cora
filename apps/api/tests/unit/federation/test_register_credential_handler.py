@@ -54,7 +54,7 @@ def _build_deps(
 
 def _command(**overrides: object) -> RegisterCredential:
     base: dict[str, object] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": CredentialPurpose.SIGNING,
         "secret_ref": _SECRET_REF,

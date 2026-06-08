@@ -6,7 +6,7 @@ command slices:
     from cora.federation.features import register_credential
 
     cmd = register_credential.RegisterCredential(
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience="peer.example.org",
         purpose=CredentialPurpose.SIGNING,
         secret_ref="vault://kv/cora/federation/aps-2bm/signing#v1",

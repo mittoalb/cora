@@ -115,7 +115,7 @@ def bind(deps: Kernel) -> Handler:
         _log.info(
             "register_credential.start",
             command_name=_COMMAND_NAME,
-            facility_id=command.facility_id,
+            facility_code=command.facility_code,
             audience=command.audience,
             purpose=command.purpose.value,
             principal_id=str(principal_id),
@@ -133,7 +133,7 @@ def bind(deps: Kernel) -> Handler:
             _log.info(
                 "register_credential.denied",
                 command_name=_COMMAND_NAME,
-                facility_id=command.facility_id,
+                facility_code=command.facility_code,
                 principal_id=str(principal_id),
                 correlation_id=str(correlation_id),
                 causation_id=str(causation_id) if causation_id is not None else None,

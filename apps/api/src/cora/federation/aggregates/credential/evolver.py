@@ -44,7 +44,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
     match event:
         case CredentialRegistered(
             credential_id=credential_id,
-            facility_id=facility_id,
+            facility_code=facility_code,
             audience=audience,
             purpose=purpose,
             secret_ref=secret_ref,
@@ -56,7 +56,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
             _ = state  # CredentialRegistered is the genesis event; prior state ignored
             return Credential(
                 id=credential_id,
-                facility_id=facility_id,
+                facility_code=facility_code,
                 audience=audience,
                 purpose=purpose,
                 secret_ref=secret_ref,
@@ -75,7 +75,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
             prior = require_state(state, "CredentialRotationStarted")
             return Credential(
                 id=prior.id,
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 audience=prior.audience,
                 purpose=prior.purpose,
                 secret_ref=prior.secret_ref,
@@ -97,7 +97,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
             promoted_public_material_ref = prior.rotation_pending_public_material_ref
             return Credential(
                 id=prior.id,
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 audience=prior.audience,
                 purpose=prior.purpose,
                 secret_ref=promoted_secret_ref,
@@ -113,7 +113,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
             prior = require_state(state, "CredentialRotationAborted")
             return Credential(
                 id=prior.id,
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 audience=prior.audience,
                 purpose=prior.purpose,
                 secret_ref=prior.secret_ref,
@@ -129,7 +129,7 @@ def evolve(state: Credential | None, event: CredentialEvent) -> Credential:
             prior = require_state(state, "CredentialRevoked")
             return Credential(
                 id=prior.id,
-                facility_id=prior.facility_id,
+                facility_code=prior.facility_code,
                 audience=prior.audience,
                 purpose=prior.purpose,
                 secret_ref=prior.secret_ref,

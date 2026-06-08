@@ -30,7 +30,7 @@ _EXPIRES_AT = datetime(2027, 5, 30, 12, 0, 0, tzinfo=UTC).isoformat()
 
 def _body(**overrides: object) -> dict[str, Any]:
     base: dict[str, Any] = {
-        "facility_id": "aps-2bm",
+        "facility_code": "aps-2bm",
         "audience": "peer.example.org",
         "purpose": "Signing",
         "secret_ref": "vault://kv/cora/federation/aps-2bm/signing#v1",
@@ -64,9 +64,9 @@ def test_post_federation_credentials_accepts_no_optional_fields() -> None:
 
 @pytest.mark.contract
 def test_post_federation_credentials_rejects_missing_required_body_field_with_422() -> None:
-    """facility_id missing -> Pydantic 422 before reaching the decider."""
+    """facility_code missing -> Pydantic 422 before reaching the decider."""
     body = _body()
-    del body["facility_id"]
+    del body["facility_code"]
     with TestClient(create_app()) as client:
         response = client.post("/federation/credentials", json=body)
     assert response.status_code == 422
@@ -98,9 +98,9 @@ def test_post_federation_credentials_rejects_whitespace_only_secret_ref_with_400
 
 
 @pytest.mark.contract
-def test_post_federation_credentials_rejects_whitespace_only_facility_id_with_400() -> None:
+def test_post_federation_credentials_rejects_whitespace_only_facility_code_with_400() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/federation/credentials", json=_body(facility_id="   "))
+        response = client.post("/federation/credentials", json=_body(facility_code="   "))
     assert response.status_code == 400
 
 

@@ -33,8 +33,9 @@ from uuid import UUID
 
 from cora.federation.aggregates.credential.state import CredentialPurpose
 from cora.infrastructure.event_payload import deserialize_or_raise
-from cora.infrastructure.ports.event_store import StoredEvent
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
+from cora.infrastructure.ports.event_store import StoredEvent
 
 
 @dataclass(frozen=True)
@@ -48,7 +49,7 @@ class CredentialRegistered:
     """
 
     credential_id: UUID
-    facility_id: str
+    facility_code: FacilityCode
     audience: str
     purpose: CredentialPurpose
     secret_ref: str
@@ -139,7 +140,7 @@ def to_payload(event: CredentialEvent) -> dict[str, Any]:
     match event:
         case CredentialRegistered(
             credential_id=credential_id,
-            facility_id=facility_id,
+            facility_code=facility_code,
             audience=audience,
             purpose=purpose,
             secret_ref=secret_ref,
@@ -150,7 +151,7 @@ def to_payload(event: CredentialEvent) -> dict[str, Any]:
         ):
             return {
                 "credential_id": str(credential_id),
-                "facility_id": facility_id,
+                "facility_id": facility_code.value,
                 "audience": audience,
                 "purpose": purpose.value,
                 "secret_ref": secret_ref,
@@ -221,7 +222,7 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
                 raw_expires = payload.get("expires_at")
                 return CredentialRegistered(
                     credential_id=UUID(payload["credential_id"]),
-                    facility_id=payload["facility_id"],
+                    facility_code=FacilityCode(payload["facility_id"]),
                     audience=payload["audience"],
                     purpose=CredentialPurpose(payload["purpose"]),
                     secret_ref=payload["secret_ref"],
@@ -236,6 +237,7 @@ def from_stored(stored: StoredEvent) -> CredentialEvent:
             return deserialize_or_raise(
                 "CredentialRegistered",
                 _build_credential_registered,
+                extra=(ValueError,),
             )
         case "CredentialRotationStarted":
             return deserialize_or_raise(

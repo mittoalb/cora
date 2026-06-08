@@ -49,7 +49,7 @@ _PUBLIC_REF = "vault://kv/cora/federation/aps-2bm/signing/pub#v1"
 
 def _register_command(audience: str) -> RegisterCredential:
     return RegisterCredential(
-        facility_id="aps-2bm",
+        facility_code="aps-2bm",
         audience=audience,
         purpose=CredentialPurpose.SIGNING,
         secret_ref=_SECRET_REF,

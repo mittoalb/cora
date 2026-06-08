@@ -3,7 +3,7 @@
 
 Three optional filters in canonical form:
 
-  - `facility_id` (single-value, exact-match): scope to a single
+  - `facility_code` (single-value, exact-match): scope to a single
     facility's credentials.
   - `purpose` (`CredentialPurpose` value-string): scope to one of the
     six purposes (Signing / Verification / Authentication /
@@ -42,6 +42,6 @@ class ListCredentials:
 
     cursor: str | None = None
     limit: int = 50
-    facility_id: str | None = None
+    facility_code: str | None = None
     purpose: CredentialPurposeFilter | None = None
     status: CredentialStatusFilter | None = None
