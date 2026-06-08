@@ -34,6 +34,8 @@ A `Permit` authorizes one federation flow between this facility and one peer in 
 
 The self-Facility row (the deployment's own facility identity in the cross-deployment convergent code namespace) is seeded at lifespan startup by `bootstrap_federation` from `settings.self_facility_code` (env var `SELF_FACILITY_CODE`; default `"cora"`, production overrides without exception). Idempotent across boots via the `ConcurrencyError`-as-already-seeded pattern. The seed runs BEFORE any Federation slice consumes the self-Facility row.
 
+**Operator bootstrap sequence for sealing.** The self-Facility seed ships with an empty `trust_anchor_credential_ids` set. Before `initialize_seal` can succeed, an operator runs three steps in order. (1) Register the two seal credentials via `register_credential` (one `SealOnlineSigning`, one `SealOfflineRoot`). (2) Anchor each credential id via `add_facility_trust_anchor_credential(self_facility_id, credential_id)`. (3) Call `initialize_seal` with the same two credential ids; the decider's structural cross-tenant defense checks set-membership against the anchored set. `rotate_seal_online_key` requires the new online credential to be anchored beforehand via the same `add_facility_trust_anchor_credential` slice; an operator typically anchors the replacement credential, rotates, then removes the retired credential via `remove_facility_trust_anchor_credential`.
+
 `Seal.facility_id` is a string (not a UUID) because the per-facility singleton is keyed on a human-readable facility identifier. The handler mints the event-store stream UUID deterministically via UUID5 over the federation namespace and the `facility_id` string, so the stream is addressable from the same string the operator types.
 
 `Credential` keys an identity triple `(facility_id, audience, purpose)` enforced as a UNIQUE constraint on `proj_federation_credential_summary`. The aggregate id is the internal opaque handle; the identity triple is what operators query by.
@@ -42,12 +44,12 @@ The self-Facility row (the deployment's own facility identity in the cross-deplo
 
 | Name | Shape | Where used |
 |---|---|---|
-| `FacilityCode` | trimmed `value: str` matching `^[a-z0-9-]{1,32}$` | `Facility.code`; future `Seal.facility_id` / `Permit.peer_facility_id` typing once slice 6 binding lands |
+| `FacilityCode` | trimmed `value: str` matching `^[a-z0-9-]{1,32}$` | `Facility.code`; future `Seal.facility_id` / `Permit.peer_facility_id` typing once the aggregate-state rename slice lands |
 | `FacilityName` | trimmed `value: str`, 1-200 chars | `Facility.display_name` |
 | `FacilityKind` | closed StrEnum: `Site` \| `Area` | `Facility.kind` (Institution + Sector deferred per the design memo) |
 | `FacilityStatus` | closed StrEnum: `Active` \| `Decommissioned` | `Facility.status` |
 | `FacilityId` | `NewType[UUID]` co-located at `cora.federation.aggregates._value_types` | `Facility.id`, `Facility.parent_id` (intra-aggregate only; cross-BC refs use `code`) |
-| `CredentialId` | `NewType[UUID]` co-located at `cora.federation.aggregates._value_types` | `Facility.trust_anchor_credential_ids` member type (slice 6 binding populates the frozenset) |
+| `CredentialId` | `NewType[UUID]` co-located at `cora.federation.aggregates._value_types` | `Facility.trust_anchor_credential_ids` member type (populated via the `add_facility_trust_anchor_credential` / `remove_facility_trust_anchor_credential` transitions) |
 | `Direction` | closed StrEnum: `Outbound` \| `Inbound` | `Permit.direction` (mirrors `type(terms)`) |
 | `PermitStatus` | closed StrEnum: `Defined` \| `Active` \| `Suspended` \| `Revoked` | `Permit.status` |
 | `OutboundTerms` | `(scope_set: frozenset[ScopeRef], read_scope, onward_action_scope)` | `Permit.terms` when `direction == Outbound` |
@@ -157,13 +159,13 @@ stateDiagram-v2
 : `pending_secret_ref` is non-empty. The credential is `Active` and not past `expires_at`.
 
 `initialize_seal`
-: The supplied `online_credential_id` and `offline_credential_id` differ (`SealKeyCollisionError`). Each ref resolves through the `CredentialLookup` port to a Credential at status `Active` (`SealCannotInitializeWithInactiveCredentialError`); the online slot's Credential carries purpose `SealOnlineSigning` and the offline slot's carries `SealOfflineRoot` (`SealKeyPurposeMismatchError`). Both Credentials share the Seal's `facility_id`, and the online and offline Credentials share each other's `facility_id` as a defense-in-depth cross-check (`SealCrossFacilityBindingError`).
+: The supplied `online_credential_id` and `offline_credential_id` differ (`SealKeyCollisionError`). Each ref resolves through the `CredentialLookup` port to a Credential at status `Active` (`SealCannotInitializeWithInactiveCredentialError`); the online slot's Credential carries purpose `SealOnlineSigning` and the offline slot's carries `SealOfflineRoot` (`SealKeyPurposeMismatchError`). The self-Facility row resolves through the `FacilityLookup` port (a missing row surfaces as `FacilityNotFoundError`), and BOTH credential ids must appear in that row's `trust_anchor_credential_ids` set (`SealCredentialNotTrustAnchorError`). The structural set-membership check replaces an older three-way string-equality cross-check on `facility_id`; the operator pre-seeds the trust-anchor set via `add_facility_trust_anchor_credential` before initialization.
 
 `sign_seal_pointer`
 : The Seal is `Live`. `new_head_hash` is non-empty after trimming. `new_sequence_number` is strictly greater than `current_sequence_number` (`SealSequenceNumberRegressionError`).
 
 `rotate_seal_online_key`
-: The Seal is `Live`. The new online Credential differs from the existing offline Credential, resolves via `CredentialLookup` to status `Active`, carries purpose `SealOnlineSigning`, and shares the Seal's `facility_id`.
+: The Seal is `Live`. The new online Credential differs from the existing offline Credential, resolves via `CredentialLookup` to status `Active`, and carries purpose `SealOnlineSigning`. The self-Facility row resolves through the `FacilityLookup` port (a missing row surfaces as `FacilityNotFoundError`), and the new online credential id must appear in that row's `trust_anchor_credential_ids` set (`SealCredentialNotTrustAnchorError`).
 
 `start_seal_republishing` / `complete_seal_republishing`
 : The Seal is in the matching source status. On completion, if `new_head_hash` and `new_sequence_number` are supplied they are supplied together (half-pair rejected as `InvalidSealHeadHashError`), `new_sequence_number` is strictly greater than the prior value, and if both are omitted then a prior `current_head_hash` exists to reuse.
@@ -196,10 +198,14 @@ stateDiagram-v2
 
 ## Slices
 
-Twenty-one slices ship: fifteen lifecycle slices (five per aggregate) and six query slices. Every transition slice carries the actor stamping pattern: the handler factory closes over the aggregate's codec quartet and injects the envelope's `principal_id` into the decider under the per-event `<verb>_by_actor_id` parameter name.
+Twenty-five slices ship: nineteen lifecycle slices (four on Facility, five each on Permit / Credential / Seal) and six query slices. Every transition slice carries the actor stamping pattern: the handler factory closes over the aggregate's codec quartet and injects the envelope's `principal_id` into the decider under the per-event `<verb>_by_actor_id` parameter name.
 
 | Command | Category | REST | MCP tool | Idempotency |
 |---|---|---|---|---|
+| `RegisterFacility` | NEW | `POST /federation/facilities` | `register_facility` | required |
+| `DecommissionFacility` | MODIFIED | `POST /federation/facilities/{facility_id}/decommission` | `decommission_facility` | none |
+| `AddFacilityTrustAnchorCredential` | MODIFIED | `POST /federation/facilities/{facility_id}/add-trust-anchor-credential` | `add_facility_trust_anchor_credential` | none |
+| `RemoveFacilityTrustAnchorCredential` | MODIFIED | `POST /federation/facilities/{facility_id}/remove-trust-anchor-credential` | `remove_facility_trust_anchor_credential` | none |
 | `DefinePermit` | NEW | `POST /federation/permits` | `define_permit` | required |
 | `ActivatePermit` | MODIFIED | `POST /federation/permits/{permit_id}/activate` | `activate_permit` | none |
 | `SuspendPermit` | MODIFIED | `POST /federation/permits/{permit_id}/suspend` | `suspend_permit` | none |
@@ -242,13 +248,13 @@ Three slices write more than one stream in a single Postgres transaction: `initi
 : `CredentialNotFoundError`, `CredentialCannotRevokeError`, `Unauthorized`
 
 `InitializeSeal`
-: `InvalidSealFacilityIdError`, `SealAlreadyExistsError`, `SealKeyCollisionError`, `SealKeyPurposeMismatchError`, `SealCannotInitializeWithInactiveCredentialError`, `SealCrossFacilityBindingError`, `CredentialNotFoundError`, `Unauthorized`
+: `InvalidSealFacilityIdError`, `SealAlreadyExistsError`, `SealKeyCollisionError`, `SealKeyPurposeMismatchError`, `SealCannotInitializeWithInactiveCredentialError`, `SealCredentialNotTrustAnchorError`, `CredentialNotFoundError`, `FacilityNotFoundError`, `Unauthorized`
 
 `SignSealPointer`
 : `SealNotFoundError`, `SealCannotSignError`, `InvalidSealHeadHashError`, `SealSequenceNumberRegressionError`, `Unauthorized`
 
 `RotateSealOnlineKey`
-: `SealNotFoundError`, `SealCannotRotateError`, `SealKeyCollisionError`, `SealKeyPurposeMismatchError`, `SealCannotRotateWithInactiveCredentialError`, `SealCrossFacilityBindingError`, `CredentialNotFoundError`, `Unauthorized`
+: `SealNotFoundError`, `SealCannotRotateError`, `SealKeyCollisionError`, `SealKeyPurposeMismatchError`, `SealCannotRotateWithInactiveCredentialError`, `SealCredentialNotTrustAnchorError`, `CredentialNotFoundError`, `FacilityNotFoundError`, `Unauthorized`
 
 `StartSealRepublishing` / `CompleteSealRepublishing`
 : `SealNotFoundError`, `SealCannotStartRepublishingError` / `SealCannotCompleteRepublishingError`, `InvalidSealHeadHashError` (complete only), `SealSequenceNumberRegressionError` (complete only), `Unauthorized`
