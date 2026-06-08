@@ -58,12 +58,16 @@ This scenario captures the happy path (controller comes back on
 first poll); the fallback caput is a watch item for a sibling
 scenario.
 
-## Asset stack (just the Hexapod)
+## Asset stack (hexapod controller + hexapod stage)
 
-This scenario only registers the Hexapod Device. The broader 2-BM
-stack (motors, optics, detector) doesn't participate in the reboot
-ceremony and is registered by separate scenarios. Each scenario
-isolates its world via the per-test template DB.
+This scenario registers the Hexapod Device alongside its drive
+electronics (`Aerotech_Hexapod_drive`, the second MotionController
+Asset shipped per the controller-as-Asset design). The
+hexapod's `controller_id` carries the back-reference to the drive.
+The broader 2-BM stack (other motors, optics, detector) doesn't
+participate in the reboot ceremony and is registered by separate
+scenarios. Each scenario isolates its world via the per-test template
+DB.
 
 ## What this scenario surfaces (gap-finding intent)
 
@@ -153,8 +157,24 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000360501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000360701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000360a01")
 
-# Family + Device (just the Hexapod for this scenario)
+# Families (2: motion controller + hexapod)
+_CAP_MOTION_CONTROLLER_ID = UUID("01900000-0000-7000-8000-000000360c11")
 _CAP_HEXAPOD_ID = UUID("01900000-0000-7000-8000-000000360c01")
+
+# Devices: controller registered first (so the hexapod's controller_id
+# back-reference targets an already-registered Asset stream), then the
+# hexapod stage itself. Aerotech_Hexapod_drive is the SECOND
+# MotionController Asset shipped per
+# [[project-controller-as-asset-stage1-design]], anchoring the hexapod
+# controller class. The drive's specific product line is not named on
+# the 2-BM source page (which calls the EPICS interface "native Aerotech
+# Ensemble" but does not name the controller box or confirm rack-separate
+# vs sealed-in integration); the Asset name records what is known
+# (Aerotech vendor, drives the hexapod) and defers the rest to settings
+# placeholders (unknown-pending-confirmation per the intentional-modeling
+# rule). The other 5 controller hardware classes at 2-BM remain deferred
+# per [[project-controller-as-asset-research]].
+_ASSET_AEROTECH_HEXAPOD_DRIVE_ID = UUID("01900000-0000-7000-8000-000000360a21")
 _ASSET_HEXAPOD_ID = UUID("01900000-0000-7000-8000-000000360a11")
 
 # Recipe ladder
@@ -172,7 +192,21 @@ _STEPS_OPEN_EVENT_ID = UUID("01900000-0000-7000-8000-000000360f12")
 _CAUTION_HEXAPOD_LOCKUP_ID = UUID("01900000-0000-7000-8000-000000360f21")
 
 
-_DEVICES = (DeviceSpec("Hexapod_2BM", _ASSET_HEXAPOD_ID, "Hexapod", _CAP_HEXAPOD_ID),)
+_DEVICES = (
+    DeviceSpec(
+        "Aerotech_Hexapod_drive",
+        _ASSET_AEROTECH_HEXAPOD_DRIVE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_ID,
+    ),
+    DeviceSpec(
+        "Hexapod_2BM",
+        _ASSET_HEXAPOD_ID,
+        "Hexapod",
+        _CAP_HEXAPOD_ID,
+        controller_id=_ASSET_AEROTECH_HEXAPOD_DRIVE_ID,
+    ),
+)
 
 
 def _id_queue() -> list[UUID]:
@@ -560,11 +594,20 @@ async def test_hexapod_reboot_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- Caution BC: register the operator-playbook Caution on the Hexapod -----
+    # ----- Caution BC: register the operator-playbook Caution on the controller -----
+    # Targets Aerotech_Hexapod_drive (the actual hardware that locks up)
+    # rather than the stage proxy. The failure mode and the workaround
+    # were always controller-side; only with controller-as-Asset shipped
+    # does CORA have a controller Asset to point at honestly. In
+    # production, a similar move on an already-registered Caution uses
+    # the locked retire + re-register path (CautionRetired with
+    # reason=WrongTarget on the stage stream, fresh CautionRegistered on
+    # the controller stream); this test fixture uses ephemeral event
+    # stores, so it registers fresh against the controller directly.
 
     await bind_register_caution(deps)(
         RegisterCaution(
-            target=AssetTarget(asset_id=_ASSET_HEXAPOD_ID),
+            target=AssetTarget(asset_id=_ASSET_AEROTECH_HEXAPOD_DRIVE_ID),
             category=CautionCategory.WEAR,
             severity=CautionSeverity.CAUTION,
             text=(
@@ -585,16 +628,29 @@ async def test_hexapod_reboot_plays_out_end_to_end(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- Assert: facility hierarchy + Hexapod landed -----
+    # ----- Assert: facility hierarchy + controller + Hexapod landed -----
 
     for asset_id in (
         _ARGONNE_ENTERPRISE_ID,
         _APS_SITE_ID,
         _2BM_UNIT_ID,
+        _ASSET_AEROTECH_HEXAPOD_DRIVE_ID,
         _ASSET_HEXAPOD_ID,
     ):
         _events, version = await deps.event_store.load("Asset", asset_id)
         assert version >= 1, f"Asset {asset_id} did not land"
+
+    # ----- Assert: Aerotech_Hexapod_drive controller stream landed -----
+
+    controller_events, _ = await deps.event_store.load("Asset", _ASSET_AEROTECH_HEXAPOD_DRIVE_ID)
+    assert [e.event_type for e in controller_events] == [
+        "AssetRegistered",  # genesis (Commissioned)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # The controller itself carries no controller_id back-reference
+    # (controllers ARE the leaf of the drive-electronics chain at v1).
+    # Omit-when-None wire shape: key absent rather than serialized as null.
+    assert "controller_id" not in controller_events[0].payload
 
     # ----- Assert: Hexapod stream carries the full lifecycle + fault/restore arc -----
 
@@ -607,6 +663,11 @@ async def test_hexapod_reboot_plays_out_end_to_end(
         "AssetFaulted",  # condition Nominal -> Faulted (operator observed lockup)
         "AssetRestored",  # condition Faulted -> Nominal (reboot succeeded)
     ]
+
+    # ----- Assert: hexapod's AssetRegistered payload carries the controller_id back-reference -----
+
+    hexapod_registered_payload = hexapod_events[0].payload
+    assert UUID(hexapod_registered_payload["controller_id"]) == _ASSET_AEROTECH_HEXAPOD_DRIVE_ID
 
     # ----- Assert: Procedure stream has the expected lifecycle (4 events) -----
 
@@ -654,7 +715,7 @@ async def test_hexapod_reboot_plays_out_end_to_end(
     assert [e.event_type for e in caution_events] == ["CautionRegistered"]
     caution_payload = caution_events[0].payload
     assert caution_payload["target"]["kind"] == "Asset"
-    assert UUID(caution_payload["target"]["id"]) == _ASSET_HEXAPOD_ID
+    assert UUID(caution_payload["target"]["id"]) == _ASSET_AEROTECH_HEXAPOD_DRIVE_ID
     assert caution_payload["category"] == "Wear"
     assert caution_payload["severity"] == "Caution"
     assert "hexapod" in caution_payload["tags"]
