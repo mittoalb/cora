@@ -119,16 +119,18 @@ _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000352501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000352701")
 _2BM_UNIT_ID = UUID("01900000-0000-7000-8000-000000352a01")
 
-# Capabilities (4: 2 motion controllers + rotary + linear). Each
+# Capabilities (5: 3 motion controllers + rotary + linear). Each
 # DeviceSpec defines its own Family aggregate; the install ceremony
-# does not dedupe by name, so the two MotionController-family Assets
-# (Aerotech_Ensemble_drive and OMS_VME58_2bmb_drive) attach to
-# distinct Family aggregates that happen to share the name. In
-# production the operator-side define_family call runs once per
-# unique name; the per-DeviceSpec definition here is a test-fixture
-# convenience, not a semantic claim about Family identity.
+# does not dedupe by name, so the three MotionController-family
+# Assets (Aerotech_Ensemble_drive, OMS_VME58_2bmb_drive,
+# OMS_VME58_2bma_drive) attach to distinct Family aggregates that
+# happen to share the name. In production the operator-side
+# define_family call runs once per unique name; the per-DeviceSpec
+# definition here is a test-fixture convenience, not a semantic claim
+# about Family identity.
 _CAP_MOTION_CONTROLLER_AEROTECH_ID = UUID("01900000-0000-7000-8000-000000352c21")
 _CAP_MOTION_CONTROLLER_OMS_2BMB_ID = UUID("01900000-0000-7000-8000-000000352c41")
+_CAP_MOTION_CONTROLLER_OMS_2BMA_ID = UUID("01900000-0000-7000-8000-000000352c51")
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c01")
 _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c11")
 
@@ -143,13 +145,26 @@ _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000352c11")
 # which drives the Kohzu m1-m91 motor band including Sample_top_X
 # (2bmb:m18) and Sample_top_Z (2bmb:m17). Only Sample_top_X is in this
 # scenario's inventory; Sample_top_Z's back-reference is set in the
-# focus-alignment scenario. The remaining 89 Kohzu motors on the 2bmb
-# crate are in the Pending table in `docs/deployments/2-bm/assets.md`.
-# The other 3 controller hardware classes at 2-BM (OMS-VME58 at 2bma,
-# Nanotec ST4118 inside Optique Peter, Schunk LPTM 30 inside camera
-# selector) remain deferred per [[project-controller-as-asset-research]].
+# focus-alignment scenario.
+# OMS_VME58_2bma_drive is the fifth MotionController Asset shipped:
+# the sibling OMS-VME58 board in the 2-BM a-station IOC crate
+# (`ioc2bma`), which drives the front-end / beam-conditioning motor
+# band. NO modelled driven stages bind to it at v1; the front-end
+# motors (Mirror, DMM, slits, monitor) are all in Pending. The
+# controller Asset still ships because its existence in reality is
+# the load-bearing fact (operators reboot it, replace it, version
+# its firmware), and its absence from CORA's model is exactly the
+# ad-hoc-absence-self-justifies-indefinitely failure mode that the
+# intentional-modeling rule exists to forbid.
+# The remaining 89 Kohzu motors on the 2bmb crate plus the entire
+# 2bma driven-side population live in the Pending table in
+# `docs/deployments/2-bm/assets.md`. The other 2 controller hardware
+# classes at 2-BM (Nanotec ST4118 inside Optique Peter, Schunk
+# LPTM 30 inside the camera selector) remain deferred per
+# [[project-controller-as-asset-research]].
 _ASSET_AEROTECH_ENSEMBLE_ID = UUID("01900000-0000-7000-8000-000000352a31")
 _ASSET_OMS_VME58_2BMB_DRIVE_ID = UUID("01900000-0000-7000-8000-000000352a41")
+_ASSET_OMS_VME58_2BMA_DRIVE_ID = UUID("01900000-0000-7000-8000-000000352a51")
 _ASSET_AEROTECH_ABRS_ID = UUID("01900000-0000-7000-8000-000000352a11")
 _ASSET_SAMPLE_TOP_X_ID = UUID("01900000-0000-7000-8000-000000352a21")
 
@@ -186,6 +201,12 @@ _DEVICES = (
         _ASSET_OMS_VME58_2BMB_DRIVE_ID,
         "MotionController",
         _CAP_MOTION_CONTROLLER_OMS_2BMB_ID,
+    ),
+    DeviceSpec(
+        "OMS_VME58_2bma_drive",
+        _ASSET_OMS_VME58_2BMA_DRIVE_ID,
+        "MotionController",
+        _CAP_MOTION_CONTROLLER_OMS_2BMA_ID,
     ),
     DeviceSpec(
         "Aerotech_ABRS_rotary",
@@ -573,6 +594,7 @@ async def test_motor_homing_plays_out_end_to_end(
         _2BM_UNIT_ID,
         _ASSET_AEROTECH_ENSEMBLE_ID,
         _ASSET_OMS_VME58_2BMB_DRIVE_ID,
+        _ASSET_OMS_VME58_2BMA_DRIVE_ID,
         _ASSET_AEROTECH_ABRS_ID,
         _ASSET_SAMPLE_TOP_X_ID,
     ):
@@ -602,6 +624,20 @@ async def test_motor_homing_plays_out_end_to_end(
     # Same controller-is-leaf rule as Aerotech_Ensemble_drive: the VME
     # crate carries no controller_id of its own. Omit-when-None wire.
     assert "controller_id" not in oms_events[0].payload
+
+    # ----- Assert: OMS-VME58 2bma controller stream landed (no driven-stage back-refs) -----
+
+    oms_2bma_events, _ = await deps.event_store.load("Asset", _ASSET_OMS_VME58_2BMA_DRIVE_ID)
+    assert [e.event_type for e in oms_2bma_events] == [
+        "AssetRegistered",  # genesis (Commissioned)
+        "AssetFamilyAdded",  # +MotionController
+    ]
+    # Same controller-is-leaf rule. 2bma's driven motors (front-end /
+    # beam-conditioning band) are all in the Pending table, so no
+    # modelled stage in this scenario carries controller_id pointing
+    # at 2bma. The controller still ships per the intentional-modeling
+    # rule (hardware exists, firmware versions, gets rebooted).
+    assert "controller_id" not in oms_2bma_events[0].payload
 
     # ----- Assert: Aerotech rotary stream carries the full lifecycle + condition arc -----
 
