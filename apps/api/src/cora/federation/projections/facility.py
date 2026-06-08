@@ -2,11 +2,22 @@
 the `proj_federation_facility_summary` read model.
 
 Subscribed events:
-  - FacilityRegistered         -> INSERT (status='Active',
-                                          registered_at=occurred_at)
-  - FacilityDecommissioned     -> UPDATE status='Decommissioned',
-                                         decommissioned_at=occurred_at,
-                                         decommissioned_by
+  - FacilityRegistered                       -> INSERT
+                                                (status='Active',
+                                                 registered_at=occurred_at)
+  - FacilityDecommissioned                   -> UPDATE
+                                                status='Decommissioned',
+                                                decommissioned_at=occurred_at,
+                                                decommissioned_by
+  - FacilityTrustAnchorCredentialAdded       -> UPDATE append
+                                                credential_id into
+                                                trust_anchor_credential_ids
+                                                JSONB array, de-duplicated +
+                                                sorted
+  - FacilityTrustAnchorCredentialRemoved     -> UPDATE remove
+                                                credential_id from
+                                                trust_anchor_credential_ids
+                                                JSONB array
 
 ## Code uniqueness
 
@@ -23,9 +34,10 @@ defense-in-depth against projection-rebuild drift and out-of-band SQL.
 ## Alternate identifiers + trust anchors
 
 `alternate_identifiers` (PIDINST Property 13) lands as a JSONB array on
-genesis. `trust_anchor_credential_ids` ships as an empty JSONB array
-default; population is deferred to slice 6 binding when the
-add/remove slices land.
+genesis. `trust_anchor_credential_ids` ships as an empty JSONB array on
+genesis; populated by Slice 6 Sub-Slice B's add / remove transitions
+(this module). Sub-Slice C will gate Seal initialize / rotate on
+set-membership against this column.
 
 `persistent_id` (PIDINST Property 1) is reserved as a nullable JSONB
 column for the future `assign_facility_persistent_id` slice.
@@ -59,6 +71,45 @@ SET status = 'Decommissioned',
 WHERE facility_id = $1
 """
 
+# Append credential_id text into trust_anchor_credential_ids JSONB array,
+# deduplicated and sorted. Mirrors the asset.alternate_identifiers
+# precedent with single-key elements (UUID-as-text strings) rather than
+# the (kind, value) pair shape.
+_UPDATE_TRUST_ANCHOR_ADDED_SQL = """
+UPDATE proj_federation_facility_summary
+SET trust_anchor_credential_ids = COALESCE(
+        (
+            SELECT jsonb_agg(elem ORDER BY elem)
+            FROM (
+                SELECT DISTINCT elem
+                FROM jsonb_array_elements_text(
+                    trust_anchor_credential_ids || jsonb_build_array($2::text)
+                ) AS elem
+                ORDER BY elem
+            ) AS dedup
+        ),
+        '[]'::jsonb
+    ),
+    updated_at = now()
+WHERE facility_id = $1
+"""
+
+# Filter-out the matching credential_id element. Empty result collapses
+# to `[]` via COALESCE so the NOT NULL constraint holds.
+_UPDATE_TRUST_ANCHOR_REMOVED_SQL = """
+UPDATE proj_federation_facility_summary
+SET trust_anchor_credential_ids = COALESCE(
+        (
+            SELECT jsonb_agg(elem ORDER BY elem)
+            FROM jsonb_array_elements_text(trust_anchor_credential_ids) AS elem
+            WHERE elem != $2::text
+        ),
+        '[]'::jsonb
+    ),
+    updated_at = now()
+WHERE facility_id = $1
+"""
+
 
 class FacilitySummaryProjection:
     """Maintains the `proj_federation_facility_summary` read model."""
@@ -68,6 +119,8 @@ class FacilitySummaryProjection:
         {
             "FacilityRegistered",
             "FacilityDecommissioned",
+            "FacilityTrustAnchorCredentialAdded",
+            "FacilityTrustAnchorCredentialRemoved",
         }
     )
 
@@ -104,6 +157,24 @@ class FacilitySummaryProjection:
                 UUID(payload["facility_id"]),
                 datetime.fromisoformat(payload["occurred_at"]),
                 UUID(payload["decommissioned_by"]),
+            )
+            return
+
+        if event.event_type == "FacilityTrustAnchorCredentialAdded":
+            payload = event.payload
+            await conn.execute(
+                _UPDATE_TRUST_ANCHOR_ADDED_SQL,
+                UUID(payload["facility_id"]),
+                payload["credential_id"],
+            )
+            return
+
+        if event.event_type == "FacilityTrustAnchorCredentialRemoved":
+            payload = event.payload
+            await conn.execute(
+                _UPDATE_TRUST_ANCHOR_REMOVED_SQL,
+                UUID(payload["facility_id"]),
+                payload["credential_id"],
             )
             return
 

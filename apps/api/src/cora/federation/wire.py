@@ -39,6 +39,7 @@ from uuid import UUID
 from cora.federation.features import (
     abort_credential_rotation,
     activate_permit,
+    add_facility_trust_anchor_credential,
     complete_credential_rotation,
     complete_seal_republishing,
     decommission_facility,
@@ -52,6 +53,7 @@ from cora.federation.features import (
     list_seals,
     register_credential,
     register_facility,
+    remove_facility_trust_anchor_credential,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -95,6 +97,8 @@ class FederationHandlers:
     complete_seal_republishing: complete_seal_republishing.Handler
     register_facility: register_facility.IdempotentHandler
     decommission_facility: decommission_facility.Handler
+    add_facility_trust_anchor_credential: add_facility_trust_anchor_credential.Handler
+    remove_facility_trust_anchor_credential: remove_facility_trust_anchor_credential.Handler
     list_permits: list_permits.Handler
     get_permit: get_permit.Handler
     list_credentials: list_credentials.Handler
@@ -217,6 +221,16 @@ def wire_federation(deps: Kernel) -> FederationHandlers:
         decommission_facility=with_tracing(
             decommission_facility.bind(deps),
             command_name="DecommissionFacility",
+            bc=_BC,
+        ),
+        add_facility_trust_anchor_credential=with_tracing(
+            add_facility_trust_anchor_credential.bind(deps),
+            command_name="AddFacilityTrustAnchorCredential",
+            bc=_BC,
+        ),
+        remove_facility_trust_anchor_credential=with_tracing(
+            remove_facility_trust_anchor_credential.bind(deps),
+            command_name="RemoveFacilityTrustAnchorCredential",
             bc=_BC,
         ),
         list_permits=with_tracing(

@@ -62,7 +62,12 @@ def test_projection_metadata() -> None:
     proj = FacilitySummaryProjection()
     assert proj.name == "proj_federation_facility_summary"
     assert proj.subscribed_event_types == frozenset(
-        {"FacilityRegistered", "FacilityDecommissioned"}
+        {
+            "FacilityRegistered",
+            "FacilityDecommissioned",
+            "FacilityTrustAnchorCredentialAdded",
+            "FacilityTrustAnchorCredentialRemoved",
+        }
     )
 
 
@@ -180,3 +185,54 @@ async def test_facility_decommissioned_updates_status_and_timestamps() -> None:
     assert args.args[1] == _FACILITY_ID
     assert args.args[2] == decommissioned_at
     assert args.args[3] == _TEST_ACTOR_ID
+
+
+# ---------- FacilityTrustAnchorCredentialAdded apply ----------
+
+
+@pytest.mark.unit
+async def test_facility_trust_anchor_credential_added_updates_jsonb_array() -> None:
+    proj = FacilitySummaryProjection()
+    conn = AsyncMock()
+    credential_id = uuid4()
+    event = _stored(
+        "FacilityTrustAnchorCredentialAdded",
+        {
+            "facility_id": str(_FACILITY_ID),
+            "credential_id": str(credential_id),
+            "added_by": str(_TEST_ACTOR_ID),
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[1] == _FACILITY_ID
+    assert args.args[2] == str(credential_id)
+
+
+# ---------- FacilityTrustAnchorCredentialRemoved apply ----------
+
+
+@pytest.mark.unit
+async def test_facility_trust_anchor_credential_removed_updates_jsonb_array() -> None:
+    proj = FacilitySummaryProjection()
+    conn = AsyncMock()
+    credential_id = uuid4()
+    event = _stored(
+        "FacilityTrustAnchorCredentialRemoved",
+        {
+            "facility_id": str(_FACILITY_ID),
+            "credential_id": str(credential_id),
+            "removed_by": str(_TEST_ACTOR_ID),
+            "occurred_at": _NOW.isoformat(),
+            "reason": "key compromise",
+        },
+    )
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[1] == _FACILITY_ID
+    assert args.args[2] == str(credential_id)

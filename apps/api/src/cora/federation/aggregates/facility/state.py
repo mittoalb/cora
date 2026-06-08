@@ -264,6 +264,77 @@ class FacilityParentNotFoundError(Exception):
         self.parent_id = parent_id
 
 
+class FacilityTrustAnchorCredentialAlreadyPresentError(Exception):
+    """Attempted to add a credential id that is already a trust anchor.
+
+    Strict-not-idempotent: mirrors `AssetAlternateIdentifierAlreadyPresentError`.
+    Re-add raises rather than no-ops so operator intent mismatches surface
+    (two operators racing to bind the same credential). HTTP 409 at the
+    route.
+    """
+
+    def __init__(self, facility_id: FacilityId, credential_id: CredentialId) -> None:
+        super().__init__(
+            f"Facility {facility_id} already has credential {credential_id} as a trust anchor"
+        )
+        self.facility_id = facility_id
+        self.credential_id = credential_id
+
+
+class FacilityTrustAnchorCredentialNotPresentError(Exception):
+    """Attempted to remove a credential id that is not a trust anchor.
+
+    Mirror of `FacilityTrustAnchorCredentialAlreadyPresentError`.
+    Strict-not-idempotent: the decider rejects rather than no-ops on
+    a missing credential. Same shape as
+    `AssetAlternateIdentifierNotPresentError`. HTTP 409 at the route.
+    """
+
+    def __init__(self, facility_id: FacilityId, credential_id: CredentialId) -> None:
+        super().__init__(
+            f"Facility {facility_id} does not have credential {credential_id} as a trust anchor; "
+            "nothing to remove"
+        )
+        self.facility_id = facility_id
+        self.credential_id = credential_id
+
+
+class FacilityCannotAddTrustAnchorCredentialError(Exception):
+    """Attempted to mutate trust_anchor_credential_ids under a disqualifying
+    lifecycle / kind.
+
+    Shared by BOTH `add_facility_trust_anchor_credential` and
+    `remove_facility_trust_anchor_credential` deciders: the lifecycle
+    guard fires when the Facility is Decommissioned (retired; no further
+    trust-anchor changes), the kind guard fires when the Facility is
+    kind=Area (Area Facilities inherit the parent Site's trust posture
+    and never carry their own trust anchors). Mirrors the Asset precedent
+    where `AssetCannotAddAlternateIdentifierError` is shared by add+remove
+    deciders. The `reason` string surfaces in the route's 409 body.
+
+    Naming note: the verb "Add" carries over the shared-error convention
+    from the Asset precedent even though this class also fires on the
+    Remove path. Splitting into a separate `Remove` class would
+    duplicate the lifecycle/kind logic across two arms; the shared shape
+    keeps both deciders consistent.
+    """
+
+    def __init__(
+        self,
+        facility_id: FacilityId,
+        credential_id: CredentialId,
+        *,
+        reason: str,
+    ) -> None:
+        super().__init__(
+            f"Facility {facility_id} cannot mutate trust anchor for credential "
+            f"{credential_id}: {reason}"
+        )
+        self.facility_id = facility_id
+        self.credential_id = credential_id
+        self.reason = reason
+
+
 class FacilityAreaParentMustBeSiteError(Exception):
     """An `Area` Facility was registered with a `parent_id` whose `kind` is not `Site`.
 

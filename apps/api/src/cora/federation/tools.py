@@ -20,6 +20,9 @@ from cora.federation.features.abort_credential_rotation import (
     tool as abort_credential_rotation_tool,
 )
 from cora.federation.features.activate_permit import tool as activate_permit_tool
+from cora.federation.features.add_facility_trust_anchor_credential import (
+    tool as add_facility_trust_anchor_credential_tool,
+)
 from cora.federation.features.complete_credential_rotation import (
     tool as complete_credential_rotation_tool,
 )
@@ -41,6 +44,9 @@ from cora.federation.features.register_credential import (
     tool as register_credential_tool,
 )
 from cora.federation.features.register_facility import tool as register_facility_tool
+from cora.federation.features.remove_facility_trust_anchor_credential import (
+    tool as remove_facility_trust_anchor_credential_tool,
+)
 from cora.federation.features.resume_permit import tool as resume_permit_tool
 from cora.federation.features.revoke_credential import tool as revoke_credential_tool
 from cora.federation.features.revoke_permit import tool as revoke_permit_tool
@@ -133,6 +139,14 @@ def register_federation_tools(
     decommission_facility_tool.register(
         mcp,
         get_handler=lambda: get_handlers().decommission_facility,
+    )
+    add_facility_trust_anchor_credential_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_facility_trust_anchor_credential,
+    )
+    remove_facility_trust_anchor_credential_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_facility_trust_anchor_credential,
     )
     list_permits_tool.register(
         mcp,

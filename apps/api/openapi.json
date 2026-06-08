@@ -302,6 +302,23 @@
         "title": "AddAssetPortRequest",
         "type": "object"
       },
+      "AddFacilityTrustAnchorCredentialBody": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/facilities/{facility_id}/add-trust-anchor-credential`.",
+        "properties": {
+          "credential_id": {
+            "description": "Credential id to add to the Facility's trust-anchor set. Once added, the Slice 6 Sub-Slice C Seal decider rewrite will accept this credential as a valid online or offline signing key for Seal initialization and rotation on this Facility.",
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential_id"
+        ],
+        "title": "AddFacilityTrustAnchorCredentialBody",
+        "type": "object"
+      },
       "AddMethodRequiredRoleRequest": {
         "description": "Body for `POST /methods/{method_id}/add-required-role`.",
         "properties": {
@@ -10603,6 +10620,35 @@
           "port_name"
         ],
         "title": "RemoveAssetPortRequest",
+        "type": "object"
+      },
+      "RemoveFacilityTrustAnchorCredentialBody": {
+        "additionalProperties": false,
+        "description": "Body for `POST /federation/facilities/{facility_id}/remove-trust-anchor-credential`.",
+        "properties": {
+          "credential_id": {
+            "description": "Credential id to remove from the Facility's trust-anchor set. Strict-not-idempotent: re-removing raises 409.",
+            "format": "uuid",
+            "title": "Credential Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional operator-supplied reason for removing the trust anchor (audit-log breadcrumb; e.g. 'key compromise', 'rotation cleanup'). Flows onto the FacilityTrustAnchorCredentialRemoved event payload.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "credential_id"
+        ],
+        "title": "RemoveFacilityTrustAnchorCredentialBody",
         "type": "object"
       },
       "RemoveMethodRequiredRoleRequest": {
@@ -25001,6 +25047,103 @@
         ]
       }
     },
+    "/federation/facilities/{facility_id}/add-trust-anchor-credential": {
+      "post": {
+        "operationId": "post_federation_facilities_add_trust_anchor_credential_federation_facilities__facility_id__add_trust_anchor_credential_post",
+        "parameters": [
+          {
+            "description": "Target facility's id.",
+            "in": "path",
+            "name": "facility_id",
+            "required": true,
+            "schema": {
+              "description": "Target facility's id.",
+              "format": "uuid",
+              "title": "Facility Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFacilityTrustAnchorCredentialBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No facility exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Either the credential id is already a trust anchor on this facility (strict-not-idempotent), OR the facility is Decommissioned (no trust-anchor mutations on retired facilities), OR the facility is kind=Area (Area facilities inherit the parent Site's trust posture; trust anchors bind to Site-tier facilities only)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body failed schema validation (missing credential_id, malformed UUID)."
+          }
+        },
+        "summary": "Bind a Credential as a Facility trust anchor (strict-not-idempotent)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
     "/federation/facilities/{facility_id}/decommission": {
       "post": {
         "operationId": "post_federation_facilities_decommission_federation_facilities__facility_id__decommission_post",
@@ -25100,6 +25243,103 @@
           }
         },
         "summary": "Decommission a Facility (terminal: Active -> Decommissioned)",
+        "tags": [
+          "federation"
+        ]
+      }
+    },
+    "/federation/facilities/{facility_id}/remove-trust-anchor-credential": {
+      "post": {
+        "operationId": "post_federation_facilities_remove_trust_anchor_credential_federation_facilities__facility_id__remove_trust_anchor_credential_post",
+        "parameters": [
+          {
+            "description": "Target facility's id.",
+            "in": "path",
+            "name": "facility_id",
+            "required": true,
+            "schema": {
+              "description": "Target facility's id.",
+              "format": "uuid",
+              "title": "Facility Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveFacilityTrustAnchorCredentialBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No facility exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Either the credential id is not a trust anchor on this facility (strict-not-idempotent; nothing to remove), OR the facility is Decommissioned (no trust-anchor mutations on retired facilities)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body failed schema validation (missing credential_id, malformed UUID)."
+          }
+        },
+        "summary": "Unbind a Credential from a Facility trust anchor (strict-not-idempotent)",
         "tags": [
           "federation"
         ]

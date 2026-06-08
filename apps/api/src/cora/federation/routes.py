@@ -41,10 +41,13 @@ from cora.federation.aggregates.facility import (
     FacilityAreaCannotHaveTrustAnchorsError,
     FacilityAreaMustHaveParentError,
     FacilityAreaParentMustBeSiteError,
+    FacilityCannotAddTrustAnchorCredentialError,
     FacilityCannotDecommissionError,
     FacilityNotFoundError,
     FacilityParentNotFoundError,
     FacilitySiteCannotHaveParentError,
+    FacilityTrustAnchorCredentialAlreadyPresentError,
+    FacilityTrustAnchorCredentialNotPresentError,
     InvalidFacilityNameError,
 )
 from cora.federation.aggregates.permit.state import (
@@ -78,6 +81,7 @@ from cora.federation.errors import FederationError, UnauthorizedError
 from cora.federation.features import (
     abort_credential_rotation,
     activate_permit,
+    add_facility_trust_anchor_credential,
     complete_credential_rotation,
     complete_seal_republishing,
     decommission_facility,
@@ -91,6 +95,7 @@ from cora.federation.features import (
     list_seals,
     register_credential,
     register_facility,
+    remove_facility_trust_anchor_credential,
     resume_permit,
     revoke_credential,
     revoke_permit,
@@ -181,6 +186,8 @@ def register_federation_routes(app: FastAPI) -> None:
     app.include_router(complete_seal_republishing.router)
     app.include_router(register_facility.router)
     app.include_router(decommission_facility.router)
+    app.include_router(add_facility_trust_anchor_credential.router)
+    app.include_router(remove_facility_trust_anchor_credential.router)
     app.include_router(list_permits.router)
     app.include_router(get_permit.router)
     app.include_router(list_credentials.router)
@@ -230,7 +237,10 @@ def register_federation_routes(app: FastAPI) -> None:
         PermitCannotRevokeError,
         CredentialCannotRotateError,
         CredentialCannotRevokeError,
+        FacilityCannotAddTrustAnchorCredentialError,
         FacilityCannotDecommissionError,
+        FacilityTrustAnchorCredentialAlreadyPresentError,
+        FacilityTrustAnchorCredentialNotPresentError,
         SealCannotSignError,
         SealCannotRotateError,
         SealCannotInitializeWithInactiveCredentialError,

@@ -130,6 +130,14 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # handler unit tests + projection apply test (FacilityDecommissioned
         # branch) + OpenAPI snapshot cover the behavior surface.
         "cora.federation.features.decommission_facility",
+        # add_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # REST contract test deferred alongside the Facility-family
+        # contract suite. Decider + PBT + handler unit tests + projection
+        # apply test + OpenAPI snapshot cover the behavior surface.
+        "cora.federation.features.add_facility_trust_anchor_credential",
+        # remove_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # same deferral as the add sibling.
+        "cora.federation.features.remove_facility_trust_anchor_credential",
     }
 )
 
@@ -175,6 +183,12 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         # decommission_facility (Session 5 Slice 5 Sub-Slice C): MCP
         # contract test deferred alongside REST. Same rationale.
         "cora.federation.features.decommission_facility",
+        # add_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # MCP contract test deferred alongside the REST contract test.
+        "cora.federation.features.add_facility_trust_anchor_credential",
+        # remove_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # same deferral as the add sibling.
+        "cora.federation.features.remove_facility_trust_anchor_credential",
     }
 )
 
@@ -222,6 +236,13 @@ EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
         # deferral. Decider + handler unit tests + projection apply
         # cover the behavior surface.
         "cora.federation.features.decommission_facility",
+        # add_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # integration tier deferred alongside Facility-family integration
+        # suite. Decider + PBT + handler + projection apply cover behavior.
+        "cora.federation.features.add_facility_trust_anchor_credential",
+        # remove_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
+        # same deferral as the add sibling.
+        "cora.federation.features.remove_facility_trust_anchor_credential",
     }
 )
 

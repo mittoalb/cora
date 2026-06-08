@@ -27,6 +27,8 @@ from cora.federation.aggregates.facility.events import (
     FacilityDecommissioned,
     FacilityEvent,
     FacilityRegistered,
+    FacilityTrustAnchorCredentialAdded,
+    FacilityTrustAnchorCredentialRemoved,
 )
 from cora.federation.aggregates.facility.state import (
     Facility,
@@ -75,6 +77,22 @@ def evolve(state: Facility | None, event: FacilityEvent) -> Facility:
                 status=FacilityStatus.DECOMMISSIONED,
                 decommissioned_at=occurred_at,
                 decommissioned_by=decommissioned_by,
+            )
+        case FacilityTrustAnchorCredentialAdded(
+            credential_id=credential_id,
+        ):
+            prior = require_state(state, "FacilityTrustAnchorCredentialAdded")
+            return replace(
+                prior,
+                trust_anchor_credential_ids=prior.trust_anchor_credential_ids | {credential_id},
+            )
+        case FacilityTrustAnchorCredentialRemoved(
+            credential_id=credential_id,
+        ):
+            prior = require_state(state, "FacilityTrustAnchorCredentialRemoved")
+            return replace(
+                prior,
+                trust_anchor_credential_ids=prior.trust_anchor_credential_ids - {credential_id},
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

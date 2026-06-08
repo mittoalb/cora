@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Any, assert_never
 from uuid import UUID
 
-from cora.federation.aggregates._value_types import FacilityId
+from cora.federation.aggregates._value_types import CredentialId, FacilityId
 from cora.federation.aggregates.facility.state import FacilityKind
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.facility_code import FacilityCode
@@ -79,7 +79,56 @@ class FacilityDecommissioned:
     reason: str | None = None
 
 
-FacilityEvent = FacilityRegistered | FacilityDecommissioned
+@dataclass(frozen=True)
+class FacilityTrustAnchorCredentialAdded:
+    """A Credential id was added to a Facility's trust-anchor set.
+
+    Mutates `Facility.trust_anchor_credential_ids: frozenset[CredentialId]`
+    by union with the new id. Valid only when the Facility is Active and
+    kind=Site (Area Facilities inherit the parent Site's trust posture;
+    the decider raises `FacilityCannotAddTrustAnchorCredentialError` for
+    either guard violation). Strict-not-idempotent: re-adding an already-
+    present credential raises `FacilityTrustAnchorCredentialAlreadyPresentError`.
+
+    Slice 6 Sub-Slice B genesis event. Consumed by the projection writer
+    to maintain the JSONB array column. Slice 6 Sub-Slice C will gate
+    Seal initialize / rotate on set-membership against this column.
+    """
+
+    facility_id: FacilityId
+    credential_id: CredentialId
+    added_by: ActorId
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class FacilityTrustAnchorCredentialRemoved:
+    """A Credential id was removed from a Facility's trust-anchor set.
+
+    Mutates `Facility.trust_anchor_credential_ids: frozenset[CredentialId]`
+    by difference. Valid only when the Facility is Active (Decommissioned
+    facilities reject mutation per the shared lifecycle/kind guard).
+    Strict-not-idempotent: removing an already-absent credential raises
+    `FacilityTrustAnchorCredentialNotPresentError`.
+
+    `reason` flows through to the projection / event log for operator
+    audit-trail breadcrumb (e.g. "key compromise", "rotation cleanup",
+    "decommissioned credential garbage-collect").
+    """
+
+    facility_id: FacilityId
+    credential_id: CredentialId
+    removed_by: ActorId
+    occurred_at: datetime
+    reason: str | None = None
+
+
+FacilityEvent = (
+    FacilityRegistered
+    | FacilityDecommissioned
+    | FacilityTrustAnchorCredentialAdded
+    | FacilityTrustAnchorCredentialRemoved
+)
 
 
 def event_type_name(event: FacilityEvent) -> str:
@@ -131,6 +180,32 @@ def to_payload(event: FacilityEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
                 "reason": reason,
             }
+        case FacilityTrustAnchorCredentialAdded(
+            facility_id=facility_id,
+            credential_id=credential_id,
+            added_by=added_by,
+            occurred_at=occurred_at,
+        ):
+            return {
+                "facility_id": str(facility_id),
+                "credential_id": str(credential_id),
+                "added_by": str(added_by),
+                "occurred_at": occurred_at.isoformat(),
+            }
+        case FacilityTrustAnchorCredentialRemoved(
+            facility_id=facility_id,
+            credential_id=credential_id,
+            removed_by=removed_by,
+            occurred_at=occurred_at,
+            reason=reason,
+        ):
+            return {
+                "facility_id": str(facility_id),
+                "credential_id": str(credential_id),
+                "removed_by": str(removed_by),
+                "occurred_at": occurred_at.isoformat(),
+                "reason": reason,
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -177,6 +252,29 @@ def from_stored(stored: StoredEvent) -> FacilityEvent:
                 ),
                 extra=(ValueError,),
             )
+        case "FacilityTrustAnchorCredentialAdded":
+            return deserialize_or_raise(
+                "FacilityTrustAnchorCredentialAdded",
+                lambda: FacilityTrustAnchorCredentialAdded(
+                    facility_id=FacilityId(UUID(payload["facility_id"])),
+                    credential_id=CredentialId(UUID(payload["credential_id"])),
+                    added_by=ActorId(UUID(payload["added_by"])),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                ),
+                extra=(ValueError,),
+            )
+        case "FacilityTrustAnchorCredentialRemoved":
+            return deserialize_or_raise(
+                "FacilityTrustAnchorCredentialRemoved",
+                lambda: FacilityTrustAnchorCredentialRemoved(
+                    facility_id=FacilityId(UUID(payload["facility_id"])),
+                    credential_id=CredentialId(UUID(payload["credential_id"])),
+                    removed_by=ActorId(UUID(payload["removed_by"])),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    reason=payload.get("reason"),
+                ),
+                extra=(ValueError,),
+            )
         case unknown:
             msg = f"Unknown Facility event type: {unknown!r}"
             raise ValueError(msg)
@@ -186,6 +284,8 @@ __all__ = [
     "FacilityDecommissioned",
     "FacilityEvent",
     "FacilityRegistered",
+    "FacilityTrustAnchorCredentialAdded",
+    "FacilityTrustAnchorCredentialRemoved",
     "event_type_name",
     "from_stored",
     "to_payload",
