@@ -3,12 +3,24 @@
 This is the load-bearing integration test for
 [[project_deregister_supply_design]]. The design promise is that
 once a Supply is `Decommissioned`, an operator can re-register
-the same `(scope, kind, name)` address with a fresh supply_id. The
-mechanism is the partial UNIQUE INDEX on `proj_supply_summary`:
+the same address with a fresh supply_id. The mechanism is the
+partial UNIQUE INDEX on `proj_supply_summary`:
 
     CREATE UNIQUE INDEX proj_supply_summary_address_uq
-        ON proj_supply_summary (scope, kind, name)
+        ON proj_supply_summary (
+            facility_code,
+            COALESCE(containing_asset_id::text, ''),
+            kind,
+            name
+        )
         WHERE status != 'Decommissioned';
+
+Slice 7C swapped the address tuple from the original
+`(scope, kind, name)` to the current
+`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)`
+per [[project_supply_sector_disposition]] Option A so two
+facilities + per-containing-Asset bindings can coexist without
+colliding.
 
 Without the partial predicate the second register at the same
 address would be rejected at projection-insert time (silent
@@ -19,7 +31,10 @@ With it, both rows coexist in the projection: one Decommissioned
 A second invariant pinned here: two ACTIVE supplies (both non-
 Decommissioned) at the same address still trip the unique index;
 the WARN-log fallback fires. The partial predicate has the right
-direction.
+direction. A third invariant: two ACTIVE supplies at the same
+`(kind, name)` but DIFFERENT `facility_code` (or different
+`containing_asset_id` within one facility) BOTH land cleanly;
+the post-Slice-7C index correctly distinguishes by both keys.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -159,3 +174,147 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     matching = [item for item in page.items if item.name == name]
     assert len(matching) == 1, "duplicate active address should not double-insert"
     assert matching[0].supply_id == first_supply_id
+
+
+@pytest.mark.integration
+async def test_same_kind_name_across_facilities_coexist(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Slice 7C: two Supplies with the same `(scope, kind, name)` but
+    DIFFERENT `facility_code` BOTH land in the projection. The new
+    UNIQUE INDEX composes facility_code first, so the two rows occupy
+    distinct slots."""
+    from cora.infrastructure.adapters.in_memory_facility_lookup import (
+        InMemoryFacilityLookup,
+    )
+    from cora.shared.facility_code import FacilityCode
+
+    scope = SupplyScope.BEAMLINE
+    kind = "LiquidNitrogen"
+    name = f"2-BM LN2 cross-facility-{uuid4()}"
+
+    aps_supply_id = uuid4()
+    aps_lookup = InMemoryFacilityLookup()
+    aps_lookup.register(
+        facility_id=UUID("01900000-0000-7000-8000-00000000c0a0"),
+        code=FacilityCode("aps"),
+        kind="Site",
+        status="Active",
+    )
+    aps_deps = build_postgres_deps(
+        db_pool,
+        now=_T0,
+        ids=[aps_supply_id, uuid4()],
+        facility_lookup=aps_lookup,
+    )
+    await bind_register(aps_deps)(
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="aps"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    maxiv_supply_id = uuid4()
+    maxiv_lookup = InMemoryFacilityLookup()
+    maxiv_lookup.register(
+        facility_id=UUID("01900000-0000-7000-8000-00000000c0a1"),
+        code=FacilityCode("maxiv"),
+        kind="Site",
+        status="Active",
+    )
+    maxiv_deps = build_postgres_deps(
+        db_pool,
+        now=_T1,
+        ids=[maxiv_supply_id, uuid4()],
+        facility_lookup=maxiv_lookup,
+    )
+    await bind_register(maxiv_deps)(
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="maxiv"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await _drain(db_pool)
+
+    deps_list = build_postgres_deps(db_pool, ids=[uuid4()], now=_T2)
+    page = await bind_list(deps_list)(
+        ListSupplies(kind=kind),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    matching = sorted([item.supply_id for item in page.items if item.name == name])
+    assert sorted([aps_supply_id, maxiv_supply_id]) == matching, (
+        f"expected both cross-facility rows to coexist, got {matching}"
+    )
+
+
+@pytest.mark.integration
+async def test_same_kind_name_across_containing_assets_coexist(
+    db_pool: asyncpg.Pool,
+) -> None:
+    """Slice 7C: two Supplies with the same `(scope, kind, name)` and
+    SAME `facility_code` but DIFFERENT `containing_asset_id` BOTH land
+    in the projection. The new UNIQUE INDEX composes
+    COALESCE(containing_asset_id::text, '') so distinct UUIDs occupy
+    distinct slots within one facility."""
+    from cora.infrastructure.adapters.in_memory_asset_lookup import (
+        InMemoryAssetLookup,
+    )
+
+    scope = SupplyScope.BEAMLINE
+    kind = "LiquidNitrogen"
+    name = f"LN2 cross-asset-{uuid4()}"
+
+    asset_a_id = uuid4()
+    asset_b_id = uuid4()
+    asset_lookup = InMemoryAssetLookup()
+    asset_lookup.register(asset_id=asset_a_id, name="2-BM-A", level="Unit")
+    asset_lookup.register(asset_id=asset_b_id, name="2-BM-B", level="Unit")
+
+    first_supply_id = uuid4()
+    first_deps = build_postgres_deps(
+        db_pool,
+        now=_T0,
+        ids=[first_supply_id, uuid4()],
+        asset_lookup=asset_lookup,
+    )
+    await bind_register(first_deps)(
+        RegisterSupply(
+            scope=scope,
+            kind=kind,
+            name=name,
+            facility_code="cora",
+            containing_asset_id=asset_a_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+
+    second_supply_id = uuid4()
+    second_deps = build_postgres_deps(
+        db_pool,
+        now=_T1,
+        ids=[second_supply_id, uuid4()],
+        asset_lookup=asset_lookup,
+    )
+    await bind_register(second_deps)(
+        RegisterSupply(
+            scope=scope,
+            kind=kind,
+            name=name,
+            facility_code="cora",
+            containing_asset_id=asset_b_id,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await _drain(db_pool)
+
+    deps_list = build_postgres_deps(db_pool, ids=[uuid4()], now=_T2)
+    page = await bind_list(deps_list)(
+        ListSupplies(kind=kind),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    matching = sorted([item.supply_id for item in page.items if item.name == name])
+    assert sorted([first_supply_id, second_supply_id]) == matching, (
+        f"expected both cross-asset rows to coexist, got {matching}"
+    )

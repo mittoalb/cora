@@ -76,16 +76,13 @@ projection-side UNIQUE INDEX on `(scope, kind, name)` catches
 duplicate registrations at insert time; aggregates cannot enforce
 cross-stream uniqueness without DCB (per [[project_deferred]]).
 
-`facility_code` (Session 5 Slice 7) joins the address tuple as the
+`facility_code` (Session 5 Slice 7A) joins the address tuple as the
 federation-tier disambiguator: every Supply belongs to exactly one
 Facility (the cross-deployment convergent slug at Federation BC's
 two-tier identity). The register_supply handler resolves the slug
 to a `FacilityLookupResult` via `FacilityLookup.lookup_by_code`
 before threading into the decider, rejecting unknown codes with
-`SupplyFacilityNotFoundError` (HTTP 404). Slice 7C will migrate the
-projection UNIQUE INDEX to compose `facility_code` into the
-uniqueness key so two facilities can each own a "2-BM LN2 dewar"
-without colliding.
+`SupplyFacilityNotFoundError` (HTTP 404).
 
 `containing_asset_id` (Session 5 Slice 7B) is the optional physical-
 equipment containment back-reference per
@@ -97,9 +94,16 @@ Asset hierarchy (Sector 2 is an `Asset(level=Area)`; 2-BM is an
 resource" (paired with non-None `facility_code`). When non-None,
 the register_supply handler resolves it via `AssetLookup.lookup`
 and rejects unknown ids with `SupplyContainingAssetNotFoundError`
-(HTTP 404). Slice 7C swaps the projection UNIQUE INDEX to compose
-`containing_asset_id` into the uniqueness key; Slice 7D + 7E
-complete the SupplyScope retirement.
+(HTTP 404).
+
+Session 5 Slice 7C migrated the projection UNIQUE INDEX from the
+original `(scope, kind, name)` tuple to
+`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)`
+so two facilities can each own a `(LiquidNitrogen, "2-BM LN2 dewar")`
+row, and two distinct containing-Asset bindings within one facility
+can each own the same `(kind, name)` pair. The `scope` column stays
+intact through Slice 7E (SupplyScope retirement); the `scope` value
+in the address is decorative now, not load-bearing for uniqueness.
 
 ## Eleventh bounded-name VO
 

@@ -21,27 +21,28 @@ status values after the Decommissioned-widening migration ships per
 [[project_deregister_supply_design]]; last_trigger CHECK covers the
 3 trigger values locked day one.
 
-## Cross-stream uniqueness on (scope, kind, name)
+## Cross-stream uniqueness on (facility_code, containing_asset_id, kind, name)
 
 The migration's `proj_supply_summary_address_uq` UNIQUE INDEX on
-`(scope, kind, name)` enforces cross-stream uniqueness at the read
-side (the aggregate cannot enforce cross-stream invariants without
-DCB per [[project_deferred]]). The index is PARTIAL on
+`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)`
+enforces cross-stream uniqueness at the read side (the aggregate
+cannot enforce cross-stream invariants without DCB per
+[[project_deferred]]). The index is PARTIAL on
 `WHERE status != 'Decommissioned'`: Decommissioned rows do not count
 toward uniqueness, so an operator who deregisters a mistaken Supply
-can re-register at the same (scope, kind, name) address with a fresh
-supply_id. This is the load-bearing affordance the design memo
+can re-register at the same address with a fresh supply_id. This is
+the load-bearing affordance the design memo
 [[project_deregister_supply_design]] documents.
 
-Session 5 Slice 7C will migrate the UNIQUE INDEX shape to compose
-`facility_code` into the uniqueness tuple so two facilities can each
-own a `(Beamline, LiquidNitrogen, "2-BM LN2 dewar")` row without
-colliding. Slice 7A keeps the existing `(scope, kind, name)` index
-intact and lands `facility_code` as a denormalized column only; the
-index swap is the Slice 7C concern, not Slice 7A's. Until 7C ships,
-operators registering the same `(scope, kind, name)` across two
-facilities will see one row land + one duplicate-address-skipped log
-entry; this is a known intermediate state that Slice 7C closes.
+Session 5 Slice 7C swapped the index from the original
+`(scope, kind, name)` tuple to the current shape per
+[[project_supply_sector_disposition]] Option A. Two facilities can
+now each own a `(LiquidNitrogen, "2-BM LN2 dewar")` row without
+colliding; within one facility, two distinct containing-Asset
+bindings can each own the same `(kind, name)` pair (a per-beamline
+dewar vs a sector-wide manifold). Facility-scope Supplies share the
+COALESCE-sentinel slot per facility so per-(facility_code, kind, name)
+uniqueness still holds.
 
 When two operators concurrently register supplies with the same
 (scope, kind, name) BOTH in active states, the second
@@ -148,19 +149,20 @@ class SupplySummaryProjection:
                         datetime.fromisoformat(event.payload["occurred_at"]),
                     )
             except asyncpg.UniqueViolationError:
-                # Cross-stream duplicate on (scope, kind, name) — see
-                # module docstring. Swallow + log so the worker keeps
-                # running. The duplicate event stays in the event log
-                # as audit; only one projection row exists for the
-                # address.
+                # Cross-stream duplicate on
+                # (facility_code, containing_asset_id, kind, name);
+                # see module docstring. Swallow + log so the worker
+                # keeps running. The duplicate event stays in the
+                # event log as audit; only one projection row exists
+                # for the address.
                 _log.warning(
                     "supply_summary_projection.duplicate_address_skipped",
                     supply_id=event.payload["supply_id"],
-                    scope=event.payload["scope"],
-                    kind=event.payload["kind"],
-                    name=event.payload["name"],
                     facility_code=event.payload["facility_code"],
                     containing_asset_id=event.payload.get("containing_asset_id"),
+                    kind=event.payload["kind"],
+                    name=event.payload["name"],
+                    scope=event.payload["scope"],
                     event_id=str(event.event_id),
                 )
             return
