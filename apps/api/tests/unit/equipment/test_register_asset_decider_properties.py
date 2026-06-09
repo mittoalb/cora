@@ -100,7 +100,12 @@ def test_register_asset_propagates_model_id_verbatim_into_event(
         model_id=model_id,
     )
     events = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert len(events) == 1
     event = events[0]
@@ -134,10 +139,20 @@ def test_register_asset_is_pure_across_model_id_inputs(
         model_id=model_id,
     )
     first = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     second = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert first == second
 
@@ -170,7 +185,12 @@ def test_register_asset_propagates_alternate_identifiers_verbatim_into_event(
         alternate_identifiers=alternate_identifiers,
     )
     events = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert len(events) == 1
     event = events[0]
@@ -205,9 +225,19 @@ def test_register_asset_is_pure_across_alternate_identifiers_inputs(
         alternate_identifiers=alternate_identifiers,
     )
     first = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     second = register_asset.decide(
-        state=None, command=command, now=now, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=now,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert first == second

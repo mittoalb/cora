@@ -80,9 +80,15 @@ def test_register_asset_rejects_payload_with_any_duplicate_owner_name_holds(
                 now=_NOW,
                 new_id=uuid4(),
                 commissioned_by=_TEST_ACTOR_ID,
+                facility_lookup_result=None,
             )
     else:
         events = register_decide(
-            state=None, command=command, now=_NOW, new_id=uuid4(), commissioned_by=_TEST_ACTOR_ID
+            state=None,
+            command=command,
+            now=_NOW,
+            new_id=uuid4(),
+            commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
         assert events[0].owners == owner_set

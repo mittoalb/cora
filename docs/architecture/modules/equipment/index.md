@@ -27,7 +27,7 @@ Out of scope
 |---|---|---|---|
 | `Family` | `id: UUID` | `id`, `name: FamilyName`, `status: FamilyStatus`, `version: str?`, `affordances: frozenset[Affordance]`, `settings_schema: dict?` | yes (3-state) |
 | `Model` | `id: UUID` | `id`, `name`, `manufacturer: Manufacturer`, `part_number`, `declared_family_ids: frozenset[UUID]`, `status: ModelStatus`, `version: str?` | yes (3-state) |
-| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?` | yes (4-state lifecycle, 3-state condition) |
+| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?`, `controller_id?`, `facility_code?` | yes (4-state lifecycle, 3-state condition) |
 | `Frame` | `id: UUID` | `id`, `name`, `parent_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
 | `Mount` | `id: UUID` | `id`, `slot_code`, `parent_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
@@ -54,6 +54,7 @@ Out of scope
 | `AssetOwner` | `(name, contact?, identifier?, identifier_type?)`; identifier and identifier_type are paired (both present or both absent) | members of `Asset.owners` |
 | `AlternateIdentifier` | `(kind, value)`; kind is closed StrEnum `SerialNumber` \| `InventoryNumber` \| `Other` | members of `Asset.alternate_identifiers` |
 | `Drawing` | `(system, number, revision?)`; system is closed StrEnum `ICMS` \| `EDMS` \| `DOI`; revision None means "latest" | `Asset.drawing`, `Mount.drawing`, `Assembly.drawing` |
+| `FacilityCode` | trimmed slug `[a-z0-9-]{1,32}` from `cora.shared.facility_code`; cross-deployment convergent identity for the owning Federation Facility | `Asset.facility_code` (optional, set-once at register_asset; mirrors the Supply binding shape) |
 | `Manufacturer` | `(name, identifier?, identifier_type?)`; identifier_type is closed StrEnum `ROR` \| `GRID` \| `ISNI` and is paired with identifier | `Model.manufacturer` |
 | `ModelStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Model.status` |
 | `Placement` | 6-DoF rigid-body transform: `(translation_mm, rotation_deg)` where translation is `(x, y, z)` and rotation is `(rx, ry, rz)` extrinsic Tait-Bryan | `Frame.placement`, `Mount.placement` |
@@ -806,6 +807,7 @@ The Fixture summary backs `GET /fixtures` plus filters by `assembly_id`, `surfac
 | [Safety](../safety/index.md) | shared-id-with | `Clearance.facility_asset_id` references an `Asset.Level.Site`; `AssetBinding.asset_id` references any `Asset` a Clearance gates |
 | [Access](../access/index.md) | shared-id-with | Every Equipment event envelope carries the actor id that authored the change |
 | [Federation](../federation/index.md) | shared-content-hash-with | `Assembly.content_hash` and `Fixture.assembly_content_hash` are stable across facilities for federation dedup and cross-facility composition sharing |
+| [Federation](../federation/index.md) | reads-from (via `FacilityLookup` port) | `Asset.facility_code` (optional) binds an Asset to its owning Federation Facility via the cross-deployment convergent slug. The `register_asset` handler resolves the slug via `FacilityLookup.lookup_by_code` and rejects unknown codes with `AssetFacilityNotFoundError` (HTTP 404). Decommissioned-Facility binding is allowed. Set-once at registration; rebind path is decommission + re-register. |
 
 The Asset hierarchy answers "where does this belong structurally"; Trust Zones answer "what security policy applies"; Frame / Mount answers "where is it physically installed". The three classifications are orthogonal: an Asset has all three, and zones, frames, and the structural parent tree all span Sites independently.
 

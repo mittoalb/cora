@@ -88,6 +88,7 @@ from uuid import UUID
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._partition_rule import PartitionRule
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import (
     AlternateIdentifier,
     AlternateIdentifierKind,
@@ -695,6 +696,39 @@ class AssetNotFoundError(Exception):
         self.asset_id = asset_id
 
 
+class AssetFacilityNotFoundError(Exception):
+    """`register_asset` referenced a Facility code with no projection row.
+
+    Cross-BC binding: an Asset MAY be bound to its owning Federation
+    Facility via the cross-deployment convergent slug
+    (`Facility.code`) at the two-tier identity. When
+    `command.facility_code` is non-None, the handler resolves it via
+    `FacilityLookup.lookup_by_code` before threading the result into
+    the decider; a `None` result means no Facility with that code is
+    visible in `proj_federation_facility_summary` and the registration
+    is rejected with HTTP 404. Operator remedies: register the Facility
+    first via `POST /federation/facilities`, or correct the typo on
+    the Asset registration. Assets that omit `facility_code` entirely
+    skip the lookup; the decider does NOT validate in that path.
+
+    Status filter mirrors the Supply Slice 7A
+    `SupplyFacilityNotFoundError` precedent: every Facility status
+    (Active, Decommissioned) is a valid binding target; operators
+    keep Decommissioned-facility lineage visible by binding Assets
+    against it. The decider does NOT partition on Facility status.
+
+    Cross-BC eventual consistency: if `register_asset` is called
+    immediately after `register_facility`, the Federation projection
+    may not have caught up yet and the lookup returns `None`. The
+    handler surfaces this same 404; operator remedies are identical
+    (retry after projection bookmark advances).
+    """
+
+    def __init__(self, facility_code: str) -> None:
+        super().__init__(f"Facility {facility_code!r} not found for asset registration")
+        self.facility_code = facility_code
+
+
 class AssetCannotActivateError(Exception):
     """Attempted to activate an asset not in the `Commissioned` lifecycle.
 
@@ -1268,3 +1302,17 @@ class Asset:
     # standards convergence (OPC UA DI, ISA-88, AAS DigitalNameplate,
     # MTConnect, PIDINST).
     controller_id: UUID | None = None
+    # Optional cross-BC reference to the Federation Facility that owns
+    # this Asset, keyed on the cross-deployment convergent slug
+    # (`FacilityCode`) per [[project-facility-aggregate-design]]
+    # two-tier identity. Set ONCE at `register_asset` per the
+    # model-binding Lock A precedent; rebind path is decommission +
+    # re-register. The handler resolves the slug via
+    # `FacilityLookup.lookup_by_code` and rejects unknown codes with
+    # `AssetFacilityNotFoundError` (HTTP 404). Decommissioned-Facility
+    # binding is allowed (mirrors the `SupplyFacilityNotFoundError`
+    # precedent: every Facility status is a valid binding target).
+    # Defaults to None so legacy AssetRegistered streams without the
+    # field fold cleanly via the additive-state pattern. See
+    # [[project-slice8-design]] L1.
+    facility_code: FacilityCode | None = None

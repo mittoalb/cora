@@ -66,9 +66,9 @@ INSERT INTO proj_equipment_asset_summary
     (asset_id, name, level, lifecycle, condition, parent_id,
      drawing_system, drawing_number, drawing_revision, model_id,
      alternate_identifiers, owners, commissioned_at, commissioned_by,
-     created_at)
+     facility_code, created_at)
 VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $11)
+        $9, $10, $11, $12, $13, $11)
 ON CONFLICT (asset_id) DO NOTHING
 """
 
@@ -267,6 +267,7 @@ class AssetSummaryProjection:
                 drawing_revision = drawing.get("revision") if drawing is not None else None
                 model_id_raw = event.payload.get("model_id")
                 model_id = UUID(model_id_raw) if model_id_raw else None
+                facility_code = event.payload.get("facility_code")
                 alternate_identifiers_list = _canonical_alternate_identifiers_list(
                     event.payload.get("alternate_identifiers")
                 )
@@ -285,6 +286,7 @@ class AssetSummaryProjection:
                     owners_list,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                     UUID(event.payload["commissioned_by"]),
+                    facility_code,
                 )
             case "AssetActivated" | "AssetMaintenanceExited":
                 await self._update_lifecycle(event, conn, "Active")

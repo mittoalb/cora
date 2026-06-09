@@ -15,6 +15,16 @@ handler tuple) when the stream returns no state. This is a load-
 only cross-BC dependency; no Model snapshot is threaded into the
 decider because the subset invariant is vacuously satisfied at
 register-time per Lock B of the model-binding design memo.
+
+When `command.facility_code is not None` the handler resolves the
+slug via the cross-BC `FacilityLookup.lookup_by_code` port BEFORE
+invoking the decider and threads the resulting
+`FacilityLookupResult | None` into `decide(...)`. LOAD lives in the
+handler; REJECTION lives in the decider (the decider raises
+`AssetFacilityNotFoundError`, mapped to HTTP 404 by the BC's
+exception handler tuple, when the result is None). Mirrors the
+Supply Slice 7A handler shape exactly: threading crosses the
+boundary via a typed `FacilityLookupResult | None` argument.
 """
 
 from typing import Protocol
@@ -30,6 +40,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _STREAM_TYPE = "Asset"
@@ -122,6 +133,15 @@ def bind(deps: Kernel) -> Handler:
                 )
                 raise ModelNotFoundError(command.model_id)
 
+        facility_lookup_result = None
+        if command.facility_code is not None:
+            facility_lookup_result = await deps.facility_lookup.lookup_by_code(
+                FacilityCode(command.facility_code)
+            )
+            # facility_lookup_result is None -> decider raises
+            # AssetFacilityNotFoundError (HTTP 404). The handler only
+            # loads the lookup row; the decider owns the rejection.
+
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
@@ -131,6 +151,7 @@ def bind(deps: Kernel) -> Handler:
             now=now,
             new_id=new_id,
             commissioned_by=ActorId(principal_id),
+            facility_lookup_result=facility_lookup_result,
         )
 
         new_events = [

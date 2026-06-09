@@ -23,6 +23,7 @@ from cora.equipment.features.register_asset.handler import IdempotentHandler
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 
 
 class RegisterAssetOutput(BaseModel):
@@ -137,6 +138,22 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ] = None,
+        facility_code: Annotated[
+            str | None,
+            Field(
+                default=None,
+                min_length=1,
+                max_length=FACILITY_CODE_MAX_LENGTH,
+                pattern=r"^[a-z0-9-]{1,32}$",
+                description=(
+                    "Optional cross-deployment Facility slug owning "
+                    "this Asset (for example 'aps', 'maxiv'). Lowercase "
+                    "ASCII alphanumeric plus dash, 1-32 chars. Set ONCE "
+                    "at registration. Unknown codes raise 404; "
+                    "Decommissioned-Facility binding is allowed."
+                ),
+            ),
+        ] = None,
     ) -> RegisterAssetOutput:
         handler = get_handler()
         asset_id = await handler(
@@ -151,6 +168,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
                 owners=frozenset(entry.to_domain() for entry in (owners or [])),
                 controller_id=controller_id,
+                facility_code=facility_code,
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
