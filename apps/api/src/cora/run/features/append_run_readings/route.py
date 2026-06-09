@@ -7,7 +7,7 @@ UUIDv7 event_ids per entry; the store dedups silently via Postgres PK.
 
 ## Response shape: 200 + event_count is the locked contract
 
-Same posture as Decision BC's `append_reasoning_entries` for the same reason:
+Same posture as Decision BC's `append_inferences` for the same reason:
 no per-entry failure modes warrant 207 partial-success. Pydantic
 catches structural errors at the boundary (422 for the whole batch);
 Postgres `ON CONFLICT (event_id) DO NOTHING` handles dedup silently.

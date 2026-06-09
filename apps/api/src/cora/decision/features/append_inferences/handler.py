@@ -1,15 +1,15 @@
-"""Application handler for the `append_reasoning_entries` slice.
+"""Application handler for the `append_inferences` slice.
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
 write per gate-review L1 + L2:
 
   1. Load Decision via `load_decision` (fold-on-read).
-  2. If `decision.logbooks[LOGBOOK_KIND_REASONING]` is absent:
+  2. If `decision.logbooks[LOGBOOK_KIND_INFERENCE]` is absent:
      emit `DecisionLogbookOpened` to the Decision stream.
   3. Read the logbook_id (from existing or just-emitted).
-  4. Construct `DecisionReasoning` rows with the logbook_id +
+  4. Construct `Inference` rows with the logbook_id +
      correlation_id + decision_id from the envelope.
-  5. `reasoning_store.append(rows)`, silent dedup via Postgres PK
+  5. `inference_store.append(rows)`, silent dedup via Postgres PK
      (or InMemory dict setdefault).
 
 ## Self-healing on failure
@@ -43,19 +43,19 @@ from typing import Protocol
 from uuid import UUID
 
 from cora.decision.aggregates.decision import (
-    LOGBOOK_KIND_REASONING,
-    REASONING_LOGBOOK_SCHEMA,
+    INFERENCE_LOGBOOK_SCHEMA,
+    LOGBOOK_KIND_INFERENCE,
     DecisionLogbookOpened,
     DecisionNotFoundError,
-    DecisionReasoning,
-    ReasoningStore,
+    Inference,
+    InferenceStore,
     event_type_name,
     load_decision,
     to_payload,
 )
 from cora.decision.errors import UnauthorizedError
-from cora.decision.features.append_reasoning_entries.command import (
-    AppendReasoningEntries,
+from cora.decision.features.append_inferences.command import (
+    AppendInferences,
     ReasoningEntryInput,
 )
 from cora.infrastructure.event_envelope import to_new_event
@@ -66,7 +66,7 @@ from cora.infrastructure.ports.event_store import ConcurrencyError
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 
 _STREAM_TYPE = "Decision"
-_COMMAND_NAME = "AppendReasoningEntries"
+_COMMAND_NAME = "AppendInferences"
 _LAZY_OPEN_MAX_RETRIES = 3
 """Bounded retry count for the lazy-open ConcurrencyError loop.
 
@@ -79,11 +79,11 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every append_reasoning_entries handler implements."""
+    """Callable interface every append_inferences handler implements."""
 
     async def __call__(
         self,
-        command: AppendReasoningEntries,
+        command: AppendInferences,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -92,17 +92,17 @@ class Handler(Protocol):
     ) -> int: ...
 
 
-def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
-    """Build an append_reasoning_entries handler closed over deps + store.
+def bind(deps: Kernel, *, inference_store: InferenceStore) -> Handler:
+    """Build an append_inferences handler closed over deps + store.
 
-    `reasoning_store` is BC-internal (constructed in `wire_decision`
+    `inference_store` is BC-internal (constructed in `wire_decision`
     from `deps.pool` for Postgres, or InMemory for `app_env=test`).
     Not promoted to Kernel per the per-category-writer pattern
     locked at gate-review L9 (mirrors Conduit's VerdictStore).
     """
 
     async def handler(
-        command: AppendReasoningEntries,
+        command: AppendInferences,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -110,7 +110,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
         surface_id: UUID = NIL_SENTINEL_ID,
     ) -> int:
         _log.info(
-            "append_reasoning_entries.start",
+            "append_inferences.start",
             command_name=_COMMAND_NAME,
             decision_id=str(command.decision_id),
             entry_count=len(command.entries),
@@ -127,7 +127,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
         )
         if isinstance(authz, Deny):
             _log.info(
-                "append_reasoning_entries.denied",
+                "append_inferences.denied",
                 command_name=_COMMAND_NAME,
                 decision_id=str(command.decision_id),
                 principal_id=str(principal_id),
@@ -149,7 +149,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
             decision = await load_decision(deps.event_store, command.decision_id)
             if decision is None:
                 raise DecisionNotFoundError(command.decision_id)
-            existing_logbook_id = decision.logbooks.get(LOGBOOK_KIND_REASONING)
+            existing_logbook_id = decision.logbooks.get(LOGBOOK_KIND_INFERENCE)
             if existing_logbook_id is not None:
                 logbook_id = existing_logbook_id
                 break
@@ -158,8 +158,8 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
             open_event = DecisionLogbookOpened(
                 decision_id=command.decision_id,
                 logbook_id=new_logbook_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=now,
             )
             stored_open = to_new_event(
@@ -188,7 +188,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
                 )
             except ConcurrencyError:
                 _log.info(
-                    "append_reasoning_entries.lazy_open_concurrency_retry",
+                    "append_inferences.lazy_open_concurrency_retry",
                     command_name=_COMMAND_NAME,
                     decision_id=str(command.decision_id),
                     attempt=attempt,
@@ -206,16 +206,16 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
                 actual=-1,
             )
 
-        # Construct DecisionReasoning rows with the BC-infra fields
+        # Construct Inference rows with the BC-infra fields
         # populated from the URL path + envelope.
         rows = [
             _build_row(entry, command.decision_id, logbook_id, correlation_id, causation_id)
             for entry in command.entries
         ]
-        await reasoning_store.append(rows)
+        await inference_store.append(rows)
 
         _log.info(
-            "append_reasoning_entries.success",
+            "append_inferences.success",
             command_name=_COMMAND_NAME,
             decision_id=str(command.decision_id),
             logbook_id=str(logbook_id),
@@ -236,10 +236,10 @@ def _build_row(
     logbook_id: UUID,
     correlation_id: UUID,
     causation_id: UUID | None,
-) -> DecisionReasoning:
+) -> Inference:
     """Compose the producer's input plus envelope context into a
-    DecisionReasoning row ready for the store."""
-    return DecisionReasoning(
+    Inference row ready for the store."""
+    return Inference(
         event_id=entry.event_id,
         decision_id=decision_id,
         logbook_id=logbook_id,

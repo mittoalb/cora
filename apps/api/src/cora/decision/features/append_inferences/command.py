@@ -1,4 +1,4 @@
-"""The `AppendReasoningEntries` command, intent dataclass for this slice.
+"""The `AppendInferences` command, intent dataclass for this slice.
 
 Batch shape from day one (per gate-review L3 + the 8c-b standards
 survey: Langfuse / Phoenix / Datadog / OTLP all batch). Length-1
@@ -37,7 +37,7 @@ from uuid import UUID
 class ReasoningEntryInput:
     """One reasoning entry's input payload from the producer.
 
-    Mirrors `DecisionReasoning` but omits the CORA-infra fields
+    Mirrors `Inference` but omits the CORA-infra fields
     (decision_id / logbook_id / correlation_id / causation_id)
     those are populated by the handler from the URL path + envelope.
     """
@@ -68,7 +68,7 @@ class ReasoningEntryInput:
 
 
 @dataclass(frozen=True)
-class AppendReasoningEntries:
+class AppendInferences:
     """Append a batch of reasoning entries to a Decision's logbook."""
 
     decision_id: UUID

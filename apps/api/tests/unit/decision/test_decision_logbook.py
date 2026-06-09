@@ -16,8 +16,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.decision.aggregates.decision import (
-    LOGBOOK_KIND_REASONING,
-    REASONING_LOGBOOK_SCHEMA,
+    INFERENCE_LOGBOOK_SCHEMA,
+    LOGBOOK_KIND_INFERENCE,
     Decision,
     DecisionChoice,
     DecisionContext,
@@ -74,24 +74,24 @@ def test_decision_logbooks_field_defaults_to_empty_dict() -> None:
     assert d.logbooks == {}
 
 
-# ---------- LOGBOOK_KIND_REASONING constant ----------
+# ---------- LOGBOOK_KIND_INFERENCE constant ----------
 
 
 @pytest.mark.unit
-def test_logbook_kind_reasoning_value_locked() -> None:
+def test_logbook_kind_inference_value_locked() -> None:
     """Lock the constant value against drift; consumers may
     reference it by string."""
-    assert LOGBOOK_KIND_REASONING == "reasoning"
+    assert LOGBOOK_KIND_INFERENCE == "inference"
 
 
-# ---------- REASONING_LOGBOOK_SCHEMA shape ----------
+# ---------- INFERENCE_LOGBOOK_SCHEMA shape ----------
 
 
 @pytest.mark.unit
 def test_reasoning_logbook_schema_includes_required_otel_fields() -> None:
     """Schema documents the required OTel gen_ai.* discriminator
     fields (provider_name + operation_name + request_model)."""
-    fields = REASONING_LOGBOOK_SCHEMA.fields
+    fields = INFERENCE_LOGBOOK_SCHEMA.fields
     assert "provider_name" in fields
     assert "operation_name" in fields
     assert "request_model" in fields
@@ -99,9 +99,9 @@ def test_reasoning_logbook_schema_includes_required_otel_fields() -> None:
 
 @pytest.mark.unit
 def test_reasoning_logbook_schema_round_trips_through_dict() -> None:
-    raw = REASONING_LOGBOOK_SCHEMA.to_dict()
+    raw = INFERENCE_LOGBOOK_SCHEMA.to_dict()
     rebuilt = LogbookSchema.from_dict(raw)
-    assert rebuilt == REASONING_LOGBOOK_SCHEMA
+    assert rebuilt == INFERENCE_LOGBOOK_SCHEMA
 
 
 # ---------- DecisionLogbookOpened event ----------
@@ -114,14 +114,14 @@ def test_decision_logbook_opened_to_payload() -> None:
     event = DecisionLogbookOpened(
         decision_id=decision_id,
         logbook_id=logbook_id,
-        kind=LOGBOOK_KIND_REASONING,
-        schema=REASONING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_INFERENCE,
+        schema=INFERENCE_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
     assert payload["decision_id"] == str(decision_id)
     assert payload["logbook_id"] == str(logbook_id)
-    assert payload["kind"] == LOGBOOK_KIND_REASONING
+    assert payload["kind"] == LOGBOOK_KIND_INFERENCE
     assert payload["occurred_at"] == _NOW.isoformat()
     # Schema serialized as nested dict.
     assert "fields" in payload["schema"]
@@ -135,7 +135,7 @@ def test_decision_logbook_opened_round_trip_through_stored_envelope() -> None:
     original = DecisionLogbookOpened(
         decision_id=decision_id,
         logbook_id=logbook_id,
-        kind=LOGBOOK_KIND_REASONING,
+        kind=LOGBOOK_KIND_INFERENCE,
         schema=LogbookSchema(
             fields={"x": LogbookFieldSpec(type="int", units="ms", description="test")},
             description="round-trip",
@@ -238,12 +238,12 @@ def test_evolve_logbook_opened_adds_kind_to_logbooks() -> None:
         DecisionLogbookOpened(
             decision_id=decision_id,
             logbook_id=logbook_id,
-            kind=LOGBOOK_KIND_REASONING,
-            schema=REASONING_LOGBOOK_SCHEMA,
+            kind=LOGBOOK_KIND_INFERENCE,
+            schema=INFERENCE_LOGBOOK_SCHEMA,
             occurred_at=_NOW,
         ),
     )
-    assert state2.logbooks == {LOGBOOK_KIND_REASONING: logbook_id}
+    assert state2.logbooks == {LOGBOOK_KIND_INFERENCE: logbook_id}
 
 
 @pytest.mark.unit
@@ -259,8 +259,8 @@ def test_evolve_logbook_opened_raises_for_second_logbook_of_same_kind() -> None:
             DecisionLogbookOpened(
                 decision_id=decision_id,
                 logbook_id=first_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
         ]
@@ -272,12 +272,12 @@ def test_evolve_logbook_opened_raises_for_second_logbook_of_same_kind() -> None:
             DecisionLogbookOpened(
                 decision_id=decision_id,
                 logbook_id=second_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
         )
-    assert exc_info.value.kind == LOGBOOK_KIND_REASONING
+    assert exc_info.value.kind == LOGBOOK_KIND_INFERENCE
     assert exc_info.value.existing_logbook_id == first_id
 
 
@@ -291,8 +291,8 @@ def test_evolve_logbook_opened_before_genesis_raises_corrupted_stream() -> None:
             DecisionLogbookOpened(
                 decision_id=uuid4(),
                 logbook_id=uuid4(),
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
         )
@@ -311,8 +311,8 @@ def test_evolve_logbook_closed_removes_kind_from_logbooks() -> None:
             DecisionLogbookOpened(
                 decision_id=decision_id,
                 logbook_id=logbook_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
             DecisionLogbookClosed(decision_id=decision_id, logbook_id=logbook_id, occurred_at=_NOW),
@@ -336,22 +336,22 @@ def test_evolve_logbook_closed_can_reopen_same_kind_after_close() -> None:
             DecisionLogbookOpened(
                 decision_id=decision_id,
                 logbook_id=first_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
             DecisionLogbookClosed(decision_id=decision_id, logbook_id=first_id, occurred_at=_NOW),
             DecisionLogbookOpened(
                 decision_id=decision_id,
                 logbook_id=second_id,
-                kind=LOGBOOK_KIND_REASONING,
-                schema=REASONING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_INFERENCE,
+                schema=INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
         ]
     )
     assert state is not None
-    assert state.logbooks == {LOGBOOK_KIND_REASONING: second_id}
+    assert state.logbooks == {LOGBOOK_KIND_INFERENCE: second_id}
 
 
 @pytest.mark.unit
@@ -384,11 +384,11 @@ def test_evolve_logbook_closed_before_genesis_raises_corrupted_stream() -> None:
 def test_decision_logbook_already_open_error_carries_kind_and_existing_id() -> None:
     decision_id = uuid4()
     existing_id = uuid4()
-    err = DecisionLogbookAlreadyOpenError(decision_id, "reasoning", existing_id)
+    err = DecisionLogbookAlreadyOpenError(decision_id, "inference", existing_id)
     assert err.decision_id == decision_id
-    assert err.kind == "reasoning"
+    assert err.kind == "inference"
     assert err.existing_logbook_id == existing_id
-    assert "reasoning" in str(err)
+    assert "inference" in str(err)
     assert str(existing_id) in str(err)
 
 

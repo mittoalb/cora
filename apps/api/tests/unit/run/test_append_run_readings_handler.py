@@ -1,6 +1,6 @@
 """Unit tests for the `append_run_readings` application handler.
 
-Mirrors `test_append_reasoning_entries_handler.py` shape.
+Mirrors `test_append_inferences_handler.py` shape.
 Adds the per-entry validation tests specific to RunReading (channel_name,
 NaN/Inf value, sampling_procedure) and the terminal-status guard
 (RunReadingLogbookClosedError).

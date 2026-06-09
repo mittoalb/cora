@@ -1088,7 +1088,7 @@ class Run:
     `trigger_source` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
-    may populate this from `DecisionReasoning.entries` references.
+    may populate this from `Inference.entries` references.
     """
 
     id: UUID

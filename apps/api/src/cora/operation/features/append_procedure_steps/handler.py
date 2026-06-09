@@ -2,7 +2,7 @@
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
 write mirroring Run BC's `append_run_readings` precedent (which
-mirrors Decision BC's `append_reasoning_entries`):
+mirrors Decision BC's `append_inferences`):
 
   1. Load Procedure via `load_procedure` (fold-on-read).
   2. Reject if Procedure is NOT in Running (steps require Running:
@@ -111,7 +111,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
     `deps.pool` for Postgres, or `InMemoryStepStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Run BC's
-    ReadingStore and Decision BC's ReasoningStore).
+    ReadingStore and Decision BC's InferenceStore).
     """
 
     async def handler(

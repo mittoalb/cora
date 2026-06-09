@@ -2,7 +2,7 @@
 
 Lazy open-on-first-write + batch append. Mirrors
 `test_append_run_readings_handler.py` shape (which mirrors 8c-b's
-`test_append_reasoning_entries_handler.py`).
+`test_append_inferences_handler.py`).
 
 Tests seed a Procedure in `Running` state directly into the in-memory
 event store via `to_new_event` + `event_store.append`, then exercise

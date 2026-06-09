@@ -12,7 +12,7 @@ Lazy open-on-first-write: the handler emits
 `RunReadingLogbookOpened` to the Run stream the first time a
 reading is appended for a Run; subsequent appends find the logbook
 already attached and skip the open-event emission. Mirrors Decision
-BC's `append_reasoning_entries` precedent.
+BC's `append_inferences` precedent.
 """
 
 from cora.run.features.append_run_readings import tool

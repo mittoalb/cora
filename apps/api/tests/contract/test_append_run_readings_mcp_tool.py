@@ -1,6 +1,6 @@
 """Contract tests for the `append_run_readings` MCP tool.
 
-Mirrors `test_append_reasoning_entries_mcp_tool.py` shape: tool listed,
+Mirrors `test_append_inferences_mcp_tool.py` shape: tool listed,
 single-entry happy path, missing-aggregate error path. Single-entry
 shape per the MCP convention (agents typically reason about one
 reading at a time; the HTTP route handles batching).

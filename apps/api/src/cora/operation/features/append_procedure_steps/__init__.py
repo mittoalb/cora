@@ -15,7 +15,7 @@ Lazy open-on-first-write: the handler emits
 a step is appended for a Procedure; subsequent appends find the
 logbook already attached and skip the open-event emission. Mirrors
 Run BC's `append_run_readings` precedent (which mirrors Decision BC's
-`append_reasoning_entries`).
+`append_inferences`).
 """
 
 from cora.operation.features.append_procedure_steps import tool

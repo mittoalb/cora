@@ -15,7 +15,7 @@ Out of scope
 - **Context-strict decision-rule enforcement.** `rule` is optional on every Decision. Whether a given context (Recipe approval, dataset discard, run abort) requires a rule citation is a projection-time audit-policy concern. The deferred-with-trigger is the first audit demand for context-strict enforcement.
 - **Cross-policy combining and policy-grant decomposition.** Decisions in the `PolicyGrant` context carry determining-policy ids in `alternatives` per the standard policy-decision-log convention. A separate policy-evaluation log table is deferred until per-call policy decomposition is needed at audit time.
 - **Confidence calibration consumer.** The `DecisionRated` event accrues `(rating, context, confidence_at_rating)` tuples specifically for a future confidence-calibration consumer (Platt scaling, isotonic regression, or a learned uncertainty estimator). The consumer itself is deferred until a baseline rating corpus exists.
-- **Reasoning-entry partitioning.** `entries_decision_reasonings` is a single table with a BRIN index on `recorded_at`. Range partitioning is deferred until the table crosses ~50GB or until time-window reads degrade p95 read latency.
+- **Reasoning-entry partitioning.** `entries_decision_inferences` is a single table with a BRIN index on `recorded_at`. Range partitioning is deferred until the table crosses ~50GB or until time-window reads degrade p95 read latency.
 
 </div>
 
@@ -78,7 +78,7 @@ Two sub-lifecycles accrue alongside without changing decision facts.
 | not-open | open | (no direct slice today; opened by the agent subscriber that records the trace) | `DecisionLogbookOpened` |
 | open | not-open | (no direct slice today; closes on terminal trace handoff) | `DecisionLogbookClosed` |
 
-The `append_reasoning_entry` slice does not open or close a logbook; it appends one entry row to `entries_decision_reasonings` for a logbook that is already open on the Decision.
+The `append_reasoning_entry` slice does not open or close a logbook; it appends one entry row to `entries_decision_inferences` for a logbook that is already open on the Decision.
 
 **Rating sub-lifecycle.** `Decision.ratings` is a per-actor dict folded latest-per-actor-wins. Multiple `DecisionRated` events per `(decision, actor)` pair are allowed; the evolver keeps only the latest entry per actor in aggregate state. The audit trail (every rating ever submitted) lives in the event log.
 
@@ -99,7 +99,7 @@ The `append_reasoning_entry` slice does not open or close a logbook; it appends 
 
 `DecisionRegistered.alternatives` serializes as a list preserving caller order. Top-k ordering matters for AI deciders, and the canonical convention for determining-policy ids on `PolicyGrant` Decisions preserves it too.
 
-`DecisionLogbookOpened.schema` declares the per-row column shape of the entries that will land in `entries_decision_reasonings` for this logbook session. Carrying the schema on the open event means the Decision lifecycle audit captures the schema as of the moment the logbook was opened, which supports per-logbook schema evolution by opening a new logbook with an updated schema.
+`DecisionLogbookOpened.schema` declares the per-row column shape of the entries that will land in `entries_decision_inferences` for this logbook session. Carrying the schema on the open event means the Decision lifecycle audit captures the schema as of the moment the logbook was opened, which supports per-logbook schema evolution by opening a new logbook with an updated schema.
 
 `DecisionRated.confidence_at_rating` is captured from `Decision.state.confidence` at write time, not recomputed at read time or denormed by the projection. Capture-don't-recompute keeps the rated `(rating, confidence)` pair stable across aggregate rebuilds and projection rewrites.
 
@@ -119,7 +119,7 @@ The `append_reasoning_entry` slice does not open or close a logbook; it appends 
 
 `list_decisions` is a keyset-paginated read against `proj_decision_summary`. The handler accepts an optional `confidence_band` filter and an optional `actor_id` filter, and uses the same no-smart-logic-in-SQL discipline as every other list slice in CORA. The `confidence_band` filter resolves against the denormalized column, so a low-cardinality categorical predicate stays an indexed lookup.
 
-`append_reasoning_entry` writes one row into `entries_decision_reasonings`. The handler validates that a logbook of the requested kind is currently open on the Decision; mismatches raise `DecisionLogbookNotOpen`. The slice does not open a logbook itself: opening is done by the agent subscriber that captures the trace.
+`append_reasoning_entry` writes one row into `entries_decision_inferences`. The handler validates that a logbook of the requested kind is currently open on the Decision; mismatches raise `DecisionLogbookNotOpen`. The slice does not open a logbook itself: opening is done by the agent subscriber that captures the trace.
 
 `rate_decision` reads the rated Decision's current `confidence` value and writes it onto the `DecisionRated` payload as `confidence_at_rating`, then appends the event. Latest-per-actor wins in the projection; every event still lands in the audit log.
 
@@ -190,8 +190,8 @@ CREATE INDEX proj_decision_ratings_by_actor_idx
     ON proj_decision_ratings (rated_by_actor_id);
 ```
 
-```sql title="entries_decision_reasonings"
-CREATE TABLE entries_decision_reasonings (
+```sql title="entries_decision_inferences"
+CREATE TABLE entries_decision_inferences (
     event_id            UUID         PRIMARY KEY,
     decision_id         UUID         NOT NULL,
     logbook_id          UUID         NOT NULL,
@@ -223,17 +223,17 @@ CREATE TABLE entries_decision_reasonings (
 );
 
 CREATE INDEX entries_decision_reasonings_decision_time_idx
-    ON entries_decision_reasonings (decision_id, occurred_at DESC);
+    ON entries_decision_inferences (decision_id, occurred_at DESC);
 
 CREATE INDEX entries_decision_reasonings_logbook_idx
-    ON entries_decision_reasonings (logbook_id);
+    ON entries_decision_inferences (logbook_id);
 
 CREATE INDEX entries_decision_reasonings_conversation_idx
-    ON entries_decision_reasonings (conversation_id)
+    ON entries_decision_inferences (conversation_id)
     WHERE conversation_id IS NOT NULL;
 
 CREATE INDEX entries_decision_reasonings_recorded_at_brin_idx
-    ON entries_decision_reasonings USING BRIN (recorded_at);
+    ON entries_decision_inferences USING BRIN (recorded_at);
 ```
 
 `proj_decision_summary` subscribes only to `DecisionRegistered`. The logbook events are internal bookkeeping and do not mutate the summary's columns; the rating events have their own projection. There is no UPDATE path: one Decision is one row, and the chain semantics (corrections, supersessions, invalidations) are queryable via `parent_id` joins rather than via in-place state changes.
@@ -242,9 +242,9 @@ CREATE INDEX entries_decision_reasonings_recorded_at_brin_idx
 
 `proj_decision_ratings` uses a composite primary key on `(decision_id, rated_by_actor_id)`. The latest-per-actor-wins fold is implemented at INSERT time via ON CONFLICT UPDATE keyed on the PK; the projection mirrors the aggregate's `ratings` dict shape. The audit trail of all rating events lives in the event log; the projection carries the snapshot.
 
-`entries_decision_reasonings` is the second concrete entries-table observation logbook in CORA after the conduit-traversal log. Per-trace AI-decider entries are high-cardinality and must not fold into Decision state or bloat the main events table. The field set lifts directly from the OpenTelemetry GenAI semantic-convention attributes: required discriminators (`provider_name`, `operation_name`, `request_model`) plus optional response identity, hyperparameters, usage counts, multi-agent correlation, and tool-call context. The `messages_jsonb` column carries the prompt and completion bodies as a single jsonb blob and is opt-in for PII gating. The `event_id` primary key doubles as the idempotency and dedup key for producer retries.
+`entries_decision_inferences` is the second concrete entries-table observation logbook in CORA after the conduit-traversal log. Per-trace AI-decider entries are high-cardinality and must not fold into Decision state or bloat the main events table. The field set lifts directly from the OpenTelemetry GenAI semantic-convention attributes: required discriminators (`provider_name`, `operation_name`, `request_model`) plus optional response identity, hyperparameters, usage counts, multi-agent correlation, and tool-call context. The `messages_jsonb` column carries the prompt and completion bodies as a single jsonb blob and is opt-in for PII gating. The `event_id` primary key doubles as the idempotency and dedup key for producer retries.
 
-There is no foreign key from `entries_decision_reasonings` to the Decision aggregate. The Decision lives in `events`, not in its own row, and an FK to `(stream_type, stream_id)` is not a standard SQL shape. The reference is by `decision_id` value; downstream queries join through projections.
+There is no foreign key from `entries_decision_inferences` to the Decision aggregate. The Decision lives in `events`, not in its own row, and an FK to `(stream_type, stream_id)` is not a standard SQL shape. The reference is by `decision_id` value; downstream queries join through projections.
 
 ## Cross-Module boundaries
 

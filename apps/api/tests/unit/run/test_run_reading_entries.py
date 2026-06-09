@@ -1,6 +1,6 @@
 """Unit tests for the RunReading entry + ReadingStore.
 
-Mirrors `test_decision_reasoning_entries.py` shape — the dataclass
+Mirrors `test_decision_inferences.py` shape — the dataclass
 round-trips, the in-memory store dedups on event_id, batch and
 single-element appends both work, empty list is a no-op.
 

@@ -47,7 +47,7 @@ Per the per-category-writer pattern locked at gate-review L8/L9
 from `deps.pool` (Postgres in production) or as
 `InMemoryStepStore` in `app_env=test`. NOT promoted to Kernel fields.
 Mirrors how Run BC wires its ReadingStore and Decision BC wires its
-ReasoningStore.
+InferenceStore.
 """
 
 from dataclasses import dataclass

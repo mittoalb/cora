@@ -1,7 +1,7 @@
 """The `AppendProcedureSteps` command, intent dataclass for this slice.
 
 Batch shape from day one (matches `append_run_readings` and
-`append_reasoning_entries` precedents). Length-1 batches are the
+`append_inferences` precedents). Length-1 batches are the
 degenerate case; same code path either way. Anticipates EPICS
 adapter integration which will batch step records naturally during
 a calibration sweep or alignment run.

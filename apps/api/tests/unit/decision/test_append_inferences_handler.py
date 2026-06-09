@@ -1,4 +1,4 @@
-"""Unit tests for the `append_reasoning_entries` application handler.
+"""Unit tests for the `append_inferences` application handler.
 
 Mirrors register_decision handler tests + adds the lazy-open and
 batch behaviors specific to 8c-b.
@@ -12,9 +12,9 @@ import pytest
 from cora.decision import DecisionHandlers, UnauthorizedError, wire_decision
 from cora.decision.aggregates.decision import (
     DECISION_REASONING_OPERATION_CHAT,
-    LOGBOOK_KIND_REASONING,
+    LOGBOOK_KIND_INFERENCE,
     DecisionNotFoundError,
-    InMemoryReasoningStore,
+    InMemoryInferenceStore,
     fold,
     from_stored,
     load_decision,
@@ -24,9 +24,9 @@ from cora.decision.aggregates.decision.events import (
     event_type_name,
     to_payload,
 )
-from cora.decision.features import append_reasoning_entries
-from cora.decision.features.append_reasoning_entries import (
-    AppendReasoningEntries,
+from cora.decision.features import append_inferences
+from cora.decision.features.append_inferences import (
+    AppendInferences,
     ReasoningEntryInput,
 )
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
@@ -94,11 +94,11 @@ async def test_handler_emits_logbook_opened_on_first_append() -> None:
     DecisionLogbookOpened to the Decision stream + appends the entry."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
-    count = await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    count = await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -111,7 +111,7 @@ async def test_handler_emits_logbook_opened_on_first_append() -> None:
     assert stored[1].event_id == _LOGBOOK_OPEN_EVENT_ID
 
     # Reasoning store has the appended entry with the open's logbook_id.
-    rows = reasoning_store.all()
+    rows = inference_store.all()
     assert len(rows) == 1
     assert rows[0].decision_id == _DECISION_ID
     assert rows[0].logbook_id == _LOGBOOK_ID
@@ -123,12 +123,12 @@ async def test_handler_skips_open_when_logbook_already_present() -> None:
     re-emitting DecisionLogbookOpened."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps_first = build_deps(
         ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store
     )
-    await append_reasoning_entries.bind(deps_first, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    await append_inferences.bind(deps_first, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -139,8 +139,8 @@ async def test_handler_skips_open_when_logbook_already_present() -> None:
         now=_NOW,
         event_store=event_store,
     )
-    count = await append_reasoning_entries.bind(deps_second, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    count = await append_inferences.bind(deps_second, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -152,7 +152,7 @@ async def test_handler_skips_open_when_logbook_already_present() -> None:
     assert [e.event_type for e in stored] == ["DecisionRegistered", "DecisionLogbookOpened"]
 
     # Both entries land with the SAME logbook_id.
-    rows = reasoning_store.all()
+    rows = inference_store.all()
     assert len(rows) == 2
     assert rows[0].logbook_id == rows[1].logbook_id == _LOGBOOK_ID
 
@@ -165,17 +165,17 @@ async def test_handler_appends_batch_in_one_call() -> None:
     """Batch of N entries lands as N rows + ONE logbook open."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
     entries = (_entry(), _entry(), _entry())
-    count = await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=entries),
+    count = await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert count == 3
-    assert len(reasoning_store.all()) == 3
+    assert len(inference_store.all()) == 3
     # Only one DecisionLogbookOpened event for the whole batch.
     stored, _ = await event_store.load("Decision", _DECISION_ID)
     open_events = [e for e in stored if e.event_type == "DecisionLogbookOpened"]
@@ -185,17 +185,17 @@ async def test_handler_appends_batch_in_one_call() -> None:
 @pytest.mark.unit
 async def test_handler_dedups_silently_on_repeated_event_id() -> None:
     """Producer retry with the same event_id is a silent no-op
-    (first write wins via InMemoryReasoningStore.setdefault)."""
+    (first write wins via InMemoryInferenceStore.setdefault)."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     shared_event_id = uuid4()
     entry_first = _entry(event_id=shared_event_id, request_model="claude-opus-4-7")
     entry_second = _entry(event_id=shared_event_id, request_model="claude-sonnet-4-6")
 
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(entry_first,)),
+    await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(entry_first,)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -204,12 +204,12 @@ async def test_handler_dedups_silently_on_repeated_event_id() -> None:
         now=_NOW,
         event_store=event_store,
     )
-    await append_reasoning_entries.bind(deps2, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(entry_second,)),
+    await append_inferences.bind(deps2, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(entry_second,)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rows = reasoning_store.all()
+    rows = inference_store.all()
     assert len(rows) == 1
     # First write wins; second was deduped silently.
     assert rows[0].request_model == "claude-opus-4-7"
@@ -223,14 +223,14 @@ async def test_handler_threads_correlation_id_into_entries() -> None:
     """Each row's correlation_id matches the envelope's correlation_id."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(), _entry())),
+    await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(), _entry())),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    for row in reasoning_store.all():
+    for row in inference_store.all():
         assert row.correlation_id == _CORRELATION_ID
 
 
@@ -239,15 +239,15 @@ async def test_handler_threads_causation_id_into_entries() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
     )
-    rows = reasoning_store.all()
+    rows = inference_store.all()
     assert rows[0].causation_id == causation
 
 
@@ -257,15 +257,15 @@ async def test_handler_threads_causation_id_into_entries() -> None:
 @pytest.mark.unit
 async def test_handler_raises_decision_not_found_for_unknown_id() -> None:
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     with pytest.raises(DecisionNotFoundError) as exc_info:
-        await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-            AppendReasoningEntries(decision_id=uuid4(), entries=(_entry(),)),
+        await append_inferences.bind(deps, inference_store=inference_store)(
+            AppendInferences(decision_id=uuid4(), entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     assert "not found" in str(exc_info.value).lower()
-    assert reasoning_store.all() == []
+    assert inference_store.all() == []
 
 
 # ---------- Authz ----------
@@ -281,7 +281,7 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
 
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
 
     # Wrap the event_store: on the first .append() call, simulate a
     # concurrent writer winning the race by appending DecisionLogbookOpened
@@ -310,11 +310,11 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
             conflict_event = DecisionLogbookOpened(
                 decision_id=stream_id,
                 logbook_id=concurrent_logbook_id,
-                kind=LOGBOOK_KIND_REASONING,
+                kind=LOGBOOK_KIND_INFERENCE,
                 schema=__import__(
                     "cora.decision.aggregates.decision",
-                    fromlist=["REASONING_LOGBOOK_SCHEMA"],
-                ).REASONING_LOGBOOK_SCHEMA,
+                    fromlist=["INFERENCE_LOGBOOK_SCHEMA"],
+                ).INFERENCE_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             )
             new_event = to_new_event(
@@ -343,14 +343,14 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
         now=_NOW,
         event_store=event_store,
     )
-    count = await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    count = await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Entry was appended despite the race.
     assert count == 1
-    rows = reasoning_store.all()
+    rows = inference_store.all()
     assert len(rows) == 1
     # The retry's reload saw the conflicting writer's logbook id and used IT,
     # not the originally-allocated one.
@@ -361,18 +361,18 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
 async def test_handler_raises_unauthorized_on_deny() -> None:
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(
         ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store, deny=True
     )
     with pytest.raises(UnauthorizedError) as exc_info:
-        await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-            AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+        await append_inferences.bind(deps, inference_store=inference_store)(
+            AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     assert exc_info.value.reason == "denied for test"
-    assert reasoning_store.all() == []
+    assert inference_store.all() == []
 
 
 # ---------- Decision aggregate state reflects logbook ----------
@@ -384,16 +384,16 @@ async def test_decision_state_after_append_carries_reasoning_logbook() -> None:
     after the lazy open lands; subsequent `load_decision` reads it."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     state = await load_decision(event_store, _DECISION_ID)
     assert state is not None
-    assert state.logbooks == {LOGBOOK_KIND_REASONING: _LOGBOOK_ID}
+    assert state.logbooks == {LOGBOOK_KIND_INFERENCE: _LOGBOOK_ID}
 
 
 # ---------- Wire bundle ----------
@@ -404,7 +404,7 @@ def test_wire_decision_includes_append_reasoning_entries() -> None:
     deps = build_deps(ids=[uuid4()], now=_NOW)
     handlers = wire_decision(deps)
     assert isinstance(handlers, DecisionHandlers)
-    assert callable(handlers.append_reasoning_entries)
+    assert callable(handlers.append_inferences)
 
 
 # ---------- Forward-compat: load + fold via from_stored ----------
@@ -416,10 +416,10 @@ async def test_decision_logbook_opened_round_trips_through_event_store() -> None
     back via from_stored (load_decision exercises this fully)."""
     event_store = InMemoryEventStore()
     await _seed_decision(event_store, _DECISION_ID)
-    reasoning_store = InMemoryReasoningStore()
+    inference_store = InMemoryInferenceStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_reasoning_entries.bind(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=_DECISION_ID, entries=(_entry(),)),
+    await append_inferences.bind(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=_DECISION_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -427,4 +427,4 @@ async def test_decision_logbook_opened_round_trips_through_event_store() -> None
     events = [from_stored(s) for s in stored]
     state = fold(events)
     assert state is not None
-    assert LOGBOOK_KIND_REASONING in state.logbooks
+    assert LOGBOOK_KIND_INFERENCE in state.logbooks

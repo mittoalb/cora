@@ -1,6 +1,6 @@
-"""HTTP route for the `append_reasoning_entries` slice.
+"""HTTP route for the `append_inferences` slice.
 
-`POST /decisions/{decision_id}/reasoning-entries` returns 200 OK
+`POST /decisions/{decision_id}/inferences` returns 200 OK
 with `{"event_count": N}` on success. Body shape carries a list
 of OTel gen_ai.* entries; producer supplies UUIDv7 event_ids per
 entry; the store dedups silently via Postgres PK.
@@ -32,11 +32,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Request, status
 from pydantic import BaseModel, Field
 
-from cora.decision.features.append_reasoning_entries.command import (
-    AppendReasoningEntries,
+from cora.decision.features.append_inferences.command import (
+    AppendInferences,
     ReasoningEntryInput,
 )
-from cora.decision.features.append_reasoning_entries.handler import Handler
+from cora.decision.features.append_inferences.handler import Handler
 from cora.infrastructure.routing import (
     ErrorResponse,
     get_correlation_id,
@@ -135,7 +135,7 @@ class ReasoningEntryRequest(BaseModel):
 
 
 class AppendReasoningEntriesRequest(BaseModel):
-    """Body for `POST /decisions/{decision_id}/reasoning-entries`."""
+    """Body for `POST /decisions/{decision_id}/inferences`."""
 
     entries: list[ReasoningEntryRequest] = Field(
         ...,
@@ -162,7 +162,7 @@ class AppendReasoningEntriesResponse(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.decision.append_reasoning_entries
+    handler: Handler = request.app.state.decision.append_inferences
     return handler
 
 
@@ -170,7 +170,7 @@ router = APIRouter(tags=["decision"])
 
 
 @router.post(
-    "/decisions/{decision_id}/reasoning-entries",
+    "/decisions/{decision_id}/inferences",
     status_code=status.HTTP_200_OK,
     response_model=AppendReasoningEntriesResponse,
     responses={
@@ -232,7 +232,7 @@ async def post_decisions_reasoning_entries(
         for e in body.entries
     )
     count = await handler(
-        AppendReasoningEntries(decision_id=decision_id, entries=entries),
+        AppendInferences(decision_id=decision_id, entries=entries),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

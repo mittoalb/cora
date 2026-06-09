@@ -1,7 +1,7 @@
-"""End-to-end integration test: append_reasoning_entries against real Postgres.
+"""End-to-end integration test: append_inferences against real Postgres.
 
-8c-b's first concrete user of the entries_decision_reasonings
-table + PostgresReasoningStore. Stress-tests the full lazy
+8c-b's first concrete user of the entries_decision_inferences
+table + PostgresInferenceStore. Stress-tests the full lazy
 open-on-first-write + batch-append + jsonb round-trip path
 against actual Postgres jsonb / text[] / nullable column semantics.
 """
@@ -19,15 +19,15 @@ from cora.access.features.register_actor import bind as bind_register_actor
 from cora.decision.aggregates.decision import (
     DECISION_REASONING_OPERATION_CHAT,
     DECISION_REASONING_OPERATION_EXECUTE_TOOL,
-    LOGBOOK_KIND_REASONING,
-    PostgresReasoningStore,
+    LOGBOOK_KIND_INFERENCE,
+    PostgresInferenceStore,
     load_decision,
 )
-from cora.decision.features.append_reasoning_entries import (
-    AppendReasoningEntries,
+from cora.decision.features.append_inferences import (
+    AppendInferences,
     ReasoningEntryInput,
 )
-from cora.decision.features.append_reasoning_entries import (
+from cora.decision.features.append_inferences import (
     bind as bind_append,
 )
 from cora.decision.features.register_decision import RegisterDecision
@@ -62,7 +62,7 @@ async def _read_entries_for_decision(
                 agent_id, agent_name, agent_description, conversation_id,
                 tool_name, tool_call_id, tool_type,
                 messages
-            FROM entries_decision_reasonings
+            FROM entries_decision_inferences
             WHERE decision_id = $1
             ORDER BY occurred_at, event_id
             """,
@@ -71,12 +71,12 @@ async def _read_entries_for_decision(
 
 
 @pytest.mark.integration
-async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
+async def test_append_inferences_full_lazy_open_and_jsonb_round_trip(
     db_pool: asyncpg.Pool,
 ) -> None:
     """End-to-end: register Actor + Decision, then append a 2-entry
     batch. Verify lazy DecisionLogbookOpened landed on the Decision
-    stream, both rows landed in entries_decision_reasonings with
+    stream, both rows landed in entries_decision_inferences with
     typed columns + jsonb intact, and a follow-up append on the
     same Decision skips the open + appends to the same logbook."""
     actor_id = ActorId(UUID("01900000-0000-7000-8000-000000088a01"))
@@ -99,7 +99,7 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
             open_event_id,
         ],
     )
-    reasoning_store = PostgresReasoningStore(db_pool)
+    inference_store = PostgresInferenceStore(db_pool)
 
     # Seed Actor.
     await bind_register_actor(deps, profile_store=make_pg_profile_store(db_pool))(
@@ -164,8 +164,8 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
         tool_call_id="toolu_xyz",
         tool_type="Function",
     )
-    count = await bind_append(deps, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=decision_id, entries=(entry_a, entry_b)),
+    count = await bind_append(deps, inference_store=inference_store)(
+        AppendInferences(decision_id=decision_id, entries=(entry_a, entry_b)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -174,9 +174,9 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
     # Verify Decision stream now carries DecisionLogbookOpened.
     state = await load_decision(deps.event_store, decision_id)
     assert state is not None
-    assert state.logbooks == {LOGBOOK_KIND_REASONING: logbook_id}
+    assert state.logbooks == {LOGBOOK_KIND_INFERENCE: logbook_id}
 
-    # Read rows from entries_decision_reasonings.
+    # Read rows from entries_decision_inferences.
     rows = await _read_entries_for_decision(db_pool, decision_id)
     assert len(rows) == 2
 
@@ -232,8 +232,8 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
         provider_name="anthropic",
         request_model="claude-opus-4-7",
     )
-    await bind_append(deps_second, reasoning_store=reasoning_store)(
-        AppendReasoningEntries(decision_id=decision_id, entries=(entry_c,)),
+    await bind_append(deps_second, inference_store=inference_store)(
+        AppendInferences(decision_id=decision_id, entries=(entry_c,)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -242,7 +242,7 @@ async def test_append_reasoning_entries_full_lazy_open_and_jsonb_round_trip(
     # DecisionLogbookOpened (no second open emitted).
     state_after = await load_decision(deps_second.event_store, decision_id)
     assert state_after is not None
-    assert state_after.logbooks == {LOGBOOK_KIND_REASONING: logbook_id}
+    assert state_after.logbooks == {LOGBOOK_KIND_INFERENCE: logbook_id}
 
     rows_after = await _read_entries_for_decision(db_pool, decision_id)
     assert len(rows_after) == 3
@@ -288,12 +288,12 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
         correlation_id=_CORRELATION_ID,
     )
 
-    store = PostgresReasoningStore(db_pool)
+    store = PostgresInferenceStore(db_pool)
     shared_event_id = UUID("01900000-0000-7000-8000-000000089c01")
 
-    from cora.decision.aggregates.decision import DecisionReasoning
+    from cora.decision.aggregates.decision import Inference
 
-    first_row = DecisionReasoning(
+    first_row = Inference(
         event_id=shared_event_id,
         decision_id=decision_id,
         logbook_id=logbook_id,
@@ -323,7 +323,7 @@ async def test_postgres_reasoning_store_dedups_on_event_id(
         messages=None,
     )
     # Different content, same event_id; second write must be silent no-op.
-    second_row = DecisionReasoning(
+    second_row = Inference(
         event_id=shared_event_id,
         decision_id=decision_id,
         logbook_id=logbook_id,

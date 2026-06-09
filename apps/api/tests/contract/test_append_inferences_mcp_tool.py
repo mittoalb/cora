@@ -1,4 +1,4 @@
-"""Contract tests for the `append_reasoning_entries` MCP tool."""
+"""Contract tests for the `append_inferences` MCP tool."""
 
 from uuid import uuid4
 
@@ -28,7 +28,7 @@ def test_mcp_lists_append_reasoning_entries_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "append_reasoning_entries" in tool_names
+    assert "append_inferences" in tool_names
 
 
 @pytest.mark.contract
@@ -43,7 +43,7 @@ def test_mcp_append_reasoning_entries_tool_succeeds_on_minimum_args() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_reasoning_entries",
+                    "name": "append_inferences",
                     "arguments": {
                         "decision_id": decision_id,
                         "event_id": str(uuid4()),
@@ -72,7 +72,7 @@ def test_mcp_append_reasoning_entries_tool_returns_iserror_for_unknown_decision(
                 "id": 5,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_reasoning_entries",
+                    "name": "append_inferences",
                     "arguments": {
                         "decision_id": str(uuid4()),
                         "event_id": str(uuid4()),

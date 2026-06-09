@@ -152,7 +152,7 @@ class RunStarted:
     id, prior-run id, automation id). Optional (None when omitted).
     Forward-compat via `payload.get("trigger_source")`. Future
     Decision-BC integration may populate this from
-    `DecisionReasoning.entries` references.
+    `Inference.entries` references.
     """
 
     run_id: UUID

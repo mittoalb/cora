@@ -1,7 +1,7 @@
 """Application handler for the `append_run_readings` slice.
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
-write mirroring Decision BC's `append_reasoning_entries` precedent:
+write mirroring Decision BC's `append_inferences` precedent:
 
   1. Load Run via `load_run` (fold-on-read).
   2. Reject if Run is in a terminal status (RunReadingLogbookClosedError).
@@ -111,7 +111,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
     `deps.pool` for Postgres, or `InMemoryReadingStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Conduit's
-    VerdictStore and Decision's ReasoningStore).
+    VerdictStore and Decision's InferenceStore).
     """
 
     async def handler(

@@ -1,6 +1,6 @@
 """The `AppendRunReadings` command, intent dataclass for this slice.
 
-Batch shape from day one (matches `append_reasoning_entries`
+Batch shape from day one (matches `append_inferences`
 precedent from Decision BC). Length-1 batches are the degenerate
 case; same code path either way. Anticipates DAQ-adapter
 integration which will batch naturally.

@@ -40,7 +40,7 @@ cross-loads Plan → Practice → Method to surface the Method's
 ## BC-internal ReadingStore wiring
 
 `append_run_readings` needs a `ReadingStore` adapter. Per the
-per-category-writer pattern (mirrors Decision BC's ReasoningStore
+per-category-writer pattern (mirrors Decision BC's InferenceStore
 and Conduit's VerdictStore), the store is built LOCALLY here from
 `deps.pool` (Postgres in production) or as `InMemoryReadingStore`
 in `app_env=test`. NOT promoted to Kernel fields.

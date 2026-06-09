@@ -1,12 +1,12 @@
 """Compose the Decision BC's handlers from `Kernel`.
 
-## BC-internal ReasoningStore wiring
+## BC-internal InferenceStore wiring
 
-The `append_reasoning_entries` slice needs a `ReasoningStore`
+The `append_inferences` slice needs a `InferenceStore`
 adapter. Per the per-category-writer pattern (Conduit's
 VerdictStore precedent), the store is built LOCALLY here from
 `deps.pool` (Postgres in production) or as
-`InMemoryReasoningStore` in `app_env=test`. NOT promoted to
+`InMemoryInferenceStore` in `app_env=test`. NOT promoted to
 Kernel fields. Mirrors how Trust BC wires its VerdictStore.
 """
 
@@ -14,12 +14,12 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.decision.aggregates.decision import (
-    InMemoryReasoningStore,
-    PostgresReasoningStore,
-    ReasoningStore,
+    InferenceStore,
+    InMemoryInferenceStore,
+    PostgresInferenceStore,
 )
 from cora.decision.features import (
-    append_reasoning_entries,
+    append_inferences,
     get_decision,
     list_decisions,
     rate_decision,
@@ -39,14 +39,14 @@ class DecisionHandlers:
     register_decision: register_decision.IdempotentHandler
     get_decision: get_decision.Handler
     list_decisions: list_decisions.Handler
-    append_reasoning_entries: append_reasoning_entries.Handler
+    append_inferences: append_inferences.Handler
     rate_decision: rate_decision.Handler
 
 
 def wire_decision(deps: Kernel) -> DecisionHandlers:
     """Build the Decision BC handlers from shared dependencies."""
-    reasoning_store: ReasoningStore = (
-        PostgresReasoningStore(deps.pool) if deps.pool is not None else InMemoryReasoningStore()
+    inference_store: InferenceStore = (
+        PostgresInferenceStore(deps.pool) if deps.pool is not None else InMemoryInferenceStore()
     )
     return DecisionHandlers(
         register_decision=with_tracing(
@@ -67,9 +67,9 @@ def wire_decision(deps: Kernel) -> DecisionHandlers:
             bc=_BC,
             kind="query",
         ),
-        append_reasoning_entries=with_tracing(
-            append_reasoning_entries.bind(deps, reasoning_store=reasoning_store),
-            command_name="AppendReasoningEntries",
+        append_inferences=with_tracing(
+            append_inferences.bind(deps, inference_store=inference_store),
+            command_name="AppendInferences",
             bc=_BC,
         ),
         list_decisions=with_tracing(

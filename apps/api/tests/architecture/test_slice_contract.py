@@ -34,7 +34,7 @@ _QUERY_SLICE_FILES: frozenset[str] = frozenset(
 # Entry-append shape, hoisted from WIP_SLICES at n=3. Identical to
 # command-slice file-set minus `decider.py`:
 # the handler writes to a typed entries store via a per-category
-# port (ReasoningStore / ReadingStore / StepStore) rather than
+# port (InferenceStore / ReadingStore / StepStore) rather than
 # folding events through a pure decider. New entry-append slices
 # must be added to `_ENTRY_APPEND_SLICES` below.
 _ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
@@ -42,7 +42,7 @@ _ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
 )
 _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
     {
-        "cora.decision.features.append_reasoning_entries",
+        "cora.decision.features.append_inferences",
         "cora.run.features.append_run_readings",
         "cora.operation.features.append_procedure_steps",
     }

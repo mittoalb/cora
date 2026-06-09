@@ -1,7 +1,7 @@
 """RunReading entry: per-Run sensor / motor reading row.
 
 Third concrete entry kind in CORA after `Verdict` (6f-5a)
-and `DecisionReasoning` (8c-b). Mirrors the same per-category writer
+and `Inference` (8c-b). Mirrors the same per-category writer
 pattern: a typed dataclass + per-category Postgres adapter alongside
 the owning aggregate, with a category-local `ReadingStore` Protocol
 (NOT a shared cross-BC port).
@@ -9,7 +9,7 @@ the owning aggregate, with a category-local `ReadingStore` Protocol
 ## Polymorphic-with-discriminator
 
 Unlike Verdict (typed `decision: Allow|Deny + reason`) and
-DecisionReasoning (typed 27+ OTel columns), RunReading is
+Inference (typed 27+ OTel columns), RunReading is
 **polymorphic across kinds** via the `sampling_procedure` field. All
 RunReading rows share the SAME `(channel_name, value, units?,
 sampled_at, ...)` shape regardless of whether they are baseline
@@ -126,7 +126,7 @@ class PostgresReadingStore:
     a producer that re-issues the same `event_id` (after a transient
     network failure on the previous attempt) is a no-op rather than
     a constraint violation. Matches the precedent set by
-    `PostgresVerdictStore` and `PostgresReasoningStore`.
+    `PostgresVerdictStore` and `PostgresInferenceStore`.
     """
 
     def __init__(self, pool: asyncpg.Pool) -> None:

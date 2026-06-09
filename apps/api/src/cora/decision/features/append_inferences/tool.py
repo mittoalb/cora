@@ -1,4 +1,4 @@
-"""MCP tool for the `append_reasoning_entries` slice.
+"""MCP tool for the `append_inferences` slice.
 
 Single-entry-per-call shape at the MCP boundary (LLMs construct
 one tool call per trace event; batching is more natural at the
@@ -24,27 +24,27 @@ from uuid import UUID
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from cora.decision.features.append_reasoning_entries.command import (
-    AppendReasoningEntries,
+from cora.decision.features.append_inferences.command import (
+    AppendInferences,
     ReasoningEntryInput,
 )
-from cora.decision.features.append_reasoning_entries.handler import Handler
+from cora.decision.features.append_inferences.handler import Handler
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 
 
 class AppendReasoningEntriesOutput(BaseModel):
-    """Structured output of the `append_reasoning_entries` MCP tool."""
+    """Structured output of the `append_inferences` MCP tool."""
 
     event_count: int = Field(..., ge=0)
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
-    """Register the `append_reasoning_entries` tool on the FastMCP server."""
+    """Register the `append_inferences` tool on the FastMCP server."""
 
     @mcp.tool(
-        name="append_reasoning_entries",
+        name="append_inferences",
         description=(
             "Append one AI-decider reasoning entry to a Decision's reasoning "
             "logbook. Lazy open-on-first-write: the logbook is opened "
@@ -155,7 +155,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             messages=messages,
         )
         count = await handler(
-            AppendReasoningEntries(decision_id=decision_id, entries=(entry,)),
+            AppendInferences(decision_id=decision_id, entries=(entry,)),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

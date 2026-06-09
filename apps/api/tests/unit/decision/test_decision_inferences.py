@@ -1,4 +1,4 @@
-"""Unit tests for the DecisionReasoning entry + ReasoningStore.
+"""Unit tests for the Inference entry + InferenceStore.
 
 Mirrors `test_conduit_traversal_entries.py` shape from the prior
 precedent: the dataclass round-trips, the in-memory store dedups
@@ -18,14 +18,14 @@ from cora.decision.aggregates.decision import (
     DECISION_REASONING_OPERATION_EXECUTE_TOOL,
     DECISION_REASONING_OPERATION_INVOKE_AGENT,
     DECISION_REASONING_OPERATION_TEXT_COMPLETION,
-    DecisionReasoning,
-    InMemoryReasoningStore,
+    Inference,
+    InMemoryInferenceStore,
 )
 
 _NOW = datetime(2026, 5, 12, 12, 0, 0, tzinfo=UTC)
 
 
-def _row(**overrides: object) -> DecisionReasoning:
+def _row(**overrides: object) -> Inference:
     base: dict[str, object] = {
         "event_id": uuid4(),
         "decision_id": uuid4(),
@@ -56,10 +56,10 @@ def _row(**overrides: object) -> DecisionReasoning:
         "messages": None,
     }
     base.update(overrides)
-    return DecisionReasoning(**base)  # type: ignore[arg-type]
+    return Inference(**base)  # type: ignore[arg-type]
 
 
-# ---------- DecisionReasoning dataclass shape ----------
+# ---------- Inference dataclass shape ----------
 
 
 @pytest.mark.unit
@@ -167,12 +167,12 @@ def test_decision_reasoning_messages_for_pii_gated_payloads() -> None:
     assert "prompt" in row.messages
 
 
-# ---------- InMemoryReasoningStore ----------
+# ---------- InMemoryInferenceStore ----------
 
 
 @pytest.mark.unit
 async def test_in_memory_store_appends_single_row() -> None:
-    store = InMemoryReasoningStore()
+    store = InMemoryInferenceStore()
     row = _row()
     await store.append([row])
     assert store.all() == [row]
@@ -181,7 +181,7 @@ async def test_in_memory_store_appends_single_row() -> None:
 @pytest.mark.unit
 async def test_in_memory_store_appends_batch() -> None:
     """Producers commonly batch; multi-row append works."""
-    store = InMemoryReasoningStore()
+    store = InMemoryInferenceStore()
     rows = [_row(), _row(), _row()]
     await store.append(rows)
     assert len(store.all()) == 3
@@ -189,7 +189,7 @@ async def test_in_memory_store_appends_batch() -> None:
 
 @pytest.mark.unit
 async def test_in_memory_store_empty_list_is_noop() -> None:
-    store = InMemoryReasoningStore()
+    store = InMemoryInferenceStore()
     await store.append([])
     assert store.all() == []
 
@@ -199,7 +199,7 @@ async def test_in_memory_store_dedups_on_event_id() -> None:
     """At-least-once semantics: retrying with the same event_id
     must not produce two stored rows. First write wins (matches
     Postgres ON CONFLICT (event_id) DO NOTHING shape)."""
-    store = InMemoryReasoningStore()
+    store = InMemoryInferenceStore()
     event_id = uuid4()
     first = _row(event_id=event_id, request_model="claude-opus-4-7")
     second = _row(event_id=event_id, request_model="claude-sonnet-4-6")
@@ -213,7 +213,7 @@ async def test_in_memory_store_dedups_on_event_id() -> None:
 async def test_in_memory_store_preserves_insertion_order_across_calls() -> None:
     """all() returns rows in insertion order for predictable test
     assertions."""
-    store = InMemoryReasoningStore()
+    store = InMemoryInferenceStore()
     a = _row()
     b = _row()
     c = _row()
