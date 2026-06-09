@@ -33,7 +33,7 @@ Out of scope
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
 | `Fixture` | `id: UUID` | `id`, `assembly_id`, `assembly_content_hash`, `surface_id`, `slot_asset_bindings: frozenset[SlotAssetBinding]`, `parameter_overrides: dict`, `persistent_id?`, `registered_at` | no (genesis + set-once persistent-id assign) |
 
-`Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", "Mirror", "TriggerFPGA". It carries the affordance set (what device-level primitives this class supports) and the JSON Schema that constrains the operational settings any Asset of that class may carry. `Model` is the vendor catalog entry that names a specific manufacturer plus part number and declares which Families that catalog row belongs to. `Asset` is one physical instance: a Site, a beamline, a detector, a sample changer. Assets form a single-parent tree through `parent_id`; an Asset may belong to multiple Families simultaneously, and each membership widens what the Asset's settings dict may contain. An Asset may optionally bind to a Model, in which case the Asset's family set must be a subset of the Model's declared families.
+`Family` is the device-class abstraction: "RotaryStage", "Camera", "Hexapod", "Mirror", "TimingController". It carries the affordance set (what device-level primitives this class supports) and the JSON Schema that constrains the operational settings any Asset of that class may carry. `Model` is the vendor catalog entry that names a specific manufacturer plus part number and declares which Families that catalog row belongs to. `Asset` is one physical instance: a Site, a beamline, a detector, a sample changer. Assets form a single-parent tree through `parent_id`; an Asset may belong to multiple Families simultaneously, and each membership widens what the Asset's settings dict may contain. An Asset may optionally bind to a Model, in which case the Asset's family set must be a subset of the Model's declared families.
 
 `Frame` and `Mount` add the placement axis the facility uses to provision physical space ahead of installation. A Frame is a named coordinate frame; Frames form a parent tree, and a child Frame carries its placement relative to its parent. A Mount is a named installation slot the facility provisions in advance, carries a 6-DoF placement relative to its parent Frame or Mount, and may eventually have an Asset installed into it. Slot codes are facility-unique across active Mounts.
 
@@ -86,6 +86,41 @@ Addressability wins ties: if any other module references the sub-component by id
 `AssetOwner` and `AlternateIdentifier` are sortable VOs whose ordering follows the field that uniquely keys them (`owner_name` for owners, `(kind, value)` for alternate identifiers). Both feed the PIDINST serializer (`to_pidinst_record` at the module root) that maps Asset state into the external PIDINST record shape, which the `get_asset_pidinst` slice exposes at `GET /assets/{asset_id}/pidinst`. The PIDINST property numbers are: 5 for owners, 13 for alternate identifiers.
 
 `Assembly.content_hash` is a SHA-256 over the canonical serialization of the structural content (`name`, `presents_as_family_id`, `required_slots`, `required_wires`, `parameter_overrides_schema`); engineering metadata (drawing, version label) is intentionally excluded so two Assemblies with the same structural intent share a hash even when sourced from different facilities. `Fixture.assembly_content_hash` snapshots that hash at registration time, decoupling the materialization from any later Assembly revision.
+
+## Family naming conventions
+
+Family names are cross-facility vocabulary. Three conventions are load-bearing today:
+
+### Anatomical names, not vendor or hardware-substrate names
+
+A Family names what something IS, device-agnostic across facilities. `Camera`, `Mirror`, `Scintillator`, `Hexapod` are anatomical. Vendor designations live in `Asset.metadata.vendor_designation` and on the bound `Model` row; they never enter the Family name. Hardware-substrate names (FPGA, VME card, PCIe board, the chip technology behind the function) likewise stay out of the Family name. A `MotionController` Family covers an Aerotech Ensemble drive, an Oregon Micro Systems VME58 card, and a hypothetical PCIe servo board with equal honesty; the substrate distinction lives in `MotionController.settings.protocol` or on the bound `Model`. The same convention rules out names like `TriggerFPGA`: the role is timing-signal generation and distribution, not "FPGA"; the right Family name is `TimingController`.
+
+### `<Domain>Controller` for separately-modelled active-control electronics
+
+Any field-replaceable, firmware-versioned active-control-electronics box gets a `<Domain>Controller` Family with a `<stage>.controller_id` back-reference from the driven stage. Two `<Domain>Controller` Families are anchored today:
+
+| Family | Drives | Anchored at |
+|---|---|---|
+| `MotionController` | Stages, hexapods, sample motors | Aerotech Ensemble (`Aerotech_Ensemble_drive`), Aerotech Hexapod drive, Aerotech 2bmbAERO drive, OMS VME58 a-station + b-station drives at 2-BM |
+| `TimingController` | Hardware timing signal generation (triggers, gates, sync pulses) | softGlueZynq + future trigger sources (slot reserved, not yet defined; replaces the pre-rename `TriggerFPGA` candidate) |
+
+Plausible siblings that have NOT yet earned a slot (rule-of-three): `TemperatureController` (Lakeshore cryostats), `FlowController` (Bronkhorst mass flow), `PressureController` (MKS Baratron + PID), `DAQController` (Quantum Detectors Merlin, FPGA frame grabbers), `HVPSU` / `BiasController` (CAEN HV crate). Each lands per its own trigger. The convention is suffix-LAST per the locked R3 family-noun primacy rule.
+
+### Function × anatomy matrix
+
+A useful cross-check on Family naming and gap detection: the function-and-anatomy matrix collects each Family by what it DOES (operational role) and what it IS (substrate). Empty cells are either real gaps or evidence the axes need refinement; cross-anatomy entries flag Families that straddle two substrates.
+
+|              | **Optical**                                   | **Mechanical**                                    | **Electronic**                          | **Composite (Assembly)** |
+|--------------|-----------------------------------------------|----------------------------------------------------|-----------------------------------------|--------------------------|
+| **Defining** | -                                             | Mask, Slit, Collimator, Baffle                     | -                                       | Slits-with-Filters       |
+| **Modifying**| Mirror, Monochromator, Filter, Window         | Foil                                               | -                                       | DMM                      |
+| **Sensing**  | Camera, Scintillator, Objective               | -                                                  | -                                       | OpticalRelay (presenter: Imager) |
+| **Positioning** | -                                          | LinearStage, RotaryStage, Hexapod, Blade, PseudoAxis | -                                     | SampleStack              |
+| **Terminating** | -                                          | BeamStop                                           | Shutter                                 | -                        |
+| **Controlling** | -                                          | -                                                  | MotionController, TimingController, `<Domain>Controller` siblings | - |
+| **Containing** | Window                                       | BeamPipe                                           | -                                       | -                        |
+
+`Window` straddles Modifying + Containing (attenuates AND bounds vacuum); `Shutter` straddles Electronic + Mechanical (electromechanical). Both are intentional single-Family typings today; either may split if a future use case forces it. The matrix is the operator-side companion to the beam-path inventory in `docs/deployments/<id>/assets.md`.
 
 ## FSM
 
