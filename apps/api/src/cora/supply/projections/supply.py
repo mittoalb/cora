@@ -33,6 +33,16 @@ can re-register at the same (scope, kind, name) address with a fresh
 supply_id. This is the load-bearing affordance the design memo
 [[project_deregister_supply_design]] documents.
 
+Session 5 Slice 7C will migrate the UNIQUE INDEX shape to compose
+`facility_code` into the uniqueness tuple so two facilities can each
+own a `(Beamline, LiquidNitrogen, "2-BM LN2 dewar")` row without
+colliding. Slice 7A keeps the existing `(scope, kind, name)` index
+intact and lands `facility_code` as a denormalized column only; the
+index swap is the Slice 7C concern, not Slice 7A's. Until 7C ships,
+operators registering the same `(scope, kind, name)` across two
+facilities will see one row land + one duplicate-address-skipped log
+entry; this is a known intermediate state that Slice 7C closes.
+
 When two operators concurrently register supplies with the same
 (scope, kind, name) BOTH in active states, the second
 `SupplyRegistered` event lands in the event store cleanly (no
@@ -66,9 +76,9 @@ _log = get_logger(__name__)
 
 _INSERT_SUPPLY_SQL = """
 INSERT INTO proj_supply_summary
-    (supply_id, scope, kind, name, status, registered_at,
+    (supply_id, scope, kind, name, facility_code, status, registered_at,
      last_status_changed_at, last_status_reason, last_trigger)
-VALUES ($1, $2, $3, $4, 'Unknown', $5, NULL, NULL, NULL)
+VALUES ($1, $2, $3, $4, $5, 'Unknown', $6, NULL, NULL, NULL)
 ON CONFLICT (supply_id) DO NOTHING
 """
 
@@ -129,6 +139,7 @@ class SupplySummaryProjection:
                         event.payload["scope"],
                         event.payload["kind"],
                         event.payload["name"],
+                        event.payload["facility_code"],
                         datetime.fromisoformat(event.payload["occurred_at"]),
                     )
             except asyncpg.UniqueViolationError:
@@ -143,6 +154,7 @@ class SupplySummaryProjection:
                     scope=event.payload["scope"],
                     kind=event.payload["kind"],
                     name=event.payload["name"],
+                    facility_code=event.payload["facility_code"],
                     event_id=str(event.event_id),
                 )
             return

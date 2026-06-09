@@ -18,7 +18,12 @@ def _register_and_mark_unavailable(client: TestClient) -> UUID:
     """Get a Supply into the Unavailable state (single-source for mark_recovering)."""
     response = client.post(
         "/supplies",
-        json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"},
+        json={
+            "scope": "Beamline",
+            "kind": "LiquidNitrogen",
+            "name": "2-BM LN2",
+            "facility_code": "cora",
+        },
     )
     assert response.status_code == 201
     supply_id = UUID(response.json()["supply_id"])
@@ -51,7 +56,12 @@ def test_post_mark_recovering_returns_409_when_supply_is_unknown() -> None:
     with TestClient(create_app()) as client:
         register = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "X", "name": "Y"},
+            json={
+                "scope": "Beamline",
+                "kind": "X",
+                "name": "Y",
+                "facility_code": "cora",
+            },
         )
         supply_id = UUID(register.json()["supply_id"])
         response = client.post(f"/supplies/{supply_id}/mark-recovering", json={"reason": "r"})

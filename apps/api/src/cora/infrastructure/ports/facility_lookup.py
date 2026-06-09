@@ -2,9 +2,12 @@
 
 Used by Federation BC's `register_facility` handler to validate
 parent.kind=Site at cross-stream boundary (Slice 6 closes the
-Slice 5 deferral). Future consumers (Slice 6 Sub-Slice B's
-`add_facility_trust_anchor_credential` decider) will also consume
-this port for parent-existence + tier-membership checks.
+Slice 5 deferral), Slice 6 Sub-Slice B's
+`add_facility_trust_anchor_credential` decider for parent-existence
++ tier-membership checks, and Slice 7 cross-BC consumers
+(`register_supply` resolves `command.facility_code` to a
+`FacilityLookupResult` via the `lookup_by_code` arm) for
+cross-deployment convergent-identity binding.
 
 ## Convention
 
@@ -12,18 +15,23 @@ This is a cross-aggregate port (within Federation BC; second after
 `CredentialLookup` if counted by Federation-internal consumers):
 one implementor (Federation BC ships `PostgresFacilityLookup` reading
 `proj_federation_facility_summary` from Slice 5 Sub-Slice B), many
-potential consumers (`register_facility` parent validation today;
-`add_facility_trust_anchor_credential` decider in Sub-Slice B;
-post-Slice-6 Equipment / Supply / Safety BC consumers when slices
-7-9 land cross-BC Facility binding). Lives in
+consumers (`register_facility` parent validation,
+`add_facility_trust_anchor_credential` decider, and cross-BC
+Supply / Asset / Safety binding in slices 7-9). Lives in
 `cora.infrastructure.ports` per the existing pattern (`Authorize`,
 `ClearanceLookup`, `CautionLookup`, `SupplyLookup`, `SecretStore`,
 `CredentialLookup`).
 
-The port is shaped around the CONSUMER's need: `register_facility`
-decider needs "what is this parent Facility's kind, for the
-parent.kind=Site invariant at registration time". Adapters translate
-the projection's columns to this shape.
+## Two access methods
+
+`lookup(facility_id)` keys by the internal-opaque UUID and serves
+Federation BC's intra-BC parent-validation arms. `lookup_by_code`
+keys by the cross-deployment convergent slug and serves cross-BC
+binding sites where the consumer carries the bare-str slug across
+the wire (Slice 7+; Permit / Credential / Seal aggregate state
+already keys on `FacilityCode`). Both return the same
+`FacilityLookupResult` shape with the full projection row; callers
+partition on `kind` or `status` as needed.
 
 ## Modern DDD alignment
 
@@ -103,14 +111,28 @@ class FacilityLookup(Protocol):
 
         Returning None signals "no Facility with that id is visible in
         the projection". Callers (`register_facility` parent-validation,
-        future `add_facility_trust_anchor_credential` decider)
-        translate None to the appropriate domain error
-        (`FacilityParentNotFoundError` per the start_run ->
-        PlanNotFoundError precedent) at the decider boundary.
+        `add_facility_trust_anchor_credential` decider) translate None
+        to the appropriate domain error (`FacilityParentNotFoundError`
+        per the start_run -> PlanNotFoundError precedent) at the decider
+        boundary.
 
         Facilities in EVERY status are returned (Active, Decommissioned);
         the decider partitions on `status` to distinguish "no facility
         at all" from "facility exists but Decommissioned".
+        """
+        ...
+
+    async def lookup_by_code(self, code: FacilityCode) -> FacilityLookupResult | None:
+        """Return the projection row for `code`, or None if not found.
+
+        Cross-deployment convergent-identity arm: callers carry the
+        bare-str slug across the wire (Slice 7 `register_supply` is
+        the first cross-BC consumer) and resolve it to the full
+        projection row before threading into the decider. Same
+        None-on-missing + every-status-returned contract as `lookup`.
+        Code uniqueness is enforced by the projection's UNIQUE INDEX
+        on `code`, so at most one row matches; the adapter applies
+        `LIMIT 1` defensively.
         """
         ...
 

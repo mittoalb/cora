@@ -25,6 +25,7 @@ def _register_supply_via_tool(client: TestClient, headers: dict[str, str]) -> UU
                     "scope": "Beamline",
                     "kind": "LiquidNitrogen",
                     "name": "2-BM LN2",
+                    "facility_code": "cora",
                 },
             },
         },

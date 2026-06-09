@@ -67,7 +67,12 @@ async def test_full_supply_fsm_cycle_appends_six_events_to_one_stream(
 ) -> None:
     register_deps = build_postgres_deps(db_pool, now=_T0, ids=[_SUPPLY_ID, _GENESIS_EVENT_ID])
     supply_id = await register_supply.bind(register_deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

@@ -111,12 +111,52 @@ async def bootstrap_federation(kernel: Kernel) -> None:
             facility_id=str(facility_id),
             facility_code=code.value,
         )
+        _seed_in_memory_facility_lookup(kernel, facility_id, code)
         return
 
     _log.info(
         "facility_seed.created",
         facility_id=str(facility_id),
         facility_code=code.value,
+    )
+    _seed_in_memory_facility_lookup(kernel, facility_id, code)
+
+
+def _seed_in_memory_facility_lookup(
+    kernel: Kernel, facility_id: FacilityId, code: FacilityCode
+) -> None:
+    """Mirror the self-Facility into the FacilityLookup adapter (in-memory path only).
+
+    Production wires `PostgresFacilityLookup` which reads
+    `proj_federation_facility_summary`; the projection worker catches
+    up the read model from the FacilityRegistered event so the lookup
+    resolves the self-Facility within a bookmark tick.
+
+    The in-memory app variant (test runs, the `test` AppEnv) wires
+    `InMemoryFacilityLookup` which has no event-store subscription;
+    without an explicit `register(...)` here, the bootstrap leaves the
+    lookup empty and downstream cross-BC binding (Slice 7+
+    `register_supply` / future Asset / Safety binding) cannot resolve
+    the self-Facility slug. Duck-type on the adapter's `register`
+    attribute so production's `PostgresFacilityLookup` short-circuits.
+
+    Anti-hook: `.register(...)` is a TEST-only seed helper on
+    `InMemoryFacilityLookup`. Do NOT promote it to the `FacilityLookup`
+    Protocol surface (would force every adapter to implement an
+    in-memory seeding shape that has no production meaning). If a
+    second adapter ever needs the same duck-type, introduce a bounded
+    `TestSeedingFacilityLookup` Protocol and isinstance-check here
+    (rule-of-three trigger).
+    """
+    register = getattr(kernel.facility_lookup, "register", None)
+    if register is None:
+        return
+    register(
+        facility_id=facility_id,
+        code=code,
+        kind="Site",
+        status="Active",
+        trust_anchor_credential_ids=frozenset(),
     )
 
 

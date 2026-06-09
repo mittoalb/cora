@@ -55,7 +55,7 @@ async def _register_supply(
 ) -> None:
     deps = build_postgres_deps(db_pool, now=now, ids=[supply_id, uuid4()])
     await register_supply.bind(deps)(
-        RegisterSupply(scope=scope, kind=kind, name=name),
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

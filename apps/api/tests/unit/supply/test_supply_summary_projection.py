@@ -97,6 +97,7 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
             "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
+            "facility_code": "cora",
             "occurred_at": _NOW.isoformat(),
         },
     )
@@ -111,12 +112,13 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
     assert "INSERT INTO proj_supply_summary" in sql
     assert "ON CONFLICT (supply_id) DO NOTHING" in sql
     assert "'Unknown'" in sql  # status literal
-    # Bound parameters: supply_id, scope, kind, name, registered_at
+    # Bound parameters: supply_id, scope, kind, name, facility_code, registered_at
     assert args.args[1] == _SUPPLY_ID
     assert args.args[2] == "Beamline"
     assert args.args[3] == "LiquidNitrogen"
     assert args.args[4] == "2-BM LN2"
-    assert args.args[5] == _NOW
+    assert args.args[5] == "cora"
+    assert args.args[6] == _NOW
 
 
 @pytest.mark.parametrize(
@@ -192,6 +194,7 @@ async def test_supply_registered_swallows_unique_violation_and_logs_warn() -> No
             "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
+            "facility_code": "cora",
             "occurred_at": _NOW.isoformat(),
         },
     )

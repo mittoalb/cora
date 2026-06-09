@@ -76,6 +76,17 @@ projection-side UNIQUE INDEX on `(scope, kind, name)` catches
 duplicate registrations at insert time; aggregates cannot enforce
 cross-stream uniqueness without DCB (per [[project_deferred]]).
 
+`facility_code` (Session 5 Slice 7) joins the address tuple as the
+federation-tier disambiguator: every Supply belongs to exactly one
+Facility (the cross-deployment convergent slug at Federation BC's
+two-tier identity). The register_supply handler resolves the slug
+to a `FacilityLookupResult` via `FacilityLookup.lookup_by_code`
+before threading into the decider, rejecting unknown codes with
+`SupplyFacilityNotFoundError` (HTTP 404). Slice 7C will migrate the
+projection UNIQUE INDEX to compose `facility_code` into the
+uniqueness key so two facilities can each own a "2-BM LN2 dewar"
+without colliding.
+
 ## Eleventh bounded-name VO
 
 `SupplyName` is the eleventh trimmed-bounded-name VO. Uses the
@@ -123,6 +134,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
+from cora.shared.facility_code import FacilityCode
 from cora.shared.scope_markers import Annotated, DeferredVocabulary
 
 SUPPLY_NAME_MAX_LENGTH = 200
@@ -280,6 +292,38 @@ class SupplyNotFoundError(Exception):
     def __init__(self, supply_id: UUID) -> None:
         super().__init__(f"Supply {supply_id} not found")
         self.supply_id = supply_id
+
+
+class SupplyFacilityNotFoundError(Exception):
+    """`register_supply` referenced a Facility code with no projection row.
+
+    Cross-BC binding (Session 5 Slice 7): every Supply belongs to
+    exactly one Facility (the cross-deployment convergent slug at
+    Federation BC's two-tier identity). The handler resolves
+    `command.facility_code` via `FacilityLookup.lookup_by_code` before
+    threading the result into the decider; a `None` result means no
+    Facility with that code is visible in
+    `proj_federation_facility_summary` and the registration is
+    rejected with HTTP 404. Operator remedies: register the Facility
+    first via `POST /federation/facilities`, or correct the typo on
+    the Supply registration.
+
+    Status filter mirrors the slice 6 `FacilityParentNotFoundError`
+    precedent: every Facility status (Active, Decommissioned) is a
+    valid binding target; the operator chose to keep Decommissioned-
+    facility lineage visible by registering Supplies against it. The
+    decider does NOT partition on Facility status.
+
+    Cross-BC eventual consistency: if `register_supply` is called
+    immediately after `register_facility`, the Federation projection
+    may not have caught up yet and the lookup returns `None`. The
+    handler surfaces this same 404; operator remedies are identical
+    (retry after projection bookmark advances).
+    """
+
+    def __init__(self, facility_code: str) -> None:
+        super().__init__(f"Facility {facility_code!r} not found for supply registration")
+        self.facility_code = facility_code
 
 
 class SupplyCannotMarkAvailableError(Exception):
@@ -559,12 +603,13 @@ class Supply:
     `SubjectRegistered -> Received`).
 
     Future additive facets (per Watch items in
-    [[project_supply_design]]): `bound_asset_id` (physical-equipment
-    binding, mirrors 4f Subject pattern), `health` (orthogonal
-    facet, mirrors 5g-b Asset.condition), `auto_clear_after` (per-
-    kind timer for auto-restore), `capacity` (when first consumer
-    needs quantity tracking). All land with safe defaults so pre-
-    extension streams fold cleanly via the additive-state pattern.
+    [[project_supply_design]]): `containing_asset_id` (physical-
+    equipment containment, Slice 7B; mirrors 4f Subject pattern),
+    `health` (orthogonal facet, mirrors 5g-b Asset.condition),
+    `auto_clear_after` (per-kind timer for auto-restore), `capacity`
+    (when first consumer needs quantity tracking). All land with
+    safe defaults so pre-extension streams fold cleanly via the
+    additive-state pattern.
     """
 
     id: UUID
@@ -585,4 +630,5 @@ class Supply:
         ),
     ]
     name: SupplyName
+    facility_code: FacilityCode
     status: SupplyStatus = SupplyStatus.UNKNOWN

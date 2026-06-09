@@ -20,13 +20,16 @@ pool.
 
 ## Query shape
 
-Single SELECT keyed by the `facility_id` primary key (LIMIT 1),
-returning `None` when no row matches. Facilities in every status
-(`Active`, `Decommissioned`) are returned; the
-`register_facility` decider partitions on `kind == "Site"` (parent
-must be Site tier) but does NOT filter on status (a Decommissioned
-parent is structurally still a parent: the operator chose to keep
-the lineage visible).
+Two SELECTs, one per access method, both `LIMIT 1` and returning
+`None` when no row matches. `lookup` keys by `facility_id` PK;
+`lookup_by_code` keys by the cross-deployment convergent `code`
+slug (enforced UNIQUE at the projection-table level so at most one
+row matches, with `LIMIT 1` as a defensive belt). Facilities in
+every status (`Active`, `Decommissioned`) are returned; consumer
+deciders partition on `kind` or `status` (the `register_facility`
+arm requires `kind == "Site"` for parents but accepts any status;
+Slice 7+ cross-BC consumers may add status filters as their
+domain semantics require).
 
 ## Enum coercion
 
@@ -71,6 +74,13 @@ WHERE facility_id = $1
 LIMIT 1
 """
 
+_LOOKUP_BY_CODE_SQL = """
+SELECT facility_id, code, kind, status, trust_anchor_credential_ids
+FROM proj_federation_facility_summary
+WHERE code = $1
+LIMIT 1
+"""
+
 
 class PostgresFacilityLookup:
     """asyncpg-backed `FacilityLookup` implementation."""
@@ -81,6 +91,13 @@ class PostgresFacilityLookup:
     async def lookup(self, facility_id: UUID) -> FacilityLookupResult | None:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(_LOOKUP_SQL, facility_id)
+        if row is None:
+            return None
+        return _row_to_result(row)
+
+    async def lookup_by_code(self, code: FacilityCode) -> FacilityLookupResult | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(_LOOKUP_BY_CODE_SQL, code.value)
         if row is None:
             return None
         return _row_to_result(row)

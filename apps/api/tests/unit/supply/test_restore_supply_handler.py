@@ -14,6 +14,7 @@ import pytest
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import (
     SupplyCannotRestoreError,
@@ -48,6 +49,7 @@ async def _seed_recovering_supply(store: InMemoryEventStore) -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code=FacilityCode("aps"),
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_PRIOR,

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -36,6 +37,7 @@ class SupplyOutput(BaseModel):
     scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
+    facility_code: str = Field(..., max_length=FACILITY_CODE_MAX_LENGTH)
     status: SupplyStatus
 
 
@@ -72,5 +74,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             scope=supply.scope,
             kind=supply.kind,
             name=supply.name.value,
+            facility_code=supply.facility_code.value,
             status=supply.status,
         )

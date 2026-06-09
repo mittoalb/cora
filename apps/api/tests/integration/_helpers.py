@@ -33,6 +33,7 @@ from uuid import UUID
 
 import asyncpg
 
+from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
 from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_postgres_kernel
@@ -53,6 +54,16 @@ from cora.infrastructure.ports import (
     IdempotencyStore,
     ProfileStore,
 )
+from cora.shared.facility_code import FacilityCode
+
+_DEFAULT_SELF_FACILITY_CODE = "cora"
+"""Matches the default `Settings.self_facility_code` so register_supply
++ future cross-BC Facility-binding integration tests resolve
+`facility_code="cora"` without each test having to seed it explicitly.
+Tests that need a different slug pass `facility_lookup=` with their
+own seed map."""
+
+_DEFAULT_SELF_FACILITY_ID = UUID("01900000-0000-7000-8000-00000000c07a")
 
 
 def build_postgres_deps(
@@ -85,6 +96,15 @@ def build_postgres_deps(
     `ids=` queues UUIDs for the FixedIdGenerator (handler consumes them
     in order: aggregate ids first, then event ids per emitted event).
     """
+    if facility_lookup is None:
+        seeded = InMemoryFacilityLookup()
+        seeded.register(
+            facility_id=_DEFAULT_SELF_FACILITY_ID,
+            code=FacilityCode(_DEFAULT_SELF_FACILITY_CODE),
+            kind="Site",
+            status="Active",
+        )
+        facility_lookup = seeded
     return make_postgres_kernel(
         pool,
         settings=Settings(app_env="test"),  # type: ignore[call-arg]

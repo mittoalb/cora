@@ -260,6 +260,7 @@ async def test_facility_install_plays_out_end_to_end(
             scope=SupplyScope.FACILITY,
             kind="cryogen",
             name="APS liquid helium",
+            facility_code="cora",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

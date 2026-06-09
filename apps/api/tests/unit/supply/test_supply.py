@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.shared.facility_code import FacilityCode
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -25,6 +26,8 @@ from cora.supply.aggregates.supply import (
     SupplyStatus,
     TriggerSource,
 )
+
+_FACILITY_CODE = FacilityCode("aps")
 
 # ---------- SupplyName VO ----------
 
@@ -124,6 +127,7 @@ def test_supply_aggregate_is_frozen() -> None:
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
+        facility_code=_FACILITY_CODE,
         status=SupplyStatus.UNKNOWN,
     )
     with pytest.raises(AttributeError):
@@ -138,6 +142,7 @@ def test_supply_status_defaults_to_unknown_at_construction() -> None:
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
+        facility_code=_FACILITY_CODE,
     )
     assert supply.status == SupplyStatus.UNKNOWN
 

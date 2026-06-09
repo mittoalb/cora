@@ -195,6 +195,7 @@ async def test_ln2_dewar_walks_through_all_five_supply_states(
             scope=SupplyScope.BEAMLINE,
             kind="cryogen",
             name="2-BM detector LN2 dewar",
+            facility_code="cora",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

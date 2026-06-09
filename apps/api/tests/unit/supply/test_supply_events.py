@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from cora.infrastructure.ports.event_store import StoredEvent
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId, MonitorSourceId, SchedulerTickId
 from cora.supply.aggregates.supply import (
     SupplyDegraded,
@@ -33,6 +34,7 @@ _SUPPLY_ID = UUID("01900000-0000-7000-8000-000000005111")
 _ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000005222"))
 _MONITOR_SOURCE_ID = MonitorSourceId(UUID("01900000-0000-7000-8000-000000005333"))
 _SCHEDULER_TICK_ID = SchedulerTickId(UUID("01900000-0000-7000-8000-000000005444"))
+_FACILITY_CODE = FacilityCode("aps")
 
 
 def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
@@ -62,6 +64,7 @@ def test_supply_registered_event_type_name() -> None:
         scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2 drop",
+        facility_code=_FACILITY_CODE,
         trigger="Operator",
         triggered_by=_ACTOR_ID,
         occurred_at=_NOW,
@@ -76,6 +79,7 @@ def test_supply_registered_to_payload() -> None:
         scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2 drop",
+        facility_code=_FACILITY_CODE,
         trigger="Operator",
         triggered_by=_ACTOR_ID,
         occurred_at=_NOW,
@@ -85,6 +89,7 @@ def test_supply_registered_to_payload() -> None:
         "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2 drop",
+        "facility_code": "aps",
         "trigger": "Operator",
         "triggered_by": str(_ACTOR_ID),
         "occurred_at": _NOW.isoformat(),
@@ -98,12 +103,36 @@ def test_supply_registered_round_trip_via_from_stored() -> None:
         scope="Facility",
         kind="PhotonBeam",
         name="APS storage-ring beam",
+        facility_code=_FACILITY_CODE,
         trigger="Operator",
         triggered_by=_ACTOR_ID,
         occurred_at=_NOW,
     )
     rebuilt = from_stored(_stored("SupplyRegistered", to_payload(original)))
     assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_supply_registered_from_stored_rejects_malformed_facility_code() -> None:
+    """A SupplyRegistered payload whose `facility_code` violates the
+    FacilityCode regex (uppercase, illegal codepoint, etc.) surfaces
+    as `Malformed SupplyRegistered payload` via the
+    `extra=(InvalidFacilityCodeError,)` wrap on the case arm. Pins the
+    rejection at the deserialization boundary so corrupted streams fail
+    loud instead of silently passing an InvalidFacilityCodeError
+    upstream."""
+    payload: dict[str, Any] = {
+        "supply_id": str(_SUPPLY_ID),
+        "scope": "Beamline",
+        "kind": "LiquidNitrogen",
+        "name": "2-BM LN2",
+        "facility_code": "APS",  # uppercase rejected
+        "trigger": "Operator",
+        "triggered_by": str(_ACTOR_ID),
+        "occurred_at": _NOW.isoformat(),
+    }
+    with pytest.raises(ValueError, match="Malformed SupplyRegistered payload"):
+        from_stored(_stored("SupplyRegistered", payload))
 
 
 # ---------- SupplyMarkedAvailable ----------

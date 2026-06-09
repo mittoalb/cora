@@ -443,10 +443,15 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
 
             # Federation BC self-Facility seed per
             # project_facility_aggregate_design Sub-Slice D. Idempotent
-            # (ConcurrencyError-as-already-seeded); MUST run BEFORE any
-            # Federation slice consumes the self-Facility row.
-            # Misconfigured SELF_FACILITY_CODE fails the lifespan fast
-            # via InvalidFacilityCodeError raised in FacilityCode(...).
+            # (ConcurrencyError-as-already-seeded). LOAD-BEARING ORDER:
+            # MUST run BEFORE any Federation OR cross-BC handler that
+            # resolves a Facility slug (Slice 7+ register_supply via
+            # FacilityLookup, future Asset / Safety binding). The
+            # in-memory FacilityLookup is seeded here at bootstrap;
+            # production PostgresFacilityLookup reads the projection
+            # populated by the worker started below. Misconfigured
+            # SELF_FACILITY_CODE fails the lifespan fast via
+            # InvalidFacilityCodeError raised in FacilityCode(...).
             await bootstrap_federation(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns

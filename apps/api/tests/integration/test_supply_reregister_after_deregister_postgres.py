@@ -74,7 +74,7 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
         db_pool, ids=[first_supply_id, first_genesis_event_id], now=_T0
     )
     sid_first = await bind_register(deps_register_first)(
-        RegisterSupply(scope=scope, kind=kind, name=name),
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -95,7 +95,7 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
         db_pool, ids=[second_supply_id, second_genesis_event_id], now=_T2
     )
     sid_second = await bind_register(deps_register_second)(
-        RegisterSupply(scope=scope, kind=kind, name=name),
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -134,7 +134,7 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     first_supply_id = uuid4()
     deps_first = _build_deps(db_pool, ids=[first_supply_id, uuid4()], now=_T0)
     await bind_register(deps_first)(
-        RegisterSupply(scope=scope, kind=kind, name=name),
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -143,7 +143,7 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     second_supply_id = uuid4()
     deps_second = _build_deps(db_pool, ids=[second_supply_id, uuid4()], now=_T1)
     await bind_register(deps_second)(
-        RegisterSupply(scope=scope, kind=kind, name=name),
+        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )

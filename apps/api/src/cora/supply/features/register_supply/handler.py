@@ -23,6 +23,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
 from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import event_type_name, to_payload
 from cora.supply.errors import UnauthorizedError
@@ -109,12 +110,25 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
+        # Cross-BC Facility binding (Session 5 Slice 7). The wire-level
+        # bare-str `command.facility_code` is regex-validated at the route
+        # + tool Pydantic boundary; defensive in-process callers that
+        # construct a malformed string see `InvalidFacilityCodeError`
+        # propagated from the VO constructor here. The lookup returns
+        # `None` when no Facility with that code is visible in the
+        # `proj_federation_facility_summary` projection; the decider
+        # translates `None` to `SupplyFacilityNotFoundError` (404).
+        facility_lookup_result = await deps.facility_lookup.lookup_by_code(
+            FacilityCode(command.facility_code)
+        )
+
         domain_events = decide(
             state=None,
             command=command,
             now=now,
             new_id=new_id,
             triggered_by=ActorId(principal_id),
+            facility_lookup_result=facility_lookup_result,
         )
 
         new_events = [

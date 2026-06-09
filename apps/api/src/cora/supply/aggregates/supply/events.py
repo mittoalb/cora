@@ -26,6 +26,15 @@ stream.
 the evolver reconstructs typed `SupplyScope` and `SupplyKind` VOs.
 Same precedent as `AssetLevel` in payloads.
 
+`facility_code` (Session 5 Slice 7) is the cross-deployment convergent
+facility slug; it travels in the SupplyRegistered payload as the
+primitive string (matches the Permit / Credential / Seal Slice 6E
+convention of bare-str disk payloads + typed `FacilityCode` VO on
+aggregate state). `from_stored` wraps `FacilityCode(payload["facility_code"])`
+with `extra=(ValueError,)` so malformed slugs in stored events surface
+as `Malformed SupplyRegistered payload` rather than silently passing
+the VO's `InvalidFacilityCodeError` upstream.
+
 `trigger` travels in every event payload as a `TriggerSource` enum
 string. Locked 3-value day one (`Operator | Monitor | Auto`) even
 though only `Operator` and `Monitor` are wired today. Forward-compat
@@ -60,6 +69,7 @@ from uuid import UUID
 
 from cora.infrastructure.event_payload import deserialize_or_raise
 from cora.infrastructure.ports.event_store import StoredEvent
+from cora.shared.facility_code import FacilityCode, InvalidFacilityCodeError
 from cora.shared.identity import ActorId, MonitorSourceId, SchedulerTickId
 
 # Trigger-aware discriminated union for the `triggered_by` attribution
@@ -111,12 +121,21 @@ class SupplyRegistered:
     is always an `ActorId`. The pair is folded onto the event
     payload for cross-tier attribution symmetry per
     [[project_fold_symmetry_design]].
+
+    `facility_code` carries the typed `FacilityCode` VO; the handler
+    constructs it from the bare-str command field at the port edge
+    and the decider passes it through. `to_payload` emits the bare
+    `.value` string on disk per the Permit / Credential / Seal
+    Slice 6E convention; `from_stored` re-wraps with `FacilityCode(...)`
+    inside the `deserialize_or_raise` lambda so malformed slugs
+    surface as `Malformed SupplyRegistered payload`.
     """
 
     supply_id: UUID
     scope: str
     kind: str
     name: str
+    facility_code: FacilityCode
     trigger: str
     triggered_by: TriggeredBy
     occurred_at: datetime
@@ -319,6 +338,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
             scope=scope,
             kind=kind,
             name=name,
+            facility_code=facility_code,
             trigger=trigger,
             triggered_by=triggered_by,
             occurred_at=occurred_at,
@@ -328,6 +348,7 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 "scope": scope,
                 "kind": kind,
                 "name": name,
+                "facility_code": facility_code.value,
                 "trigger": trigger,
                 "triggered_by": str(triggered_by),
                 "occurred_at": occurred_at.isoformat(),
@@ -441,12 +462,14 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
                     scope=payload["scope"],
                     kind=payload["kind"],
                     name=payload["name"],
+                    facility_code=FacilityCode(payload["facility_code"]),
                     trigger=payload["trigger"],
                     triggered_by=_typed_triggered_by(
                         payload["trigger"], UUID(payload["triggered_by"])
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
+                extra=(InvalidFacilityCodeError,),
             )
         case "SupplyMarkedAvailable":
             return deserialize_or_raise(

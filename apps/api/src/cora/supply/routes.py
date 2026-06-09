@@ -16,13 +16,15 @@ not re-register them.
 
 ## Loop-collapse pattern
 
-Supply owns one aggregate (Supply). Three error families share the
+Supply owns one aggregate (Supply). Four error families share the
 same response shape and get collapsed via the Trust /
 Equipment-style loop pattern:
 
   - 400 (validation): InvalidSupplyName, InvalidSupplyKind,
-    InvalidSupplyReason
-  - 404 (load miss): SupplyNotFound
+    InvalidSupplyReason, InvalidFacilityCode (cross-BC VO; mapped
+    here as the in-process safety net for defensive callers that
+    bypass the route + tool Pydantic regex)
+  - 404 (load + cross-BC miss): SupplyNotFound, SupplyFacilityNotFound
   - 409 (defensive guard for AlreadyExists): SupplyAlreadyExists
   - 409 (transition guard): SupplyCannot{MarkAvailable, Degrade,
     MarkUnavailable, MarkRecovering, Restore, Deregister}
@@ -31,11 +33,14 @@ Adding a new aggregate (or a new transition error) becomes one tuple
 entry per family. The cannot-transition tuple grew from 1 to 5
 entries when 10a-b shipped the FSM-closure transitions, and to 6
 when `deregister_supply` shipped the lifecycle-terminal transition.
+The not-found tuple grew from 1 to 2 when Slice 7 added the
+cross-BC Facility binding via `register_supply`.
 """
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.shared.facility_code import InvalidFacilityCodeError
 from cora.supply.aggregates.supply import (
     InvalidMonitorRefError,
     InvalidSupplyKindError,
@@ -49,6 +54,7 @@ from cora.supply.aggregates.supply import (
     SupplyCannotMarkRecoveringError,
     SupplyCannotMarkUnavailableError,
     SupplyCannotRestoreError,
+    SupplyFacilityNotFoundError,
     SupplyNotFoundError,
 )
 from cora.supply.errors import UnauthorizedError
@@ -152,9 +158,10 @@ def register_supply_routes(app: FastAPI) -> None:
         InvalidSupplyReasonError,
         InvalidMonitorRefError,
         MonitorTriggerNotPermittedError,
+        InvalidFacilityCodeError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (SupplyNotFoundError,):
+    for not_found_cls in (SupplyNotFoundError, SupplyFacilityNotFoundError):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (SupplyAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)

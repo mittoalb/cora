@@ -1,16 +1,24 @@
 """Pure decider for the `RegisterSupply` command.
 
 Pure function: given the current Supply state (None for a fresh
-stream) and a `RegisterSupply` command, returns the events to
-append. No I/O, no awaits, no side effects.
+stream), the cross-BC `facility_lookup_result` resolved at the
+handler port edge, and a `RegisterSupply` command, returns the
+events to append. No I/O, no awaits, no side effects.
 
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports (the non-determinism principle: capture,
-don't recompute).
+don't recompute). `facility_lookup_result` is injected by the
+handler after calling `FacilityLookup.lookup_by_code` (Session 5
+Slice 7); `None` signals the Facility code does not resolve to a
+projection row.
 
 ## Validation
 
   - State must be None (genesis-only) -> `SupplyAlreadyExistsError`
+  - `facility_lookup_result` must be non-None -> `SupplyFacilityNotFoundError`.
+    Status filter mirrors slice 6 `FacilityParentNotFoundError`:
+    every Facility status (Active, Decommissioned) is a valid
+    binding target; the decider does NOT partition on status.
   - `kind` is bare `str`; validated 1-50 chars via the shared
     `validate_bounded_text` helper -> `InvalidSupplyKindError`. Per
     the iter-1 gate-review lock, kind is NOT a VO; the validator is
@@ -27,6 +35,7 @@ state.
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.shared.bounded_text import validate_bounded_text
 from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import (
@@ -34,6 +43,7 @@ from cora.supply.aggregates.supply import (
     InvalidSupplyKindError,
     Supply,
     SupplyAlreadyExistsError,
+    SupplyFacilityNotFoundError,
     SupplyName,
     SupplyRegistered,
     TriggerSource,
@@ -48,12 +58,15 @@ def decide(
     now: datetime,
     new_id: UUID,
     triggered_by: ActorId,
+    facility_lookup_result: FacilityLookupResult | None,
 ) -> list[SupplyRegistered]:
     """Decide the events produced by registering a new supply.
 
     Invariants:
       - State must be None (genesis-only)
         -> SupplyAlreadyExistsError
+      - facility_lookup_result must be non-None
+        -> SupplyFacilityNotFoundError
       - kind must be valid -> InvalidSupplyKindError
       - Name must be valid -> InvalidSupplyNameError
         (via SupplyName VO)
@@ -62,9 +75,17 @@ def decide(
     always operator-driven; no Monitor or Auto counterpart). Folded
     onto the event payload alongside trigger="Operator" per the
     fold-symmetry attribution rule.
+
+    `facility_lookup_result.code` is the canonical Facility slug
+    threaded onto the event payload, replacing direct echo of
+    `command.facility_code` so the cross-BC convergent identity is
+    the single source of truth for the wire value.
     """
     if state is not None:
         raise SupplyAlreadyExistsError(state.id)
+
+    if facility_lookup_result is None:
+        raise SupplyFacilityNotFoundError(command.facility_code)
 
     # validate + trim kind (bare str; not a VO per iter-1 lock)
     kind = validate_bounded_text(
@@ -81,6 +102,7 @@ def decide(
             scope=command.scope.value,
             kind=kind,
             name=name.value,
+            facility_code=facility_lookup_result.code,
             trigger=TriggerSource.OPERATOR.value,
             triggered_by=triggered_by,
             occurred_at=now,

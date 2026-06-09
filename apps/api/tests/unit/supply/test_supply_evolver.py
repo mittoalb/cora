@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pytest
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import (
     Supply,
@@ -26,6 +27,7 @@ from cora.supply.aggregates.supply import (
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = UUID("01900000-0000-7000-8000-000000005222")
 _ACTOR_ID = ActorId(UUID("01900000-0000-7000-8000-000000005223"))
+_FACILITY_CODE = FacilityCode("aps")
 
 
 # ---------- fold (genesis only) ----------
@@ -45,6 +47,7 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2 drop",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
@@ -56,6 +59,7 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2 drop"),
+        facility_code=_FACILITY_CODE,
         status=SupplyStatus.UNKNOWN,
     )
 
@@ -72,6 +76,7 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
                 scope="Facility",
                 kind="PhotonBeam",
                 name="APS storage-ring beam",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
@@ -93,6 +98,7 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
     assert state.scope == SupplyScope.FACILITY
     assert state.kind == "PhotonBeam"
     assert state.name.value == "APS storage-ring beam"
+    assert state.facility_code == _FACILITY_CODE
 
 
 # ---------- transitions on empty state ----------
@@ -127,6 +133,7 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
@@ -163,6 +170,7 @@ def _genesis_state() -> Supply:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
@@ -246,6 +254,7 @@ def test_evolver_arms_for_each_transition_event_set_target_status(
     assert evolved.id == _SUPPLY_ID
     assert evolved.scope == SupplyScope.BEAMLINE
     assert evolved.kind == "LiquidNitrogen"
+    assert evolved.facility_code == _FACILITY_CODE
 
 
 @pytest.mark.parametrize(
@@ -297,6 +306,7 @@ def test_full_fsm_cycle_via_fold() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,
@@ -364,6 +374,7 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
                 scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code=_FACILITY_CODE,
                 trigger="Operator",
                 triggered_by=_ACTOR_ID,
                 occurred_at=_NOW,

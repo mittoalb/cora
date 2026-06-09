@@ -18,6 +18,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import MonitorSourceId
 from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
@@ -40,6 +41,7 @@ from cora.supply.features.observe_supply_status import ObserveSupplyStatus, deci
 _NOW = datetime(2026, 5, 28, 12, 0, 0, tzinfo=UTC)
 _MREF = MonitorRef(source_kind="EpicsPv", source_id="S35:beam_current")
 _MONITOR_SOURCE_ID = MonitorSourceId(uuid4())
+_FACILITY_CODE = FacilityCode("aps")
 
 
 def _state(status: SupplyStatus) -> Supply:
@@ -48,6 +50,7 @@ def _state(status: SupplyStatus) -> Supply:
         scope=SupplyScope.BEAMLINE,
         kind="PhotonBeam",
         name=SupplyName("beam"),
+        facility_code=_FACILITY_CODE,
         status=status,
     )
 

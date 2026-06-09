@@ -19,6 +19,7 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -35,13 +36,16 @@ class SupplyResponse(BaseModel):
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
     `scope` and `status` are the StrEnum string values; `kind` is the
-    free-form bare-str discriminator (1-50 chars).
+    free-form bare-str discriminator (1-50 chars). `facility_code` is
+    the cross-deployment convergent Facility slug surfaced as the
+    bare-str wire value (Session 5 Slice 7A).
     """
 
     id: UUID
     scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
+    facility_code: str = Field(..., max_length=FACILITY_CODE_MAX_LENGTH)
     status: SupplyStatus
 
 
@@ -91,5 +95,6 @@ async def get_supplies(
         scope=supply.scope,
         kind=supply.kind,
         name=supply.name.value,
+        facility_code=supply.facility_code.value,
         status=supply.status,
     )

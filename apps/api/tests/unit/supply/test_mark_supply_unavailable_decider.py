@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import (
     InvalidSupplyReasonError,
@@ -27,6 +28,7 @@ from cora.supply.features.mark_supply_unavailable import MarkSupplyUnavailable
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _SUPPLY_ID = uuid4()
 _ACTOR_ID = ActorId(uuid4())
+_FACILITY_CODE = FacilityCode("aps")
 
 
 def _supply(status: SupplyStatus) -> Supply:
@@ -35,6 +37,7 @@ def _supply(status: SupplyStatus) -> Supply:
         scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
+        facility_code=_FACILITY_CODE,
         status=status,
     )
 

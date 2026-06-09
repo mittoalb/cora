@@ -57,7 +57,12 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
     sup_id = uuid4()
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -88,7 +93,12 @@ async def test_mark_available_updates_status_and_audit_triple(
     sup_id = uuid4()
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -117,7 +127,12 @@ async def test_mark_available_updates_status_and_audit_triple(
 async def test_list_returns_registered_supplies(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_register(deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -149,7 +164,7 @@ async def test_list_filters_by_scope_kind_status(db_pool: asyncpg.Pool) -> None:
     ):
         deps = _build_deps(db_pool, [sup_id, uuid4()])
         await bind_register(deps)(
-            RegisterSupply(scope=scope, kind=kind, name=name),
+            RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -207,7 +222,12 @@ async def test_list_cursor_pagination(db_pool: asyncpg.Pool) -> None:
     for i in range(3):
         deps = _build_deps(db_pool, [uuid4(), uuid4()])
         await bind_register(deps)(
-            RegisterSupply(scope=SupplyScope.BEAMLINE, kind=f"K{i}", name=f"Supply-{i}"),
+            RegisterSupply(
+                scope=SupplyScope.BEAMLINE,
+                kind=f"K{i}",
+                name=f"Supply-{i}",
+                facility_code="cora",
+            ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -242,7 +262,12 @@ async def test_list_returns_audit_triple_after_mark_available(
     sup_id = uuid4()
     register_deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(register_deps)(
-        RegisterSupply(scope=SupplyScope.BEAMLINE, kind="LiquidNitrogen", name="2-BM LN2"),
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -280,13 +305,23 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
     for i in range(3):
         deps = _build_deps(db_pool, [uuid4(), uuid4()])
         await bind_register(deps)(
-            RegisterSupply(scope=SupplyScope.BEAMLINE, kind=f"K{i}", name=f"BM-{i}"),
+            RegisterSupply(
+                scope=SupplyScope.BEAMLINE,
+                kind=f"K{i}",
+                name=f"BM-{i}",
+                facility_code="cora",
+            ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     facility_deps = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_register(facility_deps)(
-        RegisterSupply(scope=SupplyScope.FACILITY, kind="PhotonBeam", name="APS-Beam"),
+        RegisterSupply(
+            scope=SupplyScope.FACILITY,
+            kind="PhotonBeam",
+            name="APS-Beam",
+            facility_code="cora",
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -353,6 +388,7 @@ async def test_list_unique_address_swallows_second_active_insert_and_keeps_worke
                 scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
+                facility_code="cora",
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -70,10 +71,23 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 description="Operator-readable display name for this Supply instance.",
             ),
         ],
+        facility_code: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=FACILITY_CODE_MAX_LENGTH,
+                pattern=r"^[a-z0-9-]{1,32}$",
+                description=(
+                    "Cross-deployment convergent slug of the Facility owning this "
+                    "Supply (for example 'aps', 'maxiv'). Lowercase ASCII "
+                    "alphanumeric plus dash, 1-32 chars. Unknown codes raise 404."
+                ),
+            ),
+        ],
     ) -> RegisterSupplyOutput:
         handler = get_handler()
         supply_id = await handler(
-            RegisterSupply(scope=scope, kind=kind, name=name),
+            RegisterSupply(scope=scope, kind=kind, name=name, facility_code=facility_code),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

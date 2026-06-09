@@ -17,6 +17,7 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -58,6 +59,18 @@ class RegisterSupplyRequest(BaseModel):
             "(for example '2-BM LN2 drop', 'APS storage-ring beam', 'central N2 supply')."
         ),
     )
+    facility_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=FACILITY_CODE_MAX_LENGTH,
+        pattern=r"^[a-z0-9-]{1,32}$",
+        description=(
+            "Cross-deployment convergent slug of the Facility owning this Supply "
+            "(for example 'aps', 'maxiv', 'esrf'). Lowercase ASCII alphanumeric "
+            "plus dash, 1-32 chars. The handler resolves the slug via the Federation "
+            "BC's facility projection; unknown codes are rejected with HTTP 404."
+        ),
+    )
 
 
 class RegisterSupplyResponse(BaseModel):
@@ -89,6 +102,14 @@ router = APIRouter(tags=["supply"])
             "model": ErrorResponse,
             "description": "Authorize port denied the command.",
         },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": (
+                "The `facility_code` does not resolve to a Facility row in the "
+                "Federation projection. Operator remedies: register the Facility "
+                "first via `POST /federation/facilities`, or correct the slug."
+            ),
+        },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
@@ -100,8 +121,9 @@ router = APIRouter(tags=["supply"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Request body failed schema validation (missing field, "
-                "invalid scope enum, length out of bounds), OR Idempotency-Key "
-                "was reused with a different request body."
+                "invalid scope enum, length out of bounds, facility_code regex "
+                "violation), OR Idempotency-Key was reused with a different "
+                "request body."
             ),
         },
     },
@@ -126,7 +148,12 @@ async def post_supplies(
     ] = None,
 ) -> RegisterSupplyResponse:
     supply_id = await handler(
-        RegisterSupply(scope=body.scope, kind=body.kind, name=body.name),
+        RegisterSupply(
+            scope=body.scope,
+            kind=body.kind,
+            name=body.name,
+            facility_code=body.facility_code,
+        ),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,

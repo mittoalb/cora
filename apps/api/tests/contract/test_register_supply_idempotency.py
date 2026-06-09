@@ -14,7 +14,12 @@ from cora.api.main import create_app
 @pytest.mark.contract
 def test_post_supplies_without_key_creates_distinct_supplies_on_each_call() -> None:
     with TestClient(create_app()) as client:
-        body = {"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"}
+        body = {
+            "scope": "Beamline",
+            "kind": "LiquidNitrogen",
+            "name": "2-BM LN2",
+            "facility_code": "cora",
+        }
         r1 = client.post("/supplies", json=body)
         r2 = client.post("/supplies", json=body)
     assert r1.status_code == 201
@@ -25,7 +30,12 @@ def test_post_supplies_without_key_creates_distinct_supplies_on_each_call() -> N
 @pytest.mark.contract
 def test_post_supplies_same_key_and_body_returns_same_supply_id() -> None:
     with TestClient(create_app()) as client:
-        body = {"scope": "Beamline", "kind": "LiquidNitrogen", "name": "2-BM LN2"}
+        body = {
+            "scope": "Beamline",
+            "kind": "LiquidNitrogen",
+            "name": "2-BM LN2",
+            "facility_code": "cora",
+        }
         headers = {"Idempotency-Key": "sk-1"}
         r1 = client.post("/supplies", json=body, headers=headers)
         r2 = client.post("/supplies", json=body, headers=headers)
@@ -41,12 +51,22 @@ def test_post_supplies_same_key_different_body_returns_422() -> None:
         headers = {"Idempotency-Key": "sk-2"}
         r1 = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "LiquidNitrogen", "name": "X"},
+            json={
+                "scope": "Beamline",
+                "kind": "LiquidNitrogen",
+                "name": "X",
+                "facility_code": "cora",
+            },
             headers=headers,
         )
         r2 = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "PhotonBeam", "name": "X"},
+            json={
+                "scope": "Beamline",
+                "kind": "PhotonBeam",
+                "name": "X",
+                "facility_code": "cora",
+            },
             headers=headers,
         )
 

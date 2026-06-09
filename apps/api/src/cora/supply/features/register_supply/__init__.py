@@ -5,7 +5,9 @@ command slices:
 
     from cora.supply.features import register_supply
 
-    cmd = register_supply.RegisterSupply(scope=..., kind="...", name="...")
+    cmd = register_supply.RegisterSupply(
+        scope=..., kind="...", name="...", facility_code="..."
+    )
     handler = register_supply.bind(deps)
     supply_id = await handler(cmd, principal_id=..., correlation_id=...)
 """

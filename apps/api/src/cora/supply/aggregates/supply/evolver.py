@@ -56,6 +56,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             scope=scope,
             kind=kind,
             name=name,
+            facility_code=facility_code,
         ):
             _ = state  # SupplyRegistered is the genesis event; prior state ignored
             return Supply(
@@ -63,6 +64,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=SupplyScope(scope),
                 kind=kind,
                 name=SupplyName(name),
+                facility_code=facility_code,
                 status=SupplyStatus.UNKNOWN,
             )
         case SupplyMarkedAvailable() | SupplyRestored():
@@ -74,6 +76,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
+                facility_code=prior.facility_code,
                 status=SupplyStatus.AVAILABLE,
             )
         case SupplyDegraded():
@@ -83,6 +86,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
+                facility_code=prior.facility_code,
                 status=SupplyStatus.DEGRADED,
             )
         case SupplyMarkedUnavailable():
@@ -92,6 +96,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
+                facility_code=prior.facility_code,
                 status=SupplyStatus.UNAVAILABLE,
             )
         case SupplyMarkedRecovering():
@@ -101,6 +106,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
+                facility_code=prior.facility_code,
                 status=SupplyStatus.RECOVERING,
             )
         case SupplyDeregistered():
@@ -110,6 +116,7 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
                 scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
+                facility_code=prior.facility_code,
                 status=SupplyStatus.DECOMMISSIONED,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

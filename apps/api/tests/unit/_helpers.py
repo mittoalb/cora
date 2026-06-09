@@ -37,6 +37,7 @@ deps = build_deps(ids=[...], now=custom_clock_time)  # custom clock
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
 from cora.infrastructure.config import Settings
 from cora.infrastructure.deps import make_inmemory_kernel
@@ -68,6 +69,7 @@ from cora.recipe.aggregates.capability import (
 from cora.recipe.aggregates.capability import (
     to_payload as capability_to_payload,
 )
+from cora.shared.facility_code import FacilityCode
 
 DEFAULT_NOW = datetime(2026, 5, 12, 14, 0, 0, tzinfo=UTC)
 """Canonical test clock used across unit tests. Tests that need a
@@ -157,6 +159,20 @@ def build_deps(
     """
     if authz is None:
         authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
+    # Default a seeded self-Facility ("cora") into the FacilityLookup so
+    # tests exercising register_supply / future cross-BC Facility binding
+    # resolve `facility_code="cora"` without each test having to wire it
+    # explicitly. Tests that need a different slug pass their own
+    # `facility_lookup=` seeded adapter.
+    if facility_lookup is None:
+        seeded = InMemoryFacilityLookup()
+        seeded.register(
+            facility_id=UUID("01900000-0000-7000-8000-00000000c07a"),
+            code=FacilityCode("cora"),
+            kind="Site",
+            status="Active",
+        )
+        facility_lookup = seeded
     # Wire the publish-side InMemory federation adapters by default so
     # tests that exercise wire_calibration (which binds publish_revision)
     # do not hit PublishPortNotWiredError at startup. Tests that want
