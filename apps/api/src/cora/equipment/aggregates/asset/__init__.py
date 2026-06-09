@@ -83,6 +83,7 @@ from cora.equipment.aggregates.asset.state import (
     AssetPersistentIdAlreadyAssignedError,
     AssetPersistentIdAssignmentForbiddenError,
     AssetPort,
+    AssetTier,
     InvalidAssetNameError,
     InvalidAssetOwnerContactError,
     InvalidAssetOwnerIdentifierError,
@@ -94,6 +95,7 @@ from cora.equipment.aggregates.asset.state import (
     InvalidAssetPortSignalTypeError,
     InvalidAssetSettingsError,
     PortDirection,
+    tier_from_level,
 )
 
 __all__ = [
@@ -167,6 +169,7 @@ __all__ = [
     "AssetRelocated",
     "AssetRestored",
     "AssetSettingsUpdated",
+    "AssetTier",
     "InvalidAssetNameError",
     "InvalidAssetOwnerContactError",
     "InvalidAssetOwnerIdentifierError",
@@ -184,5 +187,6 @@ __all__ = [
     "from_stored",
     "load_asset",
     "load_partition_rule",
+    "tier_from_level",
     "to_payload",
 ]

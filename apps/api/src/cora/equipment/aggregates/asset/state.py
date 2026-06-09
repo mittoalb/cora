@@ -118,6 +118,28 @@ class AssetLevel(StrEnum):
     is allowed when reality demands it (smart instruments). Levels
     are conventional, not enforced: the decider does not check that
     a Device's parent is a Component.
+
+    ## Upper tiers DEPRECATED in favor of facility_code + AssetTier
+
+    Per [[project-slice8-design]] L4: the upper tiers
+    `ENTERPRISE` / `SITE` / `AREA` are DEPRECATED. New Assets that
+    represent facility-envelope concerns should bind to the owning
+    Federation Facility via `Asset.facility_code` (Slice 8A binding,
+    shipped 2026-06-09) rather than carry an upper-tier level. The
+    lower tiers `UNIT` / `COMPONENT` / `DEVICE` continue to carry an
+    honest intrinsic-tier meaning and are exposed as the closed
+    `AssetTier` StrEnum (Slice 8B, shipped 2026-06-10) for cross-BC
+    consumers that need the intrinsic facet without the facility-
+    envelope ambiguity.
+
+    The architecture fitness test
+    `tests/architecture/test_asset_level_upper_tier_deprecated.py`
+    rejects new occurrences of `AssetLevel.ENTERPRISE` /
+    `AssetLevel.SITE` / `AssetLevel.AREA` in `cora/equipment/`,
+    `cora/run/`, and `cora/operation/` source trees outside an
+    explicit allowlist (enum definition + parent-id-null invariant +
+    evolver case arms + canonical APS facility fixture). Post-pilot,
+    a forward-only migration drops the deprecated members entirely.
     """
 
     ENTERPRISE = "Enterprise"
@@ -126,6 +148,63 @@ class AssetLevel(StrEnum):
     UNIT = "Unit"
     COMPONENT = "Component"
     DEVICE = "Device"
+
+
+class AssetTier(StrEnum):
+    """The intrinsic operational tier of an Asset.
+
+    Per [[project-slice8-design]] L3 + L9: the lower three
+    `AssetLevel` values graduate to a separate closed StrEnum that
+    carries an honest intrinsic meaning (does this Asset model an
+    operational unit, a composed sub-system, or an addressable
+    control surface?), orthogonal to the structural Facility
+    binding. The upper three AssetLevel values
+    (ENTERPRISE / SITE / AREA) are deprecated by
+    `Asset.facility_code` and DO NOT participate in the tier
+    enum.
+
+    `AssetTier` is an evolver-derived facet on `Asset` state, NOT a
+    command field, NOT an event payload key. The derivation is a
+    pure function of `Asset.level`: `UNIT -> Unit`, `COMPONENT ->
+    Component`, `DEVICE -> Device`, and any upper tier maps to
+    `None` (the Asset has no intrinsic tier when it represents a
+    facility envelope). Legacy AssetRegistered events fold cleanly
+    because the derivation operates on existing payload data.
+
+    The Component / Device ophyd-collision rename
+    (Component -> Module, Device -> Instrument per
+    [[project-equipment-naming-latent-risks]] risks #3+#4) is OUT
+    OF SCOPE for this slice per master memo line 162; defer to its
+    own slice on its own trigger.
+    """
+
+    UNIT = "Unit"
+    COMPONENT = "Component"
+    DEVICE = "Device"
+
+
+_LEVEL_TO_TIER: dict[AssetLevel, AssetTier] = {
+    AssetLevel.UNIT: AssetTier.UNIT,
+    AssetLevel.COMPONENT: AssetTier.COMPONENT,
+    AssetLevel.DEVICE: AssetTier.DEVICE,
+}
+
+
+def tier_from_level(level: AssetLevel) -> AssetTier | None:
+    """Derive `AssetTier` from `AssetLevel` per [[project-slice8-design]] L9.
+
+    Returns the matching `AssetTier` for the three lower
+    `AssetLevel` values (`UNIT`, `COMPONENT`, `DEVICE`); returns
+    `None` for the three upper values (`ENTERPRISE`, `SITE`,
+    `AREA`) because those are facility-envelope levels deprecated
+    by `Asset.facility_code`.
+
+    Pure function used by the evolver to compute `Asset.tier` from
+    the on-disk `level` payload. Legacy AssetRegistered streams
+    fold cleanly because the derivation depends only on a field
+    that has always been present.
+    """
+    return _LEVEL_TO_TIER.get(level)
 
 
 class AssetLifecycle(StrEnum):
@@ -1316,3 +1395,14 @@ class Asset:
     # field fold cleanly via the additive-state pattern. See
     # [[project-slice8-design]] L1.
     facility_code: FacilityCode | None = None
+    # Evolver-derived intrinsic operational tier per
+    # [[project-slice8-design]] L3 + L9. Pure function of `level`:
+    # UNIT / COMPONENT / DEVICE map to the matching `AssetTier` value;
+    # upper levels (ENTERPRISE / SITE / AREA) map to None. NOT a
+    # command field, NOT an event payload key; the evolver computes
+    # the value via `tier_from_level(level)` on every Asset
+    # construction. Defaults to None so legacy AssetRegistered streams
+    # fold cleanly via the additive-state pattern; legacy events
+    # produce the correctly-derived value because the derivation reads
+    # the on-disk level only.
+    tier: AssetTier | None = None

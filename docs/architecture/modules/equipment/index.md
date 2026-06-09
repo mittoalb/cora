@@ -27,7 +27,7 @@ Out of scope
 |---|---|---|---|
 | `Family` | `id: UUID` | `id`, `name: FamilyName`, `status: FamilyStatus`, `version: str?`, `affordances: frozenset[Affordance]`, `settings_schema: dict?` | yes (3-state) |
 | `Model` | `id: UUID` | `id`, `name`, `manufacturer: Manufacturer`, `part_number`, `declared_family_ids: frozenset[UUID]`, `status: ModelStatus`, `version: str?` | yes (3-state) |
-| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?`, `controller_id?`, `facility_code?` | yes (4-state lifecycle, 3-state condition) |
+| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?`, `controller_id?`, `facility_code?`, `tier?` | yes (4-state lifecycle, 3-state condition) |
 | `Frame` | `id: UUID` | `id`, `name`, `parent_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
 | `Mount` | `id: UUID` | `id`, `slot_code`, `parent_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
@@ -47,7 +47,8 @@ Out of scope
 | `FamilyStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Family.status` |
 | `Affordance` | closed StrEnum, ~28 values in three patterns (motion, signal, lifecycle) | members of `Family.affordances` |
 | `AssetName` | trimmed string, 1-200 chars | `Asset.name` |
-| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Component` \| `Device` | `Asset.level` |
+| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Component` \| `Device` | `Asset.level` (upper tiers ENTERPRISE / SITE / AREA deprecated 2026-06-10 in favor of `facility_code` + `AssetTier`; runtime tolerates them, arch fitness rejects new usage) |
+| `AssetTier` | closed StrEnum: `Unit` \| `Component` \| `Device` | `Asset.tier` (evolver-derived from `Asset.level`; null for upper-tier facility-envelope Assets); the honest intrinsic-tier facet introduced in Slice 8B, orthogonal to the structural Facility binding |
 | `AssetLifecycle` | closed StrEnum: `Commissioned` \| `Active` \| `Maintenance` \| `Decommissioned` | `Asset.lifecycle` |
 | `AssetCondition` | closed StrEnum: `Nominal` \| `Degraded` \| `Faulted` | `Asset.condition` |
 | `AssetPort` | `(name, direction, signal_type)` triple; direction is `Input` \| `Output`; signal_type is free text, 1-50 chars | members of `Asset.ports` |
