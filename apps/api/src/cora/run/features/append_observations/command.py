@@ -1,4 +1,4 @@
-"""The `AppendRunReadings` command, intent dataclass for this slice.
+"""The `AppendObservations` command, intent dataclass for this slice.
 
 Batch shape from day one (matches `append_inferences`
 precedent from Decision BC). Length-1 batches are the degenerate
@@ -12,10 +12,10 @@ semantics for free.
 ## Lazy open-on-first-write
 
 The handler loads the parent Run, checks whether
-`run.reading_logbook_id` is set, and emits a
-`RunReadingLogbookOpened` event lazily on first write. `start_run`
+`run.observation_logbook_id` is set, and emits a
+`RunObservationLogbookOpened` event lazily on first write. `start_run`
 stays unchanged; the logbook attaches when the first
-reading arrives. Per [[project_run_reading_design]] §Decision and
+observation arrives. Per [[project_run_reading_design]] §Decision and
 [[project_logbook_entry_storage]].
 
 ## Polymorphic by sampling_procedure
@@ -32,10 +32,10 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class RunReadingInput:
-    """One reading entry's input payload from the producer.
+class ObservationInput:
+    """One observation entry's input payload from the producer.
 
-    Mirrors `RunReading` but omits the CORA-infra fields (run_id /
+    Mirrors `Observation` but omits the CORA-infra fields (run_id /
     logbook_id / actor_id / command_name / correlation_id /
     causation_id) which are populated by the handler from the URL
     path + envelope.
@@ -55,8 +55,8 @@ class RunReadingInput:
 
 
 @dataclass(frozen=True)
-class AppendRunReadings:
-    """Append a batch of readings to a Run's reading logbook."""
+class AppendObservations:
+    """Append a batch of observations to a Run's observation logbook."""
 
     run_id: UUID
-    entries: tuple[RunReadingInput, ...]
+    entries: tuple[ObservationInput, ...]

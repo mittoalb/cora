@@ -57,7 +57,7 @@ The slice-contract fitness function ([apps/api/tests/architecture/test_slice_con
 
 1. **Command slice**: `__init__, command, decider, handler, route, tool`. Default for state-changing operations that fold through a pure decider.
 2. **Query slice**: `__init__, query, handler, route, tool`. No decider; reads from the aggregate or a projection.
-3. **Entry-append slice** (`append_<entry>`): `__init__, command, handler, route, tool`. No decider; the handler writes directly to a typed entries store via a per-category port (`InferenceStore`, `ReadingStore`, `StepStore`). Today: `decision/append_inferences`, `run/append_run_readings`, `operation/append_procedure_steps`. New entry-append slices must be added to `_ENTRY_APPEND_SLICES` in the test.
+3. **Entry-append slice** (`append_<entry>`): `__init__, command, handler, route, tool`. No decider; the handler writes directly to a typed entries store via a per-category port (`InferenceStore`, `ObservationStore`, `StepStore`). Today: `decision/append_inferences`, `run/append_observations`, `operation/append_procedure_steps`. New entry-append slices must be added to `_ENTRY_APPEND_SLICES` in the test.
 
 ### Optional slice files
 

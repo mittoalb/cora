@@ -46,7 +46,7 @@ surfaces a coaching gap.
 
 v1 reads ONLY the Run aggregate state (status, parameters,
 acknowledged_cautions snapshot, terminal-event payload). The
-broader read scope (RunReading + Verdict logbook entries
+broader read scope (Observation + Verdict logbook entries
 + bound Subject/Plan/Method/Practice + cross-Run sibling
 comparison) is deferred to v2 per design memo lock; trigger is
 "operators rate v1 Debriefs as misleading citing absent context".
@@ -328,7 +328,7 @@ class RunDebriefPayload:
     operators rate v1 as `misleading` citing absent context):
     `method_id` (requires Plan load), `acknowledged_cautions`
     (lives on RunStarted payload, requires event-stream scan),
-    RunReading + Verdict logbook entries, sibling-Run
+    Observation + Verdict logbook entries, sibling-Run
     comparison.
     """
 

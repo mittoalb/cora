@@ -196,7 +196,7 @@ class ProcedureStepsLogbookOpened:
 
     Naming note: this event carries the entry-noun (`Steps`) in its name,
     vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Same rationale
-    as Run BC's `RunReadingLogbookOpened`: Procedure is planned to host
+    as Run BC's `RunObservationLogbookOpened`: Procedure is planned to host
     multiple logbook kinds in the future (operator-action audit, hazard
     observations are likely future additions), so the event name carries
     the entry-noun discriminator upfront. Per
@@ -206,7 +206,7 @@ class ProcedureStepsLogbookOpened:
     handler the first time a step is appended for this Procedure, NOT by
     `start_procedure` (mirrors Decision BC's precedent for
     `DecisionLogbookOpened` and Run BC's precedent for
-    `RunReadingLogbookOpened`). Subsequent appends find the logbook
+    `RunObservationLogbookOpened`). Subsequent appends find the logbook
     already attached and skip the open-event emission.
 
     `kind` discriminates the logbook category. Today only

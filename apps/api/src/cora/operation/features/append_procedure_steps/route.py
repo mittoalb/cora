@@ -8,7 +8,7 @@ Postgres PK.
 
 ## Response shape: 200 + event_count is the locked contract
 
-Same posture as Run BC's `append_run_readings` for the same reason: no
+Same posture as Run BC's `append_observations` for the same reason: no
 per-entry failure modes warrant 207 partial-success. Pydantic catches
 structural errors at the boundary (422 for the whole batch); Postgres
 `ON CONFLICT (event_id) DO NOTHING` handles dedup silently.

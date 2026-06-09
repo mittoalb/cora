@@ -1,7 +1,7 @@
 """Application handler for the `append_procedure_steps` slice.
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
-write mirroring Run BC's `append_run_readings` precedent (which
+write mirroring Run BC's `append_observations` precedent (which
 mirrors Decision BC's `append_inferences`):
 
   1. Load Procedure via `load_procedure` (fold-on-read).
@@ -33,7 +33,7 @@ mirrors Decision BC's `append_inferences`):
 Natural idempotence: the at-most-one-open-logbook invariant catches
 double-opens; entry-store PK catches double-appends. Wrapping the
 slice in `with_idempotency` would add no value beyond what the
-domain already guarantees. Same reasoning as `append_run_readings`.
+domain already guarantees. Same reasoning as `append_observations`.
 
 ## Defensive `step_kind` validation
 
@@ -41,7 +41,7 @@ Pydantic at the API layer catches invalid values via `Literal[...]`
 on the request body. The handler ALSO validates against
 `STEP_KIND_VALUES` so direct in-process callers (sagas, tests) get
 the same protection. Same defensive-validation posture as the
-sampling_procedure check in `append_run_readings`.
+sampling_procedure check in `append_observations`.
 """
 
 from datetime import datetime
@@ -111,7 +111,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
     `deps.pool` for Postgres, or `InMemoryStepStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Run BC's
-    ReadingStore and Decision BC's InferenceStore).
+    ObservationStore and Decision BC's InferenceStore).
     """
 
     async def handler(

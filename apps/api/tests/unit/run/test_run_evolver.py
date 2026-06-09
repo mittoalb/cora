@@ -413,18 +413,18 @@ def _run_started_with_raid(
     )
 
 
-# ---------- RunReadingLogbookOpened ----------
+# ---------- RunObservationLogbookOpened ----------
 
 from cora.run.aggregates.run import (  # noqa: E402
-    LOGBOOK_KIND_READING,
-    READING_LOGBOOK_SCHEMA,
+    LOGBOOK_KIND_OBSERVATION,
+    OBSERVATION_LOGBOOK_SCHEMA,
 )
-from cora.run.aggregates.run.events import RunReadingLogbookOpened  # noqa: E402
+from cora.run.aggregates.run.events import RunObservationLogbookOpened  # noqa: E402
 
 
 @pytest.mark.unit
 def test_evolve_run_reading_logbook_opened_sets_logbook_id() -> None:
-    """Lazy-open arm: RunReadingLogbookOpened sets reading_logbook_id
+    """Lazy-open arm: RunObservationLogbookOpened sets observation_logbook_id
     while preserving status and all other fields."""
     run_id = uuid4()
     plan_id = uuid4()
@@ -438,18 +438,18 @@ def test_evolve_run_reading_logbook_opened_sets_logbook_id() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state_after_start.reading_logbook_id is None  # baseline before open
+    assert state_after_start.observation_logbook_id is None  # baseline before open
 
     logbook_id = uuid4()
-    open_event = RunReadingLogbookOpened(
+    open_event = RunObservationLogbookOpened(
         run_id=run_id,
         logbook_id=logbook_id,
-        kind=LOGBOOK_KIND_READING,
-        schema=READING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_OBSERVATION,
+        schema=OBSERVATION_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
     state = evolve(state_after_start, open_event)
-    assert state.reading_logbook_id == logbook_id
+    assert state.observation_logbook_id == logbook_id
     # Status is orthogonal to logbook lifecycle; not touched.
     assert state.status is RunStatus.RUNNING
     # All other fields preserved.
@@ -463,23 +463,23 @@ def test_evolve_run_reading_logbook_opened_raises_on_empty_state() -> None:
     """Defensive: opening a logbook against an unstarted Run is
     stream corruption (the open event can never appear before
     RunStarted in a well-formed stream)."""
-    open_event = RunReadingLogbookOpened(
+    open_event = RunObservationLogbookOpened(
         run_id=uuid4(),
         logbook_id=uuid4(),
-        kind=LOGBOOK_KIND_READING,
-        schema=READING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_OBSERVATION,
+        schema=OBSERVATION_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
-    with pytest.raises(ValueError, match="RunReadingLogbookOpened"):
+    with pytest.raises(ValueError, match="RunObservationLogbookOpened"):
         evolve(None, open_event)
 
 
 @pytest.mark.unit
 def test_evolve_terminal_after_logbook_opened_preserves_logbook_id() -> None:
     """Critical preserve-fields invariant: RunCompleted (and other
-    terminals) MUST carry reading_logbook_id through. A regression
+    terminals) MUST carry observation_logbook_id through. A regression
     that wiped it would lose the audit anchor for which logbook the
-    Run's readings belong to."""
+    Run's observations belong to."""
     run_id = uuid4()
     logbook_id = uuid4()
     state = fold(
@@ -491,11 +491,11 @@ def test_evolve_terminal_after_logbook_opened_preserves_logbook_id() -> None:
                 subject_id=None,
                 occurred_at=_NOW,
             ),
-            RunReadingLogbookOpened(
+            RunObservationLogbookOpened(
                 run_id=run_id,
                 logbook_id=logbook_id,
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
             RunCompleted(run_id=run_id, occurred_at=_NOW),
@@ -503,7 +503,7 @@ def test_evolve_terminal_after_logbook_opened_preserves_logbook_id() -> None:
     )
     assert state is not None
     assert state.status is RunStatus.COMPLETED
-    assert state.reading_logbook_id == logbook_id
+    assert state.observation_logbook_id == logbook_id
 
 
 def _make_completed(rid: UUID) -> RunCompleted:
@@ -533,7 +533,7 @@ _TerminalFactory = Callable[[UUID], RunCompleted | RunAborted | RunStopped | Run
 def test_evolve_each_terminal_preserves_reading_logbook_id(
     terminal_factory: _TerminalFactory,
 ) -> None:
-    """Every terminal arm carries reading_logbook_id through. Pinned
+    """Every terminal arm carries observation_logbook_id through. Pinned
     per-terminal because the silent-wipe risk applies equally to all
     four terminals (the explicit-construction discipline in the
     evolver is what catches it)."""
@@ -548,23 +548,23 @@ def test_evolve_each_terminal_preserves_reading_logbook_id(
                 subject_id=None,
                 occurred_at=_NOW,
             ),
-            RunReadingLogbookOpened(
+            RunObservationLogbookOpened(
                 run_id=run_id,
                 logbook_id=logbook_id,
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
             terminal_factory(run_id),
         ]
     )
     assert state is not None
-    assert state.reading_logbook_id == logbook_id
+    assert state.observation_logbook_id == logbook_id
 
 
 @pytest.mark.unit
 def test_evolve_held_resumed_preserves_reading_logbook_id() -> None:
-    """Hold ⇄ Resume cycle preserves reading_logbook_id (orthogonal
+    """Hold ⇄ Resume cycle preserves observation_logbook_id (orthogonal
     to lifecycle)."""
     run_id = uuid4()
     logbook_id = uuid4()
@@ -577,11 +577,11 @@ def test_evolve_held_resumed_preserves_reading_logbook_id() -> None:
                 subject_id=None,
                 occurred_at=_NOW,
             ),
-            RunReadingLogbookOpened(
+            RunObservationLogbookOpened(
                 run_id=run_id,
                 logbook_id=logbook_id,
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
             RunHeld(run_id=run_id, occurred_at=_NOW),
@@ -591,14 +591,14 @@ def test_evolve_held_resumed_preserves_reading_logbook_id() -> None:
     )
     assert state is not None
     assert state.status is RunStatus.HELD
-    assert state.reading_logbook_id == logbook_id
+    assert state.observation_logbook_id == logbook_id
 
 
 @pytest.mark.unit
 def test_legacy_stream_without_reading_logbook_folds_with_none_reading_logbook_id() -> None:
     """Legacy Runs in the event store have no
-    RunReadingLogbookOpened event in the stream. They MUST fold
-    cleanly with reading_logbook_id=None — that's the additive
+    RunObservationLogbookOpened event in the stream. They MUST fold
+    cleanly with observation_logbook_id=None — that's the additive
     backward-compat contract."""
     run_id = uuid4()
     state = fold(
@@ -614,7 +614,7 @@ def test_legacy_stream_without_reading_logbook_folds_with_none_reading_logbook_i
         ]
     )
     assert state is not None
-    assert state.reading_logbook_id is None
+    assert state.observation_logbook_id is None
     assert state.status is RunStatus.COMPLETED
 
 
@@ -767,7 +767,7 @@ def test_campaign_id_survives_lifecycle_transitions() -> None:
 def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
     """Pre-6i-c Runs have no campaign_id on RunStarted (default None).
     They MUST fold cleanly without membership — additive backward-
-    compat contract mirrors the reading_logbook_id pattern."""
+    compat contract mirrors the observation_logbook_id pattern."""
     run_id = uuid4()
     state = fold(
         [
@@ -1152,11 +1152,11 @@ def test_reading_logbook_opened_preserves_pinned_calibration_ids() -> None:
                 occurred_at=_NOW,
                 pinned_calibration_ids=(pin_a, pin_b),
             ),
-            RunReadingLogbookOpened(
+            RunObservationLogbookOpened(
                 run_id=run_id,
                 logbook_id=uuid4(),
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             ),
         ]

@@ -7,7 +7,7 @@ write + dedup-on-event_id + three-timestamp round-trip against
 actual Postgres semantics (jsonb payload column, plain TEXT
 discriminator, BRIN index on recorded_at).
 
-Mirrors `test_append_run_readings_handler_postgres.py` shape exactly.
+Mirrors `test_append_observations_handler_postgres.py` shape exactly.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false

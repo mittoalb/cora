@@ -278,7 +278,7 @@ async def test_facility_install_plays_out_end_to_end(
             ),
             workaround=(
                 "Schedule calibration writes between top-up injections, or "
-                "use 5-injection averaged readings."
+                "use 5-injection averaged observations."
             ),
         ),
         principal_id=_PRINCIPAL_ID,

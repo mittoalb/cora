@@ -1,6 +1,6 @@
-"""HTTP route for the `append_run_readings` slice.
+"""HTTP route for the `append_observations` slice.
 
-`POST /runs/{run_id}/readings` returns 200 OK with `{"event_count":
+`POST /runs/{run_id}/observations` returns 200 OK with `{"event_count":
 N}` on success. Body shape carries a list of polymorphic Reading
 entries (discriminated by `sampling_procedure`); producer supplies
 UUIDv7 event_ids per entry; the store dedups silently via Postgres PK.
@@ -33,21 +33,21 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
-from cora.run.features.append_run_readings.command import (
-    AppendRunReadings,
-    RunReadingInput,
+from cora.run.features.append_observations.command import (
+    AppendObservations,
+    ObservationInput,
 )
-from cora.run.features.append_run_readings.handler import Handler
+from cora.run.features.append_observations.handler import Handler
 
 _RUN_READING_BATCH_MAX = 500
-"""Max readings per batch. Generous enough for DAQ-adapter burst
+"""Max observations per batch. Generous enough for DAQ-adapter burst
 patterns (a frame's worth of channels in one POST) while small
 enough that a single bad batch can't OOM the handler. Larger
 batches should split client-side."""
 
 
-class RunReadingRequest(BaseModel):
-    """One reading entry's input payload (polymorphic, SOSA-aligned).
+class ObservationRequest(BaseModel):
+    """One observation entry's input payload (polymorphic, SOSA-aligned).
 
     Required: event_id + channel_name + value + sampled_at +
     sampling_procedure. `units` and `occurred_at` are optional.
@@ -72,7 +72,7 @@ class RunReadingRequest(BaseModel):
     value: float = Field(
         ...,
         allow_inf_nan=False,
-        description="Scalar reading value. NaN and Infinity rejected.",
+        description="Scalar observation value. NaN and Infinity rejected.",
     )
     sampled_at: datetime = Field(
         ...,
@@ -107,19 +107,19 @@ class RunReadingRequest(BaseModel):
 
 
 class AppendRunReadingsRequest(BaseModel):
-    """Body for `POST /runs/{run_id}/readings`."""
+    """Body for `POST /runs/{run_id}/observations`."""
 
-    entries: list[RunReadingRequest] = Field(
+    entries: list[ObservationRequest] = Field(
         ...,
         min_length=1,
         max_length=_RUN_READING_BATCH_MAX,
-        description=(f"List of reading entries to append (1-{_RUN_READING_BATCH_MAX})."),
+        description=(f"List of observation entries to append (1-{_RUN_READING_BATCH_MAX})."),
     )
 
     model_config = {"extra": "forbid"}
 
 
-class AppendRunReadingsResponse(BaseModel):
+class AppendObservationsResponse(BaseModel):
     """Response body for the append slice."""
 
     event_count: int = Field(
@@ -134,7 +134,7 @@ class AppendRunReadingsResponse(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.run.append_run_readings
+    handler: Handler = request.app.state.run.append_observations
     return handler
 
 
@@ -142,15 +142,15 @@ router = APIRouter(tags=["run"])
 
 
 @router.post(
-    "/runs/{run_id}/readings",
+    "/runs/{run_id}/observations",
     status_code=status.HTTP_200_OK,
-    response_model=AppendRunReadingsResponse,
+    response_model=AppendObservationsResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
                 "Per-entry validation failed in the handler "
-                "(InvalidChannelNameError / InvalidReadingValueError / "
+                "(InvalidChannelNameError / InvalidObservationValueError / "
                 "InvalidSamplingProcedureError)."
             ),
         },
@@ -166,7 +166,7 @@ router = APIRouter(tags=["run"])
             "model": ErrorResponse,
             "description": (
                 "Run is in a terminal status (Completed | Aborted | "
-                "Stopped | Truncated); the reading logbook is "
+                "Stopped | Truncated); the observation logbook is "
                 "implicitly closed."
             ),
         },
@@ -174,14 +174,14 @@ router = APIRouter(tags=["run"])
             "description": (
                 "Request body failed schema validation: empty entries "
                 "list, batch over cap, missing required fields, "
-                "invalid sampling_procedure value, NaN/Infinity reading "
+                "invalid sampling_procedure value, NaN/Infinity observation "
                 "value, channel_name out of bounds."
             ),
         },
     },
     summary=(
-        "Append a batch of polymorphic sensor / motor readings to a "
-        "Run's reading logbook (lazy open-on-first-write)."
+        "Append a batch of polymorphic sensor / motor observations to a "
+        "Run's observation logbook (lazy open-on-first-write)."
     ),
 )
 async def post_runs_readings(
@@ -191,9 +191,9 @@ async def post_runs_readings(
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
-) -> AppendRunReadingsResponse:
+) -> AppendObservationsResponse:
     entries = tuple(
-        RunReadingInput(
+        ObservationInput(
             event_id=e.event_id,
             channel_name=e.channel_name,
             value=e.value,
@@ -205,9 +205,9 @@ async def post_runs_readings(
         for e in body.entries
     )
     count = await handler(
-        AppendRunReadings(run_id=run_id, entries=entries),
+        AppendObservations(run_id=run_id, entries=entries),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    return AppendRunReadingsResponse(event_count=count)
+    return AppendObservationsResponse(event_count=count)

@@ -1,10 +1,10 @@
-"""Unit tests for the RunReading entry + ReadingStore.
+"""Unit tests for the Observation entry + ObservationStore.
 
 Mirrors `test_decision_inferences.py` shape — the dataclass
 round-trips, the in-memory store dedups on event_id, batch and
 single-element appends both work, empty list is a no-op.
 
-RunReading is the first POLYMORPHIC-with-discriminator entry kind
+Observation is the first POLYMORPHIC-with-discriminator entry kind
 (prior two entry kinds are typed-per-category). The polymorphism
 is exercised via the `sampling_procedure` field; baseline + monitor
 + future kinds all share this row shape.
@@ -16,20 +16,20 @@ from uuid import uuid4
 import pytest
 
 from cora.run.aggregates.run import (
-    InMemoryReadingStore,
-    RunReading,
+    InMemoryObservationStore,
+    Observation,
 )
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
 
-def _row(**overrides: object) -> RunReading:
+def _row(**overrides: object) -> Observation:
     base: dict[str, object] = {
         "event_id": uuid4(),
         "run_id": uuid4(),
         "logbook_id": uuid4(),
         "actor_id": uuid4(),
-        "command_name": "AppendRunReadings",
+        "command_name": "AppendObservations",
         "channel_name": "T_sample",
         "value": 295.1,
         "units": "K",
@@ -40,14 +40,14 @@ def _row(**overrides: object) -> RunReading:
         "causation_id": None,
     }
     base.update(overrides)
-    return RunReading(**base)  # type: ignore[arg-type]
+    return Observation(**base)  # type: ignore[arg-type]
 
 
-# ---------- RunReading dataclass shape ----------
+# ---------- Observation dataclass shape ----------
 
 
 @pytest.mark.unit
-def test_run_reading_required_fields_present() -> None:
+def test_run_observation_required_fields_present() -> None:
     """`channel_name`, `value`, `sampled_at`, `sampling_procedure` are
     the polymorphic row's required value fields."""
     row = _row()
@@ -58,14 +58,14 @@ def test_run_reading_required_fields_present() -> None:
 
 
 @pytest.mark.unit
-def test_run_reading_units_optional() -> None:
+def test_run_observation_units_optional() -> None:
     """Units are optional (some channels are dimensionless)."""
     row = _row(units=None)
     assert row.units is None
 
 
 @pytest.mark.unit
-def test_run_reading_three_timestamps_distinct() -> None:
+def test_run_observation_three_timestamps_distinct() -> None:
     """SOSA dual-time + DB time: sampled_at, occurred_at, recorded_at
     can all differ (and recorded_at is set by Postgres in production;
     in-memory store doesn't model recorded_at — that's a Postgres
@@ -84,7 +84,7 @@ def test_run_reading_three_timestamps_distinct() -> None:
     "procedure",
     ["baseline"],
 )
-def test_run_reading_accepts_known_sampling_procedures(procedure: str) -> None:
+def test_run_observation_accepts_known_sampling_procedures(procedure: str) -> None:
     """Polymorphic over sampling_procedure: today {'baseline'} only.
     6f-5c will extend to {'baseline', 'monitor'}; future-additive."""
     row = _row(sampling_procedure=procedure)
@@ -92,23 +92,23 @@ def test_run_reading_accepts_known_sampling_procedures(procedure: str) -> None:
 
 
 @pytest.mark.unit
-def test_run_reading_carries_envelope_fields() -> None:
+def test_run_observation_carries_envelope_fields() -> None:
     """Audit trail: actor_id (principal who appended), command_name
-    (always 'AppendRunReadings' for this entry kind), correlation_id
+    (always 'AppendObservations' for this entry kind), correlation_id
     (request trace), causation_id (chain)."""
     row = _row(actor_id=uuid4(), causation_id=uuid4())
     assert row.actor_id is not None
-    assert row.command_name == "AppendRunReadings"
+    assert row.command_name == "AppendObservations"
     assert row.correlation_id is not None
     assert row.causation_id is not None
 
 
-# ---------- InMemoryReadingStore ----------
+# ---------- InMemoryObservationStore ----------
 
 
 @pytest.mark.unit
 async def test_in_memory_store_appends_single_row() -> None:
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     row = _row()
     await store.append([row])
     assert store.all() == [row]
@@ -118,7 +118,7 @@ async def test_in_memory_store_appends_single_row() -> None:
 async def test_in_memory_store_appends_batch() -> None:
     """DAQ adapters typically batch a frame's worth of channels in
     one call; multi-row append works."""
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     rows = [_row(channel_name=f"ch_{i}") for i in range(5)]
     await store.append(rows)
     assert len(store.all()) == 5
@@ -126,7 +126,7 @@ async def test_in_memory_store_appends_batch() -> None:
 
 @pytest.mark.unit
 async def test_in_memory_store_empty_list_is_noop() -> None:
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     await store.append([])
     assert store.all() == []
 
@@ -136,7 +136,7 @@ async def test_in_memory_store_dedups_on_event_id() -> None:
     """At-least-once semantics: retrying with the same event_id must
     not produce two stored rows. First write wins (matches Postgres
     ON CONFLICT (event_id) DO NOTHING shape)."""
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     event_id = uuid4()
     first = _row(event_id=event_id, value=295.1)
     second = _row(event_id=event_id, value=999.0)
@@ -150,7 +150,7 @@ async def test_in_memory_store_dedups_on_event_id() -> None:
 async def test_in_memory_store_preserves_insertion_order_across_calls() -> None:
     """all() returns rows in insertion order for predictable test
     assertions."""
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     a = _row()
     b = _row()
     c = _row()
@@ -165,7 +165,7 @@ async def test_in_memory_store_polymorphic_across_procedures() -> None:
     side-by-side. This is the polymorphic-with-discriminator design:
     the store doesn't care about the procedure, callers filter when
     they query."""
-    store = InMemoryReadingStore()
+    store = InMemoryObservationStore()
     baseline_row = _row(sampling_procedure="baseline", channel_name="T_baseline")
     # 6f-5c will introduce "monitor"; for 6f-5b, all rows are
     # baseline, but the store doesn't validate the discriminator

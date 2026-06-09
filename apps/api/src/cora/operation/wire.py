@@ -39,14 +39,14 @@ when truncate_procedure became the third update slice; mirrors
 `_supply_update_handler` (Supply BC's hoist after 5 transitions) and
 Run BC's `_update_handler.make_run_update_handler`.
 
-## BC-internal StepStore wiring (mirrors Run BC's ReadingStore)
+## BC-internal StepStore wiring (mirrors Run BC's ObservationStore)
 
 The `append_procedure_steps` slice needs a `StepStore` adapter.
 Per the per-category-writer pattern locked at gate-review L8/L9
 (Conduit's VerdictStore), the store is built LOCALLY here
 from `deps.pool` (Postgres in production) or as
 `InMemoryStepStore` in `app_env=test`. NOT promoted to Kernel fields.
-Mirrors how Run BC wires its ReadingStore and Decision BC wires its
+Mirrors how Run BC wires its ObservationStore and Decision BC wires its
 InferenceStore.
 """
 

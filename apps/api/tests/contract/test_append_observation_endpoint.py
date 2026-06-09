@@ -1,6 +1,6 @@
-"""Contract tests for `POST /runs/{run_id}/readings`.
+"""Contract tests for `POST /runs/{run_id}/observations`.
 
-The polymorphic-with-discriminator reading-entry endpoint. Covers
+The polymorphic-with-discriminator observation-entry endpoint. Covers
 the happy path, lazy-open lifecycle, per-entry validation, terminal-
 status guard, and Pydantic boundary validation.
 """
@@ -70,7 +70,7 @@ def test_post_readings_returns_200_for_single_entry() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         response = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={"entries": [_good_entry()]},
         )
     assert response.status_code == 200
@@ -79,11 +79,11 @@ def test_post_readings_returns_200_for_single_entry() -> None:
 
 @pytest.mark.contract
 def test_post_readings_returns_200_for_batch() -> None:
-    """Batch of polymorphic readings (all baseline kind) accepted."""
+    """Batch of polymorphic observations (all baseline kind) accepted."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         response = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={
                 "entries": [
                     _good_entry(channel_name="T_sample", value=295.1),
@@ -108,11 +108,11 @@ def test_post_readings_handles_dedup_silently_on_retry() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         first = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={"entries": [_good_entry(event_id=shared_id)]},
         )
         second = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={"entries": [_good_entry(event_id=shared_id)]},
         )
     assert first.status_code == 200
@@ -126,7 +126,7 @@ def test_post_readings_omits_optional_units() -> None:
         run_id = _setup_full_run(client)
         entry = _good_entry()
         del entry["units"]
-        response = client.post(f"/runs/{run_id}/readings", json={"entries": [entry]})
+        response = client.post(f"/runs/{run_id}/observations", json={"entries": [entry]})
     assert response.status_code == 200
 
 
@@ -137,7 +137,9 @@ def test_post_readings_omits_optional_units() -> None:
 def test_post_readings_returns_404_for_unknown_run() -> None:
     missing_id = str(uuid4())
     with TestClient(create_app()) as client:
-        response = client.post(f"/runs/{missing_id}/readings", json={"entries": [_good_entry()]})
+        response = client.post(
+            f"/runs/{missing_id}/observations", json={"entries": [_good_entry()]}
+        )
     assert response.status_code == 404
 
 
@@ -157,7 +159,7 @@ def test_post_readings_returns_404_for_unknown_run() -> None:
 def test_post_readings_returns_409_when_run_is_terminal(
     terminal_call: tuple[str, dict[str, Any]],
 ) -> None:
-    """Run.status terminal implicitly closes the reading logbook;
+    """Run.status terminal implicitly closes the observation logbook;
     appends post-terminal raise 409."""
     transition, body = terminal_call
     with TestClient(create_app()) as client:
@@ -165,8 +167,8 @@ def test_post_readings_returns_409_when_run_is_terminal(
         # Drive Run to terminal.
         terminal_resp = client.post(f"/runs/{run_id}/{transition}", json=body)
         assert terminal_resp.status_code == 204
-        # Try to append a reading.
-        response = client.post(f"/runs/{run_id}/readings", json={"entries": [_good_entry()]})
+        # Try to append a observation.
+        response = client.post(f"/runs/{run_id}/observations", json={"entries": [_good_entry()]})
     assert response.status_code == 409
     detail = response.json()["detail"].lower()
     assert "logbook" in detail or "closed" in detail
@@ -174,13 +176,13 @@ def test_post_readings_returns_409_when_run_is_terminal(
 
 @pytest.mark.contract
 def test_post_readings_succeeds_during_held_state() -> None:
-    """Held is a non-terminal pause; readings are accepted."""
+    """Held is a non-terminal pause; observations are accepted."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         # Hold the Run.
         hold_resp = client.post(f"/runs/{run_id}/hold")
         assert hold_resp.status_code == 204
-        response = client.post(f"/runs/{run_id}/readings", json={"entries": [_good_entry()]})
+        response = client.post(f"/runs/{run_id}/observations", json={"entries": [_good_entry()]})
     assert response.status_code == 200
 
 
@@ -191,7 +193,7 @@ def test_post_readings_succeeds_during_held_state() -> None:
 def test_post_readings_returns_422_for_empty_entries_list() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        response = client.post(f"/runs/{run_id}/readings", json={"entries": []})
+        response = client.post(f"/runs/{run_id}/observations", json={"entries": []})
     assert response.status_code == 422
 
 
@@ -202,7 +204,7 @@ def test_post_readings_returns_422_for_empty_entries_list() -> None:
 # RequestValidationError response echoes the input value back as JSON,
 # and Python's json encoder refuses to serialize NaN. That makes the
 # 422 path untestable through the normal request flow without a custom
-# serializer. The in-handler InvalidReadingValueError + the DDL CHECK
+# serializer. The in-handler InvalidObservationValueError + the DDL CHECK
 # constraint cover the remaining defense layers.
 
 
@@ -212,7 +214,7 @@ def test_post_readings_returns_422_for_unknown_sampling_procedure() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         response = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={"entries": [_good_entry(sampling_procedure="histogram")]},
         )
     assert response.status_code == 422
@@ -225,7 +227,7 @@ def test_post_readings_returns_422_for_empty_channel_name() -> None:
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
         response = client.post(
-            f"/runs/{run_id}/readings",
+            f"/runs/{run_id}/observations",
             json={"entries": [_good_entry(channel_name="")]},
         )
     assert response.status_code == 422
@@ -238,7 +240,7 @@ def test_post_readings_returns_422_for_extra_field_in_entry() -> None:
         run_id = _setup_full_run(client)
         bad = _good_entry()
         bad["unknown_field"] = "x"
-        response = client.post(f"/runs/{run_id}/readings", json={"entries": [bad]})
+        response = client.post(f"/runs/{run_id}/observations", json={"entries": [bad]})
     assert response.status_code == 422
 
 
@@ -249,19 +251,19 @@ def test_post_readings_returns_422_for_extra_field_in_entry() -> None:
 def test_post_readings_lazy_open_lifecycle() -> None:
     """Two appends + Run start → terminal:
     1. Run starts; status=Running.
-    2. First append opens the reading logbook; second append finds
+    2. First append opens the observation logbook; second append finds
        it open. The HTTP API doesn't expose the lifecycle event
        count, so we verify behavior by ensuring both appends return
        200 and a subsequent terminal-then-append returns 409."""
     with TestClient(create_app()) as client:
         run_id = _setup_full_run(client)
-        first = client.post(f"/runs/{run_id}/readings", json={"entries": [_good_entry()]})
-        second = client.post(f"/runs/{run_id}/readings", json={"entries": [_good_entry()]})
+        first = client.post(f"/runs/{run_id}/observations", json={"entries": [_good_entry()]})
+        second = client.post(f"/runs/{run_id}/observations", json={"entries": [_good_entry()]})
         assert first.status_code == 200
         assert second.status_code == 200
         # Drive to terminal.
         complete = client.post(f"/runs/{run_id}/complete")
         assert complete.status_code == 204
         # Now appends are rejected.
-        third = client.post(f"/runs/{run_id}/readings", json={"entries": [_good_entry()]})
+        third = client.post(f"/runs/{run_id}/observations", json={"entries": [_good_entry()]})
     assert third.status_code == 409

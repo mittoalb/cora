@@ -60,7 +60,7 @@ errors.
 ## Read scope (v1)
 
 The subscriber loads ONLY the Run aggregate via `load_run`. The
-broader read scope (RunReading + Verdict logbook entries
+broader read scope (Observation + Verdict logbook entries
 + bound Subject/Plan/Method/Practice + acknowledged Cautions +
 sibling-Run comparison) is deferred per design memo lock; trigger
 is "operators rate v1 Debriefs as misleading citing absent

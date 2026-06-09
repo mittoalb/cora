@@ -1,9 +1,9 @@
-"""Unit tests for the `append_run_readings` application handler.
+"""Unit tests for the `append_observations` application handler.
 
 Mirrors `test_append_inferences_handler.py` shape.
-Adds the per-entry validation tests specific to RunReading (channel_name,
+Adds the per-entry validation tests specific to Observation (channel_name,
 NaN/Inf value, sampling_procedure) and the terminal-status guard
-(RunReadingLogbookClosedError).
+(RunObservationLogbookClosedError).
 """
 
 from collections.abc import Callable
@@ -15,12 +15,12 @@ import pytest
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.run.aggregates.run import (
-    InMemoryReadingStore,
+    InMemoryObservationStore,
     InvalidChannelNameError,
-    InvalidReadingValueError,
+    InvalidObservationValueError,
     InvalidSamplingProcedureError,
     RunNotFoundError,
-    RunReadingLogbookClosedError,
+    RunObservationLogbookClosedError,
 )
 from cora.run.aggregates.run.events import (
     RunAborted,
@@ -33,10 +33,10 @@ from cora.run.aggregates.run.events import (
     to_payload,
 )
 from cora.run.errors import UnauthorizedError
-from cora.run.features import append_run_readings
-from cora.run.features.append_run_readings import (
-    AppendRunReadings,
-    RunReadingInput,
+from cora.run.features import append_observations
+from cora.run.features.append_observations import (
+    AppendObservations,
+    ObservationInput,
 )
 from tests.unit._helpers import build_deps
 
@@ -48,7 +48,7 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 
 
-def _entry(**overrides: object) -> RunReadingInput:
+def _entry(**overrides: object) -> ObservationInput:
     base: dict[str, object] = {
         "event_id": uuid4(),
         "channel_name": "T_sample",
@@ -57,7 +57,7 @@ def _entry(**overrides: object) -> RunReadingInput:
         "sampling_procedure": "baseline",
     }
     base.update(overrides)
-    return RunReadingInput(**base)  # type: ignore[arg-type]
+    return ObservationInput(**base)  # type: ignore[arg-type]
 
 
 async def _seed_run_started(store: InMemoryEventStore, run_id: UUID) -> None:
@@ -119,15 +119,15 @@ async def _seed_run_terminated(
 
 @pytest.mark.unit
 async def test_handler_emits_logbook_opened_on_first_append() -> None:
-    """First append on a Run with no reading logbook emits
-    RunReadingLogbookOpened to the Run stream + appends the entry."""
+    """First append on a Run with no observation logbook emits
+    RunObservationLogbookOpened to the Run stream + appends the entry."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
-    count = await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    count = await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -136,11 +136,11 @@ async def test_handler_emits_logbook_opened_on_first_append() -> None:
     # Run stream now has 2 events: started + logbook opened.
     stored, version = await event_store.load("Run", _RUN_ID)
     assert version == 2
-    assert [e.event_type for e in stored] == ["RunStarted", "RunReadingLogbookOpened"]
+    assert [e.event_type for e in stored] == ["RunStarted", "RunObservationLogbookOpened"]
     assert stored[1].event_id == _LOGBOOK_OPEN_EVENT_ID
 
     # Reading store has the appended entry with the open's logbook_id.
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert len(rows) == 1
     assert rows[0].run_id == _RUN_ID
     assert rows[0].logbook_id == _LOGBOOK_ID
@@ -148,16 +148,16 @@ async def test_handler_emits_logbook_opened_on_first_append() -> None:
 
 @pytest.mark.unit
 async def test_handler_skips_open_when_logbook_already_present() -> None:
-    """Second append (reading logbook already open) appends without
-    re-emitting RunReadingLogbookOpened."""
+    """Second append (observation logbook already open) appends without
+    re-emitting RunObservationLogbookOpened."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps_first = build_deps(
         ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store
     )
-    await append_run_readings.bind(deps_first, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    await append_observations.bind(deps_first, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -168,8 +168,8 @@ async def test_handler_skips_open_when_logbook_already_present() -> None:
         now=_NOW,
         event_store=event_store,
     )
-    count = await append_run_readings.bind(deps_second, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    count = await append_observations.bind(deps_second, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -178,28 +178,28 @@ async def test_handler_skips_open_when_logbook_already_present() -> None:
     # Run stream still only has 2 events (no second open).
     stored, version = await event_store.load("Run", _RUN_ID)
     assert version == 2
-    assert [e.event_type for e in stored] == ["RunStarted", "RunReadingLogbookOpened"]
+    assert [e.event_type for e in stored] == ["RunStarted", "RunObservationLogbookOpened"]
 
     # Both entries land with the SAME logbook_id.
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert len(rows) == 2
     assert rows[0].logbook_id == rows[1].logbook_id == _LOGBOOK_ID
 
 
 @pytest.mark.unit
 async def test_handler_appends_during_held_status() -> None:
-    """Held is a non-terminal pause state; readings still accepted."""
+    """Held is a non-terminal pause state; observations still accepted."""
     event_store = InMemoryEventStore()
     await _seed_run_held(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    count = await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    count = await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert count == 1
-    assert len(reading_store.all()) == 1
+    assert len(observation_store.all()) == 1
 
 
 # ---------- Batch ----------
@@ -210,7 +210,7 @@ async def test_handler_appends_batch_in_one_call() -> None:
     """Batch of N entries lands as N rows + ONE logbook open."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
     entries = (
@@ -218,16 +218,16 @@ async def test_handler_appends_batch_in_one_call() -> None:
         _entry(channel_name="motor_x"),
         _entry(channel_name="ring_current"),
     )
-    count = await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=entries),
+    count = await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert count == 3
-    assert len(reading_store.all()) == 3
-    # Only one RunReadingLogbookOpened for the whole batch.
+    assert len(observation_store.all()) == 3
+    # Only one RunObservationLogbookOpened for the whole batch.
     stored, _ = await event_store.load("Run", _RUN_ID)
-    open_events = [e for e in stored if e.event_type == "RunReadingLogbookOpened"]
+    open_events = [e for e in stored if e.event_type == "RunObservationLogbookOpened"]
     assert len(open_events) == 1
 
 
@@ -238,18 +238,18 @@ async def test_handler_appends_batch_in_one_call() -> None:
 async def test_handler_rejects_invalid_channel_name() -> None:
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
     with pytest.raises(InvalidChannelNameError):
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(run_id=_RUN_ID, entries=(_entry(channel_name="   "),)),
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(run_id=_RUN_ID, entries=(_entry(channel_name="   "),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     # No logbook open + no rows on validation failure.
     _, version = await event_store.load("Run", _RUN_ID)
     assert version == 1
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
 @pytest.mark.unit
@@ -257,36 +257,36 @@ async def test_handler_rejects_invalid_channel_name() -> None:
 async def test_handler_rejects_nan_and_infinity(bad_value: float) -> None:
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    with pytest.raises(InvalidReadingValueError):
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(run_id=_RUN_ID, entries=(_entry(value=bad_value),)),
+    with pytest.raises(InvalidObservationValueError):
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(run_id=_RUN_ID, entries=(_entry(value=bad_value),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
 @pytest.mark.unit
 async def test_handler_rejects_unknown_sampling_procedure() -> None:
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
     with pytest.raises(InvalidSamplingProcedureError):
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(
                 run_id=_RUN_ID,
                 entries=(_entry(sampling_procedure="histogram"),),
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
-# ---------- Terminal-status guard (RunReadingLogbookClosedError) ----------
+# ---------- Terminal-status guard (RunObservationLogbookClosedError) ----------
 
 
 def _make_completed(rid: UUID) -> RunCompleted:
@@ -321,7 +321,7 @@ _TerminalFactory = Callable[[UUID], RunCompleted | RunAborted | RunStopped | Run
 async def test_handler_rejects_when_run_in_terminal_status(
     terminal_factory: _TerminalFactory, command_name: str
 ) -> None:
-    """Run.status terminal implicitly closes the reading logbook."""
+    """Run.status terminal implicitly closes the observation logbook."""
     event_store = InMemoryEventStore()
     await _seed_run_terminated(
         event_store,
@@ -329,15 +329,15 @@ async def test_handler_rejects_when_run_in_terminal_status(
         terminal_factory(_RUN_ID),
         command_name,
     )
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    with pytest.raises(RunReadingLogbookClosedError):
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    with pytest.raises(RunObservationLogbookClosedError):
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
 # ---------- 404 ----------
@@ -346,15 +346,15 @@ async def test_handler_rejects_when_run_in_terminal_status(
 @pytest.mark.unit
 async def test_handler_raises_run_not_found_for_unknown_id() -> None:
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     with pytest.raises(RunNotFoundError) as exc_info:
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(run_id=uuid4(), entries=(_entry(),)),
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(run_id=uuid4(), entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     assert "not found" in str(exc_info.value).lower()
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
 # ---------- Authz ----------
@@ -364,7 +364,7 @@ async def test_handler_raises_run_not_found_for_unknown_id() -> None:
 async def test_handler_raises_unauthorized_on_deny() -> None:
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(
         ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID],
         now=_NOW,
@@ -372,15 +372,15 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
         deny=True,
     )
     with pytest.raises(UnauthorizedError):
-        await append_run_readings.bind(deps, reading_store=reading_store)(
-            AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+        await append_observations.bind(deps, observation_store=observation_store)(
+            AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
     # No logbook open + no rows when authz denies.
     _, version = await event_store.load("Run", _RUN_ID)
     assert version == 1
-    assert reading_store.all() == []
+    assert observation_store.all() == []
 
 
 # ---------- Envelope threading ----------
@@ -390,14 +390,14 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
 async def test_handler_threads_correlation_id_into_entries() -> None:
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(), _entry())),
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(), _entry())),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    for row in reading_store.all():
+    for row in observation_store.all():
         assert row.correlation_id == _CORRELATION_ID
 
 
@@ -406,15 +406,15 @@ async def test_handler_threads_causation_id_into_entries() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
     )
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert rows[0].causation_id == causation
 
 
@@ -425,14 +425,14 @@ async def test_handler_threads_principal_id_into_actor_id() -> None:
     surface; the entry payload doesn't carry a separate actor field)."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert rows[0].actor_id == _PRINCIPAL_ID
 
 
@@ -444,14 +444,14 @@ async def test_handler_defaults_occurred_at_to_clock_when_omitted() -> None:
     """Producer omits `occurred_at`; handler stamps deps.clock.now()."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(occurred_at=None),)),
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(occurred_at=None),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert rows[0].occurred_at == _NOW
 
 
@@ -462,14 +462,14 @@ async def test_handler_preserves_explicit_occurred_at() -> None:
     custom = datetime(2026, 5, 14, 9, 0, 0, tzinfo=UTC)
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(occurred_at=custom),)),
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(occurred_at=custom),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert rows[0].occurred_at == custom
 
 
@@ -478,21 +478,21 @@ async def test_handler_preserves_explicit_occurred_at() -> None:
 
 @pytest.mark.unit
 async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
-    """Two parallel first-appends both try to emit RunReadingLogbookOpened;
+    """Two parallel first-appends both try to emit RunObservationLogbookOpened;
     the second loses on optimistic concurrency. The handler retries from
     load, the second pass sees the logbook now open + skips the open
     step. Models the documented self-healing behavior. Mirrors 8c-b's
     `test_handler_retries_on_concurrent_logbook_open_race`."""
     from cora.infrastructure.ports.event_store import ConcurrencyError, NewEvent
     from cora.run.aggregates.run import (
-        LOGBOOK_KIND_READING,
-        READING_LOGBOOK_SCHEMA,
-        RunReadingLogbookOpened,
+        LOGBOOK_KIND_OBSERVATION,
+        OBSERVATION_LOGBOOK_SCHEMA,
+        RunObservationLogbookOpened,
     )
 
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
 
     real_append = event_store.append
     real_load = event_store.load
@@ -506,14 +506,14 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
         expected_version: int,
         events: list[NewEvent],
     ) -> int:
-        if not fired["yes"] and any(e.event_type == "RunReadingLogbookOpened" for e in events):
+        if not fired["yes"] and any(e.event_type == "RunObservationLogbookOpened" for e in events):
             fired["yes"] = True
             # Simulate the conflicting writer landing first.
-            conflict_event = RunReadingLogbookOpened(
+            conflict_event = RunObservationLogbookOpened(
                 run_id=stream_id,
                 logbook_id=concurrent_logbook_id,
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=_NOW,
             )
             new_event = to_new_event(
@@ -542,13 +542,13 @@ async def test_handler_retries_on_concurrent_logbook_open_race() -> None:
         now=_NOW,
         event_store=event_store,
     )
-    count = await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=(_entry(),)),
+    count = await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert count == 1
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert len(rows) == 1
     # The retry's reload saw the conflicting writer's logbook id and used IT,
     # not the originally-allocated one.
@@ -565,13 +565,13 @@ async def test_handler_preserves_distinct_sampled_at_per_entry() -> None:
     is where conflation could silently happen."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
     sampled_a = datetime(2026, 5, 14, 11, 59, 50, tzinfo=UTC)
     sampled_b = datetime(2026, 5, 14, 11, 59, 51, tzinfo=UTC)
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(
             run_id=_RUN_ID,
             entries=(
                 _entry(sampled_at=sampled_a, channel_name="a"),
@@ -581,7 +581,7 @@ async def test_handler_preserves_distinct_sampled_at_per_entry() -> None:
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
-    rows = reading_store.all()
+    rows = observation_store.all()
     row_a = next(r for r in rows if r.channel_name == "a")
     row_b = next(r for r in rows if r.channel_name == "b")
     assert row_a.sampled_at == sampled_a
@@ -601,10 +601,10 @@ async def test_handler_accepts_monitor_sampling_procedure() -> None:
     stream pattern: sub-Hz time-series during the run)."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
-    count = await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(
+    count = await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(
             run_id=_RUN_ID,
             entries=(_entry(sampling_procedure="monitor"),),
         ),
@@ -612,7 +612,7 @@ async def test_handler_accepts_monitor_sampling_procedure() -> None:
         correlation_id=_CORRELATION_ID,
     )
     assert count == 1
-    assert reading_store.all()[0].sampling_procedure == "monitor"
+    assert observation_store.all()[0].sampling_procedure == "monitor"
 
 
 # ---------- Polymorphic mixed-procedure (6f-5c — the design earns its keep) ----------
@@ -621,24 +621,24 @@ async def test_handler_accepts_monitor_sampling_procedure() -> None:
 @pytest.mark.unit
 async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None:
     """The whole point of the polymorphic-with-discriminator design:
-    a single Run holds BOTH baseline and monitor readings, side-by-
-    side, in the same `entries_run_readings` table, sharing the same
-    reading_logbook_id. No table split, no separate slice, no
+    a single Run holds BOTH baseline and monitor observations, side-by-
+    side, in the same `entries_run_observations` table, sharing the same
+    observation_logbook_id. No table split, no separate slice, no
     discriminator gymnastics — just rows that differ by the
     `sampling_procedure` column.
 
     Realistic scenario: Run start posts a baseline snapshot of all
-    channels; the DAQ adapter then streams monitor readings for
+    channels; the DAQ adapter then streams monitor observations for
     sample temperature throughout the Run; Run end posts another
     baseline snapshot. All three writes hit the same logbook."""
     event_store = InMemoryEventStore()
     await _seed_run_started(event_store, _RUN_ID)
-    reading_store = InMemoryReadingStore()
+    observation_store = InMemoryObservationStore()
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW, event_store=event_store)
 
     # Run-start baseline: temperature snapshot.
-    await append_run_readings.bind(deps, reading_store=reading_store)(
-        AppendRunReadings(
+    await append_observations.bind(deps, observation_store=observation_store)(
+        AppendObservations(
             run_id=_RUN_ID,
             entries=(
                 _entry(
@@ -654,8 +654,8 @@ async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None
 
     # Mid-run monitor stream: three samples drifting.
     deps_monitor = build_deps(ids=[uuid4() for _ in range(4)], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps_monitor, reading_store=reading_store)(
-        AppendRunReadings(
+    await append_observations.bind(deps_monitor, observation_store=observation_store)(
+        AppendObservations(
             run_id=_RUN_ID,
             entries=(
                 _entry(
@@ -684,8 +684,8 @@ async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None
 
     # Run-end baseline: temperature snapshot again.
     deps_end = build_deps(ids=[uuid4() for _ in range(2)], now=_NOW, event_store=event_store)
-    await append_run_readings.bind(deps_end, reading_store=reading_store)(
-        AppendRunReadings(
+    await append_observations.bind(deps_end, observation_store=observation_store)(
+        AppendObservations(
             run_id=_RUN_ID,
             entries=(
                 _entry(
@@ -699,7 +699,7 @@ async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None
         correlation_id=_CORRELATION_ID,
     )
 
-    rows = reading_store.all()
+    rows = observation_store.all()
     assert len(rows) == 5
 
     # All rows share the same logbook (no per-procedure split).
@@ -719,18 +719,18 @@ async def test_handler_writes_baseline_and_monitor_to_same_run_logbook() -> None
     # The Run stream still has just one logbook-open event (lazy
     # open survives across procedure kinds).
     stored, version = await event_store.load("Run", _RUN_ID)
-    assert version == 2  # RunStarted + RunReadingLogbookOpened
-    assert [e.event_type for e in stored] == ["RunStarted", "RunReadingLogbookOpened"]
+    assert version == 2  # RunStarted + RunObservationLogbookOpened
+    assert [e.event_type for e in stored] == ["RunStarted", "RunObservationLogbookOpened"]
 
 
 # ---------- Wire surface ----------
 
 
 @pytest.mark.unit
-def test_wire_run_includes_append_run_readings() -> None:
+def test_wire_run_includes_append_run_observations() -> None:
     from cora.run import RunHandlers, wire_run
 
     deps = build_deps(ids=[_LOGBOOK_ID, _LOGBOOK_OPEN_EVENT_ID], now=_NOW)
     handlers = wire_run(deps)
     assert isinstance(handlers, RunHandlers)
-    assert callable(handlers.append_run_readings)
+    assert callable(handlers.append_observations)

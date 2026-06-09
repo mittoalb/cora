@@ -22,7 +22,7 @@ rationale.
 Slices: `register_procedure` (genesis -> Defined), `start_procedure`
 / `complete_procedure` / `abort_procedure` / `truncate_procedure`
 (FSM transitions), `append_procedure_steps` (per-step logbook with
-Setpoint/Action/Check rows mirroring Run BC's RunReading channel),
+Setpoint/Action/Check rows mirroring Run BC's Observation channel),
 `get_procedure` (fold-on-read), `list_procedures` (projection-backed).
 """
 

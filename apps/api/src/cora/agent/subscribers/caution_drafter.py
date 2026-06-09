@@ -27,7 +27,7 @@ dependency materializes. None of those hold today.
 ## V1 simplifications
 
   - Read scope = Run + Plan (for asset_ids) + existing Cautions
-    via CautionLookup. Deferred: RunReading + Verdict +
+    via CautionLookup. Deferred: Observation + Verdict +
     RunDebriefer's prior Decision (DecisionLookup port deferred to
     watch item #14 per design memo).
   - Defaults to `NoAction` aggressively (target 65-75% per Epic

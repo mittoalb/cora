@@ -14,7 +14,7 @@ Lazy open-on-first-write: the handler emits
 `ProcedureStepsLogbookOpened` to the Procedure stream the first time
 a step is appended for a Procedure; subsequent appends find the
 logbook already attached and skip the open-event emission. Mirrors
-Run BC's `append_run_readings` precedent (which mirrors Decision BC's
+Run BC's `append_observations` precedent (which mirrors Decision BC's
 `append_inferences`).
 """
 

@@ -578,7 +578,7 @@ def test_p1_can_still_read_their_own_aggregate(
         headers={"X-Principal-Id": str(p1)},
     )
     assert response.status_code == 200, (
-        f"P1 was unexpectedly denied reading their own aggregate "
+        f"P1 was unexpectedly denied observation their own aggregate "
         f"({response.status_code}, {response.text}). Policy/permitted-"
         f"commands setup is wrong."
     )

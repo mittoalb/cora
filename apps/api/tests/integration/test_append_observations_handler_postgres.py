@@ -1,7 +1,7 @@
-"""End-to-end integration test: append_run_readings against real Postgres.
+"""End-to-end integration test: append_observations against real Postgres.
 
-First concrete consumer of the entries_run_readings table +
-PostgresReadingStore. Stress-tests the polymorphic-with-discriminator
+First concrete consumer of the entries_run_observations table +
+PostgresObservationStore. Stress-tests the polymorphic-with-discriminator
 storage shape + lazy open-on-first-write + dedup-on-event_id +
 SOSA dual-time round-trip against actual Postgres semantics
 (double precision NaN/Inf CHECK constraint, BRIN index on
@@ -18,7 +18,7 @@ import pytest
 
 from cora.infrastructure.event_envelope import to_new_event
 from cora.run.aggregates.run import (
-    PostgresReadingStore,
+    PostgresObservationStore,
     fold,
     from_stored,
 )
@@ -27,11 +27,11 @@ from cora.run.aggregates.run.events import (
     event_type_name,
     to_payload,
 )
-from cora.run.features.append_run_readings import (
-    AppendRunReadings,
-    RunReadingInput,
+from cora.run.features.append_observations import (
+    AppendObservations,
+    ObservationInput,
 )
-from cora.run.features.append_run_readings import bind as bind_append
+from cora.run.features.append_observations import bind as bind_append
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
@@ -83,7 +83,7 @@ async def _read_readings_for_run(db_pool: asyncpg.Pool, run_id: UUID) -> list[as
                 channel_name, value, units, sampling_procedure,
                 sampled_at, occurred_at, recorded_at,
                 correlation_id, causation_id
-            FROM entries_run_readings
+            FROM entries_run_observations
             WHERE run_id = $1
             ORDER BY sampled_at, event_id
             """,
@@ -92,13 +92,13 @@ async def _read_readings_for_run(db_pool: asyncpg.Pool, run_id: UUID) -> list[as
 
 
 @pytest.mark.integration
-async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
+async def test_append_observations_full_lazy_open_and_polymorphic_round_trip(
     db_pool: asyncpg.Pool,
 ) -> None:
     """End-to-end: seed a Run, then append a 3-entry batch with
     different channels but the SAME sampling_procedure. Verify lazy
-    RunReadingLogbookOpened landed on the Run stream, all 3 rows
-    landed in entries_run_readings with typed columns + correct
+    RunObservationLogbookOpened landed on the Run stream, all 3 rows
+    landed in entries_run_observations with typed columns + correct
     discriminator + sampled_at preserved, and a follow-up append on
     the same Run skips the open + appends to the same logbook."""
     run_id = UUID("01900000-0000-7000-8000-0000006f5b01")
@@ -113,16 +113,16 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
         now=_NOW,
         ids=[logbook_id, open_event_id],
     )
-    reading_store = PostgresReadingStore(db_pool)
+    observation_store = PostgresObservationStore(db_pool)
 
     await _seed_run_started(deps.event_store, run_id)
 
-    # First append: lazy open emits RunReadingLogbookOpened + 3 entries land.
+    # First append: lazy open emits RunObservationLogbookOpened + 3 entries land.
     sampled_a = datetime(2026, 5, 14, 11, 59, 50, tzinfo=UTC)
     sampled_b = datetime(2026, 5, 14, 11, 59, 51, tzinfo=UTC)
     sampled_c = datetime(2026, 5, 14, 11, 59, 52, tzinfo=UTC)
     entries = (
-        RunReadingInput(
+        ObservationInput(
             event_id=entry_a_id,
             channel_name="T_sample",
             value=295.1,
@@ -130,7 +130,7 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
             sampling_procedure="baseline",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=entry_b_id,
             channel_name="motor_x",
             value=12.345,
@@ -138,7 +138,7 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
             sampling_procedure="baseline",
             units="mm",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=entry_c_id,
             channel_name="ring_current_dimensionless",
             value=0.997,  # No units (dimensionless ratio).
@@ -147,22 +147,22 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
             units=None,
         ),
     )
-    count = await bind_append(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=run_id, entries=entries),
+    count = await bind_append(deps, observation_store=observation_store)(
+        AppendObservations(run_id=run_id, entries=entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert count == 3
 
-    # Verify Run stream now carries RunReadingLogbookOpened.
+    # Verify Run stream now carries RunObservationLogbookOpened.
     stored, version = await deps.event_store.load("Run", run_id)
     assert version == 2
-    assert [s.event_type for s in stored] == ["RunStarted", "RunReadingLogbookOpened"]
+    assert [s.event_type for s in stored] == ["RunStarted", "RunObservationLogbookOpened"]
     state = fold([from_stored(s) for s in stored])
     assert state is not None
-    assert state.reading_logbook_id == logbook_id
+    assert state.observation_logbook_id == logbook_id
 
-    # Read rows from entries_run_readings.
+    # Read rows from entries_run_observations.
     rows = await _read_readings_for_run(db_pool, run_id)
     assert len(rows) == 3
 
@@ -177,7 +177,7 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
     assert row_a["logbook_id"] == logbook_id
     assert row_a["correlation_id"] == _CORRELATION_ID
     assert row_a["actor_id"] == _PRINCIPAL_ID
-    assert row_a["command_name"] == "AppendRunReadings"
+    assert row_a["command_name"] == "AppendObservations"
     assert row_a["channel_name"] == "T_sample"
     assert row_a["value"] == pytest.approx(295.1)
     assert row_a["units"] == "K"
@@ -194,7 +194,7 @@ async def test_append_run_readings_full_lazy_open_and_polymorphic_round_trip(
 
 
 @pytest.mark.integration
-async def test_append_run_readings_second_call_skips_open_and_dedups(
+async def test_append_observations_second_call_skips_open_and_dedups(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Second append on the same Run sees the logbook already open
@@ -210,11 +210,11 @@ async def test_append_run_readings_second_call_skips_open_and_dedups(
         now=_NOW,
         ids=[logbook_id, open_event_id],
     )
-    reading_store = PostgresReadingStore(db_pool)
+    observation_store = PostgresObservationStore(db_pool)
 
     await _seed_run_started(deps_first.event_store, run_id)
 
-    first_entry = RunReadingInput(
+    first_entry = ObservationInput(
         event_id=shared_event_id,
         channel_name="T_sample",
         value=295.1,
@@ -222,8 +222,8 @@ async def test_append_run_readings_second_call_skips_open_and_dedups(
         sampling_procedure="baseline",
         units="K",
     )
-    await bind_append(deps_first, reading_store=reading_store)(
-        AppendRunReadings(run_id=run_id, entries=(first_entry,)),
+    await bind_append(deps_first, observation_store=observation_store)(
+        AppendObservations(run_id=run_id, entries=(first_entry,)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -234,7 +234,7 @@ async def test_append_run_readings_second_call_skips_open_and_dedups(
         now=_NOW,
         ids=[uuid4(), uuid4(), uuid4()],
     )
-    second_entry = RunReadingInput(
+    second_entry = ObservationInput(
         event_id=shared_event_id,
         channel_name="T_sample",
         value=999.0,  # Different value, but ON CONFLICT DO NOTHING preserves first.
@@ -242,8 +242,8 @@ async def test_append_run_readings_second_call_skips_open_and_dedups(
         sampling_procedure="baseline",
         units="K",
     )
-    await bind_append(deps_second, reading_store=reading_store)(
-        AppendRunReadings(run_id=run_id, entries=(second_entry,)),
+    await bind_append(deps_second, observation_store=observation_store)(
+        AppendObservations(run_id=run_id, entries=(second_entry,)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -259,11 +259,11 @@ async def test_append_run_readings_second_call_skips_open_and_dedups(
 
 
 @pytest.mark.integration
-async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
+async def test_append_observations_polymorphic_baseline_and_monitor_coexist(
     db_pool: asyncpg.Pool,
 ) -> None:
     """6f-5c: a single Run holds BOTH baseline and monitor readings
-    in the same `entries_run_readings` table (the polymorphic-with-
+    in the same `entries_run_observations` table (the polymorphic-with-
     discriminator design earns its keep). Verify the kind-filtered
     index `entries_run_readings_run_procedure_sampled_idx` is
     queryable via the SQL pattern the design memo prescribes for
@@ -281,7 +281,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
         now=_NOW,
         ids=[logbook_id, open_event_id],
     )
-    reading_store = PostgresReadingStore(db_pool)
+    observation_store = PostgresObservationStore(db_pool)
 
     await _seed_run_started(deps.event_store, run_id)
 
@@ -292,7 +292,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
     sampled_b = datetime(2026, 5, 14, 12, 1, 0, tzinfo=UTC)
     sampled_end = datetime(2026, 5, 14, 12, 1, 30, tzinfo=UTC)
     entries = (
-        RunReadingInput(
+        ObservationInput(
             event_id=baseline_start_id,
             channel_name="T_sample",
             value=295.1,
@@ -300,7 +300,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
             sampling_procedure="baseline",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=monitor_a_id,
             channel_name="T_sample",
             value=294.8,
@@ -308,7 +308,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
             sampling_procedure="monitor",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=monitor_b_id,
             channel_name="T_sample",
             value=295.0,
@@ -316,7 +316,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
             sampling_procedure="monitor",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=baseline_end_id,
             channel_name="T_sample",
             value=295.4,
@@ -325,8 +325,8 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
             units="K",
         ),
     )
-    count = await bind_append(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=run_id, entries=entries),
+    count = await bind_append(deps, observation_store=observation_store)(
+        AppendObservations(run_id=run_id, entries=entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -345,7 +345,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
         baseline_rows = await conn.fetch(
             """
             SELECT event_id, value, sampled_at
-            FROM entries_run_readings
+            FROM entries_run_observations
             WHERE run_id = $1 AND sampling_procedure = $2
             ORDER BY sampled_at
             """,
@@ -355,7 +355,7 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
         monitor_rows = await conn.fetch(
             """
             SELECT event_id, value, sampled_at
-            FROM entries_run_readings
+            FROM entries_run_observations
             WHERE run_id = $1 AND sampling_procedure = $2
             ORDER BY sampled_at
             """,
@@ -372,4 +372,4 @@ async def test_append_run_readings_polymorphic_baseline_and_monitor_coexist(
     # design avoids per-kind logbook proliferation).
     stored, version = await deps.event_store.load("Run", run_id)
     assert version == 2
-    assert [s.event_type for s in stored] == ["RunStarted", "RunReadingLogbookOpened"]
+    assert [s.event_type for s in stored] == ["RunStarted", "RunObservationLogbookOpened"]

@@ -1,19 +1,19 @@
-"""Run reading logbook (baseline + monitor) at APS 2-BM.
+"""Run observation logbook (baseline + monitor) at APS 2-BM.
 
 cluster: Runs
 archetype: routine
 bc_primary: Run
 bc_touches: Campaign, Equipment, Recipe, Run, Subject
 
-Scenario test for the polymorphic per-Run reading logbook
+Scenario test for the polymorphic per-Run observation logbook
 exercising the SOSA-aligned `sampling_procedure` discriminator:
 during a tomography Run the operator captures pre-scan baseline
-readings (T_sample, ring current, motor positions) and then
-periodic mid-scan monitor readings on the same channels. The
-readings land in the Run's lazy-opened reading logbook (one
+observations (T_sample, ring current, motor positions) and then
+periodic mid-scan monitor observations on the same channels. The
+observations land in the Run's lazy-opened observation logbook (one
 logbook per Run, lazy-opened on first write) with the entries
-projected into the `entries_run_readings` Postgres table by the
-handler-internal `ReadingStore`.
+projected into the `entries_run_observations` Postgres table by the
+handler-internal `ObservationStore`.
 
 Phase operations.
 
@@ -27,29 +27,29 @@ trichotomy.
 
 ## Why this scenario exists
 
-**First scenario-tier exercise of `append_run_readings`** + the
-lazy-open `RunReadingLogbookOpened` event + the polymorphic
+**First scenario-tier exercise of `append_observations`** + the
+lazy-open `RunObservationLogbookOpened` event + the polymorphic
 `sampling_procedure` discriminator with BOTH `baseline` and
 `monitor` values. The lower-tier integration test
-`test_append_run_readings_handler_postgres.py` covers the
+`test_append_observations_handler_postgres.py` covers the
 plumbing (entries land in the projection table; lazy open works;
 PK dedup on retry) against a bypass-seeded `RunStarted` event.
 This scenario is the operator-narrative source-of-truth for
-"the readings logbook is how the Run captures continuous-channel
+"the observations logbook is how the Run captures continuous-channel
 ephemera that don't belong in the Run aggregate's state but do
 belong in its audit trail".
 
 This scenario exercises:
 
-  - `append_run_readings` first call: lazy emits
-    `RunReadingLogbookOpened` on the Run stream + N entries land
-    in `entries_run_readings`.
-  - `append_run_readings` second call: skips the open emit + N
+  - `append_observations` first call: lazy emits
+    `RunObservationLogbookOpened` on the Run stream + N entries land
+    in `entries_run_observations`.
+  - `append_observations` second call: skips the open emit + N
     more entries land.
   - Both `sampling_procedure="baseline"` (pre-scan one-shot) and
     `sampling_procedure="monitor"` (mid-scan periodic) values.
   - Cross-aggregate-friendly: the Run's own status remains
-    `Running` throughout; reading appends are NOT a Run FSM
+    `Running` throughout; observation appends are NOT a Run FSM
     transition (they live in a separate logbook).
 
 ## Domain shape (operator narrative)
@@ -57,24 +57,24 @@ This scenario exercises:
   1. Beamtime intake + sample mounted + recipe ladder defined.
   2. Operator starts the tomography Run.
   3. Just before commanding the scan to begin, the operator
-     captures pre-scan baseline readings (T_sample, ring
-     current, motor_x) in one `append_run_readings` batch with
-     `sampling_procedure="baseline"`. The Run's reading
+     captures pre-scan baseline observations (T_sample, ring
+     current, motor_x) in one `append_observations` batch with
+     `sampling_procedure="baseline"`. The Run's observation
      logbook is lazily opened on this first call
-     (`RunReadingLogbookOpened` event emitted on the Run
+     (`RunObservationLogbookOpened` event emitted on the Run
      stream).
   4. ~600 projections in, the operator captures periodic
-     monitor readings (same channels, fresh sampling) in a
-     second `append_run_readings` batch with
+     monitor observations (same channels, fresh sampling) in a
+     second `append_observations` batch with
      `sampling_procedure="monitor"`. The logbook is already
-     open; no `RunReadingLogbookOpened` event is emitted.
-  5. Run completes normally. The reading logbook stays
+     open; no `RunObservationLogbookOpened` event is emitted.
+  5. Run completes normally. The observation logbook stays
      attached to the Run forever (immutable event-sourced
      audit trail).
 
 ## Why a separate scenario
 
-Per [scenarios/README.md](../README.md) Rule 1. The reading
+Per [scenarios/README.md](../README.md) Rule 1. The observation
 logbook is a separable concern from:
 
   - Run lifecycle transitions (start / hold / resume / complete
@@ -94,18 +94,18 @@ audit trail; bundling with any of the above would conflate
     enhancement might promote to a closed `SamplingProcedure`
     enum if a third value emerges; the SOSA spec is itself
     open-set, so the bare-string approach is OK in principle.
-  - **No projection over multiple Runs' readings.** A future
+  - **No projection over multiple Runs' observations.** A future
     "compare T_sample baselines across Runs on this Subject"
     query would benefit from a cross-Run projection over
-    `entries_run_readings`; not built today.
+    `entries_run_observations`; not built today.
   - **Reading entries are NOT in scope for the RunDebriefer
     agent.** Per [[project_run_debrief_design]] v1 read scope
-    is Run+RunReading+Verdict+Subject+Plan+Method+
-    Practice+Cautions. Wait, `RunReading` IS in the read scope
-    -- but no current debrief scenario actually loads readings.
+    is Run+Observation+Verdict+Subject+Plan+Method+
+    Practice+Cautions. Wait, `Observation` IS in the read scope
+    -- but no current debrief scenario actually loads observations.
     Whether the agent's narrative would meaningfully change
-    with reading-context is a watch item for a future
-    debrief-with-readings scenario.
+    with observation-context is a watch item for a future
+    debrief-with-observations scenario.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -123,12 +123,12 @@ from cora.campaign.features.close_campaign import CloseCampaign
 from cora.campaign.features.close_campaign import bind as bind_close_campaign
 from cora.campaign.features.start_campaign import StartCampaign
 from cora.campaign.features.start_campaign import bind as bind_start_campaign
-from cora.run.aggregates.run import PostgresReadingStore
-from cora.run.features.append_run_readings import (
-    AppendRunReadings,
-    RunReadingInput,
+from cora.run.aggregates.run import PostgresObservationStore
+from cora.run.features.append_observations import (
+    AppendObservations,
+    ObservationInput,
 )
-from cora.run.features.append_run_readings import bind as bind_append_readings
+from cora.run.features.append_observations import bind as bind_append_readings
 from cora.run.features.complete_run import CompleteRun
 from cora.run.features.complete_run import bind as bind_complete_run
 from cora.run.features.start_run import StartRun
@@ -155,7 +155,7 @@ _NOW = datetime(2026, 5, 18, 5, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = operator_for(__file__)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000470bb")
 
-# Scenario tag: 470 (run readings / baseline + monitor logbook).
+# Scenario tag: 470 (run observations / baseline + monitor logbook).
 _ARGONNE_ENTERPRISE_ID = UUID("01900000-0000-7000-8000-000000470e01")
 _APS_SITE_ID = UUID("01900000-0000-7000-8000-000000470501")
 _SECTOR_2_AREA_ID = UUID("01900000-0000-7000-8000-000000470701")
@@ -210,9 +210,9 @@ _BEAMTIME = BeamtimeSpec(
     pi_actor_id=_PI_ACTOR_ID,
     pi_actor_name="Proposal 2026-1234 PI",
     subject_id=_SUBJECT_ID,
-    subject_name="porous sandstone core (Proposal 2026-1234, sample A, with readings)",
+    subject_name="porous sandstone core (Proposal 2026-1234, sample A, with observations)",
     campaign_id=_CAMPAIGN_ID,
-    campaign_name="Proposal 2026-1234 beamtime (with readings)",
+    campaign_name="Proposal 2026-1234 beamtime (with observations)",
     campaign_intent=CampaignIntent.COORDINATION,
     campaign_tags=frozenset({"proposal", "tomography", "porous_media"}),
 )
@@ -269,9 +269,9 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_campaign
         e(),
-        # First append_run_readings: lazy logbook_id + open event_id
+        # First append_observations: lazy logbook_id + open event_id
         _READING_LOGBOOK_ID,
-        e(),  # RunReadingLogbookOpened
+        e(),  # RunObservationLogbookOpened
         # Second append: no open event; just the row inserts (no
         # event-id from id queue because no Run event is appended)
         # complete_run
@@ -282,16 +282,16 @@ def _id_queue() -> list[UUID]:
 
 
 @pytest.mark.integration
-async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
+async def test_run_observation_logbook_lazy_open_and_polymorphic_procedures(
     db_pool: asyncpg.Pool,
 ) -> None:
-    """Seed full chain, start Run, append baseline readings (lazy
-    open), append monitor readings (skip open), complete Run.
-    Assert: Run stream gets RunStarted + RunReadingLogbookOpened +
-    RunCompleted (no second open event); 5 reading rows land with
+    """Seed full chain, start Run, append baseline observations (lazy
+    open), append monitor observations (skip open), complete Run.
+    Assert: Run stream gets RunStarted + RunObservationLogbookOpened +
+    RunCompleted (no second open event); 5 observation rows land with
     both sampling_procedure values across the two batches."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
-    reading_store = PostgresReadingStore(db_pool)
+    observation_store = PostgresObservationStore(db_pool)
 
     await install_and_activate_tomography_assets(
         deps,
@@ -313,7 +313,7 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
         MountSubject(
             subject_id=_SUBJECT_ID,
             asset_id=_ASSET_AEROTECH_ABRS_ID,
-            reason="reading-logbook scenario setup",
+            reason="observation-logbook scenario setup",
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
@@ -328,7 +328,7 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
 
     await bind_start_run(deps)(
         StartRun(
-            name="Proposal 2026-1234 sample A tomography (with reading logbook)",
+            name="Proposal 2026-1234 sample A tomography (with observation logbook)",
             plan_id=_PLAN_TOMO_ID,
             subject_id=_SUBJECT_ID,
             override_parameters={
@@ -352,11 +352,11 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
         correlation_id=_CORRELATION_ID,
     )
 
-    # ----- Batch 1: pre-scan baseline readings (3 entries; lazy open) -----
+    # ----- Batch 1: pre-scan baseline observations (3 entries; lazy open) -----
 
     pre_scan_at = _NOW
     baseline_entries = (
-        RunReadingInput(
+        ObservationInput(
             event_id=_BASELINE_T_SAMPLE_ID,
             channel_name="T_sample",
             value=295.1,
@@ -364,7 +364,7 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
             sampling_procedure="baseline",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=_BASELINE_RING_CURRENT_ID,
             channel_name="S_SRCurrentAI",
             value=102.7,
@@ -372,7 +372,7 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
             sampling_procedure="baseline",
             units="mA",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=_BASELINE_MOTOR_X_ID,
             channel_name="Sample_top_X",
             value=12.345,
@@ -381,18 +381,18 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
             units="mm",
         ),
     )
-    baseline_count = await bind_append_readings(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=baseline_entries),
+    baseline_count = await bind_append_readings(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=baseline_entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert baseline_count == 3
 
-    # ----- Batch 2: mid-scan monitor readings (2 entries; no open emit) -----
+    # ----- Batch 2: mid-scan monitor observations (2 entries; no open emit) -----
 
     mid_scan_at = _NOW + timedelta(minutes=10)
     monitor_entries = (
-        RunReadingInput(
+        ObservationInput(
             event_id=_MONITOR_T_SAMPLE_ID,
             channel_name="T_sample",
             value=295.4,
@@ -400,7 +400,7 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
             sampling_procedure="monitor",
             units="K",
         ),
-        RunReadingInput(
+        ObservationInput(
             event_id=_MONITOR_RING_CURRENT_ID,
             channel_name="S_SRCurrentAI",
             value=101.9,
@@ -409,8 +409,8 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
             units="mA",
         ),
     )
-    monitor_count = await bind_append_readings(deps, reading_store=reading_store)(
-        AppendRunReadings(run_id=_RUN_ID, entries=monitor_entries),
+    monitor_count = await bind_append_readings(deps, observation_store=observation_store)(
+        AppendObservations(run_id=_RUN_ID, entries=monitor_entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -433,24 +433,24 @@ async def test_run_reading_logbook_lazy_open_and_polymorphic_procedures(
 
     run_events, _ = await deps.event_store.load("Run", _RUN_ID)
     run_event_types = [e.event_type for e in run_events]
-    # RunStarted + RunAddedToCampaign + RunReadingLogbookOpened (lazy)
+    # RunStarted + RunAddedToCampaign + RunObservationLogbookOpened (lazy)
     # + RunCompleted = 4. Second append must NOT emit a second
-    # RunReadingLogbookOpened.
+    # RunObservationLogbookOpened.
     assert run_event_types == [
         "RunStarted",
         "RunAddedToCampaign",
-        "RunReadingLogbookOpened",
+        "RunObservationLogbookOpened",
         "RunCompleted",
     ]
-    assert run_event_types.count("RunReadingLogbookOpened") == 1
+    assert run_event_types.count("RunObservationLogbookOpened") == 1
 
-    # ----- Assert: 5 reading rows landed in entries_run_readings -----
+    # ----- Assert: 5 observation rows landed in entries_run_observations -----
 
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
             """
             SELECT event_id, channel_name, value, units, sampling_procedure
-            FROM entries_run_readings
+            FROM entries_run_observations
             WHERE run_id = $1
             ORDER BY sampled_at, channel_name
             """,

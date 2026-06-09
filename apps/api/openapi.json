@@ -973,6 +973,22 @@
         "title": "AppendClearanceReviewStepRequest",
         "type": "object"
       },
+      "AppendObservationsResponse": {
+        "description": "Response body for the append slice.",
+        "properties": {
+          "event_count": {
+            "description": "Number of entries accepted by the store (includes silently-deduped retries; producer can re-call with the same event_ids safely).",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_count"
+        ],
+        "title": "AppendObservationsResponse",
+        "type": "object"
+      },
       "AppendProcedureStepsRequest": {
         "additionalProperties": false,
         "description": "Body for `POST /procedures/{procedure_id}/steps`.",
@@ -1049,12 +1065,12 @@
       },
       "AppendRunReadingsRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /runs/{run_id}/readings`.",
+        "description": "Body for `POST /runs/{run_id}/observations`.",
         "properties": {
           "entries": {
-            "description": "List of reading entries to append (1-500).",
+            "description": "List of observation entries to append (1-500).",
             "items": {
-              "$ref": "#/components/schemas/RunReadingRequest"
+              "$ref": "#/components/schemas/ObservationRequest"
             },
             "maxItems": 500,
             "minItems": 1,
@@ -1066,22 +1082,6 @@
           "entries"
         ],
         "title": "AppendRunReadingsRequest",
-        "type": "object"
-      },
-      "AppendRunReadingsResponse": {
-        "description": "Response body for the append slice.",
-        "properties": {
-          "event_count": {
-            "description": "Number of entries accepted by the store (includes silently-deduped retries; producer can re-call with the same event_ids safely).",
-            "minimum": 0.0,
-            "title": "Event Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "event_count"
-        ],
-        "title": "AppendRunReadingsResponse",
         "type": "object"
       },
       "ApproveClearanceRequest": {
@@ -7111,6 +7111,80 @@
         "title": "NFPA704DTO",
         "type": "object"
       },
+      "ObservationRequest": {
+        "additionalProperties": false,
+        "description": "One observation entry's input payload (polymorphic, SOSA-aligned).\n\nRequired: event_id + channel_name + value + sampled_at +\nsampling_procedure. `units` and `occurred_at` are optional.",
+        "properties": {
+          "channel_name": {
+            "description": "Sensor or motor identifier (operator-meaningful name; for example 'T_sample', 'motor_x', 'ring_current').",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Channel Name",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "Producer-supplied UUIDv7 entry id. Idempotency / dedup key; re-issuing the same id is a silent no-op.",
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional handler-time override (ISO-8601 with timezone). Defaults to server clock when omitted; producers with their own ingest-time clock can populate explicitly.",
+            "title": "Occurred At"
+          },
+          "sampled_at": {
+            "description": "SOSA phenomenonTime (ISO-8601 with timezone): when the sensor captured the value.",
+            "format": "date-time",
+            "title": "Sampled At",
+            "type": "string"
+          },
+          "sampling_procedure": {
+            "description": "SOSA-aligned discriminator. 'baseline' is a snapshot at run boundary (start / end). 'monitor' is sub-Hz time-series during the run (Bluesky monitor stream pattern). Future values land additively (no migration).",
+            "enum": [
+              "baseline",
+              "monitor"
+            ],
+            "title": "Sampling Procedure",
+            "type": "string"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional unit string (for example 'K', 'mm', 'mA').",
+            "title": "Units"
+          },
+          "value": {
+            "description": "Scalar observation value. NaN and Infinity rejected.",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "event_id",
+          "channel_name",
+          "value",
+          "sampled_at",
+          "sampling_procedure"
+        ],
+        "title": "ObservationRequest",
+        "type": "object"
+      },
       "OnwardActionScope": {
         "description": "What the peer may do with the data after reading under an outbound permit.\n\n- `ReadOnly`:               read-and-display; no persistence.\n- `MayCacheLocally`:        local caching permitted; not exposed\n                            to the peer's own peers.\n- `MayRePublishToOwnPeers`: the peer may federate the data\n                            onward to its own subscribers.\n- `MayExportOffPlatform`:   the peer may export the data out of\n                            the federation entirely.",
         "enum": [
@@ -11171,80 +11245,6 @@
           "items"
         ],
         "title": "RunListResponse",
-        "type": "object"
-      },
-      "RunReadingRequest": {
-        "additionalProperties": false,
-        "description": "One reading entry's input payload (polymorphic, SOSA-aligned).\n\nRequired: event_id + channel_name + value + sampled_at +\nsampling_procedure. `units` and `occurred_at` are optional.",
-        "properties": {
-          "channel_name": {
-            "description": "Sensor or motor identifier (operator-meaningful name; for example 'T_sample', 'motor_x', 'ring_current').",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Channel Name",
-            "type": "string"
-          },
-          "event_id": {
-            "description": "Producer-supplied UUIDv7 entry id. Idempotency / dedup key; re-issuing the same id is a silent no-op.",
-            "format": "uuid",
-            "title": "Event Id",
-            "type": "string"
-          },
-          "occurred_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional handler-time override (ISO-8601 with timezone). Defaults to server clock when omitted; producers with their own ingest-time clock can populate explicitly.",
-            "title": "Occurred At"
-          },
-          "sampled_at": {
-            "description": "SOSA phenomenonTime (ISO-8601 with timezone): when the sensor captured the value.",
-            "format": "date-time",
-            "title": "Sampled At",
-            "type": "string"
-          },
-          "sampling_procedure": {
-            "description": "SOSA-aligned discriminator. 'baseline' is a snapshot at run boundary (start / end). 'monitor' is sub-Hz time-series during the run (Bluesky monitor stream pattern). Future values land additively (no migration).",
-            "enum": [
-              "baseline",
-              "monitor"
-            ],
-            "title": "Sampling Procedure",
-            "type": "string"
-          },
-          "units": {
-            "anyOf": [
-              {
-                "maxLength": 64,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional unit string (for example 'K', 'mm', 'mA').",
-            "title": "Units"
-          },
-          "value": {
-            "description": "Scalar reading value. NaN and Infinity rejected.",
-            "title": "Value",
-            "type": "number"
-          }
-        },
-        "required": [
-          "event_id",
-          "channel_name",
-          "value",
-          "sampled_at",
-          "sampling_procedure"
-        ],
-        "title": "RunReadingRequest",
         "type": "object"
       },
       "RunResponse": {
@@ -33558,9 +33558,9 @@
         ]
       }
     },
-    "/runs/{run_id}/readings": {
+    "/runs/{run_id}/observations": {
       "post": {
-        "operationId": "post_runs_readings_runs__run_id__readings_post",
+        "operationId": "post_runs_readings_runs__run_id__observations_post",
         "parameters": [
           {
             "description": "Target run's id.",
@@ -33609,7 +33609,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppendRunReadingsResponse"
+                  "$ref": "#/components/schemas/AppendObservationsResponse"
                 }
               }
             },
@@ -33623,7 +33623,7 @@
                 }
               }
             },
-            "description": "Per-entry validation failed in the handler (InvalidChannelNameError / InvalidReadingValueError / InvalidSamplingProcedureError)."
+            "description": "Per-entry validation failed in the handler (InvalidChannelNameError / InvalidObservationValueError / InvalidSamplingProcedureError)."
           },
           "403": {
             "content": {
@@ -33653,13 +33653,13 @@
                 }
               }
             },
-            "description": "Run is in a terminal status (Completed | Aborted | Stopped | Truncated); the reading logbook is implicitly closed."
+            "description": "Run is in a terminal status (Completed | Aborted | Stopped | Truncated); the observation logbook is implicitly closed."
           },
           "422": {
-            "description": "Request body failed schema validation: empty entries list, batch over cap, missing required fields, invalid sampling_procedure value, NaN/Infinity reading value, channel_name out of bounds."
+            "description": "Request body failed schema validation: empty entries list, batch over cap, missing required fields, invalid sampling_procedure value, NaN/Infinity observation value, channel_name out of bounds."
           }
         },
-        "summary": "Append a batch of polymorphic sensor / motor readings to a Run's reading logbook (lazy open-on-first-write).",
+        "summary": "Append a batch of polymorphic sensor / motor observations to a Run's observation logbook (lazy open-on-first-write).",
         "tags": [
           "run"
         ]

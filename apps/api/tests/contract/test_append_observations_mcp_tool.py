@@ -1,9 +1,9 @@
-"""Contract tests for the `append_run_readings` MCP tool.
+"""Contract tests for the `append_observations` MCP tool.
 
 Mirrors `test_append_inferences_mcp_tool.py` shape: tool listed,
 single-entry happy path, missing-aggregate error path. Single-entry
 shape per the MCP convention (agents typically reason about one
-reading at a time; the HTTP route handles batching).
+observation at a time; the HTTP route handles batching).
 """
 
 from typing import Any
@@ -21,7 +21,7 @@ from tests.contract._subject_helpers import register_active_asset
 def _setup_full_run(client: TestClient) -> str:
     _cap_id = create_capability_via_api(client)
     """Seed full upstream chain + start a Run. Returns the run_id.
-    Mirrors the helper in test_append_run_readings_endpoint.py."""
+    Mirrors the helper in test_append_observations_endpoint.py."""
     cap_id = client.post("/families", json={"name": "FlyMotion", "affordances": []}).json()[
         "family_id"
     ]
@@ -76,7 +76,7 @@ def test_mcp_lists_append_run_readings_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "append_run_readings" in tool_names
+    assert "append_observations" in tool_names
 
 
 @pytest.mark.contract
@@ -91,7 +91,7 @@ def test_mcp_append_run_readings_tool_succeeds_on_minimum_args() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_run_readings",
+                    "name": "append_observations",
                     "arguments": _good_args(run_id),
                 },
             },
@@ -114,7 +114,7 @@ def test_mcp_append_run_readings_tool_returns_iserror_for_unknown_run() -> None:
                 "id": 5,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_run_readings",
+                    "name": "append_observations",
                     "arguments": _good_args(str(uuid4())),
                 },
             },

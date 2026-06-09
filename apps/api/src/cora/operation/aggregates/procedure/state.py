@@ -11,7 +11,7 @@ The aggregate is intentionally slim per
 [[project_fold_cost_principles]]: identity + name + kind + target
 Asset refs + status + optional parent_run_id. Per-step records
 (Setpoint/Action/Check rows) live in a Logbook + Entry table parallel
-to 6f-5b RunReading (CORA's concrete realisation of the substream
+to 6f-5b Observation (CORA's concrete realisation of the substream
 concept; see [[project_logbook_entry_storage]] §Terminology); step
 bodies do NOT fold into Procedure state.
 
@@ -117,7 +117,7 @@ Procedure has at most one steps logbook (lazy open-on-first-write);
 future distinct Procedure-side logbook kinds (operator-action audit,
 hazard observations) would land as separate constants and separate
 state fields, not as additional values for the same kind. Mirrors
-LOGBOOK_KIND_READING from Run BC."""
+LOGBOOK_KIND_OBSERVATION from Run BC."""
 
 # Closed enum for the `step_kind` discriminator on per-step rows.
 # The three values are CORA's rename of ISA-106's canonical
@@ -784,7 +784,7 @@ class ProcedureStepsLogbookClosedError(Exception):
     logbook; no explicit `ProcedureStepsLogbookClosed` event is
     emitted. The `append_procedure_steps` handler raises this when
     a writer attempts to append after the Procedure has terminated.
-    Mirrors `RunReadingLogbookClosedError` from Run BC. Mapped to
+    Mirrors `RunObservationLogbookClosedError` from Run BC. Mapped to
     HTTP 409.
 
     Note: appending to a `Defined` (pre-start) Procedure also raises
@@ -952,7 +952,7 @@ class Procedure:
 
     None until the first step is appended; populated by the
     `ProcedureStepsLogbookOpened` envelope event the handler emits
-    on the Procedure stream. Mirrors `Run.reading_logbook_id`.
+    on the Procedure stream. Mirrors `Run.observation_logbook_id`.
     Per the lazy-open pattern: no eager open at start_procedure,
     no Closed event (terminal Procedure.status implicitly closes
     via `ProcedureStepsLogbookClosedError`).

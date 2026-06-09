@@ -144,7 +144,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
             # Lazy open-on-first-write: preserve all
             # prior state, set steps_logbook_id. Status NOT touched -- the
             # logbook is orthogonal to lifecycle. Mirrors Run BC's
-            # RunReadingLogbookOpened arm exactly.
+            # RunObservationLogbookOpened arm exactly.
             prior = require_state(state, "ProcedureStepsLogbookOpened")
             return Procedure(
                 id=prior.id,

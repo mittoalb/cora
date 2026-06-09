@@ -14,7 +14,7 @@ federation `_value_types.py` module when a second shared symbol
 fires rule-of-three.
 
 `terms` is a tagged union (`OutboundTerms | InboundTerms`) following
-the `RunReading` polymorphism precedent; the `direction` enum on the
+the `Observation` polymorphism precedent; the `direction` enum on the
 root mirrors `type(terms)` for read-side query convenience.
 """
 

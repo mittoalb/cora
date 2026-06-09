@@ -63,7 +63,7 @@ The self-Facility row (the deployment's own facility identity in the cross-deplo
 | `CredentialStatus` | closed StrEnum: `Active` \| `Rotating` \| `Revoked` | `Credential.status` |
 | `SealStatus` | closed StrEnum: `Live` \| `Republishing` | `Seal.status` |
 
-`OutboundTerms` and `InboundTerms` are a tagged union on `Permit.terms` rather than two sibling aggregates. The shape mirrors the `RunReading` polymorphism precedent: identity and lifecycle fields live on the root, direction-specific contractual fields ride on the `terms` arm. Structural enforcement is one consequence: an outbound payload cannot smuggle `accepted_canonicalization_versions` because that field does not exist on `OutboundTerms`.
+`OutboundTerms` and `InboundTerms` are a tagged union on `Permit.terms` rather than two sibling aggregates. The shape mirrors the `Observation` polymorphism precedent: identity and lifecycle fields live on the root, direction-specific contractual fields ride on the `terms` arm. Structural enforcement is one consequence: an outbound payload cannot smuggle `accepted_canonicalization_versions` because that field does not exist on `OutboundTerms`.
 
 `CredentialPurpose` is closed at six arms on purpose: the four generic purposes plus the two seal-specific arms (`SealOnlineSigning`, `SealOfflineRoot`) that the Seal aggregate's key-separation invariant depends on. Splitting the seal purposes into distinct enum values rather than one `Seal` arm lets the Seal decider statically detect a same-purpose collision between the online and offline references.
 

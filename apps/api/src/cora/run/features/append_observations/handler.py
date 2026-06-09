@@ -1,22 +1,22 @@
-"""Application handler for the `append_run_readings` slice.
+"""Application handler for the `append_observations` slice.
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
 write mirroring Decision BC's `append_inferences` precedent:
 
   1. Load Run via `load_run` (fold-on-read).
-  2. Reject if Run is in a terminal status (RunReadingLogbookClosedError).
-  3. If `run.reading_logbook_id` is None: emit
-     `RunReadingLogbookOpened` to the Run stream.
+  2. Reject if Run is in a terminal status (RunObservationLogbookClosedError).
+  3. If `run.observation_logbook_id` is None: emit
+     `RunObservationLogbookOpened` to the Run stream.
   4. Read the logbook_id (from existing or just-emitted).
-  5. Construct `RunReading` rows with the logbook_id +
+  5. Construct `Observation` rows with the logbook_id +
      correlation_id + run_id from the envelope.
-  6. `reading_store.append(rows)`, silent dedup via Postgres PK
+  6. `observation_store.append(rows)`, silent dedup via Postgres PK
      (or InMemory dict setdefault).
 
 ## Self-healing on failure
 
   - Step 3 fails (concurrency on Run stream): handler retries from
-    step 1; the conflicting writer either also opened a reading
+    step 1; the conflicting writer either also opened a observation
     logbook (we now see it open on reload, skip step 3) OR
     registered a different event entirely (re-validate terminal
     status, then proceed).
@@ -53,30 +53,30 @@ from cora.infrastructure.ports import Deny
 from cora.infrastructure.ports.event_store import ConcurrencyError
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.run.aggregates.run import (
-    LOGBOOK_KIND_READING,
-    READING_LOGBOOK_SCHEMA,
+    LOGBOOK_KIND_OBSERVATION,
+    OBSERVATION_LOGBOOK_SCHEMA,
     SAMPLING_PROCEDURE_VALUES,
     ChannelName,
-    InvalidReadingValueError,
+    InvalidObservationValueError,
     InvalidSamplingProcedureError,
-    ReadingStore,
+    Observation,
+    ObservationStore,
     RunNotFoundError,
-    RunReading,
-    RunReadingLogbookClosedError,
-    RunReadingLogbookOpened,
+    RunObservationLogbookClosedError,
+    RunObservationLogbookOpened,
     RunStatus,
     event_type_name,
     load_run,
     to_payload,
 )
 from cora.run.errors import UnauthorizedError
-from cora.run.features.append_run_readings.command import (
-    AppendRunReadings,
-    RunReadingInput,
+from cora.run.features.append_observations.command import (
+    AppendObservations,
+    ObservationInput,
 )
 
 _STREAM_TYPE = "Run"
-_COMMAND_NAME = "AppendRunReadings"
+_COMMAND_NAME = "AppendObservations"
 _LAZY_OPEN_MAX_RETRIES = 3
 """Bounded retry count for the lazy-open ConcurrencyError loop.
 
@@ -91,11 +91,11 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every append_run_readings handler implements."""
+    """Callable interface every append_observations handler implements."""
 
     async def __call__(
         self,
-        command: AppendRunReadings,
+        command: AppendObservations,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -104,18 +104,18 @@ class Handler(Protocol):
     ) -> int: ...
 
 
-def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
-    """Build an append_run_readings handler closed over deps + store.
+def bind(deps: Kernel, *, observation_store: ObservationStore) -> Handler:
+    """Build an append_observations handler closed over deps + store.
 
-    `reading_store` is BC-internal (constructed in `wire_run` from
-    `deps.pool` for Postgres, or `InMemoryReadingStore` for
+    `observation_store` is BC-internal (constructed in `wire_run` from
+    `deps.pool` for Postgres, or `InMemoryObservationStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Conduit's
     VerdictStore and Decision's InferenceStore).
     """
 
     async def handler(
-        command: AppendRunReadings,
+        command: AppendObservations,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -123,7 +123,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
         surface_id: UUID = NIL_SENTINEL_ID,
     ) -> int:
         _log.info(
-            "append_run_readings.start",
+            "append_observations.start",
             command_name=_COMMAND_NAME,
             run_id=str(command.run_id),
             entry_count=len(command.entries),
@@ -140,7 +140,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
         )
         if isinstance(authz, Deny):
             _log.info(
-                "append_run_readings.denied",
+                "append_observations.denied",
                 command_name=_COMMAND_NAME,
                 run_id=str(command.run_id),
                 principal_id=str(principal_id),
@@ -157,13 +157,13 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
         for entry in command.entries:
             ChannelName(entry.channel_name)  # raises InvalidChannelNameError
             if math.isnan(entry.value) or math.isinf(entry.value):
-                raise InvalidReadingValueError(entry.value)
+                raise InvalidObservationValueError(entry.value)
             if entry.sampling_procedure not in SAMPLING_PROCEDURE_VALUES:
                 raise InvalidSamplingProcedureError(
                     entry.sampling_procedure, SAMPLING_PROCEDURE_VALUES
                 )
 
-        # Resolve the reading logbook id, opening it lazily on the
+        # Resolve the observation logbook id, opening it lazily on the
         # first append. Retries on ConcurrencyError (a parallel writer
         # incrementing the Run stream's version between our load +
         # append): the retry re-loads, and either sees the logbook now
@@ -182,19 +182,19 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
             # writer could have transitioned the Run to terminal
             # between our prior load and this retry.
             if run.status not in _OPEN_STATUSES:
-                raise RunReadingLogbookClosedError(run.id, run.status)
+                raise RunObservationLogbookClosedError(run.id, run.status)
 
-            if run.reading_logbook_id is not None:
-                logbook_id = run.reading_logbook_id
+            if run.observation_logbook_id is not None:
+                logbook_id = run.observation_logbook_id
                 break
 
             now = deps.clock.now()
             new_logbook_id = deps.id_generator.new_id()
-            open_event = RunReadingLogbookOpened(
+            open_event = RunObservationLogbookOpened(
                 run_id=command.run_id,
                 logbook_id=new_logbook_id,
-                kind=LOGBOOK_KIND_READING,
-                schema=READING_LOGBOOK_SCHEMA,
+                kind=LOGBOOK_KIND_OBSERVATION,
+                schema=OBSERVATION_LOGBOOK_SCHEMA,
                 occurred_at=now,
             )
             stored_open = to_new_event(
@@ -223,7 +223,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
                 )
             except ConcurrencyError:
                 _log.info(
-                    "append_run_readings.lazy_open_concurrency_retry",
+                    "append_observations.lazy_open_concurrency_retry",
                     command_name=_COMMAND_NAME,
                     run_id=str(command.run_id),
                     attempt=attempt,
@@ -254,10 +254,10 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
             )
             for entry in command.entries
         ]
-        await reading_store.append(rows)
+        await observation_store.append(rows)
 
         _log.info(
-            "append_run_readings.success",
+            "append_observations.success",
             command_name=_COMMAND_NAME,
             run_id=str(command.run_id),
             logbook_id=str(logbook_id),
@@ -273,7 +273,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
 
 
 def _build_row(
-    entry: RunReadingInput,
+    entry: ObservationInput,
     run_id: UUID,
     logbook_id: UUID,
     actor_id: UUID,
@@ -281,9 +281,9 @@ def _build_row(
     causation_id: UUID | None,
     *,
     fallback_now: object,
-) -> RunReading:
+) -> Observation:
     """Compose the producer's input plus envelope context into a
-    RunReading row ready for the store.
+    Observation row ready for the store.
 
     `occurred_at` defaults to `fallback_now` (deps.clock.now()) when
     the producer omits it. `actor_id` is the principal that submitted
@@ -292,7 +292,7 @@ def _build_row(
     """
     assert isinstance(fallback_now, datetime)
     occurred_at = entry.occurred_at if entry.occurred_at is not None else fallback_now
-    return RunReading(
+    return Observation(
         event_id=entry.event_id,
         run_id=run_id,
         logbook_id=logbook_id,

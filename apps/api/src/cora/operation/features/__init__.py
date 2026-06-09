@@ -16,7 +16,7 @@ Per-step logbook slice:
   - `append_procedure_steps` (entry-shape slice; writes one
     Setpoint/Action/Check entry per step to the
     entries_operation_procedure_steps logbook table; mirrors
-    append_run_readings from the Run BC, with lazy-open envelope event
+    append_observations from the Run BC, with lazy-open envelope event
     `ProcedureStepsLogbookOpened` on first append)
 
 Partial-data terminal (triggers the `make_procedure_update_handler`

@@ -1,7 +1,7 @@
 """ProcedureStep entry: per-Procedure procedural step row.
 
 Fourth concrete entry kind in CORA after `Verdict`,
-`Inference`, and `RunReading`. Same per-category
+`Inference`, and `Observation`. Same per-category
 writer pattern: a typed dataclass + per-category Postgres adapter
 alongside the owning aggregate, with a category-local `StepStore`
 Protocol (NOT a shared cross-BC port).
@@ -15,7 +15,7 @@ column + JSON-payload column):
   - **Path A** (typed sibling tables, one per kind) → Verdict,
     Inference. Pick when shape diverges AND per-kind volume /
     queryability matter.
-  - **Path B** (polymorphic + typed value columns) → RunReading. Pick
+  - **Path B** (polymorphic + typed value columns) → Observation. Pick
     when shape is uniform across kinds.
   - **Path C** (polymorphic + JSON payload) → ProcedureStep. Pick when
     shape diverges BUT per-kind volume is low / no per-kind read-side
@@ -39,9 +39,9 @@ records; modern event-sourcing consensus is JSON-payload-with-
 discriminator over typed columns when per-kind shape evolves at code
 speed.
 
-## Logbook + Entry skeleton (shared with RunReading + Inference + Verdict)
+## Logbook + Entry skeleton (shared with Observation + Inference + Verdict)
 
-The body-shape encoding diverges from RunReading, but the SKELETON is
+The body-shape encoding diverges from Observation, but the SKELETON is
 identical: lazy open-on-first-write envelope event, three timestamps,
 per-category `<EntryNoun>Store` port with InMemory + Postgres adapters,
 dedicated `entries_<aggregate>_<entry_noun_plural>` table, batch
@@ -150,7 +150,7 @@ class PostgresStepStore:
     network failure on the previous attempt) is a no-op rather than
     a constraint violation. Matches the precedent set by
     `PostgresVerdictStore`, `PostgresInferenceStore`, and
-    `PostgresReadingStore`.
+    `PostgresObservationStore`.
     """
 
     def __init__(self, pool: asyncpg.Pool) -> None:
