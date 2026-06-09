@@ -1,4 +1,4 @@
-h1:SCfylKRVo3LfuzNrlionYpOMzs6F+meD6ohcN0r2ifU=
+h1:Gt7/ktbTc7o+UINUXIwAdixeo/9dsFIMEBPNNpT/yjI=
 20260509120000_init_events.sql h1:GmgCZKfaqXu1m96/cKAks2vhaLWTdEaHTLkFtUo9FXg=
 20260509170000_init_idempotency.sql h1:Nbu8DIE4Sv1WiHw3G22+tYffPhKc5Jryw3PMK8wB2zY=
 20260510010000_add_event_id.sql h1:RbtYP6uMnOB20zhJ9dNXUi4YVqbmlEzf562pmygnRW8=
@@ -118,3 +118,4 @@ h1:SCfylKRVo3LfuzNrlionYpOMzs6F+meD6ohcN0r2ifU=
 20260609120000_swap_proj_supply_summary_address_uq.sql h1:D8W8rCCMTCt6cOc8BeUiS+UR8/DT0lrGsthQm6F+5NM=
 20260609130000_drop_proj_supply_summary_scope.sql h1:2+pQ7Ulq+eTfc+kMQwyW9OikrVoNMLcpMUGmSvD+XEI=
 20260609140000_add_proj_equipment_asset_summary_facility_code.sql h1:GyO+5qtoSOuWYNirQcBSPAO5zijjeZPKeLANbPtxelk=
+20260610000000_rename_entries_conduit_traversals_to_entries_conduit_verdicts.sql h1:N43qfsVQzZXIAKiMghFGEMDs6xCdxFes1VTR8nJ01W4=

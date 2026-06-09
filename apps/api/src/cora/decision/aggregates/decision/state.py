@@ -148,7 +148,7 @@ CONFIDENCE_BAND_CERTAIN_MIN = 0.95
 # this kind on the Decision aggregate and appends per-trace
 # entries (one per LLM call / tool invocation / agent span)
 # carrying OpenTelemetry GenAI semantic-convention attributes
-# (gen_ai.*). Mirrors `LOGBOOK_KIND_TRAVERSALS` in Conduit BC
+# (gen_ai.*). Mirrors `LOGBOOK_KIND_VERDICT` in Conduit BC
 # (6f-5a precedent).
 LOGBOOK_KIND_REASONING: Final = "reasoning"
 

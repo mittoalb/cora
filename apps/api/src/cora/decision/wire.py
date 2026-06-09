@@ -4,10 +4,10 @@
 
 The `append_reasoning_entries` slice needs a `ReasoningStore`
 adapter. Per the per-category-writer pattern (Conduit's
-TraversalStore precedent), the store is built LOCALLY here from
+VerdictStore precedent), the store is built LOCALLY here from
 `deps.pool` (Postgres in production) or as
 `InMemoryReasoningStore` in `app_env=test`. NOT promoted to
-Kernel fields. Mirrors how Trust BC wires its TraversalStore.
+Kernel fields. Mirrors how Trust BC wires its VerdictStore.
 """
 
 from dataclasses import dataclass

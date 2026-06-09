@@ -175,7 +175,7 @@ async def test_cora_app_cannot_truncate_events(
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "table",
-    ["entries_conduit_traversals", "entries_decision_reasonings"],
+    ["entries_conduit_verdicts", "entries_decision_reasonings"],
 )
 async def test_cora_app_cannot_update_or_delete_entries_tables(
     cora_app_pool: asyncpg.Pool,

@@ -261,7 +261,7 @@ There is no foreign key from `entries_decision_reasonings` to the Decision aggre
 
 The `actor_id` reference is pre-loaded at the registration handler, but no status check is run. A Decision made by an Actor who is later deactivated is still a valid historical fact, and its audit value does not diminish. The `parent_id` reference is also pre-loaded; the cross-Run and cross-context guards on operator re-invocations of agent debriefs are the only structural checks beyond existence.
 
-Decisions are read by many modules and written by few. The two agent subscribers (`RunDebriefer`, `CautionDrafter`) are the only AI authors today; everything else is human or operator path. The Authorize port does not write Decisions for every authorization; the per-decision audit log lives in `entries_conduit_traversals`, and a `PolicyGrant` Decision is reserved for the small subset of policy decisions consequential enough to record at the Decision-aggregate level.
+Decisions are read by many modules and written by few. The two agent subscribers (`RunDebriefer`, `CautionDrafter`) are the only AI authors today; everything else is human or operator path. The Authorize port does not write Decisions for every authorization; the per-decision audit log lives in `entries_conduit_verdicts`, and a `PolicyGrant` Decision is reserved for the small subset of policy decisions consequential enough to record at the Decision-aggregate level.
 
 ## Examples
 

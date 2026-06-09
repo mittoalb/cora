@@ -1,11 +1,11 @@
-"""End-to-end integration test: ConduitTraversal entries against real Postgres.
+"""End-to-end integration test: Verdict entries against real Postgres.
 
 The first concrete entry type, exercised end-to-end:
   1. Define a Conduit (writes ConduitDefined + ConduitLogbookOpened to
      the events table on the Conduit's stream)
-  2. Wire TrustAuthorize with a real PostgresTraversalStore
+  2. Wire TrustAuthorize with a real PostgresVerdictStore
   3. Issue an Allow + a Deny against the Conduit
-  4. Read back from entries_conduit_traversals and verify the
+  4. Read back from entries_conduit_verdicts and verify the
      two rows landed with the right shape (typed columns survive
      jsonb-free round-trip; logbook_id matches the logbook opened
      in step 1)
@@ -34,8 +34,8 @@ from cora.infrastructure.ports import (
     FixedIdGenerator,
 )
 from cora.trust.aggregates.conduit.entries import (
-    ConduitTraversal,
-    PostgresTraversalStore,
+    PostgresVerdictStore,
+    Verdict,
 )
 from cora.trust.aggregates.policy.events import (
     PolicyDefined,
@@ -65,7 +65,7 @@ async def _read_traversals(db_pool: asyncpg.Pool, conduit_id: UUID) -> list[asyn
             """
             SELECT event_id, conduit_id, logbook_id, actor_id, command_name,
                    decision, reason, correlation_id, causation_id, occurred_at
-            FROM entries_conduit_traversals
+            FROM entries_conduit_verdicts
             WHERE conduit_id = $1
             ORDER BY occurred_at, event_id
             """,
@@ -78,11 +78,11 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     """End-to-end: define a Conduit + Policy, wire TrustAuthorize with
-    a real PostgresTraversalStore, exercise Allow + Deny, verify rows."""
+    a real PostgresVerdictStore, exercise Allow + Deny, verify rows."""
     # Fresh ids for this test run (avoids collisions across reruns
     # against a shared template DB).
     conduit_id = UUID("01900000-0000-7000-8000-000000067a01")
-    traversals_logbook_id = UUID("01900000-0000-7000-8000-000000067a02")
+    verdict_logbook_id = UUID("01900000-0000-7000-8000-000000067a02")
     define_conduit_event_id = UUID("01900000-0000-7000-8000-000000067a03")
     logbook_opened_event_id = UUID("01900000-0000-7000-8000-000000067a04")
     policy_id = UUID("01900000-0000-7000-8000-000000067a05")
@@ -91,13 +91,13 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     deny_entry_id = UUID("01900000-0000-7000-8000-000000067a08")
 
     event_store = PostgresEventStore(db_pool)
-    traversals_store = PostgresTraversalStore(db_pool)
+    verdict_store = PostgresVerdictStore(db_pool)
     define_conduit_deps = build_postgres_deps(
         db_pool,
         now=_NOW,
         ids=[
             conduit_id,
-            traversals_logbook_id,
+            verdict_logbook_id,
             define_conduit_event_id,
             logbook_opened_event_id,
         ],
@@ -147,13 +147,13 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     )
     await event_store.append("Policy", policy_id, expected_version=0, events=[policy_envelope])
 
-    # 3. Wire TrustAuthorize with the traversals store + a fresh
+    # 3. Wire TrustAuthorize with the verdicts store + a fresh
     #    id-generator (separate from the one used for define_conduit
     #    so we get deterministic entry ids).
     authorize = TrustAuthorize(
         event_store,
         policy_id=policy_id,
-        traversals_store=traversals_store,
+        verdict_store=verdict_store,
         clock=FakeClock(_NOW),
         id_generator=FixedIdGenerator([allow_entry_id, deny_entry_id]),
     )
@@ -172,7 +172,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     deny_row = next(r for r in rows if r["event_id"] == deny_entry_id)
 
     assert allow_row["conduit_id"] == conduit_id
-    assert allow_row["logbook_id"] == traversals_logbook_id
+    assert allow_row["logbook_id"] == verdict_logbook_id
     assert allow_row["actor_id"] == _PRINCIPAL_ID
     assert allow_row["command_name"] == "RegisterActor"
     assert allow_row["decision"] == "Allow"
@@ -180,7 +180,7 @@ async def test_trust_authorize_persists_traversals_against_postgres(
     assert allow_row["occurred_at"] == _NOW
 
     assert deny_row["conduit_id"] == conduit_id
-    assert deny_row["logbook_id"] == traversals_logbook_id
+    assert deny_row["logbook_id"] == verdict_logbook_id
     assert deny_row["actor_id"] == _DENIED_PRINCIPAL
     assert deny_row["decision"] == "Deny"
     assert deny_row["reason"] is not None
@@ -192,12 +192,12 @@ async def test_postgres_traversal_store_dedups_on_event_id(
     db_pool: asyncpg.Pool,
 ) -> None:
     """ON CONFLICT (event_id) DO NOTHING — producer retry is a no-op."""
-    store = PostgresTraversalStore(db_pool)
+    store = PostgresVerdictStore(db_pool)
     event_id = UUID("01900000-0000-7000-8000-000000068a01")
     conduit_id = UUID("01900000-0000-7000-8000-000000068a02")
     logbook_id = UUID("01900000-0000-7000-8000-000000068a03")
 
-    first = ConduitTraversal(
+    first = Verdict(
         event_id=event_id,
         conduit_id=conduit_id,
         logbook_id=logbook_id,
@@ -210,7 +210,7 @@ async def test_postgres_traversal_store_dedups_on_event_id(
         occurred_at=_NOW,
     )
     # Different content, same event_id — must be dropped.
-    second = ConduitTraversal(
+    second = Verdict(
         event_id=event_id,
         conduit_id=conduit_id,
         logbook_id=logbook_id,

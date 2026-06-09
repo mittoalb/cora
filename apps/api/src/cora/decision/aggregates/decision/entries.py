@@ -1,7 +1,7 @@
 """DecisionReasoning entry: per-AI-trace observation row.
 
 The Decision BC's first concrete entry type. Mirrors the Conduit
-BC's `ConduitTraversal` precedent and the per-category writer
+BC's `Verdict` precedent and the per-category writer
 pattern locked there.
 
 Each entry captures one OpenTelemetry GenAI semantic-convention
@@ -198,7 +198,7 @@ REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
 class ReasoningStore(Protocol):
     """Per-category port for DecisionReasoning entry writes.
 
-    Mirrors `TraversalStore` from the Conduit BC's entries
+    Mirrors `VerdictStore` from the Conduit BC's entries
     module. Two implementations: `PostgresReasoningStore`
     (production) and `InMemoryReasoningStore`
     (tests / `app_env=test`). Both honor at-least-once: callers
@@ -246,7 +246,7 @@ class PostgresReasoningStore:
     Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
     a producer that re-issues the same `event_id` (after a transient
     network failure) is a silent no-op rather than a constraint
-    violation. Mirrors `PostgresTraversalStore` exactly.
+    violation. Mirrors `PostgresVerdictStore` exactly.
 
     Uses `executemany` for batch insert (one statement per entry,
     client-side loop). For MVP-scale batches (up to 100 entries
@@ -324,7 +324,7 @@ class InMemoryReasoningStore:
 
     Dict-keyed by `event_id` for at-least-once dedup. Provides an
     `all()` accessor for tests inspecting written rows. Mirrors
-    `InMemoryTraversalStore` (plain class with explicit __init__,
+    `InMemoryVerdictStore` (plain class with explicit __init__,
     not dataclass; matches the per-category writer pattern locked
     at gate-review L8).
     """

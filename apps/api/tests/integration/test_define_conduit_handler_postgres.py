@@ -86,7 +86,7 @@ async def test_handler_persists_conduit_defined_to_postgres(
     assert logbook_opened.event_id == _LOGBOOK_OPENED_EVENT_ID
     assert logbook_opened.payload["conduit_id"] == str(_NEW_ID)
     assert logbook_opened.payload["logbook_id"] == str(_TRAVERSALS_LOGBOOK_ID)
-    assert logbook_opened.payload["kind"] == "traversals"
+    assert logbook_opened.payload["kind"] == "verdicts"
     # Schema is captured in the payload (audit trail of column shape
     # at the moment of channel-open). Round-trips through jsonb.
     assert set(logbook_opened.payload["schema"]["fields"]) == {

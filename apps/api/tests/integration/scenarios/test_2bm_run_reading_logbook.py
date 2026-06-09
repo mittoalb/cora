@@ -100,7 +100,7 @@ audit trail; bundling with any of the above would conflate
     `entries_run_readings`; not built today.
   - **Reading entries are NOT in scope for the RunDebriefer
     agent.** Per [[project_run_debrief_design]] v1 read scope
-    is Run+RunReading+ConduitTraversal+Subject+Plan+Method+
+    is Run+RunReading+Verdict+Subject+Plan+Method+
     Practice+Cautions. Wait, `RunReading` IS in the read scope
     -- but no current debrief scenario actually loads readings.
     Whether the agent's narrative would meaningfully change

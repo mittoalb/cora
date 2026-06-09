@@ -61,7 +61,7 @@ correctly".
 
   - **Agent read scope today excludes Asset stream.** Per
     [[project_run_debrief_design]] v1 read scope is
-    Run+RunReading+ConduitTraversal+Subject+Plan+Method+Practice+
+    Run+RunReading+Verdict+Subject+Plan+Method+Practice+
     Cautions. The Asset stream's degrade/restore events would be
     in scope only if a Caution gets registered (which is the
     operator's downstream action when an intervention recurs).

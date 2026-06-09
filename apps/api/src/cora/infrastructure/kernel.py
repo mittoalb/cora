@@ -22,7 +22,7 @@ construction module breaks the cycle at the namespace level:
 ## BC-specific stores stay BC-internal
 
 `Kernel` carries cross-BC primitives only. BC-specific entry
-stores (Trust BC's `TraversalStore`, Decision BC's `ReasoningStore`,
+stores (Trust BC's `VerdictStore`, Decision BC's `ReasoningStore`,
 etc.) are constructed inside each BC's own `wire_<bc>(deps)` from
 `deps.pool` and live BC-internal. This keeps the kernel clean as
 more BCs adopt the logbook-and-entries pattern.

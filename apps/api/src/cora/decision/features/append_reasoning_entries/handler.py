@@ -98,7 +98,7 @@ def bind(deps: Kernel, *, reasoning_store: ReasoningStore) -> Handler:
     `reasoning_store` is BC-internal (constructed in `wire_decision`
     from `deps.pool` for Postgres, or InMemory for `app_env=test`).
     Not promoted to Kernel per the per-category-writer pattern
-    locked at gate-review L9 (mirrors Conduit's TraversalStore).
+    locked at gate-review L9 (mirrors Conduit's VerdictStore).
     """
 
     async def handler(

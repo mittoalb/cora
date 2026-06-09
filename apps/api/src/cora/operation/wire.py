@@ -43,7 +43,7 @@ Run BC's `_update_handler.make_run_update_handler`.
 
 The `append_procedure_steps` slice needs a `StepStore` adapter.
 Per the per-category-writer pattern locked at gate-review L8/L9
-(Conduit's TraversalStore), the store is built LOCALLY here
+(Conduit's VerdictStore), the store is built LOCALLY here
 from `deps.pool` (Postgres in production) or as
 `InMemoryStepStore` in `app_env=test`. NOT promoted to Kernel fields.
 Mirrors how Run BC wires its ReadingStore and Decision BC wires its

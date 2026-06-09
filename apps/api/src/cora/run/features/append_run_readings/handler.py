@@ -111,7 +111,7 @@ def bind(deps: Kernel, *, reading_store: ReadingStore) -> Handler:
     `deps.pool` for Postgres, or `InMemoryReadingStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Conduit's
-    TraversalStore and Decision's ReasoningStore).
+    VerdictStore and Decision's ReasoningStore).
     """
 
     async def handler(
