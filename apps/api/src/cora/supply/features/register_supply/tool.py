@@ -84,10 +84,28 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
                 ),
             ),
         ],
+        containing_asset_id: Annotated[
+            UUID | None,
+            Field(
+                default=None,
+                description=(
+                    "Optional id of the containing Asset in the Equipment BC "
+                    "hierarchy (Sector / Beamline / Unit). Omit (or pass null) for "
+                    "facility-scope resources. Unknown ids raise 404; "
+                    "Decommissioned-Asset binding is allowed."
+                ),
+            ),
+        ] = None,
     ) -> RegisterSupplyOutput:
         handler = get_handler()
         supply_id = await handler(
-            RegisterSupply(scope=scope, kind=kind, name=name, facility_code=facility_code),
+            RegisterSupply(
+                scope=scope,
+                kind=kind,
+                name=name,
+                facility_code=facility_code,
+                containing_asset_id=containing_asset_id,
+            ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),

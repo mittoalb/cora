@@ -40,6 +40,7 @@ from cora.infrastructure.adapters.signing_registry import SigningRegistry
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     LLM,
+    AssetLookup,
     Authorize,
     CapabilityLookup,
     CautionLookup,
@@ -157,6 +158,20 @@ class Kernel:
     decider as the slice's parent-lookup parameter, keeping the decider
     pure.
 
+    `asset_lookup`: cross-aggregate port consumed by cross-BC
+    consumers that hold an `AssetId` from the wire and need to
+    validate the Asset exists before committing a command. First
+    consumer is Supply BC's `register_supply` handler (Session 5
+    Slice 7B): it resolves `command.containing_asset_id` to an
+    `AssetLookupResult` and threads the result into the decider.
+    Future Slice 8 (Asset.facility_id back-binding) and potential
+    Safety / Caution BC consumers will also consume this port.
+    Equipment BC ships `PostgresAssetLookup` as the production
+    adapter (reads `proj_equipment_asset_summary` shipped Phase
+    8e-3a). Test environments default to `InMemoryAssetLookup`;
+    cross-BC binding tests seed assets via the adapter's
+    `register(...)` helper.
+
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
     `AnthropicLLM` when `Settings.anthropic_api_key` is set;
@@ -211,6 +226,7 @@ class Kernel:
     supply_lookup: SupplyLookup
     credential_lookup: CredentialLookup
     facility_lookup: FacilityLookup
+    asset_lookup: AssetLookup
     profile_store: ProfileStore
     canonicalization_registry: CanonicalizationRegistry
     signing_registry: SigningRegistry

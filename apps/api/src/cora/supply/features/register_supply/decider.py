@@ -2,23 +2,35 @@
 
 Pure function: given the current Supply state (None for a fresh
 stream), the cross-BC `facility_lookup_result` resolved at the
-handler port edge, and a `RegisterSupply` command, returns the
-events to append. No I/O, no awaits, no side effects.
+handler port edge, the optional cross-BC `asset_lookup_result`
+(present iff `command.containing_asset_id` was non-None at the
+handler), and a `RegisterSupply` command, returns the events to
+append. No I/O, no awaits, no side effects.
 
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports (the non-determinism principle: capture,
-don't recompute). `facility_lookup_result` is injected by the
-handler after calling `FacilityLookup.lookup_by_code` (Session 5
-Slice 7); `None` signals the Facility code does not resolve to a
-projection row.
+don't recompute). `facility_lookup_result` is injected by the handler
+after calling `FacilityLookup.lookup_by_code` (Session 5 Slice 7A);
+`None` signals the Facility code does not resolve to a projection row.
+`asset_lookup_result` is injected by the handler after calling
+`AssetLookup.lookup` IFF `command.containing_asset_id` was non-None
+(Session 5 Slice 7B); `None` either means the command had no
+containing-Asset binding (facility-scope) OR the lookup returned
+None (rejection). The decider uses both `command.containing_asset_id`
+and `asset_lookup_result` to disambiguate.
 
 ## Validation
 
   - State must be None (genesis-only) -> `SupplyAlreadyExistsError`
   - `facility_lookup_result` must be non-None -> `SupplyFacilityNotFoundError`.
-    Status filter mirrors slice 6 `FacilityParentNotFoundError`:
+    Lifecycle filter mirrors slice 6 `FacilityParentNotFoundError`:
     every Facility status (Active, Decommissioned) is a valid
     binding target; the decider does NOT partition on status.
+  - When `command.containing_asset_id` is non-None,
+    `asset_lookup_result` must also be non-None ->
+    `SupplyContainingAssetNotFoundError`. Same lifecycle policy:
+    every Asset lifecycle (Commissioned, Active, Maintenance,
+    Decommissioned) is a valid binding target.
   - `kind` is bare `str`; validated 1-50 chars via the shared
     `validate_bounded_text` helper -> `InvalidSupplyKindError`. Per
     the iter-1 gate-review lock, kind is NOT a VO; the validator is
@@ -35,6 +47,7 @@ state.
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.ports.asset_lookup import AssetLookupResult
 from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.shared.bounded_text import validate_bounded_text
 from cora.shared.identity import ActorId
@@ -43,6 +56,7 @@ from cora.supply.aggregates.supply import (
     InvalidSupplyKindError,
     Supply,
     SupplyAlreadyExistsError,
+    SupplyContainingAssetNotFoundError,
     SupplyFacilityNotFoundError,
     SupplyName,
     SupplyRegistered,
@@ -59,6 +73,7 @@ def decide(
     new_id: UUID,
     triggered_by: ActorId,
     facility_lookup_result: FacilityLookupResult | None,
+    asset_lookup_result: AssetLookupResult | None,
 ) -> list[SupplyRegistered]:
     """Decide the events produced by registering a new supply.
 
@@ -67,6 +82,9 @@ def decide(
         -> SupplyAlreadyExistsError
       - facility_lookup_result must be non-None
         -> SupplyFacilityNotFoundError
+      - When command.containing_asset_id is non-None,
+        asset_lookup_result must also be non-None
+        -> SupplyContainingAssetNotFoundError
       - kind must be valid -> InvalidSupplyKindError
       - Name must be valid -> InvalidSupplyNameError
         (via SupplyName VO)
@@ -80,12 +98,20 @@ def decide(
     threaded onto the event payload, replacing direct echo of
     `command.facility_code` so the cross-BC convergent identity is
     the single source of truth for the wire value.
+
+    `asset_lookup_result.id` is folded onto the event when present
+    so the event's `containing_asset_id` reflects the projection's
+    canonical id, not a command-echo (mirrors the Slice 7A
+    facility_code source-of-truth pattern).
     """
     if state is not None:
         raise SupplyAlreadyExistsError(state.id)
 
     if facility_lookup_result is None:
         raise SupplyFacilityNotFoundError(command.facility_code)
+
+    if command.containing_asset_id is not None and asset_lookup_result is None:
+        raise SupplyContainingAssetNotFoundError(command.containing_asset_id)
 
     # validate + trim kind (bare str; not a VO per iter-1 lock)
     kind = validate_bounded_text(
@@ -106,5 +132,8 @@ def decide(
             trigger=TriggerSource.OPERATOR.value,
             triggered_by=triggered_by,
             occurred_at=now,
+            containing_asset_id=(
+                asset_lookup_result.id if asset_lookup_result is not None else None
+            ),
         )
     ]

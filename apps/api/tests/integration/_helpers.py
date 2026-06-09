@@ -43,6 +43,7 @@ from cora.infrastructure.ports import (
     AllowAllAuthorize,
     AlwaysCoveredClearanceLookup,
     AlwaysQuietCautionLookup,
+    AssetLookup,
     Authorize,
     CautionLookup,
     ClearanceLookup,
@@ -78,6 +79,7 @@ def build_postgres_deps(
     caution_lookup: CautionLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
+    asset_lookup: AssetLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
 ) -> Kernel:
@@ -117,6 +119,7 @@ def build_postgres_deps(
         caution_lookup=caution_lookup or AlwaysQuietCautionLookup(),
         credential_lookup=credential_lookup,
         facility_lookup=facility_lookup,
+        asset_lookup=asset_lookup,
         profile_store=profile_store,
         llm=llm,
     )

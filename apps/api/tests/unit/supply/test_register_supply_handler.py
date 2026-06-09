@@ -16,6 +16,7 @@ from uuid import UUID
 
 import pytest
 
+from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_facility_lookup import (
     InMemoryFacilityLookup,
@@ -23,7 +24,11 @@ from cora.infrastructure.adapters.in_memory_facility_lookup import (
 from cora.infrastructure.kernel import Kernel
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
-from cora.supply.aggregates.supply import SupplyFacilityNotFoundError, SupplyScope
+from cora.supply.aggregates.supply import (
+    SupplyContainingAssetNotFoundError,
+    SupplyFacilityNotFoundError,
+    SupplyScope,
+)
 from cora.supply.errors import UnauthorizedError
 from cora.supply.features import register_supply
 from cora.supply.features.register_supply import RegisterSupply
@@ -36,6 +41,7 @@ _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _ACTOR_ID = ActorId(_PRINCIPAL_ID)
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 _FACILITY_ID = UUID("01900000-0000-7000-8000-000000000fac")
+_CONTAINING_ASSET_ID = UUID("01900000-0000-7000-8000-000000000a55")
 
 
 def _seeded_facility_lookup(*, code: str = "aps", status: str = "Active") -> InMemoryFacilityLookup:
@@ -44,11 +50,24 @@ def _seeded_facility_lookup(*, code: str = "aps", status: str = "Active") -> InM
     return lookup
 
 
+def _seeded_asset_lookup(
+    *,
+    asset_id: UUID = _CONTAINING_ASSET_ID,
+    name: str = "2-BM",
+    level: str = "Unit",
+    lifecycle: str = "Active",
+) -> InMemoryAssetLookup:
+    lookup = InMemoryAssetLookup()
+    lookup.register(asset_id=asset_id, name=name, level=level, lifecycle=lifecycle)
+    return lookup
+
+
 def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
     facility_lookup: InMemoryFacilityLookup | None = None,
+    asset_lookup: InMemoryAssetLookup | None = None,
 ) -> Kernel:
     return _build_deps_shared(
         ids=[_NEW_ID, _EVENT_ID],
@@ -58,6 +77,7 @@ def _build_deps(
         facility_lookup=(
             facility_lookup if facility_lookup is not None else _seeded_facility_lookup()
         ),
+        asset_lookup=asset_lookup,
     )
 
 
@@ -249,3 +269,74 @@ async def test_handler_threads_canonical_lookup_code_into_event() -> None:
     )
     events, _ = await store.load("Supply", _NEW_ID)
     assert events[0].payload["facility_code"] == "aps"
+
+
+@pytest.mark.unit
+async def test_handler_binds_containing_asset_when_provided() -> None:
+    """Slice 7B: when command.containing_asset_id is non-None and the
+    AssetLookup resolves, the handler folds the id onto the event
+    payload under the `containing_asset_id` key."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store, asset_lookup=_seeded_asset_lookup())
+    handler = register_supply.bind(deps)
+    await handler(
+        RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="aps",
+            containing_asset_id=_CONTAINING_ASSET_ID,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Supply", _NEW_ID)
+    assert events[0].payload["containing_asset_id"] == str(_CONTAINING_ASSET_ID)
+
+
+@pytest.mark.unit
+async def test_handler_omits_containing_asset_when_none() -> None:
+    """Slice 7B: facility-scope supplies (containing_asset_id=None)
+    skip the AssetLookup call entirely and OMIT the key from the
+    payload (additive forward-compat convention)."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store)
+    handler = register_supply.bind(deps)
+    await handler(
+        RegisterSupply(
+            scope=SupplyScope.FACILITY,
+            kind="PhotonBeam",
+            name="APS storage-ring beam",
+            facility_code="aps",
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    events, _ = await store.load("Supply", _NEW_ID)
+    assert "containing_asset_id" not in events[0].payload
+
+
+@pytest.mark.unit
+async def test_handler_raises_containing_asset_not_found_for_unknown_id() -> None:
+    """Empty AssetLookup -> handler resolves None -> decider raises
+    SupplyContainingAssetNotFoundError carrying the wire-level id."""
+    store = InMemoryEventStore()
+    deps = _build_deps(event_store=store, asset_lookup=InMemoryAssetLookup())
+    handler = register_supply.bind(deps)
+    unknown_id = UUID("01900000-0000-7000-8000-0000000a5d99")
+    with pytest.raises(SupplyContainingAssetNotFoundError) as exc_info:
+        await handler(
+            RegisterSupply(
+                scope=SupplyScope.BEAMLINE,
+                kind="LiquidNitrogen",
+                name="2-BM LN2",
+                facility_code="aps",
+                containing_asset_id=unknown_id,
+            ),
+            principal_id=_PRINCIPAL_ID,
+            correlation_id=_CORRELATION_ID,
+        )
+    assert exc_info.value.containing_asset_id == unknown_id
+    events, version = await store.load("Supply", _NEW_ID)
+    assert version == 0
+    assert events == []

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.ports.asset_lookup import AssetLookupResult
 from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
@@ -13,6 +14,7 @@ from cora.supply.aggregates.supply import (
     InvalidSupplyNameError,
     Supply,
     SupplyAlreadyExistsError,
+    SupplyContainingAssetNotFoundError,
     SupplyFacilityNotFoundError,
     SupplyName,
     SupplyRegistered,
@@ -26,6 +28,7 @@ _NOW = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 _ACTOR_ID = ActorId(uuid4())
 _FACILITY_CODE = FacilityCode("aps")
 _FACILITY_ID = UUID("01900000-0000-7000-8000-000000000fac")
+_CONTAINING_ASSET_ID = UUID("01900000-0000-7000-8000-000000000a55")
 
 
 def _facility_lookup_result(
@@ -39,6 +42,21 @@ def _facility_lookup_result(
         kind=kind,
         status=status,
         trust_anchor_credential_ids=frozenset(),
+    )
+
+
+def _asset_lookup_result(
+    *,
+    asset_id: UUID = _CONTAINING_ASSET_ID,
+    name: str = "2-BM",
+    level: str = "Unit",
+    lifecycle: str = "Active",
+) -> AssetLookupResult:
+    return AssetLookupResult(
+        id=asset_id,
+        name=name,
+        level=level,
+        lifecycle=lifecycle,
     )
 
 
@@ -57,6 +75,7 @@ def test_decide_emits_supply_registered_when_stream_is_empty() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=None,
     )
     assert events == [
         SupplyRegistered(
@@ -87,6 +106,7 @@ def test_decide_trims_kind_and_name() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=None,
     )
     assert events[0].kind == "PhotonBeam"
     assert events[0].name == "APS storage-ring beam"
@@ -115,6 +135,7 @@ def test_decide_rejects_existing_state() -> None:
             new_id=uuid4(),
             triggered_by=_ACTOR_ID,
             facility_lookup_result=_facility_lookup_result(),
+            asset_lookup_result=None,
         )
     assert exc_info.value.supply_id == existing.id
 
@@ -134,6 +155,7 @@ def test_decide_rejects_empty_kind() -> None:
             new_id=uuid4(),
             triggered_by=_ACTOR_ID,
             facility_lookup_result=_facility_lookup_result(),
+            asset_lookup_result=None,
         )
 
 
@@ -152,6 +174,7 @@ def test_decide_rejects_too_long_kind() -> None:
             new_id=uuid4(),
             triggered_by=_ACTOR_ID,
             facility_lookup_result=_facility_lookup_result(),
+            asset_lookup_result=None,
         )
 
 
@@ -170,6 +193,7 @@ def test_decide_rejects_empty_name() -> None:
             new_id=uuid4(),
             triggered_by=_ACTOR_ID,
             facility_lookup_result=_facility_lookup_result(),
+            asset_lookup_result=None,
         )
 
 
@@ -191,6 +215,7 @@ def test_decide_rejects_missing_facility() -> None:
             new_id=uuid4(),
             triggered_by=_ACTOR_ID,
             facility_lookup_result=None,
+            asset_lookup_result=None,
         )
     assert exc_info.value.facility_code == "unknown"
 
@@ -213,6 +238,7 @@ def test_decide_accepts_decommissioned_facility() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=_facility_lookup_result(status="Decommissioned"),
+        asset_lookup_result=None,
     )
     assert events[0].facility_code == _FACILITY_CODE
 
@@ -238,6 +264,7 @@ def test_decide_uses_lookup_result_code_not_command_echo() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=None,
     )
     assert events[0].facility_code is canonical or events[0].facility_code == canonical
 
@@ -259,6 +286,7 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=lookup,
+        asset_lookup_result=None,
     )
     second = register_supply.decide(
         state=None,
@@ -267,5 +295,125 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
         new_id=new_id,
         triggered_by=_ACTOR_ID,
         facility_lookup_result=lookup,
+        asset_lookup_result=None,
     )
     assert first == second
+
+
+@pytest.mark.unit
+def test_decide_emits_event_with_containing_asset_id_when_bound() -> None:
+    """When command.containing_asset_id is non-None and the lookup
+    resolves, the event's facility_code + containing_asset_id both
+    come from the canonical lookup results (Session 5 Slice 7B)."""
+    new_id = uuid4()
+    events = register_supply.decide(
+        state=None,
+        command=RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="aps",
+            containing_asset_id=_CONTAINING_ASSET_ID,
+        ),
+        now=_NOW,
+        new_id=new_id,
+        triggered_by=_ACTOR_ID,
+        facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=_asset_lookup_result(),
+    )
+    assert events[0].containing_asset_id == _CONTAINING_ASSET_ID
+
+
+@pytest.mark.unit
+def test_decide_facility_scope_omits_containing_asset_id() -> None:
+    """When command.containing_asset_id is None the decider does not
+    require asset_lookup_result; emits the event with
+    containing_asset_id=None (facility-scope semantics)."""
+    events = register_supply.decide(
+        state=None,
+        command=RegisterSupply(
+            scope=SupplyScope.FACILITY,
+            kind="PhotonBeam",
+            name="APS storage-ring beam",
+            facility_code="aps",
+            containing_asset_id=None,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+        triggered_by=_ACTOR_ID,
+        facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=None,
+    )
+    assert events[0].containing_asset_id is None
+
+
+@pytest.mark.unit
+def test_decide_rejects_missing_containing_asset() -> None:
+    """When command.containing_asset_id is non-None but asset_lookup_result
+    is None (handler's AssetLookup.lookup miss), the decider raises
+    SupplyContainingAssetNotFoundError carrying the wire-level id."""
+    with pytest.raises(SupplyContainingAssetNotFoundError) as exc_info:
+        register_supply.decide(
+            state=None,
+            command=RegisterSupply(
+                scope=SupplyScope.BEAMLINE,
+                kind="LiquidNitrogen",
+                name="2-BM LN2",
+                facility_code="aps",
+                containing_asset_id=_CONTAINING_ASSET_ID,
+            ),
+            now=_NOW,
+            new_id=uuid4(),
+            triggered_by=_ACTOR_ID,
+            facility_lookup_result=_facility_lookup_result(),
+            asset_lookup_result=None,
+        )
+    assert exc_info.value.containing_asset_id == _CONTAINING_ASSET_ID
+
+
+@pytest.mark.unit
+def test_decide_accepts_decommissioned_containing_asset() -> None:
+    """Decommissioned-Asset binding is allowed per the slice 6A +
+    Slice 7A precedent (operator keeps the lineage visible). The
+    decider does NOT partition on Asset lifecycle."""
+    events = register_supply.decide(
+        state=None,
+        command=RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2 (decommissioned-asset binding)",
+            facility_code="aps",
+            containing_asset_id=_CONTAINING_ASSET_ID,
+        ),
+        now=_NOW,
+        new_id=uuid4(),
+        triggered_by=_ACTOR_ID,
+        facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=_asset_lookup_result(lifecycle="Decommissioned"),
+    )
+    assert events[0].containing_asset_id == _CONTAINING_ASSET_ID
+
+
+@pytest.mark.unit
+def test_decide_uses_lookup_result_id_not_command_echo() -> None:
+    """The event's containing_asset_id is sourced from
+    asset_lookup_result.id (canonical projection-row id), not from
+    command.containing_asset_id echo. Single source of truth."""
+    new_id = uuid4()
+    different_id = UUID("01900000-0000-7000-8000-0000000a55ee")
+    events = register_supply.decide(
+        state=None,
+        command=RegisterSupply(
+            scope=SupplyScope.BEAMLINE,
+            kind="LiquidNitrogen",
+            name="2-BM LN2",
+            facility_code="aps",
+            containing_asset_id=_CONTAINING_ASSET_ID,
+        ),
+        now=_NOW,
+        new_id=new_id,
+        triggered_by=_ACTOR_ID,
+        facility_lookup_result=_facility_lookup_result(),
+        asset_lookup_result=_asset_lookup_result(asset_id=different_id),
+    )
+    assert events[0].containing_asset_id == different_id

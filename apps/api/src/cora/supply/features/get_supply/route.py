@@ -46,6 +46,14 @@ class SupplyResponse(BaseModel):
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
     facility_code: str = Field(..., max_length=FACILITY_CODE_MAX_LENGTH)
+    containing_asset_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Id of the containing Asset (Equipment BC) when the Supply is bound "
+            "to a Sector / Beamline / Unit; null for facility-scope resources "
+            "(Session 5 Slice 7B)."
+        ),
+    )
     status: SupplyStatus
 
 
@@ -96,5 +104,6 @@ async def get_supplies(
         kind=supply.kind,
         name=supply.name.value,
         facility_code=supply.facility_code.value,
+        containing_asset_id=supply.containing_asset_id,
         status=supply.status,
     )

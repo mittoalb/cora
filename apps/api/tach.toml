@@ -365,6 +365,7 @@ depends_on = [
     "cora.data",
     "cora.decision",
     "cora.equipment",
+    "cora.equipment.adapters",
     "cora.federation",
     "cora.operation",
     "cora.recipe",

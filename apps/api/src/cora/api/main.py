@@ -102,6 +102,7 @@ from cora.equipment import (
     register_equipment_tools,
     wire_equipment,
 )
+from cora.equipment.adapters import PostgresAssetLookup
 from cora.federation import (
     FederationHandlers,
     bootstrap_federation,
@@ -402,6 +403,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 supply_lookup_factory=PostgresSupplyLookup,
                 credential_lookup_factory=PostgresCredentialLookup,
                 facility_lookup_factory=PostgresFacilityLookup,
+                asset_lookup_factory=PostgresAssetLookup,
                 # publish_revision slice deps: in-memory adapters
                 # wired by default until the rule-of-two trigger
                 # fires per project_federation_port_design.md.

@@ -6,4 +6,15 @@ adapter that returns inert deterministic values, distinct from a
 None / disabled port. Mirrors `AllowAllAuthorize` and
 `AlwaysCoveredClearanceLookup` test-bypass convention. The
 production `DataCiteDoiMinter` adapter is deferred to slice F.2.
+
+`PostgresAssetLookup` is the production `AssetLookup` adapter per
+Session 5 Slice 7B (cross-BC Supply.containing_asset_id binding +
+future Slice 8 Asset.facility_id binding). Reads
+`proj_equipment_asset_summary`; the test-tier `InMemoryAssetLookup`
+lives at `cora.infrastructure.adapters` mirroring the
+`FacilityLookup` split.
 """
+
+from cora.equipment.adapters.postgres_asset_lookup import PostgresAssetLookup
+
+__all__ = ["PostgresAssetLookup"]

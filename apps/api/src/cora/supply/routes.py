@@ -24,7 +24,8 @@ Equipment-style loop pattern:
     InvalidSupplyReason, InvalidFacilityCode (cross-BC VO; mapped
     here as the in-process safety net for defensive callers that
     bypass the route + tool Pydantic regex)
-  - 404 (load + cross-BC miss): SupplyNotFound, SupplyFacilityNotFound
+  - 404 (load + cross-BC miss): SupplyNotFound,
+    SupplyFacilityNotFound, SupplyContainingAssetNotFound
   - 409 (defensive guard for AlreadyExists): SupplyAlreadyExists
   - 409 (transition guard): SupplyCannot{MarkAvailable, Degrade,
     MarkUnavailable, MarkRecovering, Restore, Deregister}
@@ -33,8 +34,9 @@ Adding a new aggregate (or a new transition error) becomes one tuple
 entry per family. The cannot-transition tuple grew from 1 to 5
 entries when 10a-b shipped the FSM-closure transitions, and to 6
 when `deregister_supply` shipped the lifecycle-terminal transition.
-The not-found tuple grew from 1 to 2 when Slice 7 added the
-cross-BC Facility binding via `register_supply`.
+The not-found tuple grew from 1 to 2 when Slice 7A added the
+cross-BC Facility binding via `register_supply`, then to 3 when
+Slice 7B added the cross-BC containing-Asset binding.
 """
 
 from fastapi import FastAPI, Request, status
@@ -54,6 +56,7 @@ from cora.supply.aggregates.supply import (
     SupplyCannotMarkRecoveringError,
     SupplyCannotMarkUnavailableError,
     SupplyCannotRestoreError,
+    SupplyContainingAssetNotFoundError,
     SupplyFacilityNotFoundError,
     SupplyNotFoundError,
 )
@@ -161,7 +164,11 @@ def register_supply_routes(app: FastAPI) -> None:
         InvalidFacilityCodeError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (SupplyNotFoundError, SupplyFacilityNotFoundError):
+    for not_found_cls in (
+        SupplyNotFoundError,
+        SupplyFacilityNotFoundError,
+        SupplyContainingAssetNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (SupplyAlreadyExistsError,):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)

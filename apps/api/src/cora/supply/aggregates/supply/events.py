@@ -35,6 +35,17 @@ with `extra=(ValueError,)` so malformed slugs in stored events surface
 as `Malformed SupplyRegistered payload` rather than silently passing
 the VO's `InvalidFacilityCodeError` upstream.
 
+`containing_asset_id` (Session 5 Slice 7B) is the OPTIONAL physical-
+equipment containment back-reference per
+[[project_supply_sector_disposition]] Option A. Bare UUID on the
+aggregate (Equipment BC's Asset.id is not a NewType); travels in the
+SupplyRegistered payload as the string-form UUID under the
+`containing_asset_id` key, OMITTED ENTIRELY when None (facility-scope
+supplies). `from_stored` uses `payload.get("containing_asset_id")`
++ conditional `UUID(...)` wrap so legacy genesis events written
+before Slice 7B fold cleanly without backfill (additive evolution
+per [[project_from_stored_wrap_convention]]).
+
 `trigger` travels in every event payload as a `TriggerSource` enum
 string. Locked 3-value day one (`Operator | Monitor | Auto`) even
 though only `Operator` and `Monitor` are wired today. Forward-compat
@@ -129,6 +140,16 @@ class SupplyRegistered:
     Slice 6E convention; `from_stored` re-wraps with `FacilityCode(...)`
     inside the `deserialize_or_raise` lambda so malformed slugs
     surface as `Malformed SupplyRegistered payload`.
+
+    `containing_asset_id` (Session 5 Slice 7B) is OPTIONAL — `None`
+    semantically means "facility-scope" (paired with non-None
+    `facility_code`). When non-None, the handler resolves it via
+    `AssetLookup.lookup` before threading the result into the
+    decider; the decider folds the validated id onto the event.
+    `to_payload` OMITS the key when None (additive forward-compat
+    per the slice 7A `monitor_ref` precedent); `from_stored` uses
+    `payload.get(..., None)` so pre-Slice-7B legacy events fold
+    cleanly without backfill.
     """
 
     supply_id: UUID
@@ -139,6 +160,7 @@ class SupplyRegistered:
     trigger: str
     triggered_by: TriggeredBy
     occurred_at: datetime
+    containing_asset_id: UUID | None = None
 
     def __post_init__(self) -> None:
         _check_trigger_pairing(self.trigger, self.triggered_by)
@@ -342,8 +364,9 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
             trigger=trigger,
             triggered_by=triggered_by,
             occurred_at=occurred_at,
+            containing_asset_id=containing_asset_id,
         ):
-            return {
+            payload: dict[str, Any] = {
                 "supply_id": str(supply_id),
                 "scope": scope,
                 "kind": kind,
@@ -353,6 +376,9 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
                 "triggered_by": str(triggered_by),
                 "occurred_at": occurred_at.isoformat(),
             }
+            if containing_asset_id is not None:
+                payload["containing_asset_id"] = str(containing_asset_id)
+            return payload
         case (
             SupplyMarkedAvailable(
                 supply_id=supply_id,
@@ -424,6 +450,21 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
             assert_never(event)
 
 
+def _optional_uuid(raw: object) -> UUID | None:
+    """Wrap an optional UUID-string-or-None payload value into `UUID | None`.
+
+    Used by the SupplyRegistered case-arm to fold the optional
+    `containing_asset_id` payload key (Session 5 Slice 7B): absent /
+    None / null in the payload -> None on the dataclass; string-form
+    UUID -> typed `UUID`. Any other value type (int, list, malformed
+    string) surfaces as `ValueError` / `TypeError` from `UUID(...)`,
+    caught by the surrounding `deserialize_or_raise` wrap.
+    """
+    if raw is None:
+        return None
+    return UUID(str(raw))
+
+
 def _typed_triggered_by(trigger: str, raw_uuid: UUID) -> TriggeredBy:
     """Re-wrap the bare UUID in the NewType implied by the trigger string.
 
@@ -468,6 +509,7 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
                         payload["trigger"], UUID(payload["triggered_by"])
                     ),
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    containing_asset_id=_optional_uuid(payload.get("containing_asset_id")),
                 ),
                 extra=(InvalidFacilityCodeError,),
             )

@@ -47,6 +47,7 @@ from cora.infrastructure.ports import (
     LLM,
     Allow,
     AllowAllAuthorize,
+    AssetLookup,
     Authorize,
     AuthzResult,
     CredentialLookup,
@@ -122,6 +123,7 @@ def build_deps(
     profile_store: ProfileStore | None = None,
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
+    asset_lookup: AssetLookup | None = None,
 ) -> Kernel:
     """Build a Kernel for unit-test handler invocation.
 
@@ -156,6 +158,15 @@ def build_deps(
     facility summaries) so `register_facility`-with-parent tests can
     pre-register the parent Facility before invoking the decider.
     Defaults to a fresh empty `InMemoryFacilityLookup` per call.
+
+    `asset_lookup` injects a pre-built `AssetLookup` adapter
+    (typically `InMemoryAssetLookup` seeded with one or more Asset
+    summaries) so cross-BC binding tests (Slice 7B Supply
+    `containing_asset_id` resolution, future Slice 8 Asset
+    `facility_id` binding) can pre-register the target Asset before
+    invoking the decider. Defaults to a fresh empty
+    `InMemoryAssetLookup` per call; tests that don't bind to an
+    Asset never touch it.
     """
     if authz is None:
         authz = DenyAllAuthorize() if deny else AllowAllAuthorize()
@@ -192,6 +203,7 @@ def build_deps(
         profile_store=profile_store,
         credential_lookup=credential_lookup,
         facility_lookup=facility_lookup,
+        asset_lookup=asset_lookup,
         publish_port=InMemoryPublishPort(),
         signature_port=InMemorySignaturePort(),
         permit_lookup=InMemoryPermitLookup(),

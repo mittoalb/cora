@@ -10362,6 +10362,19 @@
       "RegisterSupplyRequest": {
         "description": "Body for `POST /supplies`.",
         "properties": {
+          "containing_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional physical-equipment containment back-reference. Omit (or pass null) for facility-scope resources (storage-ring beam, central LN2 plant). Set to the id of an existing Asset in the Equipment BC hierarchy for sector / beamline / unit scoped resources (per project_supply_sector_disposition Option A). The handler resolves the id via the Equipment BC's Asset projection; unknown ids are rejected with HTTP 404. Decommissioned-Asset binding is allowed (mirrors slice 6A FacilityParentNotFoundError precedent).",
+            "title": "Containing Asset Id"
+          },
           "facility_code": {
             "description": "Cross-deployment convergent slug of the Facility owning this Supply (for example 'aps', 'maxiv', 'esrf'). Lowercase ASCII alphanumeric plus dash, 1-32 chars. The handler resolves the slug via the Federation BC's facility projection; unknown codes are rejected with HTTP 404.",
             "maxLength": 32,
@@ -12264,6 +12277,19 @@
       "SupplyResponse": {
         "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`scope` and `status` are the StrEnum string values; `kind` is the\nfree-form bare-str discriminator (1-50 chars). `facility_code` is\nthe cross-deployment convergent Facility slug surfaced as the\nbare-str wire value (Session 5 Slice 7A).",
         "properties": {
+          "containing_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources (Session 5 Slice 7B).",
+            "title": "Containing Asset Id"
+          },
           "facility_code": {
             "maxLength": 32,
             "title": "Facility Code",
@@ -34950,7 +34976,7 @@
                 }
               }
             },
-            "description": "The `facility_code` does not resolve to a Facility row in the Federation projection. Operator remedies: register the Facility first via `POST /federation/facilities`, or correct the slug."
+            "description": "Either `facility_code` does not resolve to a Facility row in the Federation projection, OR `containing_asset_id` does not resolve to an Asset row in the Equipment projection. Operator remedies: register the missing parent first (`POST /federation/facilities` or `POST /assets`), or correct the id / slug on the Supply registration."
           },
           "409": {
             "content": {

@@ -46,6 +46,7 @@ def test_get_supply_returns_200_with_unknown_status_for_new_supply() -> None:
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
         "facility_code": "cora",
+        "containing_asset_id": None,
         "status": "Unknown",
     }
 

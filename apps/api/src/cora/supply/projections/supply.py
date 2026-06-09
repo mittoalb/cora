@@ -76,9 +76,9 @@ _log = get_logger(__name__)
 
 _INSERT_SUPPLY_SQL = """
 INSERT INTO proj_supply_summary
-    (supply_id, scope, kind, name, facility_code, status, registered_at,
-     last_status_changed_at, last_status_reason, last_trigger)
-VALUES ($1, $2, $3, $4, $5, 'Unknown', $6, NULL, NULL, NULL)
+    (supply_id, scope, kind, name, facility_code, containing_asset_id, status,
+     registered_at, last_status_changed_at, last_status_reason, last_trigger)
+VALUES ($1, $2, $3, $4, $5, $6, 'Unknown', $7, NULL, NULL, NULL)
 ON CONFLICT (supply_id) DO NOTHING
 """
 
@@ -131,6 +131,10 @@ class SupplySummaryProjection:
             # subsequent applies + the bookmark advance can proceed.
             # Without the SAVEPOINT, asyncpg raises
             # InFailedSQLTransactionError on the next SQL.
+            raw_containing_asset_id = event.payload.get("containing_asset_id")
+            containing_asset_id = (
+                UUID(raw_containing_asset_id) if raw_containing_asset_id is not None else None
+            )
             try:
                 async with conn.transaction():
                     await conn.execute(
@@ -140,6 +144,7 @@ class SupplySummaryProjection:
                         event.payload["kind"],
                         event.payload["name"],
                         event.payload["facility_code"],
+                        containing_asset_id,
                         datetime.fromisoformat(event.payload["occurred_at"]),
                     )
             except asyncpg.UniqueViolationError:
@@ -155,6 +160,7 @@ class SupplySummaryProjection:
                     kind=event.payload["kind"],
                     name=event.payload["name"],
                     facility_code=event.payload["facility_code"],
+                    containing_asset_id=event.payload.get("containing_asset_id"),
                     event_id=str(event.event_id),
                 )
             return

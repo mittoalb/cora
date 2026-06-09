@@ -87,6 +87,20 @@ projection UNIQUE INDEX to compose `facility_code` into the
 uniqueness key so two facilities can each own a "2-BM LN2 dewar"
 without colliding.
 
+`containing_asset_id` (Session 5 Slice 7B) is the optional physical-
+equipment containment back-reference per
+[[project_supply_sector_disposition]] Option A: the
+former `SupplyScope.Sector` + `SupplyScope.Beamline` enum values
+are being collapsed to relational references to the Equipment BC's
+Asset hierarchy (Sector 2 is an `Asset(level=Area)`; 2-BM is an
+`Asset(level=Unit)`). `None` semantically means "facility-scope
+resource" (paired with non-None `facility_code`). When non-None,
+the register_supply handler resolves it via `AssetLookup.lookup`
+and rejects unknown ids with `SupplyContainingAssetNotFoundError`
+(HTTP 404). Slice 7C swaps the projection UNIQUE INDEX to compose
+`containing_asset_id` into the uniqueness key; Slice 7D + 7E
+complete the SupplyScope retirement.
+
 ## Eleventh bounded-name VO
 
 `SupplyName` is the eleventh trimmed-bounded-name VO. Uses the
@@ -292,6 +306,43 @@ class SupplyNotFoundError(Exception):
     def __init__(self, supply_id: UUID) -> None:
         super().__init__(f"Supply {supply_id} not found")
         self.supply_id = supply_id
+
+
+class SupplyContainingAssetNotFoundError(Exception):
+    """`register_supply` referenced a containing Asset id with no projection row.
+
+    Cross-BC binding (Session 5 Slice 7B): a Supply MAY be bound to a
+    containing Asset (the physical equipment that hosts the resource:
+    a beamline housing an LN2 dewar, a sector housing a gas manifold).
+    When `command.containing_asset_id` is non-None, the handler
+    resolves it via `AssetLookup.lookup` before threading the result
+    into the decider; a `None` result means no Asset with that id is
+    visible in `proj_equipment_asset_summary` and the registration is
+    rejected with HTTP 404. Operator remedies: register the Asset
+    first via `POST /assets`, or correct the typo on the Supply
+    registration. Facility-scope Supplies omit `containing_asset_id`
+    entirely (NULL on aggregate state); the decider does NOT validate
+    in that path.
+
+    Lifecycle filter mirrors the slice 6 `FacilityParentNotFoundError`
+    + Slice 7A `SupplyFacilityNotFoundError` precedent: every Asset
+    lifecycle (Commissioned, Active, Maintenance, Decommissioned) is
+    a valid binding target. The decider does NOT partition on Asset
+    lifecycle; operators choose to keep Decommissioned-equipment
+    lineage visible.
+
+    Cross-BC eventual consistency: if `register_supply` is called
+    immediately after `register_asset`, the Equipment projection may
+    not have caught up yet and the lookup returns `None`. The handler
+    surfaces this same 404; operator remedies are identical (retry
+    after projection bookmark advances).
+    """
+
+    def __init__(self, containing_asset_id: UUID) -> None:
+        super().__init__(
+            f"Containing Asset {containing_asset_id} not found for supply registration"
+        )
+        self.containing_asset_id = containing_asset_id
 
 
 class SupplyFacilityNotFoundError(Exception):
@@ -603,13 +654,11 @@ class Supply:
     `SubjectRegistered -> Received`).
 
     Future additive facets (per Watch items in
-    [[project_supply_design]]): `containing_asset_id` (physical-
-    equipment containment, Slice 7B; mirrors 4f Subject pattern),
-    `health` (orthogonal facet, mirrors 5g-b Asset.condition),
-    `auto_clear_after` (per-kind timer for auto-restore), `capacity`
-    (when first consumer needs quantity tracking). All land with
-    safe defaults so pre-extension streams fold cleanly via the
-    additive-state pattern.
+    [[project_supply_design]]): `health` (orthogonal facet, mirrors
+    5g-b Asset.condition), `auto_clear_after` (per-kind timer for
+    auto-restore), `capacity` (when first consumer needs quantity
+    tracking). All land with safe defaults so pre-extension streams
+    fold cleanly via the additive-state pattern.
     """
 
     id: UUID
@@ -631,4 +680,5 @@ class Supply:
     ]
     name: SupplyName
     facility_code: FacilityCode
+    containing_asset_id: UUID | None = None
     status: SupplyStatus = SupplyStatus.UNKNOWN

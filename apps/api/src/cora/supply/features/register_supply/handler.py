@@ -110,7 +110,7 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        # Cross-BC Facility binding (Session 5 Slice 7). The wire-level
+        # Cross-BC Facility binding (Session 5 Slice 7A). The wire-level
         # bare-str `command.facility_code` is regex-validated at the route
         # + tool Pydantic boundary; defensive in-process callers that
         # construct a malformed string see `InvalidFacilityCodeError`
@@ -122,6 +122,16 @@ def bind(deps: Kernel) -> Handler:
             FacilityCode(command.facility_code)
         )
 
+        # Cross-BC containing-Asset binding (Session 5 Slice 7B). Optional:
+        # `None` containing_asset_id means facility-scope, no lookup needed.
+        # When non-None the lookup returns `None` if no Asset with that id
+        # is visible in `proj_equipment_asset_summary`; the decider
+        # translates `None` (paired with non-None command) to
+        # `SupplyContainingAssetNotFoundError` (404).
+        asset_lookup_result = None
+        if command.containing_asset_id is not None:
+            asset_lookup_result = await deps.asset_lookup.lookup(command.containing_asset_id)
+
         domain_events = decide(
             state=None,
             command=command,
@@ -129,6 +139,7 @@ def bind(deps: Kernel) -> Handler:
             new_id=new_id,
             triggered_by=ActorId(principal_id),
             facility_lookup_result=facility_lookup_result,
+            asset_lookup_result=asset_lookup_result,
         )
 
         new_events = [

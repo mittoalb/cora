@@ -278,3 +278,44 @@ def test_post_supplies_returns_403_when_authorize_denies() -> None:
         )
     assert response.status_code == 403
     assert response.json()["detail"] == "denied for test"
+
+
+@pytest.mark.contract
+def test_post_supplies_returns_404_when_containing_asset_id_unseeded() -> None:
+    """Slice 7B cross-BC binding: an unknown but well-formed
+    `containing_asset_id` surfaces as
+    SupplyContainingAssetNotFoundError -> 404. The TestClient's
+    in-memory AssetLookup is empty by default; passing any UUID
+    resolves to None and the decider rejects."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/supplies",
+            json={
+                "scope": "Beamline",
+                "kind": "LiquidNitrogen",
+                "name": "2-BM LN2 dewar",
+                "facility_code": "cora",
+                "containing_asset_id": "01900000-0000-7000-8000-0000000a5d99",
+            },
+        )
+    assert response.status_code == 404
+    assert "0000000a5d99" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_supplies_facility_scope_omits_containing_asset_id_field() -> None:
+    """Slice 7B: containing_asset_id is OPTIONAL on the request body
+    (omit it for facility-scope resources). The 201 response is
+    indistinguishable from a Slice 7A registration."""
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/supplies",
+            json={
+                "scope": "Facility",
+                "kind": "PhotonBeam",
+                "name": "APS storage-ring beam",
+                "facility_code": "cora",
+            },
+        )
+    assert response.status_code == 201
+    UUID(response.json()["supply_id"])

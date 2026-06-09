@@ -113,6 +113,52 @@ def test_supply_registered_round_trip_via_from_stored() -> None:
 
 
 @pytest.mark.unit
+def test_supply_registered_round_trip_with_containing_asset_id() -> None:
+    """Slice 7B: when `containing_asset_id` is non-None on the dataclass,
+    `to_payload` emits it under the `containing_asset_id` key and
+    `from_stored` wraps it back into a typed UUID; round-trip equal."""
+    containing_asset_id = UUID("01900000-0000-7000-8000-0000000a5500")
+    original = SupplyRegistered(
+        supply_id=_SUPPLY_ID,
+        scope="Beamline",
+        kind="LiquidNitrogen",
+        name="2-BM LN2 dewar",
+        facility_code=_FACILITY_CODE,
+        trigger="Operator",
+        triggered_by=_ACTOR_ID,
+        occurred_at=_NOW,
+        containing_asset_id=containing_asset_id,
+    )
+    payload = to_payload(original)
+    assert payload["containing_asset_id"] == str(containing_asset_id)
+    rebuilt = from_stored(_stored("SupplyRegistered", payload))
+    assert rebuilt == original
+
+
+@pytest.mark.unit
+def test_supply_registered_omits_containing_asset_id_when_none() -> None:
+    """Slice 7B: facility-scope supplies (containing_asset_id=None)
+    OMIT the key from the payload entirely (additive forward-compat
+    per the slice 7A `monitor_ref` precedent). Pre-Slice-7B legacy
+    payloads (no key) fold cleanly via `payload.get(...)` -> None."""
+    event = SupplyRegistered(
+        supply_id=_SUPPLY_ID,
+        scope="Facility",
+        kind="PhotonBeam",
+        name="APS storage-ring beam",
+        facility_code=_FACILITY_CODE,
+        trigger="Operator",
+        triggered_by=_ACTOR_ID,
+        occurred_at=_NOW,
+    )
+    payload = to_payload(event)
+    assert "containing_asset_id" not in payload
+    rebuilt = from_stored(_stored("SupplyRegistered", payload))
+    assert isinstance(rebuilt, SupplyRegistered)
+    assert rebuilt.containing_asset_id is None
+
+
+@pytest.mark.unit
 def test_supply_registered_from_stored_rejects_malformed_facility_code() -> None:
     """A SupplyRegistered payload whose `facility_code` violates the
     FacilityCode regex (uppercase, illegal codepoint, etc.) surfaces

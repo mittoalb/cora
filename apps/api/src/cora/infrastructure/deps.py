@@ -58,6 +58,7 @@ from cora.infrastructure.adapters.canonicalization_registry import (
 from cora.infrastructure.adapters.default_canonicalization_adapter import (
     DefaultCanonicalizationAdapter,
 )
+from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLookup
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
@@ -77,6 +78,7 @@ from cora.infrastructure.ports import (
     AlwaysCoveredClearanceLookup,
     AlwaysEmptyCapabilityLookup,
     AlwaysQuietCautionLookup,
+    AssetLookup,
     Authorize,
     CapabilityLookup,
     CautionLookup,
@@ -146,6 +148,7 @@ def make_postgres_kernel(
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
+    asset_lookup: AssetLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -213,6 +216,15 @@ def make_postgres_kernel(
     Production's `build_kernel` injects the real
     `PostgresFacilityLookup` via the `facility_lookup_factory` argument.
 
+    `asset_lookup` defaults to a fresh `InMemoryAssetLookup` (empty
+    record map). Cross-BC binding tests (Slice 7B Supply
+    `containing_asset_id` validation, future Slice 8 Asset
+    `facility_id` binding, future Safety / Caution BC consumers) seed
+    assets explicitly via the adapter's `register(...)` helper; tests
+    that don't bind to an Asset never touch it. Production's
+    `build_kernel` injects the real `PostgresAssetLookup` via the
+    `asset_lookup_factory` argument.
+
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
     `build_kernel` injects `AnthropicLLM` when
@@ -252,6 +264,7 @@ def make_postgres_kernel(
         facility_lookup=(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
+        asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -279,6 +292,7 @@ def make_inmemory_kernel(
     supply_lookup: SupplyLookup | None = None,
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
+    asset_lookup: AssetLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -337,6 +351,14 @@ def make_inmemory_kernel(
     seed facilities via the adapter's `register(...)` helper; tests
     that register only Site facilities (parent_id=None) never touch it.
 
+    `asset_lookup` defaults to a fresh `InMemoryAssetLookup` for the
+    same reason: no projection worker, no
+    `proj_equipment_asset_summary` table to read from. Cross-BC
+    binding tests (Slice 7B Supply, future Slice 8 Asset.facility_id,
+    future Safety / Caution BC consumers) seed assets via the
+    adapter's `register(...)` helper; tests that don't bind to an
+    Asset never touch it.
+
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
     tests that DO exercise the LLM path inject `FakeLLM`
@@ -376,6 +398,7 @@ def make_inmemory_kernel(
         facility_lookup=(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
+        asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -513,6 +536,27 @@ class FacilityLookupFactory(Protocol):
     ) -> FacilityLookup: ...
 
 
+class AssetLookupFactory(Protocol):
+    """Builds the production AssetLookup port for the Kernel.
+
+    Equipment BC's `cora.equipment.adapters.PostgresAssetLookup` is
+    the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `FacilityLookupFactory` /
+    `CredentialLookupFactory` so `cora.infrastructure.deps` doesn't
+    import from any BC (tach module rule:
+    `cora.infrastructure depends_on = []`).
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryAssetLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> AssetLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -548,6 +592,7 @@ async def build_kernel(
     supply_lookup_factory: SupplyLookupFactory | None = None,
     credential_lookup_factory: CredentialLookupFactory | None = None,
     facility_lookup_factory: FacilityLookupFactory | None = None,
+    asset_lookup_factory: AssetLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
     permit_lookup_factory: "Callable[[], PermitLookup] | None" = None,
@@ -656,6 +701,9 @@ async def build_kernel(
         if facility_lookup_factory is not None
         else InMemoryFacilityLookup()
     )
+    asset_lookup: AssetLookup = (
+        asset_lookup_factory(pool) if asset_lookup_factory is not None else InMemoryAssetLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -671,6 +719,7 @@ async def build_kernel(
         supply_lookup=supply_lookup,
         credential_lookup=credential_lookup,
         facility_lookup=facility_lookup,
+        asset_lookup=asset_lookup,
         llm=llm,
         token_verifier=token_verifier,
         publish_port=publish_port_factory() if publish_port_factory is not None else None,
@@ -742,6 +791,7 @@ def _compose_teardowns(teardowns: list[Teardown]) -> Teardown:
 
 
 __all__ = [
+    "AssetLookupFactory",
     "AuthorizeFactory",
     "CapabilityLookupFactory",
     "CautionLookupFactory",

@@ -71,6 +71,19 @@ class RegisterSupplyRequest(BaseModel):
             "BC's facility projection; unknown codes are rejected with HTTP 404."
         ),
     )
+    containing_asset_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Optional physical-equipment containment back-reference. Omit (or pass "
+            "null) for facility-scope resources (storage-ring beam, central LN2 plant). "
+            "Set to the id of an existing Asset in the Equipment BC hierarchy for "
+            "sector / beamline / unit scoped resources (per "
+            "project_supply_sector_disposition Option A). The handler resolves the id "
+            "via the Equipment BC's Asset projection; unknown ids are rejected with "
+            "HTTP 404. Decommissioned-Asset binding is allowed (mirrors slice 6A "
+            "FacilityParentNotFoundError precedent)."
+        ),
+    )
 
 
 class RegisterSupplyResponse(BaseModel):
@@ -105,9 +118,11 @@ router = APIRouter(tags=["supply"])
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
             "description": (
-                "The `facility_code` does not resolve to a Facility row in the "
-                "Federation projection. Operator remedies: register the Facility "
-                "first via `POST /federation/facilities`, or correct the slug."
+                "Either `facility_code` does not resolve to a Facility row in the "
+                "Federation projection, OR `containing_asset_id` does not resolve to "
+                "an Asset row in the Equipment projection. Operator remedies: "
+                "register the missing parent first (`POST /federation/facilities` or "
+                "`POST /assets`), or correct the id / slug on the Supply registration."
             ),
         },
         status.HTTP_409_CONFLICT: {
@@ -153,6 +168,7 @@ async def post_supplies(
             kind=body.kind,
             name=body.name,
             facility_code=body.facility_code,
+            containing_asset_id=body.containing_asset_id,
         ),
         principal_id=principal_id,
         correlation_id=cid,
