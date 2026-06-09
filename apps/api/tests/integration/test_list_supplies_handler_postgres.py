@@ -150,21 +150,44 @@ async def test_list_returns_registered_supplies(db_pool: asyncpg.Pool) -> None:
 
 
 @pytest.mark.integration
-async def test_list_filters_by_scope_kind_status(db_pool: asyncpg.Pool) -> None:
-    """All three filters work in combination via the NULL-or pattern."""
-    # Register 3 supplies across different scope/kind/status combinations.
+async def test_list_filters_by_containing_asset_kind_status(db_pool: asyncpg.Pool) -> None:
+    """Slice 7D: filter axes (containing_asset_id, kind, status) compose
+    via the NULL-or pattern. The prior `scope` filter axis was retired
+    per [[project_supply_sector_disposition]] Option A; the equivalent
+    operator query ('all beamline supplies') now selects by the binding
+    Asset id."""
+    from cora.infrastructure.adapters.in_memory_asset_lookup import (
+        InMemoryAssetLookup,
+    )
+
+    bm_asset_id = uuid4()
+    asset_lookup = InMemoryAssetLookup()
+    asset_lookup.register(asset_id=bm_asset_id, name="2-BM", level="Unit")
+
+    # Register 3 supplies: 2 bound to 2-BM Asset, 1 facility-scope.
     bm_ln2_id = uuid4()
     fac_beam_id = uuid4()
     bm_air_id = uuid4()
 
-    for sup_id, scope, kind, name in (
-        (bm_ln2_id, SupplyScope.BEAMLINE, "LiquidNitrogen", "2-BM LN2"),
-        (fac_beam_id, SupplyScope.FACILITY, "PhotonBeam", "APS storage-ring beam"),
-        (bm_air_id, SupplyScope.BEAMLINE, "CompressedAir", "2-BM CompAir"),
+    for sup_id, scope, kind, name, containing_id in (
+        (bm_ln2_id, SupplyScope.BEAMLINE, "LiquidNitrogen", "2-BM LN2", bm_asset_id),
+        (fac_beam_id, SupplyScope.FACILITY, "PhotonBeam", "APS storage-ring beam", None),
+        (bm_air_id, SupplyScope.BEAMLINE, "CompressedAir", "2-BM CompAir", bm_asset_id),
     ):
-        deps = _build_deps(db_pool, [sup_id, uuid4()])
+        deps = build_postgres_deps(
+            db_pool,
+            now=_NOW,
+            ids=[sup_id, uuid4()],
+            asset_lookup=asset_lookup,
+        )
         await bind_register(deps)(
-            RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+            RegisterSupply(
+                scope=scope,
+                kind=kind,
+                name=name,
+                facility_code="cora",
+                containing_asset_id=containing_id,
+            ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -179,9 +202,9 @@ async def test_list_filters_by_scope_kind_status(db_pool: asyncpg.Pool) -> None:
 
     list_deps = _build_deps(db_pool, [])
 
-    # Filter by scope=Beamline -> 2 results
+    # Filter by containing_asset_id=bm_asset_id -> 2 results (the 2-BM-bound supplies)
     page = await bind_list(list_deps)(
-        ListSupplies(scope="Beamline"),
+        ListSupplies(containing_asset_id=bm_asset_id),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -206,14 +229,22 @@ async def test_list_filters_by_scope_kind_status(db_pool: asyncpg.Pool) -> None:
     assert len(page.items) == 1
     assert page.items[0].supply_id == bm_ln2_id
 
-    # Combined: scope=Beamline AND status=Unknown -> 1 result (CompAir)
+    # Combined: containing_asset_id=bm_asset_id AND status=Unknown -> 1 result (CompAir)
     page = await bind_list(list_deps)(
-        ListSupplies(scope="Beamline", status="Unknown"),
+        ListSupplies(containing_asset_id=bm_asset_id, status="Unknown"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page.items) == 1
     assert page.items[0].supply_id == bm_air_id
+
+    # Filter by facility_code=cora -> all 3 results (every supply is on 'cora')
+    page = await bind_list(list_deps)(
+        ListSupplies(facility_code="cora"),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    assert len(page.items) == 3
 
 
 @pytest.mark.integration
@@ -299,17 +330,34 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
 ) -> None:
     """M3 from gate review: cursor + filter in combination exercises the
     `_LIST_WITH_CURSOR_SQL` branch (the more complex SQL path) under
-    real filter pressure. Register 3 Beamline + 1 Facility, page-of-2
-    with scope=Beamline, expect page1 to have a cursor, page2 to have
-    the remaining Beamline supply only."""
+    real filter pressure. Register 3 supplies bound to one Asset + 1
+    facility-scope supply, page-of-2 filtered by
+    containing_asset_id, expect page1 to have a cursor, page2 to have
+    the remaining bound supply only. Slice 7D migrated the filter axis
+    from `scope` to `containing_asset_id` per
+    [[project_supply_sector_disposition]] Option A."""
+    from cora.infrastructure.adapters.in_memory_asset_lookup import (
+        InMemoryAssetLookup,
+    )
+
+    bm_asset_id = uuid4()
+    asset_lookup = InMemoryAssetLookup()
+    asset_lookup.register(asset_id=bm_asset_id, name="2-BM", level="Unit")
+
     for i in range(3):
-        deps = _build_deps(db_pool, [uuid4(), uuid4()])
+        deps = build_postgres_deps(
+            db_pool,
+            now=_NOW,
+            ids=[uuid4(), uuid4()],
+            asset_lookup=asset_lookup,
+        )
         await bind_register(deps)(
             RegisterSupply(
                 scope=SupplyScope.BEAMLINE,
                 kind=f"K{i}",
                 name=f"BM-{i}",
                 facility_code="cora",
+                containing_asset_id=bm_asset_id,
             ),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
@@ -329,21 +377,21 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
 
     list_deps = _build_deps(db_pool, [])
     page1 = await bind_list(list_deps)(
-        ListSupplies(scope="Beamline", limit=2),
+        ListSupplies(containing_asset_id=bm_asset_id, limit=2),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page1.items) == 2
-    assert all(item.scope == "Beamline" for item in page1.items)
+    assert all(item.containing_asset_id == bm_asset_id for item in page1.items)
     assert page1.next_cursor is not None
 
     page2 = await bind_list(list_deps)(
-        ListSupplies(scope="Beamline", limit=2, cursor=page1.next_cursor),
+        ListSupplies(containing_asset_id=bm_asset_id, limit=2, cursor=page1.next_cursor),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     assert len(page2.items) == 1
-    assert page2.items[0].scope == "Beamline"
+    assert page2.items[0].containing_asset_id == bm_asset_id
     assert page2.next_cursor is None
 
 

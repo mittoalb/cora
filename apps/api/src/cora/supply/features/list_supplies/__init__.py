@@ -1,5 +1,8 @@
 """The `list_supplies` query slice. Cursor-paginated; backed by
-`proj_supply_summary`."""
+`proj_supply_summary`. Session 5 Slice 7D retired the prior
+`SupplyScopeFilter` in favor of `facility_code` +
+`containing_asset_id` filters per
+[[project_supply_sector_disposition]] Option A."""
 
 from cora.supply.features.list_supplies.handler import (
     Handler,
@@ -9,7 +12,6 @@ from cora.supply.features.list_supplies.handler import (
 )
 from cora.supply.features.list_supplies.query import (
     ListSupplies,
-    SupplyScopeFilter,
     SupplyStatusFilter,
 )
 from cora.supply.features.list_supplies.route import router
@@ -18,7 +20,6 @@ __all__ = [
     "Handler",
     "ListSupplies",
     "SupplyListPage",
-    "SupplyScopeFilter",
     "SupplyStatusFilter",
     "SupplySummaryItem",
     "bind",

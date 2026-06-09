@@ -40,7 +40,7 @@ async def test_handler_passes_through_filters() -> None:
     handler = list_supplies.bind(deps)
     page = await handler(
         ListSupplies(
-            scope="Beamline",
+            facility_code="aps",
             kind="LiquidNitrogen",
             status="Available",
             limit=20,

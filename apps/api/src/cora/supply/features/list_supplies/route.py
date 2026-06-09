@@ -1,7 +1,14 @@
 """HTTP route for the `list_supplies` query slice.
 
-`GET /supplies?cursor=...&limit=50&scope=Beamline&kind=LiquidNitrogen&status=Available`
-returns `{"items": [...], "next_cursor": "..." | null}`.
+`GET /supplies` with optional query params:
+  `cursor`, `limit`, `facility_code`, `containing_asset_id`, `kind`, `status`.
+Returns `{"items": [...], "next_cursor": "..." | null}`.
+
+Session 5 Slice 7D retired the prior `?scope=` filter in favor of
+`?facility_code=` + `?containing_asset_id=` per
+[[project_supply_sector_disposition]] Option A. The `scope` value
+still appears on each returned item (the projection column stays
+through Slice 7E); only the FILTER surface migrated.
 """
 
 from datetime import datetime
@@ -17,6 +24,7 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -28,7 +36,6 @@ from cora.supply.aggregates.supply import (
 from cora.supply.features.list_supplies.handler import Handler
 from cora.supply.features.list_supplies.query import (
     ListSupplies,
-    SupplyScopeFilter,
     SupplyStatusFilter,
 )
 
@@ -40,6 +47,20 @@ class SupplySummaryDTO(BaseModel):
     scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
+    facility_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=FACILITY_CODE_MAX_LENGTH,
+        pattern=r"^[a-z0-9-]{1,32}$",
+    )
+    containing_asset_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Id of the containing Asset (Equipment BC) when the Supply is bound "
+            "to a Sector / Beamline / Unit; null for facility-scope resources "
+            "(Session 5 Slice 7B)."
+        ),
+    )
     status: SupplyStatus
     registered_at: datetime
     last_status_changed_at: datetime | None = None
@@ -79,7 +100,7 @@ router = APIRouter(tags=["supply"])
             ),
         },
     },
-    summary="List supplies with cursor pagination + scope/kind/status filters",
+    summary="List supplies with cursor pagination + facility/containing-asset/kind/status filters",
 )
 async def list_supplies(
     handler: Annotated[Handler, Depends(_get_handler)],
@@ -94,12 +115,26 @@ async def list_supplies(
         int,
         Query(ge=1, le=100, description="Page size; capped at 100."),
     ] = 50,
-    scope: Annotated[
-        SupplyScopeFilter | None,
+    facility_code: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=FACILITY_CODE_MAX_LENGTH,
+            pattern=r"^[a-z0-9-]{1,32}$",
+            description=(
+                "Optional cross-deployment Facility-code filter (exact match; "
+                "for example 'aps'). Lowercase ASCII alphanumeric plus dash, "
+                "1-32 chars. Omit to return all facilities."
+            ),
+        ),
+    ] = None,
+    containing_asset_id: Annotated[
+        UUID | None,
         Query(
             description=(
-                "Optional scope filter (one of: Facility, Sector, Beamline). "
-                "Omit to return all scopes."
+                "Optional containing-Asset-id filter (exact match against the "
+                "Equipment BC Asset id; non-null projection rows only). Omit to "
+                "return both facility-scope and contained Supplies."
             ),
         ),
     ] = None,
@@ -131,7 +166,8 @@ async def list_supplies(
         ListSupplies(
             cursor=cursor,
             limit=limit,
-            scope=scope,
+            facility_code=facility_code,
+            containing_asset_id=containing_asset_id,
             kind=kind,
             status=status_filter,
         ),
@@ -146,6 +182,8 @@ async def list_supplies(
                 scope=SupplyScope(item.scope),
                 kind=item.kind,
                 name=item.name,
+                facility_code=item.facility_code,
+                containing_asset_id=item.containing_asset_id,
                 status=SupplyStatus(item.status),
                 registered_at=item.registered_at,
                 last_status_changed_at=item.last_status_changed_at,

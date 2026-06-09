@@ -1,9 +1,15 @@
 """Application handler for the `list_supplies` query slice.
 
 Reads `proj_supply_summary` via the cross-BC
-`infrastructure.list_query.make_list_query_handler` factory. Three
-optional filters (scope + kind + status) plus cursor pagination on
-`(registered_at, supply_id)`.
+`infrastructure.list_query.make_list_query_handler` factory. Four
+optional filters (facility_code + containing_asset_id + kind +
+status) plus cursor pagination on `(registered_at, supply_id)`.
+
+Session 5 Slice 7D retired the prior `scope` filter axis in favor of
+the structural `facility_code` and `containing_asset_id` filters per
+[[project_supply_sector_disposition]] Option A. The `scope` column
+on the projection stays through Slice 7E and continues to surface on
+the result row.
 
 `last_status_changed_at` / `last_status_reason` / `last_trigger`
 flow through to the result row: nullable until the supply transitions
@@ -36,6 +42,8 @@ class SupplySummaryItem:
     scope: str
     kind: str
     name: str
+    facility_code: str
+    containing_asset_id: UUID | None
     status: str
     registered_at: datetime
     last_status_changed_at: datetime | None
@@ -65,8 +73,9 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "supply_id, scope, kind, name, status, registered_at, "
-    "last_status_changed_at, last_status_reason, last_trigger"
+    "supply_id, scope, kind, name, facility_code, containing_asset_id, "
+    "status, registered_at, last_status_changed_at, last_status_reason, "
+    "last_trigger"
 )
 
 
@@ -76,6 +85,8 @@ def _row_to_item(row: Any) -> SupplySummaryItem:
         scope=str(row["scope"]),
         kind=str(row["kind"]),
         name=str(row["name"]),
+        facility_code=str(row["facility_code"]),
+        containing_asset_id=row["containing_asset_id"],
         status=str(row["status"]),
         registered_at=row["registered_at"],
         last_status_changed_at=row["last_status_changed_at"],
@@ -88,7 +99,10 @@ def _row_to_item(row: Any) -> SupplySummaryItem:
 
 def _log_fields(query: ListSupplies) -> dict[str, Any]:
     return {
-        "scope": query.scope,
+        "facility_code": query.facility_code,
+        "containing_asset_id": (
+            str(query.containing_asset_id) if query.containing_asset_id is not None else None
+        ),
         "kind": query.kind,
         "status": query.status,
     }
@@ -106,7 +120,8 @@ def bind(deps: Kernel) -> Handler:
         time_column="registered_at",
         id_column="supply_id",
         filters=[
-            ScalarFilter(attr="scope"),
+            ScalarFilter(attr="facility_code"),
+            ScalarFilter(attr="containing_asset_id"),
             ScalarFilter(attr="kind"),
             ScalarFilter(attr="status"),
         ],

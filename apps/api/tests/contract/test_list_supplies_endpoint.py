@@ -31,10 +31,21 @@ def test_get_supplies_returns_empty_page_with_no_data(client: TestClient) -> Non
 
 
 @pytest.mark.contract
-@pytest.mark.parametrize("scope_value", ["Facility", "Sector", "Beamline"])
-def test_get_supplies_accepts_each_scope(client: TestClient, scope_value: str) -> None:
+def test_get_supplies_accepts_facility_code_filter(client: TestClient) -> None:
+    """Slice 7D: `?facility_code=` is the new structural filter axis
+    replacing `?scope=`."""
     with client:
-        response = client.get(f"/supplies?scope={scope_value}")
+        response = client.get("/supplies?facility_code=aps")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_supplies_accepts_containing_asset_id_filter(client: TestClient) -> None:
+    """Slice 7D: `?containing_asset_id=` is the new structural filter
+    axis (the operator query 'all beamline supplies' is now
+    'all supplies bound to the 2-BM Asset')."""
+    with client:
+        response = client.get("/supplies?containing_asset_id=01900000-0000-7000-8000-000000000a55")
     assert response.status_code == 200
 
 
@@ -66,14 +77,28 @@ def test_get_supplies_accepts_kind_filter(client: TestClient) -> None:
 @pytest.mark.contract
 def test_get_supplies_accepts_combined_filters(client: TestClient) -> None:
     with client:
-        response = client.get("/supplies?scope=Beamline&kind=LiquidNitrogen&status=Available")
+        response = client.get("/supplies?facility_code=aps&kind=LiquidNitrogen&status=Available")
     assert response.status_code == 200
 
 
 @pytest.mark.contract
-def test_get_supplies_rejects_unknown_scope_with_422(client: TestClient) -> None:
+def test_get_supplies_rejects_unknown_query_param_scope_silently(client: TestClient) -> None:
+    """Slice 7D retired the `?scope=` filter; the route no longer
+    declares it. Per FastAPI's permissive query-string handling, the
+    unknown param is silently ignored and the request returns 200.
+    This pins the retirement: clients still passing `?scope=Beamline`
+    do not break, but the filter has no effect."""
     with client:
-        response = client.get("/supplies?scope=Galaxy")
+        response = client.get("/supplies?scope=Beamline")
+    assert response.status_code == 200
+
+
+@pytest.mark.contract
+def test_get_supplies_rejects_malformed_facility_code_with_422(client: TestClient) -> None:
+    """FacilityCode regex (lowercase ASCII alphanumeric + dash) enforced
+    at the Pydantic query boundary; uppercase rejects with 422."""
+    with client:
+        response = client.get("/supplies?facility_code=APS")
     assert response.status_code == 422
 
 

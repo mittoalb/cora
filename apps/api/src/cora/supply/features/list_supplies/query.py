@@ -1,12 +1,25 @@
 """The `ListSupplies` query: intent dataclass for keyset-paginated
 list of supplies from the projection.
 
-Three optional filters: scope (Facility / Sector / Beamline), kind
-(free-form bare-str discriminator, exact match), status (one of the
-six SupplyStatus values, including the lifecycle-terminal
-`Decommissioned`). All three correspond to real ops queries:
-"all LN2 supplies" (kind), "all beamline-scope supplies" (scope),
-"all unavailable supplies" (status).
+Four optional filters: facility_code (cross-deployment convergent
+slug; exact match), containing_asset_id (UUID of the physical-
+equipment containment back-reference; exact match), kind (free-form
+bare-str discriminator; exact match), status (one of the six
+SupplyStatus values, including the lifecycle-terminal
+`Decommissioned`). All four correspond to real ops queries:
+"all LN2 supplies" (kind), "all supplies bound to 2-BM" (containing
+asset), "all supplies owned by APS" (facility code), "all
+unavailable supplies" (status).
+
+Session 5 Slice 7D retires the prior `?scope=` filter in favor of
+the structural `?facility_code=` + `?containing_asset_id=` filters
+per [[project_supply_sector_disposition]] Option A: the former
+`SupplyScope.Sector` + `SupplyScope.Beamline` enum values are being
+collapsed to relational references to the Equipment BC's Asset
+hierarchy. The `scope` column on the projection stays intact through
+Slice 7E (where the SupplyScope enum is retired entirely) and the
+response DTO still surfaces it for the audit trail; only the filter
+surface migrates here.
 
 No default exclusion of Decommissioned rows: matches the cross-BC
 convention from Asset (`AssetLifecycleFilter` includes
@@ -15,11 +28,11 @@ convention from Asset (`AssetLifecycleFilter` includes
 callers who want only-active set `status=...` explicitly. Callers
 who want to audit decommissioned supplies set `status=Decommissioned`.
 
-`SupplyStatusFilter` and `SupplyScopeFilter` are locked at the full
-enum width: forward-compat motivation: when later transition slices
-land, no Pydantic schema change required; OpenAPI documents the
-full FSM up front for ops engineers. Same precedent as TriggerSource
-being locked 3-value day one.
+`SupplyStatusFilter` is locked at the full enum width: forward-compat
+motivation: when later transition slices land, no Pydantic schema
+change required; OpenAPI documents the full FSM up front for ops
+engineers. Same precedent as TriggerSource being locked 3-value day
+one.
 
 Cursor encodes (registered_at, supply_id): `registered_at` is set
 once at SupplyRegistered (immutable), so it's a stable keyset key.
@@ -28,12 +41,7 @@ Mirrors `list_families` cursor exactly.
 
 from dataclasses import dataclass
 from typing import Literal
-
-SupplyScopeFilter = Literal[
-    "Facility",
-    "Sector",
-    "Beamline",
-]
+from uuid import UUID
 
 SupplyStatusFilter = Literal[
     "Unknown",
@@ -55,8 +63,14 @@ class ListSupplies:
     limit: int = 50
     """Page size cap. Default 50, max 100 (route enforces)."""
 
-    scope: SupplyScopeFilter | None = None
-    """Optional scope filter (one of the SupplyScope values)."""
+    facility_code: str | None = None
+    """Optional facility-code filter (exact match against the cross-
+    deployment convergent slug, for example `'aps'`, `'maxiv'`)."""
+
+    containing_asset_id: UUID | None = None
+    """Optional containing-Asset-id filter (exact match against the
+    Equipment BC Asset id; non-NULL projection rows only). Omit to
+    return both facility-scope and contained Supplies."""
 
     kind: str | None = None
     """Optional kind filter (free-form, exact match)."""

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
@@ -22,7 +23,6 @@ from cora.supply.aggregates.supply import (
 from cora.supply.features.list_supplies.handler import Handler
 from cora.supply.features.list_supplies.query import (
     ListSupplies,
-    SupplyScopeFilter,
     SupplyStatusFilter,
 )
 
@@ -32,6 +32,20 @@ class SupplySummaryRow(BaseModel):
     scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
+    facility_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=FACILITY_CODE_MAX_LENGTH,
+        pattern=r"^[a-z0-9-]{1,32}$",
+    )
+    containing_asset_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Id of the containing Asset (Equipment BC) when the Supply is bound "
+            "to a Sector / Beamline / Unit; null for facility-scope resources "
+            "(Session 5 Slice 7B)."
+        ),
+    )
     status: SupplyStatus
     registered_at: datetime
     last_status_changed_at: datetime | None = None
@@ -53,11 +67,13 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="list_supplies",
         description=(
             "Cursor-paginated list of supplies. Optional filters: "
-            "`scope` (Facility / Sector / Beamline), `kind` (free-form "
-            "exact match, for example 'LiquidNitrogen'), `status` (Unknown / "
-            "Available / Degraded / Unavailable / Recovering). Pass "
-            "`cursor` from a previous page's `next_cursor` to fetch "
-            "the next page."
+            "`facility_code` (cross-deployment slug, exact match, for example "
+            "'aps'), `containing_asset_id` (UUID of the containing Equipment "
+            "Asset; null-asset rows excluded), `kind` (free-form exact match, "
+            "for example 'LiquidNitrogen'), `status` (Unknown / Available / "
+            "Degraded / Unavailable / Recovering / Decommissioned). Pass "
+            "`cursor` from a previous page's `next_cursor` to fetch the next "
+            "page."
         ),
     )
     async def list_supplies_tool(  # pyright: ignore[reportUnusedFunction]
@@ -70,9 +86,26 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             int,
             Field(ge=1, le=100, description="Page size cap (max 100)."),
         ] = 50,
-        scope: Annotated[
-            SupplyScopeFilter | None,
-            Field(description="Optional scope filter; omit to list all."),
+        facility_code: Annotated[
+            str | None,
+            Field(
+                min_length=1,
+                max_length=FACILITY_CODE_MAX_LENGTH,
+                pattern=r"^[a-z0-9-]{1,32}$",
+                description=(
+                    "Optional facility-code filter (exact match, lowercase ASCII "
+                    "alphanumeric plus dash, 1-32 chars); omit to list all."
+                ),
+            ),
+        ] = None,
+        containing_asset_id: Annotated[
+            UUID | None,
+            Field(
+                description=(
+                    "Optional containing-Asset-id filter (exact match; non-null "
+                    "projection rows only); omit to include facility-scope."
+                ),
+            ),
         ] = None,
         kind: Annotated[
             str | None,
@@ -89,7 +122,14 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     ) -> SupplyListOutput:
         handler = get_handler()
         page = await handler(
-            ListSupplies(cursor=cursor, limit=limit, scope=scope, kind=kind, status=status),
+            ListSupplies(
+                cursor=cursor,
+                limit=limit,
+                facility_code=facility_code,
+                containing_asset_id=containing_asset_id,
+                kind=kind,
+                status=status,
+            ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),
             surface_id=get_mcp_surface_id(),
@@ -101,6 +141,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     scope=SupplyScope(item.scope),
                     kind=item.kind,
                     name=item.name,
+                    facility_code=item.facility_code,
+                    containing_asset_id=item.containing_asset_id,
                     status=SupplyStatus(item.status),
                     registered_at=item.registered_at,
                     last_status_changed_at=item.last_status_changed_at,

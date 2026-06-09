@@ -55,7 +55,7 @@ def test_mcp_list_supplies_tool_accepts_combined_filters() -> None:
                 "params": {
                     "name": "list_supplies",
                     "arguments": {
-                        "scope": "Beamline",
+                        "facility_code": "aps",
                         "kind": "LiquidNitrogen",
                         "status": "Available",
                         "limit": 25,

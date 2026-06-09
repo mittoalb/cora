@@ -12354,6 +12354,26 @@
       "SupplySummaryDTO": {
         "description": "One supply in a paginated list.",
         "properties": {
+          "containing_asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources (Session 5 Slice 7B).",
+            "title": "Containing Asset Id"
+          },
+          "facility_code": {
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "title": "Facility Code",
+            "type": "string"
+          },
           "kind": {
             "maxLength": 50,
             "title": "Kind",
@@ -12420,6 +12440,7 @@
           "scope",
           "kind",
           "name",
+          "facility_code",
           "status",
           "registered_at"
         ],
@@ -34768,26 +34789,43 @@
             }
           },
           {
-            "description": "Optional scope filter (one of: Facility, Sector, Beamline). Omit to return all scopes.",
+            "description": "Optional cross-deployment Facility-code filter (exact match; for example 'aps'). Lowercase ASCII alphanumeric plus dash, 1-32 chars. Omit to return all facilities.",
             "in": "query",
-            "name": "scope",
+            "name": "facility_code",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "enum": [
-                    "Facility",
-                    "Sector",
-                    "Beamline"
-                  ],
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9-]{1,32}$",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Optional scope filter (one of: Facility, Sector, Beamline). Omit to return all scopes.",
-              "title": "Scope"
+              "description": "Optional cross-deployment Facility-code filter (exact match; for example 'aps'). Lowercase ASCII alphanumeric plus dash, 1-32 chars. Omit to return all facilities.",
+              "title": "Facility Code"
+            }
+          },
+          {
+            "description": "Optional containing-Asset-id filter (exact match against the Equipment BC Asset id; non-null projection rows only). Omit to return both facility-scope and contained Supplies.",
+            "in": "query",
+            "name": "containing_asset_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional containing-Asset-id filter (exact match against the Equipment BC Asset id; non-null projection rows only). Omit to return both facility-scope and contained Supplies.",
+              "title": "Containing Asset Id"
             }
           },
           {
@@ -34881,7 +34919,7 @@
             "description": "Query parameters failed validation OR `cursor` was malformed (corrupt base64, missing separator, bad timestamp / UUID)."
           }
         },
-        "summary": "List supplies with cursor pagination + scope/kind/status filters",
+        "summary": "List supplies with cursor pagination + facility/containing-asset/kind/status filters",
         "tags": [
           "supply"
         ]
