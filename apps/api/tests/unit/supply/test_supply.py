@@ -22,7 +22,6 @@ from cora.supply.aggregates.supply import (
     Supply,
     SupplyName,
     SupplyReason,
-    SupplyScope,
     SupplyStatus,
     TriggerSource,
 )
@@ -124,7 +123,6 @@ def test_supply_aggregate_is_frozen() -> None:
     pattern (future watch-item facets land as new fields with defaults)."""
     supply = Supply(
         id=uuid4(),
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
         facility_code=_FACILITY_CODE,
@@ -139,7 +137,6 @@ def test_supply_status_defaults_to_unknown_at_construction() -> None:
     """The dataclass default mirrors the genesis-evolver-sets-Unknown convention."""
     supply = Supply(
         id=uuid4(),
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
         facility_code=_FACILITY_CODE,
@@ -176,14 +173,6 @@ def test_supply_status_has_six_locked_values() -> None:
 @pytest.mark.unit
 def test_supply_status_unknown_is_initial() -> None:
     assert SupplyStatus.UNKNOWN.value == "Unknown"
-
-
-# ---------- SupplyScope enum (3 values per APS LN2 distribution) ----------
-
-
-@pytest.mark.unit
-def test_supply_scope_has_three_locked_values() -> None:
-    assert {s.value for s in SupplyScope} == {"Facility", "Sector", "Beamline"}
 
 
 # ---------- TriggerSource enum (3-value lock day one for forward-compat) ----------

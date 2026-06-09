@@ -27,7 +27,6 @@ def _register_supply_via_tool(client: TestClient, headers: dict[str, str]) -> UU
             "params": {
                 "name": "register_supply",
                 "arguments": {
-                    "scope": "Beamline",
                     "kind": "LiquidNitrogen",
                     "name": "2-BM LN2",
                     "facility_code": "cora",
@@ -77,7 +76,6 @@ def test_mcp_get_supply_tool_returns_structured_supply_on_hit() -> None:
     assert result["isError"] is False
     sc = result["structuredContent"]
     assert sc["id"] == str(supply_id)
-    assert sc["scope"] == "Beamline"
     assert sc["kind"] == "LiquidNitrogen"
     assert sc["name"] == "2-BM LN2"
     assert sc["status"] == "Unknown"

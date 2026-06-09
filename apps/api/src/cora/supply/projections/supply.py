@@ -34,20 +34,22 @@ can re-register at the same address with a fresh supply_id. This is
 the load-bearing affordance the design memo
 [[project_deregister_supply_design]] documents.
 
-Session 5 Slice 7C swapped the index from the original
+The UNIQUE INDEX was migrated from the original
 `(scope, kind, name)` tuple to the current shape per
 [[project_supply_sector_disposition]] Option A. Two facilities can
-now each own a `(LiquidNitrogen, "2-BM LN2 dewar")` row without
+each own a `(LiquidNitrogen, "2-BM LN2 dewar")` row without
 colliding; within one facility, two distinct containing-Asset
 bindings can each own the same `(kind, name)` pair (a per-beamline
 dewar vs a sector-wide manifold). Facility-scope Supplies share the
 COALESCE-sentinel slot per facility so per-(facility_code, kind, name)
-uniqueness still holds.
+uniqueness still holds. The SupplyScope retirement cleanup then
+dropped the decorative `scope` column entirely; the four-tuple
+address is the canonical shape going forward.
 
 When two operators concurrently register supplies with the same
-(scope, kind, name) BOTH in active states, the second
-`SupplyRegistered` event lands in the event store cleanly (no
-decider gate), but its projection INSERT raises
+(facility_code, containing_asset_id, kind, name) BOTH in active
+states, the second `SupplyRegistered` event lands in the event store
+cleanly (no decider gate), but its projection INSERT raises
 `asyncpg.UniqueViolationError`. Day-one operational handling: catch
 the unique-violation, log a structured WARN, and return successfully
 so the projection bookmark advances and the worker keeps running.
@@ -77,9 +79,9 @@ _log = get_logger(__name__)
 
 _INSERT_SUPPLY_SQL = """
 INSERT INTO proj_supply_summary
-    (supply_id, scope, kind, name, facility_code, containing_asset_id, status,
+    (supply_id, kind, name, facility_code, containing_asset_id, status,
      registered_at, last_status_changed_at, last_status_reason, last_trigger)
-VALUES ($1, $2, $3, $4, $5, $6, 'Unknown', $7, NULL, NULL, NULL)
+VALUES ($1, $2, $3, $4, $5, 'Unknown', $6, NULL, NULL, NULL)
 ON CONFLICT (supply_id) DO NOTHING
 """
 
@@ -127,11 +129,12 @@ class SupplySummaryProjection:
         if event.event_type == "SupplyRegistered":
             # Wrap the INSERT in a SAVEPOINT (asyncpg's nested
             # `conn.transaction()`) so a UniqueViolation on
-            # (scope, kind, name) rolls back ONLY the inner write.
-            # The worker's outer batch transaction stays clean and
-            # subsequent applies + the bookmark advance can proceed.
-            # Without the SAVEPOINT, asyncpg raises
-            # InFailedSQLTransactionError on the next SQL.
+            # (facility_code, containing_asset_id, kind, name) rolls
+            # back ONLY the inner write. The worker's outer batch
+            # transaction stays clean and subsequent applies + the
+            # bookmark advance can proceed. Without the SAVEPOINT,
+            # asyncpg raises InFailedSQLTransactionError on the next
+            # SQL.
             raw_containing_asset_id = event.payload.get("containing_asset_id")
             containing_asset_id = (
                 UUID(raw_containing_asset_id) if raw_containing_asset_id is not None else None
@@ -141,7 +144,6 @@ class SupplySummaryProjection:
                     await conn.execute(
                         _INSERT_SUPPLY_SQL,
                         UUID(event.payload["supply_id"]),
-                        event.payload["scope"],
                         event.payload["kind"],
                         event.payload["name"],
                         event.payload["facility_code"],
@@ -162,7 +164,6 @@ class SupplySummaryProjection:
                     containing_asset_id=event.payload.get("containing_asset_id"),
                     kind=event.payload["kind"],
                     name=event.payload["name"],
-                    scope=event.payload["scope"],
                     event_id=str(event.event_id),
                 )
             return

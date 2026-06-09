@@ -37,7 +37,6 @@ def _ref(kind: str, status: str) -> SupplyReference:
     return SupplyReference(
         supply_id=uuid4(),
         kind=kind,
-        scope="Facility",
         name=f"<test {kind}>",
         status=status,
     )

@@ -1,8 +1,7 @@
 """Contract tests for `POST /supplies`.
 
 Covers create-style basics (request schema, response shape, status
-codes), the StrEnum scope-validation at the API boundary (unknown
-scopes -> 422), the Pydantic min/max length on kind + name (-> 422),
+codes), the Pydantic min/max length on kind + name (-> 422),
 the FacilityCode regex on `facility_code` (-> 422), the cross-BC
 SupplyFacilityNotFound mapping when the slug does not resolve
 (-> 404), the domain-VO validation when whitespace-only slips past
@@ -32,12 +31,11 @@ from cora.supply.features.register_supply.route import (
 
 
 @pytest.mark.contract
-def test_post_supplies_returns_201_with_supply_id_for_beamline_scope() -> None:
+def test_post_supplies_returns_201_with_supply_id() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "2-BM LN2",
                 "facility_code": "cora",
@@ -50,28 +48,11 @@ def test_post_supplies_returns_201_with_supply_id_for_beamline_scope() -> None:
 
 
 @pytest.mark.contract
-@pytest.mark.parametrize("scope", ["Facility", "Sector", "Beamline"])
-def test_post_supplies_accepts_each_scope(scope: str) -> None:
-    with TestClient(create_app()) as client:
-        response = client.post(
-            "/supplies",
-            json={
-                "scope": scope,
-                "kind": "LiquidNitrogen",
-                "name": f"{scope}-LN2",
-                "facility_code": "cora",
-            },
-        )
-    assert response.status_code == 201
-
-
-@pytest.mark.contract
 def test_post_supplies_trims_whitespace_in_kind_and_name() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "  2-BM LN2  ",
                 "facility_code": "cora",
@@ -83,7 +64,7 @@ def test_post_supplies_trims_whitespace_in_kind_and_name() -> None:
 @pytest.mark.contract
 def test_post_supplies_rejects_missing_required_fields_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/supplies", json={"scope": "Beamline"})
+        response = client.post("/supplies", json={})
     assert response.status_code == 422
 
 
@@ -93,22 +74,7 @@ def test_post_supplies_rejects_missing_facility_code_with_422() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/supplies",
-            json={"scope": "Beamline", "kind": "X", "name": "Y"},
-        )
-    assert response.status_code == 422
-
-
-@pytest.mark.contract
-def test_post_supplies_rejects_unknown_scope_with_422() -> None:
-    with TestClient(create_app()) as client:
-        response = client.post(
-            "/supplies",
-            json={
-                "scope": "Galaxy",
-                "kind": "X",
-                "name": "Y",
-                "facility_code": "cora",
-            },
+            json={"kind": "X", "name": "Y"},
         )
     assert response.status_code == 422
 
@@ -119,7 +85,6 @@ def test_post_supplies_rejects_empty_kind_with_422() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "",
                 "name": "X",
                 "facility_code": "cora",
@@ -134,7 +99,6 @@ def test_post_supplies_rejects_too_long_kind_with_422() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "a" * (SUPPLY_KIND_MAX_LENGTH + 1),
                 "name": "X",
                 "facility_code": "cora",
@@ -149,7 +113,6 @@ def test_post_supplies_rejects_too_long_name_with_422() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "X",
                 "name": "a" * (SUPPLY_NAME_MAX_LENGTH + 1),
                 "facility_code": "cora",
@@ -171,7 +134,6 @@ def test_post_supplies_rejects_malformed_facility_code_with_422(bad_code: str) -
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "X",
                 "facility_code": bad_code,
@@ -188,7 +150,6 @@ def test_post_supplies_returns_404_when_facility_code_unseeded() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "2-BM LN2",
                 "facility_code": "unseeded",
@@ -205,7 +166,6 @@ def test_post_supplies_rejects_whitespace_only_name_with_400() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "   ",
                 "facility_code": "cora",
@@ -222,7 +182,6 @@ def test_post_supplies_rejects_whitespace_only_kind_with_400() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "   ",
                 "name": "X",
                 "facility_code": "cora",
@@ -247,7 +206,6 @@ async def test_post_supplies_returns_409_when_handler_raises_already_exists() ->
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "X",
                 "name": "Y",
                 "facility_code": "cora",
@@ -270,7 +228,6 @@ def test_post_supplies_returns_403_when_authorize_denies() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "2-BM LN2",
                 "facility_code": "cora",
@@ -291,7 +248,6 @@ def test_post_supplies_returns_404_when_containing_asset_id_unseeded() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "2-BM LN2 dewar",
                 "facility_code": "cora",
@@ -311,7 +267,6 @@ def test_post_supplies_facility_scope_omits_containing_asset_id_field() -> None:
         response = client.post(
             "/supplies",
             json={
-                "scope": "Facility",
                 "kind": "PhotonBeam",
                 "name": "APS storage-ring beam",
                 "facility_code": "cora",

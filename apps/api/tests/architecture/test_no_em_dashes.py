@@ -333,7 +333,6 @@ EMDASH_ALLOWLIST: frozenset[str] = frozenset(
         "src/cora/supply/features/mark_supply_available/command.py",
         "src/cora/supply/features/mark_supply_recovering/command.py",
         "src/cora/supply/features/mark_supply_unavailable/command.py",
-        "src/cora/supply/features/register_supply/command.py",
         "src/cora/supply/features/register_supply/handler.py",
         "src/cora/supply/features/restore_supply/command.py",
         "src/cora/supply/projections/supply.py",

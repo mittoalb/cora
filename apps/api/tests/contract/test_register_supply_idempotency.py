@@ -15,7 +15,6 @@ from cora.api.main import create_app
 def test_post_supplies_without_key_creates_distinct_supplies_on_each_call() -> None:
     with TestClient(create_app()) as client:
         body = {
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -31,7 +30,6 @@ def test_post_supplies_without_key_creates_distinct_supplies_on_each_call() -> N
 def test_post_supplies_same_key_and_body_returns_same_supply_id() -> None:
     with TestClient(create_app()) as client:
         body = {
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -52,7 +50,6 @@ def test_post_supplies_same_key_different_body_returns_422() -> None:
         r1 = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "LiquidNitrogen",
                 "name": "X",
                 "facility_code": "cora",
@@ -62,7 +59,6 @@ def test_post_supplies_same_key_different_body_returns_422() -> None:
         r2 = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "PhotonBeam",
                 "name": "X",
                 "facility_code": "cora",

@@ -10,20 +10,20 @@ append. No I/O, no awaits, no side effects.
 `now` and `new_id` are injected by the application handler from the
 Clock and IdGenerator ports (the non-determinism principle: capture,
 don't recompute). `facility_lookup_result` is injected by the handler
-after calling `FacilityLookup.lookup_by_code` (Session 5 Slice 7A);
+after calling `FacilityLookup.lookup_by_code`;
 `None` signals the Facility code does not resolve to a projection row.
 `asset_lookup_result` is injected by the handler after calling
-`AssetLookup.lookup` IFF `command.containing_asset_id` was non-None
-(Session 5 Slice 7B); `None` either means the command had no
-containing-Asset binding (facility-scope) OR the lookup returned
-None (rejection). The decider uses both `command.containing_asset_id`
-and `asset_lookup_result` to disambiguate.
+`AssetLookup.lookup` IFF `command.containing_asset_id` was non-None;
+`None` either means the command had no containing-Asset binding
+(facility-scope) OR the lookup returned None (rejection). The
+decider uses both `command.containing_asset_id` and
+`asset_lookup_result` to disambiguate.
 
 ## Validation
 
   - State must be None (genesis-only) -> `SupplyAlreadyExistsError`
   - `facility_lookup_result` must be non-None -> `SupplyFacilityNotFoundError`.
-    Lifecycle filter mirrors slice 6 `FacilityParentNotFoundError`:
+    Lifecycle filter mirrors the Federation `FacilityParentNotFoundError`:
     every Facility status (Active, Decommissioned) is a valid
     binding target; the decider does NOT partition on status.
   - When `command.containing_asset_id` is non-None,
@@ -101,8 +101,8 @@ def decide(
 
     `asset_lookup_result.id` is folded onto the event when present
     so the event's `containing_asset_id` reflects the projection's
-    canonical id, not a command-echo (mirrors the Slice 7A
-    facility_code source-of-truth pattern).
+    canonical id, not a command-echo (mirrors the facility_code
+    source-of-truth pattern).
     """
     if state is not None:
         raise SupplyAlreadyExistsError(state.id)
@@ -125,7 +125,6 @@ def decide(
     return [
         SupplyRegistered(
             supply_id=new_id,
-            scope=command.scope.value,
             kind=kind,
             name=name.value,
             facility_code=facility_lookup_result.code,

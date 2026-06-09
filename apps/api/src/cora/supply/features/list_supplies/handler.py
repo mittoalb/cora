@@ -5,11 +5,11 @@ Reads `proj_supply_summary` via the cross-BC
 optional filters (facility_code + containing_asset_id + kind +
 status) plus cursor pagination on `(registered_at, supply_id)`.
 
-Session 5 Slice 7D retired the prior `scope` filter axis in favor of
-the structural `facility_code` and `containing_asset_id` filters per
-[[project_supply_sector_disposition]] Option A. The `scope` column
-on the projection stays through Slice 7E and continues to surface on
-the result row.
+The prior `scope` filter axis was retired in favor of the structural
+`facility_code` and `containing_asset_id` filters per
+[[project_supply_sector_disposition]] Option A; the SupplyScope
+retirement cleanup then dropped the projection `scope` column
+entirely, so the result row no longer surfaces it.
 
 `last_status_changed_at` / `last_status_reason` / `last_trigger`
 flow through to the result row: nullable until the supply transitions
@@ -39,7 +39,6 @@ class SupplySummaryItem:
     """One row from the supply projection."""
 
     supply_id: UUID
-    scope: str
     kind: str
     name: str
     facility_code: str
@@ -73,7 +72,7 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "supply_id, scope, kind, name, facility_code, containing_asset_id, "
+    "supply_id, kind, name, facility_code, containing_asset_id, "
     "status, registered_at, last_status_changed_at, last_status_reason, "
     "last_trigger"
 )
@@ -82,7 +81,6 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> SupplySummaryItem:
     return SupplySummaryItem(
         supply_id=row["supply_id"],
-        scope=str(row["scope"]),
         kind=str(row["kind"]),
         name=str(row["name"]),
         facility_code=str(row["facility_code"]),

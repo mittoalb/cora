@@ -16,7 +16,6 @@ from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
     SUPPLY_REASON_MAX_LENGTH,
-    SupplyScope,
     SupplyStatus,
     TriggerSource,
 )
@@ -29,7 +28,6 @@ from cora.supply.features.list_supplies.query import (
 
 class SupplySummaryRow(BaseModel):
     supply_id: UUID
-    scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
     facility_code: str = Field(
@@ -42,8 +40,7 @@ class SupplySummaryRow(BaseModel):
         default=None,
         description=(
             "Id of the containing Asset (Equipment BC) when the Supply is bound "
-            "to a Sector / Beamline / Unit; null for facility-scope resources "
-            "(Session 5 Slice 7B)."
+            "to a Sector / Beamline / Unit; null for facility-scope resources."
         ),
     )
     status: SupplyStatus
@@ -138,7 +135,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 SupplySummaryRow(
                     supply_id=item.supply_id,
-                    scope=SupplyScope(item.scope),
                     kind=item.kind,
                     name=item.name,
                     facility_code=item.facility_code,

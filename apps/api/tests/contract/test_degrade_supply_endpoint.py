@@ -18,7 +18,6 @@ def _register_and_mark_available(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
         json={
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",

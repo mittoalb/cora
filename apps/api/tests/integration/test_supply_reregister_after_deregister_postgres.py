@@ -48,7 +48,6 @@ import pytest
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.supply._projections import register_supply_projections
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.deregister_supply import DeregisterSupply
 from cora.supply.features.deregister_supply import bind as bind_deregister
 from cora.supply.features.list_supplies import ListSupplies
@@ -79,7 +78,6 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
     db_pool: asyncpg.Pool,
 ) -> None:
     """Register -> deregister -> register at same (scope, kind, name) -> new id."""
-    scope = SupplyScope.BEAMLINE
     kind = "LiquidNitrogen"
     name = f"2-BM LN2 reregister-test-{uuid4()}"
 
@@ -89,7 +87,7 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
         db_pool, ids=[first_supply_id, first_genesis_event_id], now=_T0
     )
     sid_first = await bind_register(deps_register_first)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+        RegisterSupply(kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -110,7 +108,7 @@ async def test_reregister_at_same_address_after_deregister_creates_fresh_supply_
         db_pool, ids=[second_supply_id, second_genesis_event_id], now=_T2
     )
     sid_second = await bind_register(deps_register_second)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+        RegisterSupply(kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -142,14 +140,13 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     second event lives in the event store as audit (no projection row).
     Pins the predicate's direction: `WHERE status != 'Decommissioned'`
     excludes Decommissioned rows from uniqueness, not active ones."""
-    scope = SupplyScope.BEAMLINE
     kind = "CompressedAir"
     name = f"2-BM CA active-dup-test-{uuid4()}"
 
     first_supply_id = uuid4()
     deps_first = _build_deps(db_pool, ids=[first_supply_id, uuid4()], now=_T0)
     await bind_register(deps_first)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+        RegisterSupply(kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -158,7 +155,7 @@ async def test_second_active_registration_at_same_address_is_swallowed(
     second_supply_id = uuid4()
     deps_second = _build_deps(db_pool, ids=[second_supply_id, uuid4()], now=_T1)
     await bind_register(deps_second)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+        RegisterSupply(kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -189,7 +186,6 @@ async def test_same_kind_name_across_facilities_coexist(
     )
     from cora.shared.facility_code import FacilityCode
 
-    scope = SupplyScope.BEAMLINE
     kind = "LiquidNitrogen"
     name = f"2-BM LN2 cross-facility-{uuid4()}"
 
@@ -208,7 +204,7 @@ async def test_same_kind_name_across_facilities_coexist(
         facility_lookup=aps_lookup,
     )
     await bind_register(aps_deps)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="aps"),
+        RegisterSupply(kind=kind, name=name, facility_code="aps"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -228,7 +224,7 @@ async def test_same_kind_name_across_facilities_coexist(
         facility_lookup=maxiv_lookup,
     )
     await bind_register(maxiv_deps)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="maxiv"),
+        RegisterSupply(kind=kind, name=name, facility_code="maxiv"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -259,7 +255,6 @@ async def test_same_kind_name_across_containing_assets_coexist(
         InMemoryAssetLookup,
     )
 
-    scope = SupplyScope.BEAMLINE
     kind = "LiquidNitrogen"
     name = f"LN2 cross-asset-{uuid4()}"
 
@@ -278,7 +273,6 @@ async def test_same_kind_name_across_containing_assets_coexist(
     )
     await bind_register(first_deps)(
         RegisterSupply(
-            scope=scope,
             kind=kind,
             name=name,
             facility_code="cora",
@@ -297,7 +291,6 @@ async def test_same_kind_name_across_containing_assets_coexist(
     )
     await bind_register(second_deps)(
         RegisterSupply(
-            scope=scope,
             kind=kind,
             name=name,
             facility_code="cora",

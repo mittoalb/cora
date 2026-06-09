@@ -22,20 +22,22 @@ transition-event payloads as `from_status` so the projection can
 reconstruct exact source-state audit without re-folding the prior
 stream.
 
-`scope` and `kind` travel in the genesis payload as primitive strings;
-the evolver reconstructs typed `SupplyScope` and `SupplyKind` VOs.
-Same precedent as `AssetLevel` in payloads.
+`kind` travels in the genesis payload as a primitive string; the
+evolver keeps it bare-str on the aggregate per
+[[project_supply_design]] (future graduation to a typed `SupplyKind`
+StrEnum is a parser change only, no event rewrite). Same precedent
+as `AssetPort.signal_type` in payloads.
 
-`facility_code` (Session 5 Slice 7) is the cross-deployment convergent
+`facility_code` is the cross-deployment convergent
 facility slug; it travels in the SupplyRegistered payload as the
-primitive string (matches the Permit / Credential / Seal Slice 6E
+primitive string (matches the Permit / Credential / Seal wire
 convention of bare-str disk payloads + typed `FacilityCode` VO on
 aggregate state). `from_stored` wraps `FacilityCode(payload["facility_code"])`
 with `extra=(ValueError,)` so malformed slugs in stored events surface
 as `Malformed SupplyRegistered payload` rather than silently passing
 the VO's `InvalidFacilityCodeError` upstream.
 
-`containing_asset_id` (Session 5 Slice 7B) is the OPTIONAL physical-
+`containing_asset_id` is the OPTIONAL physical-
 equipment containment back-reference per
 [[project_supply_sector_disposition]] Option A. Bare UUID on the
 aggregate (Equipment BC's Asset.id is not a NewType); travels in the
@@ -43,7 +45,7 @@ SupplyRegistered payload as the string-form UUID under the
 `containing_asset_id` key, OMITTED ENTIRELY when None (facility-scope
 supplies). `from_stored` uses `payload.get("containing_asset_id")`
 + conditional `UUID(...)` wrap so legacy genesis events written
-before Slice 7B fold cleanly without backfill (additive evolution
+before this optional key existed fold cleanly without backfill (additive evolution
 per [[project_from_stored_wrap_convention]]).
 
 `trigger` travels in every event payload as a `TriggerSource` enum
@@ -136,24 +138,23 @@ class SupplyRegistered:
     `facility_code` carries the typed `FacilityCode` VO; the handler
     constructs it from the bare-str command field at the port edge
     and the decider passes it through. `to_payload` emits the bare
-    `.value` string on disk per the Permit / Credential / Seal
-    Slice 6E convention; `from_stored` re-wraps with `FacilityCode(...)`
+    `.value` string on disk per the Permit / Credential / Seal wire
+    convention; `from_stored` re-wraps with `FacilityCode(...)`
     inside the `deserialize_or_raise` lambda so malformed slugs
     surface as `Malformed SupplyRegistered payload`.
 
-    `containing_asset_id` (Session 5 Slice 7B) is OPTIONAL — `None`
+    `containing_asset_id` is OPTIONAL — `None`
     semantically means "facility-scope" (paired with non-None
     `facility_code`). When non-None, the handler resolves it via
     `AssetLookup.lookup` before threading the result into the
     decider; the decider folds the validated id onto the event.
     `to_payload` OMITS the key when None (additive forward-compat
-    per the slice 7A `monitor_ref` precedent); `from_stored` uses
+    per the additive-optional payload-key precedent (e.g., `monitor_ref`)); `from_stored` uses
     `payload.get(..., None)` so pre-Slice-7B legacy events fold
     cleanly without backfill.
     """
 
     supply_id: UUID
-    scope: str
     kind: str
     name: str
     facility_code: FacilityCode
@@ -357,7 +358,6 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
     match event:
         case SupplyRegistered(
             supply_id=supply_id,
-            scope=scope,
             kind=kind,
             name=name,
             facility_code=facility_code,
@@ -368,7 +368,6 @@ def to_payload(event: SupplyEvent) -> dict[str, Any]:
         ):
             payload: dict[str, Any] = {
                 "supply_id": str(supply_id),
-                "scope": scope,
                 "kind": kind,
                 "name": name,
                 "facility_code": facility_code.value,
@@ -454,7 +453,7 @@ def _optional_uuid(raw: object) -> UUID | None:
     """Wrap an optional UUID-string-or-None payload value into `UUID | None`.
 
     Used by the SupplyRegistered case-arm to fold the optional
-    `containing_asset_id` payload key (Session 5 Slice 7B): absent /
+    `containing_asset_id` payload key: absent /
     None / null in the payload -> None on the dataclass; string-form
     UUID -> typed `UUID`. Any other value type (int, list, malformed
     string) surfaces as `ValueError` / `TypeError` from `UUID(...)`,
@@ -500,7 +499,6 @@ def from_stored(stored: StoredEvent) -> SupplyEvent:
                 "SupplyRegistered",
                 lambda: SupplyRegistered(
                     supply_id=UUID(payload["supply_id"]),
-                    scope=payload["scope"],
                     kind=payload["kind"],
                     name=payload["name"],
                     facility_code=FacilityCode(payload["facility_code"]),

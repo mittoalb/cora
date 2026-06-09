@@ -43,7 +43,6 @@ from cora.supply.aggregates.supply.events import (
 from cora.supply.aggregates.supply.state import (
     Supply,
     SupplyName,
-    SupplyScope,
     SupplyStatus,
 )
 
@@ -53,7 +52,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
     match event:
         case SupplyRegistered(
             supply_id=supply_id,
-            scope=scope,
             kind=kind,
             name=name,
             facility_code=facility_code,
@@ -62,7 +60,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             _ = state  # SupplyRegistered is the genesis event; prior state ignored
             return Supply(
                 id=supply_id,
-                scope=SupplyScope(scope),
                 kind=kind,
                 name=SupplyName(name),
                 facility_code=facility_code,
@@ -75,7 +72,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             prior = require_state(state, type(event).__name__)
             return Supply(
                 id=prior.id,
-                scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 facility_code=prior.facility_code,
@@ -86,7 +82,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             prior = require_state(state, "SupplyDegraded")
             return Supply(
                 id=prior.id,
-                scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 facility_code=prior.facility_code,
@@ -97,7 +92,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             prior = require_state(state, "SupplyMarkedUnavailable")
             return Supply(
                 id=prior.id,
-                scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 facility_code=prior.facility_code,
@@ -108,7 +102,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             prior = require_state(state, "SupplyMarkedRecovering")
             return Supply(
                 id=prior.id,
-                scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 facility_code=prior.facility_code,
@@ -119,7 +112,6 @@ def evolve(state: Supply | None, event: SupplyEvent) -> Supply:
             prior = require_state(state, "SupplyDeregistered")
             return Supply(
                 id=prior.id,
-                scope=prior.scope,
                 kind=prior.kind,
                 name=prior.name,
                 facility_code=prior.facility_code,

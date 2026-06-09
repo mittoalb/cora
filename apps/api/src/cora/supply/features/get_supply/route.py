@@ -23,7 +23,6 @@ from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
-    SupplyScope,
     SupplyStatus,
 )
 from cora.supply.features.get_supply.handler import Handler
@@ -35,14 +34,13 @@ class SupplyResponse(BaseModel):
 
     Carries primitives, not domain VOs. Decouples the wire format
     from the domain model so the two can evolve independently.
-    `scope` and `status` are the StrEnum string values; `kind` is the
-    free-form bare-str discriminator (1-50 chars). `facility_code` is
-    the cross-deployment convergent Facility slug surfaced as the
-    bare-str wire value (Session 5 Slice 7A).
+    `status` is the StrEnum string value; `kind` is the free-form
+    bare-str discriminator (1-50 chars). `facility_code` is the
+    cross-deployment convergent Facility slug surfaced as the bare-str
+    wire value.
     """
 
     id: UUID
-    scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
     facility_code: str = Field(..., max_length=FACILITY_CODE_MAX_LENGTH)
@@ -50,8 +48,7 @@ class SupplyResponse(BaseModel):
         default=None,
         description=(
             "Id of the containing Asset (Equipment BC) when the Supply is bound "
-            "to a Sector / Beamline / Unit; null for facility-scope resources "
-            "(Session 5 Slice 7B)."
+            "to a Sector / Beamline / Unit; null for facility-scope resources."
         ),
     )
     status: SupplyStatus
@@ -100,7 +97,6 @@ async def get_supplies(
         )
     return SupplyResponse(
         id=supply.id,
-        scope=supply.scope,
         kind=supply.kind,
         name=supply.name.value,
         facility_code=supply.facility_code.value,

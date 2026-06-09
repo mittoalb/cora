@@ -34,9 +34,9 @@ Adding a new aggregate (or a new transition error) becomes one tuple
 entry per family. The cannot-transition tuple grew from 1 to 5
 entries when 10a-b shipped the FSM-closure transitions, and to 6
 when `deregister_supply` shipped the lifecycle-terminal transition.
-The not-found tuple grew from 1 to 2 when Slice 7A added the
+The not-found tuple grew from 1 to 2 when added the
 cross-BC Facility binding via `register_supply`, then to 3 when
-Slice 7B added the cross-BC containing-Asset binding.
+added the cross-BC containing-Asset binding.
 """
 
 from fastapi import FastAPI, Request, status

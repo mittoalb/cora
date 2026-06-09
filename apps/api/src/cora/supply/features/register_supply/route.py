@@ -21,7 +21,6 @@ from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
-    SupplyScope,
 )
 from cora.supply.features.register_supply.command import RegisterSupply
 from cora.supply.features.register_supply.handler import IdempotentHandler
@@ -30,15 +29,6 @@ from cora.supply.features.register_supply.handler import IdempotentHandler
 class RegisterSupplyRequest(BaseModel):
     """Body for `POST /supplies`."""
 
-    scope: SupplyScope = Field(
-        ...,
-        description=(
-            "Hierarchical scope at which the supply is provisioned. "
-            "Facility = facility-wide (storage-ring photon beam, central LN2 plant), "
-            "Sector = ring sector / gas-manifold loop, "
-            "Beamline = beamline-local (per-beamline drop)."
-        ),
-    )
     kind: str = Field(
         ...,
         min_length=1,
@@ -136,9 +126,8 @@ router = APIRouter(tags=["supply"])
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "Request body failed schema validation (missing field, "
-                "invalid scope enum, length out of bounds, facility_code regex "
-                "violation), OR Idempotency-Key was reused with a different "
-                "request body."
+                "length out of bounds, facility_code regex violation), OR "
+                "Idempotency-Key was reused with a different request body."
             ),
         },
     },
@@ -164,7 +153,6 @@ async def post_supplies(
 ) -> RegisterSupplyResponse:
     supply_id = await handler(
         RegisterSupply(
-            scope=body.scope,
             kind=body.kind,
             name=body.name,
             facility_code=body.facility_code,

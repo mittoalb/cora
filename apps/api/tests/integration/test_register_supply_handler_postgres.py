@@ -6,7 +6,6 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features import register_supply
 from cora.supply.features.register_supply import RegisterSupply
 from tests.integration._helpers import build_postgres_deps
@@ -26,7 +25,6 @@ async def test_register_supply_persists_event_to_postgres(
 
     supply_id = await register_supply.bind(deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",
@@ -44,7 +42,6 @@ async def test_register_supply_persists_event_to_postgres(
     assert stored.schema_version == 1
     assert stored.payload == {
         "supply_id": str(_NEW_ID),
-        "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
         "facility_code": "cora",

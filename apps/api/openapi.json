@@ -10396,14 +10396,9 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/SupplyScope",
-            "description": "Hierarchical scope at which the supply is provisioned. Facility = facility-wide (storage-ring photon beam, central LN2 plant), Sector = ring sector / gas-manifold loop, Beamline = beamline-local (per-beamline drop)."
           }
         },
         "required": [
-          "scope",
           "kind",
           "name",
           "facility_code"
@@ -12275,7 +12270,7 @@
         "type": "object"
       },
       "SupplyResponse": {
-        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`scope` and `status` are the StrEnum string values; `kind` is the\nfree-form bare-str discriminator (1-50 chars). `facility_code` is\nthe cross-deployment convergent Facility slug surfaced as the\nbare-str wire value (Session 5 Slice 7A).",
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum string value; `kind` is the free-form\nbare-str discriminator (1-50 chars). `facility_code` is the\ncross-deployment convergent Facility slug surfaced as the bare-str\nwire value.",
         "properties": {
           "containing_asset_id": {
             "anyOf": [
@@ -12287,7 +12282,7 @@
                 "type": "null"
               }
             ],
-            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources (Session 5 Slice 7B).",
+            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources.",
             "title": "Containing Asset Id"
           },
           "facility_code": {
@@ -12310,16 +12305,12 @@
             "title": "Name",
             "type": "string"
           },
-          "scope": {
-            "$ref": "#/components/schemas/SupplyScope"
-          },
           "status": {
             "$ref": "#/components/schemas/SupplyStatus"
           }
         },
         "required": [
           "id",
-          "scope",
           "kind",
           "name",
           "facility_code",
@@ -12327,16 +12318,6 @@
         ],
         "title": "SupplyResponse",
         "type": "object"
-      },
-      "SupplyScope": {
-        "description": "The hierarchical scope at which a Supply is provisioned.\n\nThree values per APS LMA18-3 LN2 distribution layering and\nNeXus NXsource one-source-per-storage-ring precedent:\n\n  - `Facility`: facility-wide resource (storage-ring photon beam,\n    central LN2 plant, building electrical power, central\n    compressed air)\n  - `Sector`: a sub-portion of the facility (ring sector, gas-\n    manifold loop serving N beamlines)\n  - `Beamline`: beamline-local resource (per-beamline LN2 drop,\n    beamline-local vacuum subsystem, beamline-local compute)\n\nAdding finer-grained scopes (for example, Substrate, Chamber) is purely\nadditive when triggers fire.",
-        "enum": [
-          "Facility",
-          "Sector",
-          "Beamline"
-        ],
-        "title": "SupplyScope",
-        "type": "string"
       },
       "SupplyStatus": {
         "description": "The Supply's availability state.\n\nFive health states + one lifecycle terminal per\n[[project_supply_design]] + [[project_deregister_supply_design]]:\n\n  - `Unknown`: registration-time default; no observation yet\n  - `Available`: resource is up and meeting consumer needs\n  - `Degraded`: resource is up but below nominal capacity / quality\n  - `Unavailable`: resource is down (planned or unplanned)\n  - `Recovering`: resource was Unavailable; observation suggests\n                    it may be coming back; operator must `restore_supply`\n                    to confirm `Recovering -> Available`\n  - `Decommissioned`: lifecycle terminal; the Supply was deregistered.\n                      NOT a health state; a tombstone parallel to\n                      `Actor.active=false`, `Subject.status=Discarded`,\n                      `Asset.lifecycle=Decommissioned`. No transition exits\n                      this state; re-registration creates a fresh `supply_id`.\n                      Do NOT interpret this value as license to add `Faulted`,\n                      `Maintenance`, or any other health-state widening; those\n                      remain fenced by Anti-hook 1 of [[project_supply_design]].\n\nNaming asymmetry (deliberate): the operator gesture is `deregister_supply`\n(paired with `register_supply` for natural register/deregister UX);\nthe event class is `SupplyDeregistered` (matches the gesture); but the\nresulting status value is `DECOMMISSIONED` (matches the cross-BC\ntombstone vocabulary established by `Asset.lifecycle.DECOMMISSIONED`).\nThe gesture-vs-status split is intentional: operator-facing surfaces\nspeak `register`/`deregister`; event-log + status-projection surfaces\nspeak the cross-BC tombstone vocabulary. See\n[[project_deregister_supply_design]].\n\nInitial `Unknown` is universal industrial + cloud-native consensus\n(Tango UNKNOWN, EPICS UDF, Azure Resource Health Unknown, k8s\nPending, Prometheus `up{}` UNKNOWN-before-first-scrape). The\noptimistic-Available default is an anti-pattern.",
@@ -12364,7 +12345,7 @@
                 "type": "null"
               }
             ],
-            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources (Session 5 Slice 7B).",
+            "description": "Id of the containing Asset (Equipment BC) when the Supply is bound to a Sector / Beamline / Unit; null for facility-scope resources.",
             "title": "Containing Asset Id"
           },
           "facility_code": {
@@ -12423,9 +12404,6 @@
             "title": "Registered At",
             "type": "string"
           },
-          "scope": {
-            "$ref": "#/components/schemas/SupplyScope"
-          },
           "status": {
             "$ref": "#/components/schemas/SupplyStatus"
           },
@@ -12437,7 +12415,6 @@
         },
         "required": [
           "supply_id",
-          "scope",
           "kind",
           "name",
           "facility_code",
@@ -35027,7 +35004,7 @@
             "description": "Defensive guard: the target supply stream already has events. Essentially impossible in production with UUIDv7 ids; documented for OpenAPI completeness against the BC's exception handler."
           },
           "422": {
-            "description": "Request body failed schema validation (missing field, invalid scope enum, length out of bounds, facility_code regex violation), OR Idempotency-Key was reused with a different request body."
+            "description": "Request body failed schema validation (missing field, length out of bounds, facility_code regex violation), OR Idempotency-Key was reused with a different request body."
           }
         },
         "summary": "Register a new continuously-available resource (lands in Unknown)",

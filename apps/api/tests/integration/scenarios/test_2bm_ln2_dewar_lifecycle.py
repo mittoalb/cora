@@ -117,7 +117,6 @@ import asyncpg
 import pytest
 
 from cora.supply.aggregates.supply import (
-    SupplyScope,
     SupplyStatus,
     load_supply,
 )
@@ -192,7 +191,6 @@ async def test_ln2_dewar_walks_through_all_five_supply_states(
 
     new_supply_id = await bind_register_supply(deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="cryogen",
             name="2-BM detector LN2 dewar",
             facility_code="cora",
@@ -205,7 +203,6 @@ async def test_ln2_dewar_walks_through_all_five_supply_states(
     registered = await load_supply(deps.event_store, _SUPPLY_ID)
     assert registered is not None
     assert registered.status is SupplyStatus.UNKNOWN
-    assert registered.scope is SupplyScope.BEAMLINE
     assert registered.kind == "cryogen"
 
     # ----- Unknown -> Available (operator first-observation) -----

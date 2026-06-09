@@ -19,7 +19,6 @@ def _register_and_mark_unavailable(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
         json={
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -57,7 +56,6 @@ def test_post_mark_recovering_returns_409_when_supply_is_unknown() -> None:
         register = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "X",
                 "name": "Y",
                 "facility_code": "cora",

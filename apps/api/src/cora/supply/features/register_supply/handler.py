@@ -110,7 +110,7 @@ def bind(deps: Kernel) -> Handler:
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
-        # Cross-BC Facility binding (Session 5 Slice 7A). The wire-level
+        # Cross-BC Facility binding. The wire-level
         # bare-str `command.facility_code` is regex-validated at the route
         # + tool Pydantic boundary; defensive in-process callers that
         # construct a malformed string see `InvalidFacilityCodeError`
@@ -122,7 +122,7 @@ def bind(deps: Kernel) -> Handler:
             FacilityCode(command.facility_code)
         )
 
-        # Cross-BC containing-Asset binding (Session 5 Slice 7B). Optional:
+        # Cross-BC containing-Asset binding. Optional:
         # `None` containing_asset_id means facility-scope, no lookup needed.
         # When non-None the lookup returns `None` if no Asset with that id
         # is visible in `proj_equipment_asset_summary`; the decider

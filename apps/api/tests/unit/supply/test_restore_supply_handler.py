@@ -46,7 +46,6 @@ async def _seed_recovering_supply(store: InMemoryEventStore) -> None:
         (
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code=FacilityCode("aps"),

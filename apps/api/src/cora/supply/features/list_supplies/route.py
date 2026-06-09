@@ -4,11 +4,11 @@
   `cursor`, `limit`, `facility_code`, `containing_asset_id`, `kind`, `status`.
 Returns `{"items": [...], "next_cursor": "..." | null}`.
 
-Session 5 Slice 7D retired the prior `?scope=` filter in favor of
+The prior `?scope=` filter was retired in favor of
 `?facility_code=` + `?containing_asset_id=` per
-[[project_supply_sector_disposition]] Option A. The `scope` value
-still appears on each returned item (the projection column stays
-through Slice 7E); only the FILTER surface migrated.
+[[project_supply_sector_disposition]] Option A; the SupplyScope
+retirement cleanup then dropped the `scope` value from the
+projection and the returned item DTOs entirely.
 """
 
 from datetime import datetime
@@ -29,7 +29,6 @@ from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
     SUPPLY_REASON_MAX_LENGTH,
-    SupplyScope,
     SupplyStatus,
     TriggerSource,
 )
@@ -44,7 +43,6 @@ class SupplySummaryDTO(BaseModel):
     """One supply in a paginated list."""
 
     supply_id: UUID
-    scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
     facility_code: str = Field(
@@ -57,8 +55,7 @@ class SupplySummaryDTO(BaseModel):
         default=None,
         description=(
             "Id of the containing Asset (Equipment BC) when the Supply is bound "
-            "to a Sector / Beamline / Unit; null for facility-scope resources "
-            "(Session 5 Slice 7B)."
+            "to a Sector / Beamline / Unit; null for facility-scope resources."
         ),
     )
     status: SupplyStatus
@@ -179,7 +176,6 @@ async def list_supplies(
         items=[
             SupplySummaryDTO(
                 supply_id=item.supply_id,
-                scope=SupplyScope(item.scope),
                 kind=item.kind,
                 name=item.name,
                 facility_code=item.facility_code,

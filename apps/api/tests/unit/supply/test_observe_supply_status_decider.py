@@ -33,7 +33,6 @@ from cora.supply.aggregates.supply import (
     SupplyMarkedUnavailable,
     SupplyName,
     SupplyNotFoundError,
-    SupplyScope,
     SupplyStatus,
 )
 from cora.supply.features.observe_supply_status import ObserveSupplyStatus, decide
@@ -47,7 +46,6 @@ _FACILITY_CODE = FacilityCode("aps")
 def _state(status: SupplyStatus) -> Supply:
     return Supply(
         id=uuid4(),
-        scope=SupplyScope.BEAMLINE,
         kind="PhotonBeam",
         name=SupplyName("beam"),
         facility_code=_FACILITY_CODE,

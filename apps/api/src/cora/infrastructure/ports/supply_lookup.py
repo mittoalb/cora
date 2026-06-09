@@ -53,7 +53,6 @@ class SupplyReference:
 
     supply_id: UUID
     kind: str
-    scope: str
     name: str
     status: str
 
@@ -116,7 +115,6 @@ class AllSatisfiedSupplyLookup:
                 SupplyReference(
                     supply_id=NIL_SENTINEL_ID,
                     kind=kind,
-                    scope="Facility",
                     name=f"<test stub: {kind}>",
                     status="Available",
                 )

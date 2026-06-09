@@ -78,7 +78,6 @@ from cora.infrastructure.adapters.in_memory_asset_lookup import (
 )
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.supply._projections import register_supply_projections
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.register_supply import RegisterSupply
 from cora.supply.features.register_supply import bind as bind_register_supply
 from tests.integration._helpers import build_postgres_deps
@@ -151,7 +150,6 @@ async def test_supply_containing_asset_id_resolves_to_real_asset_row(
     )
     await bind_register_supply(supply_deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name=f"2-BM LN2 referential-test-{asset_id.hex[:8]}",
             facility_code="cora",
@@ -187,7 +185,6 @@ async def test_supply_containing_asset_id_null_does_not_trigger_check(
     supply_deps = build_postgres_deps(db_pool, now=_NOW, ids=[supply_id, uuid4()])
     await bind_register_supply(supply_deps)(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name=f"APS storage-ring beam {supply_id.hex[:8]}",
             facility_code="cora",

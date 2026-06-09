@@ -73,7 +73,6 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.register_clearance import bind as bind_register_clearance
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.register_supply import RegisterSupply
 from cora.supply.features.register_supply import bind as bind_register_supply
 from tests.integration._helpers import (
@@ -257,7 +256,6 @@ async def test_facility_install_plays_out_end_to_end(
 
     await bind_register_supply(deps)(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="cryogen",
             name="APS liquid helium",
             facility_code="cora",

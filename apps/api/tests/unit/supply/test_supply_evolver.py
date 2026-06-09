@@ -18,7 +18,6 @@ from cora.supply.aggregates.supply import (
     SupplyName,
     SupplyRegistered,
     SupplyRestored,
-    SupplyScope,
     SupplyStatus,
     evolve,
     fold,
@@ -44,7 +43,6 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2 drop",
                 facility_code=_FACILITY_CODE,
@@ -56,7 +54,6 @@ def test_fold_genesis_only_lands_in_unknown() -> None:
     )
     assert state == Supply(
         id=_SUPPLY_ID,
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2 drop"),
         facility_code=_FACILITY_CODE,
@@ -73,7 +70,6 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Facility",
                 kind="PhotonBeam",
                 name="APS storage-ring beam",
                 facility_code=_FACILITY_CODE,
@@ -95,7 +91,6 @@ def test_fold_genesis_then_marked_available_lands_in_available() -> None:
     assert state.status == SupplyStatus.AVAILABLE
     # Identity + address preserved across the transition (additive-state pattern).
     assert state.id == _SUPPLY_ID
-    assert state.scope == SupplyScope.FACILITY
     assert state.kind == "PhotonBeam"
     assert state.name.value == "APS storage-ring beam"
     assert state.facility_code == _FACILITY_CODE
@@ -130,7 +125,6 @@ def test_evolver_returns_new_state_does_not_mutate_input() -> None:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code=_FACILITY_CODE,
@@ -167,7 +161,6 @@ def _genesis_state() -> Supply:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code=_FACILITY_CODE,
@@ -252,7 +245,6 @@ def test_evolver_arms_for_each_transition_event_set_target_status(
     evolved = evolve(prior, event)
     assert evolved.status == expected_status
     assert evolved.id == _SUPPLY_ID
-    assert evolved.scope == SupplyScope.BEAMLINE
     assert evolved.kind == "LiquidNitrogen"
     assert evolved.facility_code == _FACILITY_CODE
 
@@ -303,7 +295,6 @@ def test_full_fsm_cycle_via_fold() -> None:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code=_FACILITY_CODE,
@@ -371,7 +362,6 @@ def test_full_cycle_with_terminal_deregister_via_fold() -> None:
         [
             SupplyRegistered(
                 supply_id=_SUPPLY_ID,
-                scope="Beamline",
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code=_FACILITY_CODE,

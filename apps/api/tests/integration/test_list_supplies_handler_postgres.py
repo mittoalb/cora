@@ -5,7 +5,8 @@ Pins the genesis -> transition fold + projection writes:
   - SupplyRegistered -> INSERT (status='Unknown', last_status_*=NULL)
   - SupplyMarkedAvailable -> UPDATE status='Available' + last_status_changed_at
                                      + last_status_reason + last_trigger
-  - scope filter
+  - facility_code filter
+  - containing_asset_id filter
   - kind filter
   - status filter
   - cursor pagination
@@ -24,7 +25,6 @@ import pytest
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.supply._projections import register_supply_projections
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features.list_supplies import ListSupplies
 from cora.supply.features.list_supplies import bind as bind_list
 from cora.supply.features.mark_supply_available import MarkSupplyAvailable
@@ -58,7 +58,6 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",
@@ -70,13 +69,12 @@ async def test_register_inserts_unknown_status_with_null_audit_columns(
 
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT scope, kind, name, status, last_status_changed_at, "
+            "SELECT kind, name, status, last_status_changed_at, "
             "last_status_reason, last_trigger "
             "FROM proj_supply_summary WHERE supply_id = $1",
             sup_id,
         )
     assert row is not None
-    assert row["scope"] == "Beamline"
     assert row["kind"] == "LiquidNitrogen"
     assert row["name"] == "2-BM LN2"
     assert row["status"] == "Unknown"
@@ -94,7 +92,6 @@ async def test_mark_available_updates_status_and_audit_triple(
     deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",
@@ -128,7 +125,6 @@ async def test_list_returns_registered_supplies(db_pool: asyncpg.Pool) -> None:
     deps = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_register(deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",
@@ -169,10 +165,10 @@ async def test_list_filters_by_containing_asset_kind_status(db_pool: asyncpg.Poo
     fac_beam_id = uuid4()
     bm_air_id = uuid4()
 
-    for sup_id, scope, kind, name, containing_id in (
-        (bm_ln2_id, SupplyScope.BEAMLINE, "LiquidNitrogen", "2-BM LN2", bm_asset_id),
-        (fac_beam_id, SupplyScope.FACILITY, "PhotonBeam", "APS storage-ring beam", None),
-        (bm_air_id, SupplyScope.BEAMLINE, "CompressedAir", "2-BM CompAir", bm_asset_id),
+    for sup_id, kind, name, containing_id in (
+        (bm_ln2_id, "LiquidNitrogen", "2-BM LN2", bm_asset_id),
+        (fac_beam_id, "PhotonBeam", "APS storage-ring beam", None),
+        (bm_air_id, "CompressedAir", "2-BM CompAir", bm_asset_id),
     ):
         deps = build_postgres_deps(
             db_pool,
@@ -182,7 +178,6 @@ async def test_list_filters_by_containing_asset_kind_status(db_pool: asyncpg.Poo
         )
         await bind_register(deps)(
             RegisterSupply(
-                scope=scope,
                 kind=kind,
                 name=name,
                 facility_code="cora",
@@ -254,7 +249,6 @@ async def test_list_cursor_pagination(db_pool: asyncpg.Pool) -> None:
         deps = _build_deps(db_pool, [uuid4(), uuid4()])
         await bind_register(deps)(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind=f"K{i}",
                 name=f"Supply-{i}",
                 facility_code="cora",
@@ -294,7 +288,6 @@ async def test_list_returns_audit_triple_after_mark_available(
     register_deps = _build_deps(db_pool, [sup_id, uuid4()])
     await bind_register(register_deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",
@@ -353,7 +346,6 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
         )
         await bind_register(deps)(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind=f"K{i}",
                 name=f"BM-{i}",
                 facility_code="cora",
@@ -365,7 +357,6 @@ async def test_list_cursor_with_filter_paginates_within_filtered_set(
     facility_deps = _build_deps(db_pool, [uuid4(), uuid4()])
     await bind_register(facility_deps)(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name="APS-Beam",
             facility_code="cora",
@@ -433,7 +424,6 @@ async def test_list_unique_address_swallows_second_active_insert_and_keeps_worke
         deps = _build_deps(db_pool, [sup_id, uuid4()])
         await bind_register(deps)(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code="cora",

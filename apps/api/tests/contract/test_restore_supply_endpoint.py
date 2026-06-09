@@ -25,7 +25,6 @@ def _register_then_mark_recovering(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
         json={
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -74,7 +73,6 @@ def test_post_restore_returns_409_when_supply_is_unknown() -> None:
         register = client.post(
             "/supplies",
             json={
-                "scope": "Beamline",
                 "kind": "X",
                 "name": "Y",
                 "facility_code": "cora",

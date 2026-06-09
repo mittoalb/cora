@@ -43,7 +43,6 @@ async def _seed_available_supply(store: InMemoryEventStore) -> None:
     """Seed a registered + marked-Available Supply (status = Available)."""
     genesis = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2",
         facility_code=FacilityCode("aps"),

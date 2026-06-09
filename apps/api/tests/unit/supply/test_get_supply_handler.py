@@ -31,7 +31,6 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def _seed(store: InMemoryEventStore) -> None:
     genesis = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2",
         facility_code=FacilityCode("aps"),

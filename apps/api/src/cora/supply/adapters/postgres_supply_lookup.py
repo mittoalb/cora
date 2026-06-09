@@ -2,8 +2,8 @@
 
 Consumed by Run BC's `start_run` handler and Operation BC's
 `start_procedure` handler via the `Kernel.supply_lookup` port. Reads
-the projection's `(supply_id, kind, scope, name, status)` columns;
-returns Supplies grouped by kind, excluding `Decommissioned` rows.
+the projection's `(supply_id, kind, name, status)` columns; returns
+Supplies grouped by kind, excluding `Decommissioned` rows.
 
 ## Why query the projection (not the event store)
 
@@ -18,13 +18,13 @@ The lookup adapter reads it directly via the shared asyncpg pool.
 Single SELECT with a single ANY() match over the indexed `kind`
 column plus an explicit `Decommissioned` exclusion. The projection
 retains Decommissioned rows (the partial UNIQUE INDEX on
-`(scope, kind, name)` per [[project_deregister_supply_design]]
-excludes Decommissioned from UNIQUENESS, not from reads); this
-SELECT excludes them at read time so tombstoned Supplies do not
-contribute to gate satisfaction.
+`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)`
+per [[project_deregister_supply_design]] excludes Decommissioned from
+UNIQUENESS, not from reads); this SELECT excludes them at read time
+so tombstoned Supplies do not contribute to gate satisfaction.
 
 ```sql
-SELECT supply_id, kind, scope, name, status
+SELECT supply_id, kind, name, status
 FROM proj_supply_summary
 WHERE kind = ANY($1) AND status != 'Decommissioned'
 ORDER BY kind, registered_at, supply_id
@@ -41,7 +41,7 @@ import asyncpg
 from cora.infrastructure.ports.supply_lookup import SupplyReference
 
 _FIND_SUPPLIES_BY_KIND_SQL = """
-SELECT supply_id, kind, scope, name, status
+SELECT supply_id, kind, name, status
 FROM proj_supply_summary
 WHERE kind = ANY($1) AND status != 'Decommissioned'
 ORDER BY kind, registered_at, supply_id
@@ -77,7 +77,6 @@ def _row_to_reference(row: Any) -> SupplyReference:
     return SupplyReference(
         supply_id=row["supply_id"],
         kind=str(row["kind"]),
-        scope=str(row["scope"]),
         name=str(row["name"]),
         status=str(row["status"]),
     )

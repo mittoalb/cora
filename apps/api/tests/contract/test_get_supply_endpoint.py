@@ -1,6 +1,7 @@
 """Contract tests for `GET /supplies/{supply_id}`.
 
-Pinned response shape: `{id, scope, kind, name, status}` where
+Pinned response shape:
+`{id, kind, name, facility_code, containing_asset_id, status}` where
 `status` is the StrEnum's string value (Unknown / Available /
 Degraded / Unavailable / Recovering).
 """
@@ -22,7 +23,6 @@ def _register_supply(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
         json={
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -42,7 +42,6 @@ def test_get_supply_returns_200_with_unknown_status_for_new_supply() -> None:
     body = response.json()
     assert body == {
         "id": str(supply_id),
-        "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
         "facility_code": "cora",

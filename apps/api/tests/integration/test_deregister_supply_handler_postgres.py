@@ -13,7 +13,6 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features import deregister_supply, register_supply
 from cora.supply.features.deregister_supply import DeregisterSupply
 from cora.supply.features.register_supply import RegisterSupply
@@ -37,7 +36,6 @@ async def test_deregister_supply_appends_transition_event_to_same_stream(
     )
     supply_id = await register_supply.bind(register_deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",

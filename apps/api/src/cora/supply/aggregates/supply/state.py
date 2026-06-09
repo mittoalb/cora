@@ -9,9 +9,10 @@ infrastructure delivering the resource (gas cabinets, compressors,
 mass-flow controllers) stays as `Asset`s; the resource itself is
 `Supply`.
 
-The aggregate is intentionally slim: identity + scope + kind + name
-+ a single `status` field driving the FSM. The 5-state FSM is locked
-day one per [[project_supply_design]]:
+The aggregate is intentionally slim: identity + facility_code +
+containing_asset_id + kind + name + a single `status` field driving
+the FSM. The 5-state FSM is locked day one per
+[[project_supply_design]]:
 
   Unknown -> Available
   Unknown -> Degraded
@@ -34,8 +35,9 @@ The optimistic-Available default is an anti-pattern across all three
 research corpora.
 
 
-Minimal Supply: id + scope + kind + name + status (defaults Unknown
-implicitly via genesis evolver). 10a-a shipped `register_supply`
+Minimal Supply: id + facility_code + containing_asset_id + kind +
+name + status (defaults Unknown implicitly via genesis evolver).
+10a-a shipped `register_supply`
 (genesis -> Unknown) and `mark_supply_available` (Unknown ->
 Available, operator-asserted first observation). 10a-b closed the
 FSM with `degrade`, `mark_unavailable`, `mark_recovering`, and
@@ -51,11 +53,6 @@ the enum (typed); evolver derives status from event type
 Same precedent as `SubjectStatus` / `FamilyStatus` /
 `AssetLifecycle`.
 
-`SupplyScope` enum value DOES travel in event payloads (scope is set
-at registration and doesn't change). The payload carries the string;
-the evolver reconstructs via `SupplyScope(payload["scope"])`. Same
-precedent as `AssetLevel`.
-
 ## TriggerSource locked 3-value day one
 
 `TriggerSource` is locked at three values (`Operator`, `Monitor`,
@@ -69,41 +66,40 @@ payloads as the trigger discriminator.
 
 `Supply` carries `id: UUID` (stable opaque handle, survives any
 operator-driven name changes; survives physical equipment swaps once
-binding lands per Watch item 6) plus `(scope, kind, name)` typed
-address. The 4-tuple `(scope, kind, name)` is the operator-readable
-identity surfaced in REST/MCP and indexed in the projection. The
-projection-side UNIQUE INDEX on `(scope, kind, name)` catches
-duplicate registrations at insert time; aggregates cannot enforce
-cross-stream uniqueness without DCB (per [[project_deferred]]).
+binding lands per Watch item 6) plus the
+`(facility_code, containing_asset_id, kind, name)` typed address.
+The 4-tuple is the operator-readable identity surfaced in REST/MCP
+and indexed in the projection. The projection-side UNIQUE INDEX on
+`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)
+PARTIAL WHERE status != 'Decommissioned'` catches duplicate
+registrations at insert time; aggregates cannot enforce cross-stream
+uniqueness without DCB (per [[project_deferred]]).
 
-`facility_code` (Session 5 Slice 7A) joins the address tuple as the
-federation-tier disambiguator: every Supply belongs to exactly one
-Facility (the cross-deployment convergent slug at Federation BC's
-two-tier identity). The register_supply handler resolves the slug
-to a `FacilityLookupResult` via `FacilityLookup.lookup_by_code`
-before threading into the decider, rejecting unknown codes with
+`facility_code` is the federation-tier
+disambiguator: every Supply belongs to exactly one Facility (the
+cross-deployment convergent slug at Federation BC's two-tier
+identity). The register_supply handler resolves the slug to a
+`FacilityLookupResult` via `FacilityLookup.lookup_by_code` before
+threading into the decider, rejecting unknown codes with
 `SupplyFacilityNotFoundError` (HTTP 404).
 
-`containing_asset_id` (Session 5 Slice 7B) is the optional physical-
+`containing_asset_id` is the optional physical-
 equipment containment back-reference per
-[[project_supply_sector_disposition]] Option A: the
-former `SupplyScope.Sector` + `SupplyScope.Beamline` enum values
-are being collapsed to relational references to the Equipment BC's
-Asset hierarchy (Sector 2 is an `Asset(level=Area)`; 2-BM is an
-`Asset(level=Unit)`). `None` semantically means "facility-scope
-resource" (paired with non-None `facility_code`). When non-None,
-the register_supply handler resolves it via `AssetLookup.lookup`
-and rejects unknown ids with `SupplyContainingAssetNotFoundError`
-(HTTP 404).
+[[project_supply_sector_disposition]] Option A: structural roles
+formerly carried by the (now-retired) `SupplyScope.Sector` /
+`SupplyScope.Beamline` enum values are modeled relationally as
+references to the Equipment BC's Asset hierarchy (Sector 2 is an
+`Asset(level=Area)`; 2-BM is an `Asset(level=Unit)`). `None`
+semantically means "facility-scope resource" (paired with non-None
+`facility_code`). When non-None, the register_supply handler resolves
+it via `AssetLookup.lookup` and rejects unknown ids with
+`SupplyContainingAssetNotFoundError` (HTTP 404).
 
-Session 5 Slice 7C migrated the projection UNIQUE INDEX from the
-original `(scope, kind, name)` tuple to
-`(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)`
-so two facilities can each own a `(LiquidNitrogen, "2-BM LN2 dewar")`
-row, and two distinct containing-Asset bindings within one facility
-can each own the same `(kind, name)` pair. The `scope` column stays
-intact through Slice 7E (SupplyScope retirement); the `scope` value
-in the address is decorative now, not load-bearing for uniqueness.
+The SupplyScope retirement cleanup dropped the
+decorative `SupplyScope` enum + `Supply.scope` field +
+`SupplyRegistered.scope` payload key + projection `scope` column +
+`scope` CHECK constraint. The four-tuple address is the canonical
+shape going forward.
 
 ## Eleventh bounded-name VO
 
@@ -206,29 +202,6 @@ class SupplyStatus(StrEnum):
     DECOMMISSIONED = "Decommissioned"
 
 
-class SupplyScope(StrEnum):
-    """The hierarchical scope at which a Supply is provisioned.
-
-    Three values per APS LMA18-3 LN2 distribution layering and
-    NeXus NXsource one-source-per-storage-ring precedent:
-
-      - `Facility`: facility-wide resource (storage-ring photon beam,
-        central LN2 plant, building electrical power, central
-        compressed air)
-      - `Sector`: a sub-portion of the facility (ring sector, gas-
-        manifold loop serving N beamlines)
-      - `Beamline`: beamline-local resource (per-beamline LN2 drop,
-        beamline-local vacuum subsystem, beamline-local compute)
-
-    Adding finer-grained scopes (for example, Substrate, Chamber) is purely
-    additive when triggers fire.
-    """
-
-    FACILITY = "Facility"
-    SECTOR = "Sector"
-    BEAMLINE = "Beamline"
-
-
 class TriggerSource(StrEnum):
     """The origin of a status-transition event.
 
@@ -315,7 +288,7 @@ class SupplyNotFoundError(Exception):
 class SupplyContainingAssetNotFoundError(Exception):
     """`register_supply` referenced a containing Asset id with no projection row.
 
-    Cross-BC binding (Session 5 Slice 7B): a Supply MAY be bound to a
+    Cross-BC binding: a Supply MAY be bound to a
     containing Asset (the physical equipment that hosts the resource:
     a beamline housing an LN2 dewar, a sector housing a gas manifold).
     When `command.containing_asset_id` is non-None, the handler
@@ -328,8 +301,8 @@ class SupplyContainingAssetNotFoundError(Exception):
     entirely (NULL on aggregate state); the decider does NOT validate
     in that path.
 
-    Lifecycle filter mirrors the slice 6 `FacilityParentNotFoundError`
-    + Slice 7A `SupplyFacilityNotFoundError` precedent: every Asset
+    Lifecycle filter mirrors the the Federation `FacilityParentNotFoundError`
+    + the Facility-binding `SupplyFacilityNotFoundError` precedent: every Asset
     lifecycle (Commissioned, Active, Maintenance, Decommissioned) is
     a valid binding target. The decider does NOT partition on Asset
     lifecycle; operators choose to keep Decommissioned-equipment
@@ -352,7 +325,7 @@ class SupplyContainingAssetNotFoundError(Exception):
 class SupplyFacilityNotFoundError(Exception):
     """`register_supply` referenced a Facility code with no projection row.
 
-    Cross-BC binding (Session 5 Slice 7): every Supply belongs to
+    Cross-BC binding: every Supply belongs to
     exactly one Facility (the cross-deployment convergent slug at
     Federation BC's two-tier identity). The handler resolves
     `command.facility_code` via `FacilityLookup.lookup_by_code` before
@@ -363,7 +336,7 @@ class SupplyFacilityNotFoundError(Exception):
     first via `POST /federation/facilities`, or correct the typo on
     the Supply registration.
 
-    Status filter mirrors the slice 6 `FacilityParentNotFoundError`
+    Status filter mirrors the the Federation `FacilityParentNotFoundError`
     precedent: every Facility status (Active, Decommissioned) is a
     valid binding target; the operator chose to keep Decommissioned-
     facility lineage visible by registering Supplies against it. The
@@ -646,7 +619,8 @@ class Supply:
     stream itself; the projection denormalizes the latest values for
     query-time access.
 
-    `id` is the stable opaque handle. `(scope, kind, name)` is the
+    `id` is the stable opaque handle.
+    `(facility_code, containing_asset_id, kind, name)` is the
     operator-readable address; the projection enforces cross-stream
     uniqueness via UNIQUE INDEX (the aggregate cannot enforce cross-
     stream invariants without DCB).
@@ -666,7 +640,6 @@ class Supply:
     """
 
     id: UUID
-    scope: SupplyScope
     # Carries a `DeferredVocabulary[SupplyKind]` marker per
     # [[project_structural_scope_design]] §"Marker convention": the
     # bare-str discriminator graduates to a typed `SupplyKind(StrEnum)`

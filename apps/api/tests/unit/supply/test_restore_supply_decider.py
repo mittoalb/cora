@@ -20,7 +20,6 @@ from cora.supply.aggregates.supply import (
     SupplyName,
     SupplyNotFoundError,
     SupplyRestored,
-    SupplyScope,
     SupplyStatus,
 )
 from cora.supply.features import restore_supply
@@ -35,7 +34,6 @@ _FACILITY_CODE = FacilityCode("aps")
 def _supply(status: SupplyStatus) -> Supply:
     return Supply(
         id=_SUPPLY_ID,
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
         facility_code=_FACILITY_CODE,

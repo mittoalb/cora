@@ -94,7 +94,6 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
         "SupplyRegistered",
         {
             "supply_id": str(_SUPPLY_ID),
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -112,23 +111,22 @@ async def test_supply_registered_inserts_with_unknown_status_and_null_audit() ->
     assert "INSERT INTO proj_supply_summary" in sql
     assert "ON CONFLICT (supply_id) DO NOTHING" in sql
     assert "'Unknown'" in sql  # status literal
-    # Bound parameters ($1-$7):
-    #   supply_id, scope, kind, name, facility_code, containing_asset_id, registered_at
+    # Bound parameters ($1-$6):
+    #   supply_id, kind, name, facility_code, containing_asset_id, registered_at
     # containing_asset_id absent from payload -> None (facility-scope semantics).
     assert args.args[1] == _SUPPLY_ID
-    assert args.args[2] == "Beamline"
-    assert args.args[3] == "LiquidNitrogen"
-    assert args.args[4] == "2-BM LN2"
-    assert args.args[5] == "cora"
-    assert args.args[6] is None
-    assert args.args[7] == _NOW
+    assert args.args[2] == "LiquidNitrogen"
+    assert args.args[3] == "2-BM LN2"
+    assert args.args[4] == "cora"
+    assert args.args[5] is None
+    assert args.args[6] == _NOW
 
 
 @pytest.mark.unit
 async def test_supply_registered_inserts_with_containing_asset_id_when_present() -> None:
     """Slice 7B: when the SupplyRegistered payload carries
     `containing_asset_id`, the projection writer wraps the string-form
-    UUID into a typed `UUID` and binds it at position $6."""
+    UUID into a typed `UUID` and binds it at position $5."""
     proj = SupplySummaryProjection()
     conn = _conn_with_savepoint()
     containing_asset_id = uuid4()
@@ -136,7 +134,6 @@ async def test_supply_registered_inserts_with_containing_asset_id_when_present()
         "SupplyRegistered",
         {
             "supply_id": str(_SUPPLY_ID),
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",
@@ -149,7 +146,7 @@ async def test_supply_registered_inserts_with_containing_asset_id_when_present()
 
     args = conn.execute.await_args
     assert args is not None
-    assert args.args[6] == containing_asset_id
+    assert args.args[5] == containing_asset_id
 
 
 @pytest.mark.parametrize(
@@ -211,18 +208,20 @@ async def test_projection_ignores_unsubscribed_event_type() -> None:
 
 @pytest.mark.unit
 async def test_supply_registered_swallows_unique_violation_and_logs_warn() -> None:
-    """Cross-stream duplicate on (scope, kind, name) raises UniqueViolation
-    inside the SAVEPOINT; the projection catches it, logs, and returns
-    cleanly so the worker's outer batch txn can keep advancing."""
+    """Cross-stream duplicate on (facility_code, containing_asset_id, kind, name)
+    raises UniqueViolation inside the SAVEPOINT; the projection catches it,
+    logs, and returns cleanly so the worker's outer batch txn can keep
+    advancing."""
     proj = SupplySummaryProjection()
     conn = _conn_with_savepoint()
     # Make the INSERT raise UniqueViolation
-    conn.execute.side_effect = asyncpg.UniqueViolationError("duplicate (scope,kind,name)")
+    conn.execute.side_effect = asyncpg.UniqueViolationError(
+        "duplicate (facility_code,containing_asset_id,kind,name)"
+    )
     event = _stored(
         "SupplyRegistered",
         {
             "supply_id": str(_SUPPLY_ID),
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",

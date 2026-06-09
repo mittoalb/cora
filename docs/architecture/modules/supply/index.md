@@ -24,7 +24,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Supply` | `id: UUID` (opaque) plus typed address `(facility_code, containing_asset_id, kind, name)` enforced unique on the projection | scope, kind, name, facility_code, containing_asset_id, status | yes |
+| `Supply` | `id: UUID` (opaque) plus typed address `(facility_code, containing_asset_id, kind, name)` enforced unique on the projection | kind, name, facility_code, containing_asset_id, status | yes |
 
 ## Value Objects
 
@@ -33,7 +33,6 @@ Out of scope
 | `SupplyName` | trimmed bounded text, 1-200 chars | `Supply.name` |
 | `SupplyReason` | trimmed bounded text, 1-500 chars; decider-input only | every transition slice's `reason` |
 | `SupplyStatus` | closed StrEnum `{Unknown, Available, Degraded, Unavailable, Recovering, Decommissioned}` | `Supply.status`. The first five are health states on the FSM; `Decommissioned` is a lifecycle terminal (no transition exits) added by `deregister_supply`. Parallel to `Asset.lifecycle=Decommissioned` and `Subject.status=Discarded`. |
-| `SupplyScope` | closed StrEnum `{Facility, Sector, Beamline}` | `Supply.scope` (decorative since Slice 7C; the structural address tuple is `(facility_code, containing_asset_id, kind, name)` per [[project_supply_sector_disposition]] Option A. SupplyScope retirement is queued behind one release cycle.) |
 | `FacilityCode` | bounded text VO from `cora.shared.facility_code` (lowercase ASCII alphanumeric + dash, 1-32 chars) | `Supply.facility_code` (cross-deployment convergent slug of the owning Federation Facility; required) |
 | `TriggerSource` | closed StrEnum `{Operator, Monitor, Auto}` | transition-event `trigger` discriminator. `Operator` is used by the operator-gesture slices; `Monitor` is used by the `observe_supply_status` slice (in-process port for sensor-driven transitions); `Auto` is reserved for the future timer-driven recovery slice. |
 | `MonitorRef` | frozen dataclass `(source_kind: str 1-50, source_id: str 1-200)` | `observe_supply_status` command input; serialized as `"{source_kind}:{source_id}"` on the transition event's `monitor_ref` audit field. |
@@ -82,7 +81,7 @@ stateDiagram-v2
 : All carry a REQUIRED `reason` (1-500 chars after trim). The operator-gesture slices hardcode `trigger=Operator`; the same source-state allowlists apply when these transitions are driven by `observe_supply_status` (in which case `trigger=Monitor` and an audit `monitor_ref` lands on the event). `Auto` is reserved for the future timer-driven recovery slice.
 
 `deregister_supply`
-: Operator escape hatch for mistaken registrations. Accepts any non-`Decommissioned` source. Lifecycle terminal: no transition exits `Decommissioned`; if the operator needs the resource back, they re-register at the same `(scope, kind, name)` and get a fresh `supply_id` (the projection's partial UNIQUE INDEX excludes `Decommissioned` rows from uniqueness). Raises `SupplyCannotDeregisterError` (HTTP 409) on a Supply already in `Decommissioned`.
+: Operator escape hatch for mistaken registrations. Accepts any non-`Decommissioned` source. Lifecycle terminal: no transition exits `Decommissioned`; if the operator needs the resource back, they re-register at the same `(facility_code, containing_asset_id, kind, name)` and get a fresh `supply_id` (the projection's partial UNIQUE INDEX excludes `Decommissioned` rows from uniqueness). Raises `SupplyCannotDeregisterError` (HTTP 409) on a Supply already in `Decommissioned`.
 
 `observe_supply_status`
 : In-process-only port (no REST, no MCP). Routes by the requested `new_status` to the corresponding transition event, fences `Monitor` out of `Recovering → Available` and `Unknown → Available` (operator-only; latched-alarm + first-observation declaration semantics), and stamps every emitted event with `trigger=Monitor` plus the adapter's `monitor_ref` for audit. Source-state allowlists per target mirror the operator slices verbatim.
@@ -91,7 +90,7 @@ stateDiagram-v2
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `SupplyRegistered` | `supply_id, scope, kind, name, occurred_at` | `register_supply` accepted; status implicitly `Unknown`. |
+| `SupplyRegistered` | `supply_id, kind, name, facility_code, containing_asset_id?, trigger, triggered_by, occurred_at` | `register_supply` accepted; status implicitly `Unknown`. |
 | `SupplyMarkedAvailable` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `mark_supply_available` accepted (Unknown → Available). Operator-only target; `monitor_ref` is always absent. |
 | `SupplyDegraded` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `degrade_supply` or `observe_supply_status` accepted (Unknown, Available, or Recovering → Degraded). |
 | `SupplyMarkedUnavailable` | `supply_id, from_status, reason, trigger, occurred_at, monitor_ref?` | `mark_supply_unavailable` or `observe_supply_status` accepted (Unknown, Available, Degraded, or Recovering → Unavailable). |
@@ -121,7 +120,7 @@ Every transition event carries `from_status` explicitly (even though the FSM con
 **Errors per slice.** Beyond Pydantic boundary 422s, each slice raises:
 
 `RegisterSupply`
-: `SupplyAlreadyExistsError`, `InvalidSupplyNameError`, `InvalidSupplyKindError`, `Unauthorized`. A duplicate active `(scope, kind, name)` registration succeeds at the aggregate (different stream) but fails at projection-insert time on the partial UNIQUE INDEX; the projection swallows the conflict with a WARN log so the worker keeps advancing. The duplicate event stays in the audit log; the operator can deregister one via `DeregisterSupply` and re-register cleanly (the partial index excludes `Decommissioned` rows from uniqueness).
+: `SupplyAlreadyExistsError`, `SupplyFacilityNotFoundError`, `SupplyContainingAssetNotFoundError`, `InvalidSupplyNameError`, `InvalidSupplyKindError`, `Unauthorized`. A duplicate active `(facility_code, containing_asset_id, kind, name)` registration succeeds at the aggregate (different stream) but fails at projection-insert time on the partial UNIQUE INDEX; the projection swallows the conflict with a WARN log so the worker keeps advancing. The duplicate event stays in the audit log; the operator can deregister one via `DeregisterSupply` and re-register cleanly (the partial index excludes `Decommissioned` rows from uniqueness).
 
 `MarkSupplyAvailable` / `DegradeSupply` / `MarkSupplyUnavailable` / `MarkSupplyRecovering` / `RestoreSupply`
 : `SupplyNotFoundError`, `SupplyCannot<Verb>Error` (single-source for MarkAvailable, MarkRecovering, Restore; multi-source for Degrade `{Unknown, Available, Recovering}` and MarkUnavailable `{Unknown, Available, Degraded, Recovering}`), `InvalidSupplyReasonError`, `Unauthorized`
@@ -145,9 +144,6 @@ Every transition event carries `from_status` explicitly (even though the FSM con
 ```sql title="proj_supply_summary"
 CREATE TABLE proj_supply_summary (
     supply_id              UUID        PRIMARY KEY,
-    scope                  TEXT        NOT NULL CHECK (
-        scope IN ('Facility', 'Sector', 'Beamline')
-    ),
     kind                   TEXT        NOT NULL,
     name                   TEXT        NOT NULL,
     facility_code          TEXT        NOT NULL,
@@ -184,7 +180,7 @@ CREATE INDEX proj_supply_summary_keyset_idx
 
 `(facility_code, COALESCE(containing_asset_id::text, ''), kind, name)` is enforced unique at the projection because aggregates cannot enforce cross-stream invariants without dynamic consistency boundaries. Two facilities can each own a `(LiquidNitrogen, "2-BM LN2 dewar")` row without colliding (`facility_code` distinguishes); two distinct containing-Asset bindings within one facility can each own the same `(kind, name)` pair (the COALESCE-stringified UUID distinguishes); facility-scope Supplies (NULL `containing_asset_id`) share the empty-string sentinel slot per facility so per-`(facility_code, kind, name)` uniqueness still holds. The UNIQUE INDEX is **partial** on `WHERE status != 'Decommissioned'` so a tombstoned Supply does not hold the address against re-registration: deregister the typo, register again cleanly, and both rows coexist (one `Decommissioned` for audit, one active). The non-unique `containing_asset_id` index backs the `?containing_asset_id=` operator-list filter introduced by Slice 7D. The `status` CHECK widened to six values when `deregister_supply` shipped (forward-only migration `20260527160000_widen_proj_supply_summary_for_deregister`); the three-value `last_trigger` CHECK was locked day one so `Monitor` and `Auto` events land without a constraint change. `last_status_changed_at`, `last_status_reason`, and `last_trigger` stay NULL until the first transition out of `Unknown` and denormalise the latest transition's audit metadata for at-a-glance ops queries. `monitor_ref` is NOT projected (audit-only on the event log).
 
-The `(scope, kind, name)` tuple was the original load-bearing uniqueness key (migration `20260514100000_init_proj_supply_summary`); Slice 7A added `facility_code` (nullable), Slice 7B added `containing_asset_id`, Slice 7C swapped the UNIQUE INDEX to the current shape and tightened `facility_code` to `NOT NULL`. The `scope` column stays decorative through Slice 7E; SupplyScope retirement is queued behind one release cycle per [[project_supply_sector_disposition]] Step 6.
+The `(scope, kind, name)` tuple was the original load-bearing uniqueness key (migration `20260514100000_init_proj_supply_summary`); Slice 7A added `facility_code` (nullable), Slice 7B added `containing_asset_id`, Slice 7C swapped the UNIQUE INDEX to the current shape and tightened `facility_code` to `NOT NULL`, and the post-Slice-7 SupplyScope retirement (migration `20260609130000_drop_proj_supply_summary_scope`) dropped the decorative `scope` column + CHECK constraint entirely per [[project_supply_sector_disposition]] Step 6.
 
 ## Cross-Module boundaries
 
@@ -217,7 +213,6 @@ The four examples below follow the canonical Supply path: register a beamline-lo
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
 
     {
-      "scope": "Beamline",
       "kind": "LiquidNitrogen",
       "name": "2-BM LN2 drop",
       "facility_code": "aps",
@@ -233,7 +228,6 @@ The four examples below follow the canonical Supply path: register a beamline-lo
     mcp.call_tool(
         "register_supply",
         {
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2 drop",
             "facility_code": "aps",

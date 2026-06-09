@@ -18,7 +18,6 @@ from cora.supply.aggregates.supply import (
     SupplyFacilityNotFoundError,
     SupplyName,
     SupplyRegistered,
-    SupplyScope,
     SupplyStatus,
 )
 from cora.supply.features import register_supply
@@ -66,7 +65,6 @@ def test_decide_emits_supply_registered_when_stream_is_empty() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -80,7 +78,6 @@ def test_decide_emits_supply_registered_when_stream_is_empty() -> None:
     assert events == [
         SupplyRegistered(
             supply_id=new_id,
-            scope="Beamline",
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code=_FACILITY_CODE,
@@ -97,7 +94,6 @@ def test_decide_trims_kind_and_name() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="  PhotonBeam  ",
             name="  APS storage-ring beam  ",
             facility_code="aps",
@@ -116,7 +112,6 @@ def test_decide_trims_kind_and_name() -> None:
 def test_decide_rejects_existing_state() -> None:
     existing = Supply(
         id=uuid4(),
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=SupplyName("2-BM LN2"),
         facility_code=_FACILITY_CODE,
@@ -126,7 +121,6 @@ def test_decide_rejects_existing_state() -> None:
         register_supply.decide(
             state=existing,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="other",
                 facility_code="aps",
@@ -146,7 +140,6 @@ def test_decide_rejects_empty_kind() -> None:
         register_supply.decide(
             state=None,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="   ",
                 name="2-BM",
                 facility_code="aps",
@@ -165,7 +158,6 @@ def test_decide_rejects_too_long_kind() -> None:
         register_supply.decide(
             state=None,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="a" * 51,
                 name="2-BM",
                 facility_code="aps",
@@ -184,7 +176,6 @@ def test_decide_rejects_empty_name() -> None:
         register_supply.decide(
             state=None,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="   ",
                 facility_code="aps",
@@ -206,7 +197,6 @@ def test_decide_rejects_missing_facility() -> None:
         register_supply.decide(
             state=None,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code="unknown",
@@ -229,7 +219,6 @@ def test_decide_accepts_decommissioned_facility() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name="APS storage-ring beam",
             facility_code="aps",
@@ -255,7 +244,6 @@ def test_decide_uses_lookup_result_code_not_command_echo() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -273,7 +261,6 @@ def test_decide_uses_lookup_result_code_not_command_echo() -> None:
 def test_decide_is_pure_same_inputs_same_outputs() -> None:
     new_id = uuid4()
     command = RegisterSupply(
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name="2-BM LN2",
         facility_code="aps",
@@ -309,7 +296,6 @@ def test_decide_emits_event_with_containing_asset_id_when_bound() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -332,7 +318,6 @@ def test_decide_facility_scope_omits_containing_asset_id() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name="APS storage-ring beam",
             facility_code="aps",
@@ -356,7 +341,6 @@ def test_decide_rejects_missing_containing_asset() -> None:
         register_supply.decide(
             state=None,
             command=RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code="aps",
@@ -379,7 +363,6 @@ def test_decide_accepts_decommissioned_containing_asset() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2 (decommissioned-asset binding)",
             facility_code="aps",
@@ -404,7 +387,6 @@ def test_decide_uses_lookup_result_id_not_command_echo() -> None:
     events = register_supply.decide(
         state=None,
         command=RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",

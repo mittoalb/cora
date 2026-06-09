@@ -22,7 +22,6 @@ def _register_supply(client: TestClient) -> UUID:
     response = client.post(
         "/supplies",
         json={
-            "scope": "Beamline",
             "kind": "LiquidNitrogen",
             "name": "2-BM LN2",
             "facility_code": "cora",

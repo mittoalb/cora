@@ -17,7 +17,6 @@ from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
-    SupplyScope,
     SupplyStatus,
 )
 from cora.supply.features.get_supply.handler import Handler
@@ -34,7 +33,6 @@ class SupplyOutput(BaseModel):
     """
 
     id: UUID
-    scope: SupplyScope
     kind: str = Field(..., max_length=SUPPLY_KIND_MAX_LENGTH)
     name: str = Field(..., max_length=SUPPLY_NAME_MAX_LENGTH)
     facility_code: str = Field(..., max_length=FACILITY_CODE_MAX_LENGTH)
@@ -42,8 +40,7 @@ class SupplyOutput(BaseModel):
         default=None,
         description=(
             "Id of the containing Asset (Equipment BC) when the Supply is bound "
-            "to a Sector / Beamline / Unit; null for facility-scope resources "
-            "(Session 5 Slice 7B)."
+            "to a Sector / Beamline / Unit; null for facility-scope resources."
         ),
     )
     status: SupplyStatus
@@ -55,9 +52,9 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="get_supply",
         description=(
-            "Look up a supply by id. Returns scope, kind, name, and "
-            "current FSM status (Unknown / Available / Degraded / "
-            "Unavailable / Recovering)."
+            "Look up a supply by id. Returns kind, name, facility_code, "
+            "containing_asset_id, and current FSM status (Unknown / "
+            "Available / Degraded / Unavailable / Recovering)."
         ),
     )
     async def get_supply_tool(  # pyright: ignore[reportUnusedFunction]
@@ -79,7 +76,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             raise ValueError(msg)
         return SupplyOutput(
             id=supply.id,
-            scope=supply.scope,
             kind=supply.kind,
             name=supply.name.value,
             facility_code=supply.facility_code.value,

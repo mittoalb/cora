@@ -20,7 +20,6 @@ import pytest
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.supply._projections import register_supply_projections
 from cora.supply.adapters import PostgresSupplyLookup
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features import (
     deregister_supply,
     mark_supply_available,
@@ -48,14 +47,13 @@ async def _register_supply(
     db_pool: asyncpg.Pool,
     *,
     supply_id: UUID,
-    scope: SupplyScope,
     kind: str,
     name: str,
     now: datetime,
 ) -> None:
     deps = build_postgres_deps(db_pool, now=now, ids=[supply_id, uuid4()])
     await register_supply.bind(deps)(
-        RegisterSupply(scope=scope, kind=kind, name=name, facility_code="cora"),
+        RegisterSupply(kind=kind, name=name, facility_code="cora"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -99,7 +97,6 @@ async def test_find_supplies_by_kind_returns_all_matching_kinds(
     await _register_supply(
         db_pool,
         supply_id=ln2_a,
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=f"LN2-A-{address_suffix}",
         now=_T0,
@@ -107,7 +104,6 @@ async def test_find_supplies_by_kind_returns_all_matching_kinds(
     await _register_supply(
         db_pool,
         supply_id=ln2_b,
-        scope=SupplyScope.SECTOR,
         kind="LiquidNitrogen",
         name=f"LN2-B-{address_suffix}",
         now=_T0,
@@ -115,7 +111,6 @@ async def test_find_supplies_by_kind_returns_all_matching_kinds(
     await _register_supply(
         db_pool,
         supply_id=beam,
-        scope=SupplyScope.FACILITY,
         kind="PhotonBeam",
         name=f"Beam-{address_suffix}",
         now=_T0,
@@ -147,7 +142,6 @@ async def test_find_supplies_by_kind_excludes_decommissioned(
     await _register_supply(
         db_pool,
         supply_id=sup,
-        scope=SupplyScope.BEAMLINE,
         kind="LiquidNitrogen",
         name=name,
         now=_T0,

@@ -61,7 +61,6 @@ def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
 def test_supply_registered_event_type_name() -> None:
     event = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2 drop",
         facility_code=_FACILITY_CODE,
@@ -76,7 +75,6 @@ def test_supply_registered_event_type_name() -> None:
 def test_supply_registered_to_payload() -> None:
     event = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2 drop",
         facility_code=_FACILITY_CODE,
@@ -86,7 +84,6 @@ def test_supply_registered_to_payload() -> None:
     )
     assert to_payload(event) == {
         "supply_id": str(_SUPPLY_ID),
-        "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2 drop",
         "facility_code": "aps",
@@ -100,7 +97,6 @@ def test_supply_registered_to_payload() -> None:
 def test_supply_registered_round_trip_via_from_stored() -> None:
     original = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Facility",
         kind="PhotonBeam",
         name="APS storage-ring beam",
         facility_code=_FACILITY_CODE,
@@ -120,7 +116,6 @@ def test_supply_registered_round_trip_with_containing_asset_id() -> None:
     containing_asset_id = UUID("01900000-0000-7000-8000-0000000a5500")
     original = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Beamline",
         kind="LiquidNitrogen",
         name="2-BM LN2 dewar",
         facility_code=_FACILITY_CODE,
@@ -143,7 +138,6 @@ def test_supply_registered_omits_containing_asset_id_when_none() -> None:
     payloads (no key) fold cleanly via `payload.get(...)` -> None."""
     event = SupplyRegistered(
         supply_id=_SUPPLY_ID,
-        scope="Facility",
         kind="PhotonBeam",
         name="APS storage-ring beam",
         facility_code=_FACILITY_CODE,
@@ -169,7 +163,6 @@ def test_supply_registered_from_stored_rejects_malformed_facility_code() -> None
     upstream."""
     payload: dict[str, Any] = {
         "supply_id": str(_SUPPLY_ID),
-        "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
         "facility_code": "APS",  # uppercase rejected

@@ -25,7 +25,6 @@ from uuid import UUID
 import asyncpg
 import pytest
 
-from cora.supply.aggregates.supply import SupplyScope
 from cora.supply.features import (
     degrade_supply,
     mark_supply_available,
@@ -68,7 +67,6 @@ async def test_full_supply_fsm_cycle_appends_six_events_to_one_stream(
     register_deps = build_postgres_deps(db_pool, now=_T0, ids=[_SUPPLY_ID, _GENESIS_EVENT_ID])
     supply_id = await register_supply.bind(register_deps)(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="cora",

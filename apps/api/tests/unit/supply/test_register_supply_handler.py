@@ -27,7 +27,6 @@ from cora.shared.identity import ActorId
 from cora.supply.aggregates.supply import (
     SupplyContainingAssetNotFoundError,
     SupplyFacilityNotFoundError,
-    SupplyScope,
 )
 from cora.supply.errors import UnauthorizedError
 from cora.supply.features import register_supply
@@ -87,7 +86,6 @@ async def test_handler_returns_generated_supply_id() -> None:
     handler = register_supply.bind(deps)
     result = await handler(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -105,7 +103,6 @@ async def test_handler_appends_supply_registered_event_to_store() -> None:
     handler = register_supply.bind(deps)
     await handler(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -120,7 +117,6 @@ async def test_handler_appends_supply_registered_event_to_store() -> None:
     assert stored.event_type == "SupplyRegistered"
     assert stored.payload == {
         "supply_id": str(_NEW_ID),
-        "scope": "Beamline",
         "kind": "LiquidNitrogen",
         "name": "2-BM LN2",
         "facility_code": "aps",
@@ -140,7 +136,6 @@ async def test_handler_trims_kind_and_name() -> None:
     handler = register_supply.bind(deps)
     await handler(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="  PhotonBeam  ",
             name="  APS storage-ring beam  ",
             facility_code="aps",
@@ -160,7 +155,6 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM",
                 facility_code="aps",
@@ -179,7 +173,6 @@ async def test_handler_does_not_append_when_denied() -> None:
     with pytest.raises(UnauthorizedError):
         await handler(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM",
                 facility_code="aps",
@@ -202,7 +195,6 @@ async def test_handler_raises_facility_not_found_for_unknown_code() -> None:
     with pytest.raises(SupplyFacilityNotFoundError) as exc_info:
         await handler(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code="unseeded",
@@ -228,7 +220,6 @@ async def test_handler_accepts_decommissioned_facility() -> None:
     handler = register_supply.bind(deps)
     result = await handler(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name="APS beam",
             facility_code="aps",
@@ -259,7 +250,6 @@ async def test_handler_threads_canonical_lookup_code_into_event() -> None:
     handler = register_supply.bind(deps)
     await handler(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -281,7 +271,6 @@ async def test_handler_binds_containing_asset_when_provided() -> None:
     handler = register_supply.bind(deps)
     await handler(
         RegisterSupply(
-            scope=SupplyScope.BEAMLINE,
             kind="LiquidNitrogen",
             name="2-BM LN2",
             facility_code="aps",
@@ -304,7 +293,6 @@ async def test_handler_omits_containing_asset_when_none() -> None:
     handler = register_supply.bind(deps)
     await handler(
         RegisterSupply(
-            scope=SupplyScope.FACILITY,
             kind="PhotonBeam",
             name="APS storage-ring beam",
             facility_code="aps",
@@ -327,7 +315,6 @@ async def test_handler_raises_containing_asset_not_found_for_unknown_id() -> Non
     with pytest.raises(SupplyContainingAssetNotFoundError) as exc_info:
         await handler(
             RegisterSupply(
-                scope=SupplyScope.BEAMLINE,
                 kind="LiquidNitrogen",
                 name="2-BM LN2",
                 facility_code="aps",

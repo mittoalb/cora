@@ -1,4 +1,4 @@
-"""Supply aggregate: state, enums (status / scope / trigger), errors, events, evolver, read repo.
+"""Supply aggregate: state, enums (status / trigger), errors, events, evolver, read repo.
 
 Vertical slices that operate on this aggregate live under
 `cora.supply.features.<verb>_supply/` and import from here for state
@@ -49,7 +49,6 @@ from cora.supply.aggregates.supply.state import (
     SupplyName,
     SupplyNotFoundError,
     SupplyReason,
-    SupplyScope,
     SupplyStatus,
     TriggerSource,
 )
@@ -85,7 +84,6 @@ __all__ = [
     "SupplyReason",
     "SupplyRegistered",
     "SupplyRestored",
-    "SupplyScope",
     "SupplyStatus",
     "TriggerSource",
     "TriggeredBy",

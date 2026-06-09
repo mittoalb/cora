@@ -37,7 +37,6 @@ def test_mcp_register_supply_tool_returns_structured_supply_id() -> None:
                 "params": {
                     "name": "register_supply",
                     "arguments": {
-                        "scope": "Beamline",
                         "kind": "LiquidNitrogen",
                         "name": "2-BM LN2",
                         "facility_code": "cora",
@@ -70,7 +69,6 @@ def test_mcp_register_supply_tool_returns_iserror_on_whitespace_name() -> None:
                 "params": {
                     "name": "register_supply",
                     "arguments": {
-                        "scope": "Beamline",
                         "kind": "LiquidNitrogen",
                         "name": "   ",
                         "facility_code": "cora",
@@ -98,7 +96,7 @@ def test_mcp_register_supply_tool_rejects_missing_argument() -> None:
                 "method": "tools/call",
                 "params": {
                     "name": "register_supply",
-                    "arguments": {"scope": "Beamline"},
+                    "arguments": {"facility_code": "cora"},
                 },
             },
             headers=session_headers,

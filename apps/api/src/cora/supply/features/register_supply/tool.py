@@ -17,7 +17,6 @@ from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 from cora.supply.aggregates.supply import (
     SUPPLY_KIND_MAX_LENGTH,
     SUPPLY_NAME_MAX_LENGTH,
-    SupplyScope,
 )
 from cora.supply.features.register_supply.command import RegisterSupply
 from cora.supply.features.register_supply.handler import IdempotentHandler
@@ -43,15 +42,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def register_supply_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        scope: Annotated[
-            SupplyScope,
-            Field(
-                description=(
-                    "Hierarchical scope (Facility / Sector / Beamline) at which "
-                    "the supply is provisioned."
-                ),
-            ),
-        ],
         kind: Annotated[
             str,
             Field(
@@ -100,7 +90,6 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         supply_id = await handler(
             RegisterSupply(
-                scope=scope,
                 kind=kind,
                 name=name,
                 facility_code=facility_code,

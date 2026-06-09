@@ -11,15 +11,12 @@ SupplyStatus values, including the lifecycle-terminal
 asset), "all supplies owned by APS" (facility code), "all
 unavailable supplies" (status).
 
-Session 5 Slice 7D retires the prior `?scope=` filter in favor of
-the structural `?facility_code=` + `?containing_asset_id=` filters
-per [[project_supply_sector_disposition]] Option A: the former
-`SupplyScope.Sector` + `SupplyScope.Beamline` enum values are being
-collapsed to relational references to the Equipment BC's Asset
-hierarchy. The `scope` column on the projection stays intact through
-Slice 7E (where the SupplyScope enum is retired entirely) and the
-response DTO still surfaces it for the audit trail; only the filter
-surface migrates here.
+The prior `?scope=` filter was retired in favor of the structural
+`?facility_code=` + `?containing_asset_id=` filters per
+[[project_supply_sector_disposition]] Option A; the SupplyScope
+retirement cleanup then dropped the decorative `scope` column from
+the projection and the response DTO entirely. The structural address
+is the canonical shape going forward.
 
 No default exclusion of Decommissioned rows: matches the cross-BC
 convention from Asset (`AssetLifecycleFilter` includes
