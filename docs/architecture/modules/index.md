@@ -90,7 +90,7 @@ The **Cross-Module boundaries** table on each module page uses a fixed set of ve
 
     ---
 
-    Continuously-available resources (photon beam, LN2, compressed air, electrical power, vacuum). Five-state availability FSM with Phoebus-style latched recovery, typed `(scope, kind, name)` address, and operator-asserted transitions today.
+    Continuously-available resources (photon beam, LN2, compressed air, electrical power, vacuum). Five-state availability FSM with Phoebus-style latched recovery, typed `(facility_code, containing_asset_id, kind, name)` address with cross-BC bindings to the Federation Facility + Equipment Asset hierarchies, and operator-asserted transitions today.
 
     [Read →](supply/index.md)
 
