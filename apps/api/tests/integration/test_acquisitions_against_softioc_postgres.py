@@ -8,7 +8,7 @@ Constructs the Conductor with:
     (per [[project_control_port_test_isolation_research]])
   - `InMemoryActionRegistry` seeded with the three production action
     bodies from `cora.operation.acquisitions`
-  - real handlers bound against `PostgresEventStore` + `PostgresStepStore`
+  - real handlers bound against `PostgresEventStore` + `PostgresActivityStore`
 
 The softIOC carries an areaDetector ADCore-shaped PV family
 (`cam1:TriggerMode` / `:AcquireTime` / `:NumImages` / `:Acquire` /
@@ -34,7 +34,7 @@ from cora.infrastructure.event_envelope import to_new_event
 from cora.operation.acquisitions import collect, continuous, discrete
 from cora.operation.adapters.epics_ca_control_port import EpicsCaControlPort
 from cora.operation.aggregates.procedure import (
-    PostgresStepStore,
+    PostgresActivityStore,
     ProcedureRegistered,
     event_type_name,
     to_payload,
@@ -45,7 +45,7 @@ from cora.operation.conductor import (
     InMemoryActionRegistry,
 )
 from cora.operation.features.abort_procedure import bind as bind_abort
-from cora.operation.features.append_procedure_steps import bind as bind_append
+from cora.operation.features.append_activities import bind as bind_append
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.start_procedure import bind as bind_start
 from tests.integration._helpers import build_postgres_deps
@@ -136,7 +136,7 @@ async def test_conductor_runs_collect_action_against_real_softioc_and_postgres(
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     control_port = EpicsCaControlPort()
     conductor = _build_conductor(
         deps.event_store,
@@ -177,7 +177,7 @@ async def test_conductor_runs_collect_action_against_real_softioc_and_postgres(
         rows = await conn.fetch(
             """
             SELECT step_kind, payload
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             ORDER BY sampled_at, event_id
             """,
@@ -226,7 +226,7 @@ async def test_conductor_runs_discrete_action_walks_axis_with_per_point_collects
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     control_port = EpicsCaControlPort()
     conductor = _build_conductor(
         deps.event_store,
@@ -268,7 +268,7 @@ async def test_conductor_runs_discrete_action_walks_axis_with_per_point_collects
         rows = await conn.fetch(
             """
             SELECT payload
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             """,
             procedure_id,
@@ -311,7 +311,7 @@ async def test_conductor_runs_continuous_action_with_axis_sweep_against_softioc(
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     control_port = EpicsCaControlPort()
     conductor = _build_conductor(
         deps.event_store,
@@ -355,7 +355,7 @@ async def test_conductor_runs_continuous_action_with_axis_sweep_against_softioc(
         rows = await conn.fetch(
             """
             SELECT payload
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             """,
             procedure_id,

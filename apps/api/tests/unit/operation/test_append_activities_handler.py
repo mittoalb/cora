@@ -1,4 +1,4 @@
-"""Application-handler tests for `append_procedure_steps` slice.
+"""Application-handler tests for `append_activities` slice.
 
 Lazy open-on-first-write + batch append. Mirrors
 `test_append_observations_handler.py` shape (which mirrors 8c-b's
@@ -6,7 +6,7 @@ Lazy open-on-first-write + batch append. Mirrors
 
 Tests seed a Procedure in `Running` state directly into the in-memory
 event store via `to_new_event` + `event_store.append`, then exercise
-the handler with an InMemoryStepStore.
+the handler with an InMemoryActivityStore.
 """
 
 from datetime import UTC, datetime
@@ -16,7 +16,7 @@ import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.operation.aggregates.procedure import (
-    InMemoryStepStore,
+    InMemoryActivityStore,
     InvalidStepKindError,
     ProcedureNotFoundError,
     ProcedureStepsLogbookClosedError,
@@ -24,10 +24,10 @@ from cora.operation.aggregates.procedure import (
     from_stored,
 )
 from cora.operation.errors import UnauthorizedError
-from cora.operation.features import append_procedure_steps
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features import append_activities
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
 from tests.unit._helpers import build_deps as _build_deps_shared
 from tests.unit.operation._helpers import (
@@ -70,8 +70,8 @@ def _entry(
     event_id: UUID | None = None,
     step_kind: str = "setpoint",
     payload: dict[str, object] | None = None,
-) -> ProcedureStepInput:
-    return ProcedureStepInput(
+) -> ActivityInput:
+    return ActivityInput(
         event_id=event_id or uuid4(),
         step_kind=step_kind,
         payload=payload or {"channel": "T_oven", "target_value": 423.0},
@@ -87,11 +87,11 @@ async def test_handler_lazy_opens_logbook_on_first_append() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     count = await handler(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(_entry(),),
         ),
@@ -103,11 +103,11 @@ async def test_handler_lazy_opens_logbook_on_first_append() -> None:
     # Procedure stream gained the lazy-open envelope event.
     events, version = await store.load("Procedure", _PROCEDURE_ID)
     assert version == 3
-    assert events[2].event_type == "ProcedureStepsLogbookOpened"
+    assert events[2].event_type == "ProcedureActivitiesLogbookOpened"
     # Folded state has the logbook id set.
     state = fold([from_stored(s) for s in events])
     assert state is not None
-    assert state.steps_logbook_id == _LOGBOOK_ID
+    assert state.activity_logbook_id == _LOGBOOK_ID
     # Step row landed in the store.
     rows = step_store.all()
     assert len(rows) == 1
@@ -122,27 +122,27 @@ async def test_handler_skips_open_on_second_append() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     await handler(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     # Second handler call: no new ids needed for an open event (we
     # don't open again); we'd only need a fresh deps for the next call.
     deps2 = _build_deps_shared(ids=[], now=_NOW, event_store=store)
-    handler2 = append_procedure_steps.bind(deps2, step_store=step_store)
+    handler2 = append_activities.bind(deps2, step_store=step_store)
     await handler2(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
 
-    # Only ONE ProcedureStepsLogbookOpened on the stream.
+    # Only ONE ProcedureActivitiesLogbookOpened on the stream.
     events, version = await store.load("Procedure", _PROCEDURE_ID)
-    open_count = sum(1 for e in events if e.event_type == "ProcedureStepsLogbookOpened")
+    open_count = sum(1 for e in events if e.event_type == "ProcedureActivitiesLogbookOpened")
     assert open_count == 1
     assert version == 3  # Registered + Started + StepsLogbookOpened
     # Both rows persisted.
@@ -154,12 +154,12 @@ async def test_handler_appends_batch_in_one_call() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     entries = tuple(_entry(step_kind=k) for k in ("setpoint", "action", "check"))
     count = await handler(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=entries),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -175,18 +175,18 @@ async def test_handler_dedups_via_event_id() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     eid = uuid4()
     await handler(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(event_id=eid),)),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(event_id=eid),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
     deps2 = _build_deps_shared(ids=[], now=_NOW, event_store=store)
-    await append_procedure_steps.bind(deps2, step_store=step_store)(
-        AppendProcedureSteps(
+    await append_activities.bind(deps2, step_store=step_store)(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(_entry(event_id=eid, step_kind="action"),),
         ),
@@ -205,11 +205,11 @@ async def test_handler_threads_envelope_correlation_and_actor() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     await handler(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -228,11 +228,11 @@ async def test_handler_threads_causation_id_to_both_step_row_and_envelope_event(
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[_LOGBOOK_ID, _OPEN_EVENT_ID], now=_NOW, event_store=store)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
 
     await handler(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
         causation_id=causation,
@@ -241,7 +241,7 @@ async def test_handler_threads_causation_id_to_both_step_row_and_envelope_event(
     assert step_store.all()[0].causation_id == causation
     # Lazy-open envelope event on the Procedure stream also carries it.
     events, _ = await store.load("Procedure", _PROCEDURE_ID)
-    assert events[2].event_type == "ProcedureStepsLogbookOpened"
+    assert events[2].event_type == "ProcedureActivitiesLogbookOpened"
     assert events[2].causation_id == causation
 
 
@@ -255,10 +255,10 @@ async def test_handler_raises_when_procedure_not_found() -> None:
     # an id BEFORE the not-found check fires still raises ProcedureNotFoundError
     # (not IndexError). Belt-and-braces against test brittleness.
     deps = _build_deps_shared(ids=[uuid4()], now=_NOW, event_store=store)
-    handler = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    handler = append_activities.bind(deps, step_store=InMemoryActivityStore())
     with pytest.raises(ProcedureNotFoundError):
         await handler(
-            AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+            AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -269,10 +269,10 @@ async def test_handler_raises_steps_logbook_closed_when_terminal() -> None:
     store = InMemoryEventStore()
     await _seed_completed_procedure(store)
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
-    handler = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    handler = append_activities.bind(deps, step_store=InMemoryActivityStore())
     with pytest.raises(ProcedureStepsLogbookClosedError):
         await handler(
-            AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+            AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -291,10 +291,10 @@ async def test_handler_raises_steps_logbook_closed_when_defined() -> None:
     )
 
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
-    handler = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    handler = append_activities.bind(deps, step_store=InMemoryActivityStore())
     with pytest.raises(ProcedureStepsLogbookClosedError):
         await handler(
-            AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+            AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -305,10 +305,10 @@ async def test_handler_raises_invalid_step_kind() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store)
-    handler = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    handler = append_activities.bind(deps, step_store=InMemoryActivityStore())
     with pytest.raises(InvalidStepKindError):
         await handler(
-            AppendProcedureSteps(
+            AppendProcedureActivities(
                 procedure_id=_PROCEDURE_ID,
                 entries=(_entry(step_kind="not-a-kind"),),
             ),
@@ -322,10 +322,10 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store, deny=True)
-    handler = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    handler = append_activities.bind(deps, step_store=InMemoryActivityStore())
     with pytest.raises(UnauthorizedError):
         await handler(
-            AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+            AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )
@@ -336,11 +336,11 @@ async def test_handler_does_not_append_when_denied() -> None:
     store = InMemoryEventStore()
     await _seed_running_procedure(store)
     deps = _build_deps_shared(ids=[], now=_NOW, event_store=store, deny=True)
-    step_store = InMemoryStepStore()
-    handler = append_procedure_steps.bind(deps, step_store=step_store)
+    step_store = InMemoryActivityStore()
+    handler = append_activities.bind(deps, step_store=step_store)
     with pytest.raises(UnauthorizedError):
         await handler(
-            AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
+            AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=(_entry(),)),
             principal_id=_PRINCIPAL_ID,
             correlation_id=_CORRELATION_ID,
         )

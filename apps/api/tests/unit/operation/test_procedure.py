@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from cora.operation.aggregates.procedure import (
-    LOGBOOK_KIND_STEPS,
+    LOGBOOK_KIND_ACTIVITY,
     PROCEDURE_ABORT_REASON_MAX_LENGTH,
     PROCEDURE_NAME_MAX_LENGTH,
     PROCEDURE_TRUNCATE_REASON_MAX_LENGTH,
@@ -213,8 +213,8 @@ def test_step_kind_values_locked() -> None:
 
 
 @pytest.mark.unit
-def test_logbook_kind_steps_constant() -> None:
-    assert LOGBOOK_KIND_STEPS == "steps"
+def test_logbook_kind_activity_constant() -> None:
+    assert LOGBOOK_KIND_ACTIVITY == "activities"
 
 
 @pytest.mark.unit

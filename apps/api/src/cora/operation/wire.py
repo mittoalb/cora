@@ -26,7 +26,7 @@ Subject / Equipment / Recipe / Run / Data / Decision / Supply
   - `complete_procedure` (transition; via `make_procedure_update_handler` factory)
   - `abort_procedure` (transition; via factory)
   - `truncate_procedure` (transition; via factory; partial-data terminal)
-  - `append_procedure_steps` (entry-shape; lazy-open + batch append)
+  - `append_activities` (entry-shape; lazy-open + batch append)
   - `get_procedure` (query; fold-on-read)
   - `list_procedures` (query; reads from `proj_operation_procedure_summary`)
 
@@ -39,13 +39,13 @@ when truncate_procedure became the third update slice; mirrors
 `_supply_update_handler` (Supply BC's hoist after 5 transitions) and
 Run BC's `_update_handler.make_run_update_handler`.
 
-## BC-internal StepStore wiring (mirrors Run BC's ObservationStore)
+## BC-internal ActivityStore wiring (mirrors Run BC's ObservationStore)
 
-The `append_procedure_steps` slice needs a `StepStore` adapter.
+The `append_activities` slice needs a `ActivityStore` adapter.
 Per the per-category-writer pattern locked at gate-review L8/L9
 (Conduit's VerdictStore), the store is built LOCALLY here
 from `deps.pool` (Postgres in production) or as
-`InMemoryStepStore` in `app_env=test`. NOT promoted to Kernel fields.
+`InMemoryActivityStore` in `app_env=test`. NOT promoted to Kernel fields.
 Mirrors how Run BC wires its ObservationStore and Decision BC wires its
 InferenceStore.
 """
@@ -62,14 +62,14 @@ from cora.operation.adapters.in_memory_recipe_expansion_port import (
     InMemoryRecipeExpansionPort,
 )
 from cora.operation.aggregates.procedure import (
-    InMemoryStepStore,
-    PostgresStepStore,
-    StepStore,
+    ActivityStore,
+    InMemoryActivityStore,
+    PostgresActivityStore,
 )
 from cora.operation.conductor import Conductor, InMemoryActionRegistry
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_steps,
+    append_activities,
     complete_procedure,
     conduct_procedure,
     get_procedure,
@@ -90,8 +90,8 @@ class OperationHandlers:
 
     Initial slices: register_procedure + get_procedure. Three FSM-
     closure transitions follow (start / complete / abort). The
-    entry-shape append_procedure_steps slice arrives next (with
-    BC-internal StepStore adapter for the per-step logbook).
+    entry-shape append_activities slice arrives next (with
+    BC-internal ActivityStore adapter for the per-step logbook).
     """
 
     register_procedure: register_procedure.IdempotentHandler
@@ -100,7 +100,7 @@ class OperationHandlers:
     complete_procedure: complete_procedure.Handler
     abort_procedure: abort_procedure.Handler
     truncate_procedure: truncate_procedure.Handler
-    append_procedure_steps: append_procedure_steps.Handler
+    append_activities: append_activities.Handler
     get_procedure: get_procedure.Handler
     list_procedures: list_procedures.Handler
     conduct_procedure: conduct_procedure.Handler
@@ -117,7 +117,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
 
     Note on the conduct_procedure / Conductor wire-up: the Conductor needs
     the FINAL (post-tracing) versions of start / complete / abort /
-    append_procedure_steps so its internal calls land with the same
+    append_activities so its internal calls land with the same
     observability shape as direct REST / MCP calls. We hoist those
     four bindings into locals, build the Conductor, then assemble
     the bundle. The ControlPort is materialised from
@@ -130,8 +130,8 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
     `discrete` + `continuous`. Per-deployment registry-from-config
     plumbing remains deferred.
     """
-    step_store: StepStore = (
-        PostgresStepStore(deps.pool) if deps.pool is not None else InMemoryStepStore()
+    step_store: ActivityStore = (
+        PostgresActivityStore(deps.pool) if deps.pool is not None else InMemoryActivityStore()
     )
     # Recipe expansion port: default pure adapter. Per the design memo
     # ([[project-recipe-aggregate-design]] Locks), the port is
@@ -163,8 +163,8 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
         bc=_BC,
     )
     append_step_handler = with_tracing(
-        append_procedure_steps.bind(deps, step_store=step_store),
-        command_name="AppendProcedureSteps",
+        append_activities.bind(deps, step_store=step_store),
+        command_name="AppendProcedureActivities",
         bc=_BC,
     )
     control_port = build_control_port(deps.settings.control_port_routes)
@@ -216,7 +216,7 @@ def wire_operation(deps: Kernel) -> OperationHandlers:
             command_name="TruncateProcedure",
             bc=_BC,
         ),
-        append_procedure_steps=append_step_handler,
+        append_activities=append_step_handler,
         get_procedure=with_tracing(
             get_procedure.bind(deps),
             command_name="GetProcedure",

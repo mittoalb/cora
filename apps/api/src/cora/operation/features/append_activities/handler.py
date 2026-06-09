@@ -1,4 +1,4 @@
-"""Application handler for the `append_procedure_steps` slice.
+"""Application handler for the `append_activities` slice.
 
 Lazy open-on-first-write + batch append. Two-step non-transactional
 write mirroring Run BC's `append_observations` precedent (which
@@ -8,10 +8,10 @@ mirrors Decision BC's `append_inferences`):
   2. Reject if Procedure is NOT in Running (steps require Running:
      Defined hasn't started, terminals have ended) ->
      ProcedureStepsLogbookClosedError.
-  3. If `procedure.steps_logbook_id` is None: emit
-     `ProcedureStepsLogbookOpened` to the Procedure stream.
+  3. If `procedure.activity_logbook_id` is None: emit
+     `ProcedureActivitiesLogbookOpened` to the Procedure stream.
   4. Read the logbook_id (from existing or just-emitted).
-  5. Construct `ProcedureStep` rows with the logbook_id +
+  5. Construct `Activity` rows with the logbook_id +
      correlation_id + procedure_id from the envelope.
   6. `step_store.append(rows)`, silent dedup via Postgres PK (or
      InMemory dict setdefault).
@@ -55,28 +55,28 @@ from cora.infrastructure.ports import Deny
 from cora.infrastructure.ports.event_store import ConcurrencyError
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation.aggregates.procedure import (
-    LOGBOOK_KIND_STEPS,
+    LOGBOOK_KIND_ACTIVITY,
     STEP_KIND_VALUES,
     STEPS_LOGBOOK_SCHEMA,
+    Activity,
+    ActivityStore,
     InvalidStepKindError,
+    ProcedureActivitiesLogbookOpened,
     ProcedureNotFoundError,
     ProcedureStatus,
-    ProcedureStep,
     ProcedureStepsLogbookClosedError,
-    ProcedureStepsLogbookOpened,
-    StepStore,
     event_type_name,
     load_procedure,
     to_payload,
 )
 from cora.operation.errors import UnauthorizedError
-from cora.operation.features.append_procedure_steps.command import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities.command import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
 
 _STREAM_TYPE = "Procedure"
-_COMMAND_NAME = "AppendProcedureSteps"
+_COMMAND_NAME = "AppendProcedureActivities"
 _LAZY_OPEN_MAX_RETRIES = 3
 """Bounded retry count for the lazy-open ConcurrencyError loop.
 
@@ -91,11 +91,11 @@ _log = get_logger(__name__)
 
 
 class Handler(Protocol):
-    """Callable interface every append_procedure_steps handler implements."""
+    """Callable interface every append_activities handler implements."""
 
     async def __call__(
         self,
-        command: AppendProcedureSteps,
+        command: AppendProcedureActivities,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -104,18 +104,18 @@ class Handler(Protocol):
     ) -> int: ...
 
 
-def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
-    """Build an append_procedure_steps handler closed over deps + store.
+def bind(deps: Kernel, *, step_store: ActivityStore) -> Handler:
+    """Build an append_activities handler closed over deps + store.
 
     `step_store` is BC-internal (constructed in `wire_operation` from
-    `deps.pool` for Postgres, or `InMemoryStepStore` for
+    `deps.pool` for Postgres, or `InMemoryActivityStore` for
     `app_env=test`). Not promoted to Kernel per the per-category-
     writer pattern locked at gate-review L9 (mirrors Run BC's
     ObservationStore and Decision BC's InferenceStore).
     """
 
     async def handler(
-        command: AppendProcedureSteps,
+        command: AppendProcedureActivities,
         *,
         principal_id: UUID,
         correlation_id: UUID,
@@ -123,7 +123,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
         surface_id: UUID = NIL_SENTINEL_ID,
     ) -> int:
         _log.info(
-            "append_procedure_steps.start",
+            "append_activities.start",
             command_name=_COMMAND_NAME,
             procedure_id=str(command.procedure_id),
             entry_count=len(command.entries),
@@ -140,7 +140,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
         )
         if isinstance(authz, Deny):
             _log.info(
-                "append_procedure_steps.denied",
+                "append_activities.denied",
                 command_name=_COMMAND_NAME,
                 procedure_id=str(command.procedure_id),
                 principal_id=str(principal_id),
@@ -179,16 +179,16 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
             if procedure.status not in _OPEN_STATUSES:
                 raise ProcedureStepsLogbookClosedError(procedure.id, procedure.status)
 
-            if procedure.steps_logbook_id is not None:
-                logbook_id = procedure.steps_logbook_id
+            if procedure.activity_logbook_id is not None:
+                logbook_id = procedure.activity_logbook_id
                 break
 
             now = deps.clock.now()
             new_logbook_id = deps.id_generator.new_id()
-            open_event = ProcedureStepsLogbookOpened(
+            open_event = ProcedureActivitiesLogbookOpened(
                 procedure_id=command.procedure_id,
                 logbook_id=new_logbook_id,
-                kind=LOGBOOK_KIND_STEPS,
+                kind=LOGBOOK_KIND_ACTIVITY,
                 schema=STEPS_LOGBOOK_SCHEMA,
                 occurred_at=now,
             )
@@ -215,7 +215,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
                 )
             except ConcurrencyError:
                 _log.info(
-                    "append_procedure_steps.lazy_open_concurrency_retry",
+                    "append_activities.lazy_open_concurrency_retry",
                     command_name=_COMMAND_NAME,
                     procedure_id=str(command.procedure_id),
                     attempt=attempt,
@@ -249,7 +249,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
         await step_store.append(rows)
 
         _log.info(
-            "append_procedure_steps.success",
+            "append_activities.success",
             command_name=_COMMAND_NAME,
             procedure_id=str(command.procedure_id),
             logbook_id=str(logbook_id),
@@ -265,7 +265,7 @@ def bind(deps: Kernel, *, step_store: StepStore) -> Handler:
 
 
 def _build_row(
-    entry: ProcedureStepInput,
+    entry: ActivityInput,
     procedure_id: UUID,
     logbook_id: UUID,
     actor_id: UUID,
@@ -273,9 +273,9 @@ def _build_row(
     causation_id: UUID | None,
     *,
     fallback_now: object,
-) -> ProcedureStep:
+) -> Activity:
     """Compose the producer's input plus envelope context into a
-    ProcedureStep row ready for the store.
+    Activity row ready for the store.
 
     `occurred_at` defaults to `fallback_now` (deps.clock.now()) when
     the producer omits it. `actor_id` is the principal that submitted
@@ -284,7 +284,7 @@ def _build_row(
     """
     assert isinstance(fallback_now, datetime)
     occurred_at = entry.occurred_at if entry.occurred_at is not None else fallback_now
-    return ProcedureStep(
+    return Activity(
         event_id=entry.event_id,
         procedure_id=procedure_id,
         logbook_id=logbook_id,

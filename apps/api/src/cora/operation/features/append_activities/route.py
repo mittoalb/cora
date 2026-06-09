@@ -1,6 +1,6 @@
-"""HTTP route for the `append_procedure_steps` slice.
+"""HTTP route for the `append_activities` slice.
 
-`POST /procedures/{procedure_id}/steps` returns 200 OK with
+`POST /procedures/{procedure_id}/activities` returns 200 OK with
 `{"event_count": N}` on success. Body shape carries a list of
 polymorphic step entries (discriminated by `step_kind`); producer
 supplies UUIDv7 event_ids per entry; the store dedups silently via
@@ -45,11 +45,11 @@ from cora.infrastructure.routing import (
     get_surface_id,
 )
 from cora.operation.aggregates.procedure import StepKind
-from cora.operation.features.append_procedure_steps.command import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities.command import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps.handler import Handler
+from cora.operation.features.append_activities.handler import Handler
 
 _PROCEDURE_STEP_BATCH_MAX = 500
 """Max steps per batch. Generous enough for an EPICS adapter burst
@@ -113,7 +113,7 @@ class ProcedureStepRequest(BaseModel):
 
 
 class AppendProcedureStepsRequest(BaseModel):
-    """Body for `POST /procedures/{procedure_id}/steps`."""
+    """Body for `POST /procedures/{procedure_id}/activities`."""
 
     entries: list[ProcedureStepRequest] = Field(
         ...,
@@ -125,7 +125,7 @@ class AppendProcedureStepsRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class AppendProcedureStepsResponse(BaseModel):
+class AppendProcedureActivitiesResponse(BaseModel):
     """Response body for the append slice."""
 
     event_count: int = Field(
@@ -140,7 +140,7 @@ class AppendProcedureStepsResponse(BaseModel):
 
 
 def _get_handler(request: Request) -> Handler:
-    handler: Handler = request.app.state.operation.append_procedure_steps
+    handler: Handler = request.app.state.operation.append_activities
     return handler
 
 
@@ -148,9 +148,9 @@ router = APIRouter(tags=["operation"])
 
 
 @router.post(
-    "/procedures/{procedure_id}/steps",
+    "/procedures/{procedure_id}/activities",
     status_code=status.HTTP_200_OK,
-    response_model=AppendProcedureStepsResponse,
+    response_model=AppendProcedureActivitiesResponse,
     responses={
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
@@ -197,9 +197,9 @@ async def post_procedures_steps(
     cid: Annotated[UUID, Depends(get_correlation_id)],
     principal_id: Annotated[UUID, Depends(get_principal_id)],
     surface_id: Annotated[UUID, Depends(get_surface_id)],
-) -> AppendProcedureStepsResponse:
+) -> AppendProcedureActivitiesResponse:
     entries = tuple(
-        ProcedureStepInput(
+        ActivityInput(
             event_id=e.event_id,
             step_kind=e.step_kind,
             payload=e.payload,
@@ -209,9 +209,9 @@ async def post_procedures_steps(
         for e in body.entries
     )
     count = await handler(
-        AppendProcedureSteps(procedure_id=procedure_id, entries=entries),
+        AppendProcedureActivities(procedure_id=procedure_id, entries=entries),
         principal_id=principal_id,
         correlation_id=cid,
         surface_id=surface_id,
     )
-    return AppendProcedureStepsResponse(event_count=count)
+    return AppendProcedureActivitiesResponse(event_count=count)

@@ -99,11 +99,11 @@ from cora.equipment.features.activate_asset import ActivateAsset
 from cora.equipment.features.activate_asset import bind as bind_activate_asset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps import bind as bind_append_step
+from cora.operation.features.append_activities import bind as bind_append_step
 from cora.operation.features.complete_procedure import CompleteProcedure
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.register_procedure import RegisterProcedure
@@ -226,7 +226,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_steps (lazy open on first call): logbook_id, open_event_id
+        # append_activities (lazy open on first call): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # complete_procedure: event_id
@@ -240,7 +240,7 @@ def _setpoint(
     role: str,
     sampled_at: datetime,
     note: str | None = None,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     """Build a Sample_top_Z Setpoint step input."""
     payload: dict[str, Any] = {
         "channel": "Sample_top_Z",
@@ -250,7 +250,7 @@ def _setpoint(
     }
     if note is not None:
         payload["note"] = note
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="setpoint",
         payload=payload,
@@ -258,9 +258,9 @@ def _setpoint(
     )
 
 
-def _acquire(*, exposure_ms: int, sampled_at: datetime) -> ProcedureStepInput:
+def _acquire(*, exposure_ms: int, sampled_at: datetime) -> ActivityInput:
     """Build an Action step for acquiring an alignment frame."""
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="action",
         payload={
@@ -279,7 +279,7 @@ def _sharpness_check(
     passed: bool = False,
     direction: str | None = None,
     evidence: dict[str, Any] | None = None,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     """Build a Check step for image-analysis sharpness.
 
     `sample` records what was mounted (focus phantom, the user's
@@ -296,7 +296,7 @@ def _sharpness_check(
         payload["direction"] = direction
     if evidence is not None:
         payload["evidence"] = evidence
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="check",
         payload=payload,
@@ -311,10 +311,10 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 def _postgres_step_store(db_pool: asyncpg.Pool):
-    """Build a PostgresStepStore for the BC-internal step writer."""
-    from cora.operation.aggregates.procedure import PostgresStepStore
+    """Build a PostgresActivityStore for the BC-internal step writer."""
+    from cora.operation.aggregates.procedure import PostgresActivityStore
 
-    return PostgresStepStore(db_pool)
+    return PostgresActivityStore(db_pool)
 
 
 @pytest.mark.integration
@@ -458,7 +458,7 @@ async def test_focus_alignment_plays_out_end_to_end(
     assert len(all_entries) == 13, "expected 13 entries for a 4-iteration converged search"
 
     count = await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=all_entries),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=all_entries),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -479,7 +479,7 @@ async def test_focus_alignment_plays_out_end_to_end(
     assert [e.event_type for e in events] == [
         "ProcedureRegistered",
         "ProcedureStarted",
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         "ProcedureCompleted",
     ]
 
@@ -517,7 +517,7 @@ async def test_focus_alignment_plays_out_end_to_end(
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT step_kind FROM entries_operation_procedure_steps "
+            "SELECT step_kind FROM entries_operation_procedure_activities "
             "WHERE procedure_id = $1 ORDER BY sampled_at",
             _PROCEDURE_ID,
         )

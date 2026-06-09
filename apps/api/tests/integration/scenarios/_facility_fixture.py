@@ -182,7 +182,7 @@ _OPERATIONS_COMMANDS: frozenset[str] = frozenset(
         "RegisterProcedure",
         "StartProcedure",
         "CompleteProcedure",
-        "AppendProcedureSteps",
+        "AppendProcedureActivities",
         "StartRun",
         "StopRun",
         "AbortRun",

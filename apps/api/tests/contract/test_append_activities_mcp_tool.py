@@ -1,4 +1,4 @@
-"""Contract tests for the `append_procedure_steps` MCP tool."""
+"""Contract tests for the `append_activities` MCP tool."""
 
 from typing import Any
 from uuid import UUID, uuid4
@@ -58,7 +58,7 @@ def test_mcp_lists_append_procedure_steps_tool() -> None:
         )
     body = parse_sse_data(response.text)
     tool_names = [t["name"] for t in body["result"]["tools"]]
-    assert "append_procedure_steps" in tool_names
+    assert "append_activities" in tool_names
 
 
 @pytest.mark.contract
@@ -73,7 +73,7 @@ def test_mcp_append_procedure_steps_tool_succeeds_for_running() -> None:
                 "id": 3,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_procedure_steps",
+                    "name": "append_activities",
                     "arguments": {
                         "procedure_id": str(pid),
                         "entries": [_entry()],
@@ -118,7 +118,7 @@ def test_mcp_append_procedure_steps_tool_accepts_polymorphic_batch() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": "append_procedure_steps",
+                    "name": "append_activities",
                     "arguments": {"procedure_id": str(pid), "entries": entries},
                 },
             },

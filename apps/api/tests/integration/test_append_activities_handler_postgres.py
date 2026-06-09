@@ -1,7 +1,7 @@
-"""End-to-end integration test: append_procedure_steps against real Postgres.
+"""End-to-end integration test: append_activities against real Postgres.
 
-First concrete consumer of the entries_operation_procedure_steps
-table + PostgresStepStore. Stress-tests the polymorphic-with-
+First concrete consumer of the entries_operation_procedure_activities
+table + PostgresActivityStore. Stress-tests the polymorphic-with-
 discriminator + JSON-payload storage shape + lazy open-on-first-
 write + dedup-on-event_id + three-timestamp round-trip against
 actual Postgres semantics (jsonb payload column, plain TEXT
@@ -21,7 +21,7 @@ import pytest
 
 from cora.infrastructure.event_envelope import to_new_event
 from cora.operation.aggregates.procedure import (
-    PostgresStepStore,
+    PostgresActivityStore,
     ProcedureRegistered,
     ProcedureStarted,
     event_type_name,
@@ -29,11 +29,11 @@ from cora.operation.aggregates.procedure import (
     from_stored,
     to_payload,
 )
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps import bind as bind_append
+from cora.operation.features.append_activities import bind as bind_append
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -85,7 +85,7 @@ async def _read_steps_for_procedure(
                 event_id, procedure_id, logbook_id, actor_id, command_name,
                 step_kind, payload, sampled_at, occurred_at, recorded_at,
                 correlation_id, causation_id
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             ORDER BY sampled_at, event_id
             """,
@@ -99,8 +99,8 @@ def _entry(
     step_kind: str,
     payload: dict[str, object],
     sampled_at: datetime,
-) -> ProcedureStepInput:
-    return ProcedureStepInput(
+) -> ActivityInput:
+    return ActivityInput(
         event_id=event_id,
         step_kind=step_kind,
         payload=payload,
@@ -109,13 +109,13 @@ def _entry(
 
 
 @pytest.mark.integration
-async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
+async def test_append_activities_lazy_open_and_polymorphic_round_trip(
     db_pool: asyncpg.Pool,
 ) -> None:
     """End-to-end: seed a Procedure, then append a 3-entry polymorphic batch
-    (setpoint + action + check). Verify lazy ProcedureStepsLogbookOpened
+    (setpoint + action + check). Verify lazy ProcedureActivitiesLogbookOpened
     landed on the Procedure stream, all 3 rows landed in
-    entries_operation_procedure_steps with the correct discriminator + JSON
+    entries_operation_procedure_activities with the correct discriminator + JSON
     payload + sampled_at preserved, and a follow-up append on the same
     Procedure skips the open + appends to the same logbook."""
     procedure_id = UUID("01900000-0000-7000-8000-0000010c0b01")
@@ -126,7 +126,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     check_id = UUID("01900000-0000-7000-8000-0000010c0c03")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[logbook_id, open_event_id])
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
 
     await _seed_running_procedure(deps.event_store, procedure_id)
 
@@ -136,7 +136,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
 
     handler = bind_append(deps, step_store=step_store)
     count = await handler(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=procedure_id,
             entries=(
                 _entry(
@@ -178,7 +178,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     # Procedure stream gained the lazy-open envelope event at v3.
     events, version = await deps.event_store.load("Procedure", procedure_id)
     assert version == 3
-    assert events[2].event_type == "ProcedureStepsLogbookOpened"
+    assert events[2].event_type == "ProcedureActivitiesLogbookOpened"
     # Open-event payload roundtripped through Postgres jsonb cleanly:
     open_payload = events[2].payload
     assert open_payload["procedure_id"] == str(procedure_id)
@@ -187,7 +187,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     assert "schema" in open_payload  # full schema dict serialized
     state = fold([from_stored(s) for s in events])
     assert state is not None
-    assert state.steps_logbook_id == logbook_id
+    assert state.activity_logbook_id == logbook_id
 
     # entries table has the 3 rows with correct discriminators + JSON payloads.
     rows = await _read_steps_for_procedure(db_pool, procedure_id)
@@ -200,7 +200,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     assert setpoint_row["logbook_id"] == logbook_id
     assert setpoint_row["actor_id"] == _PRINCIPAL_ID
     assert setpoint_row["correlation_id"] == _CORRELATION_ID
-    assert setpoint_row["command_name"] == "AppendProcedureSteps"
+    assert setpoint_row["command_name"] == "AppendProcedureActivities"
     # Three-timestamp pattern (project_logbook_entry_storage):
     assert setpoint_row["sampled_at"] == sampled_a  # phenomenonTime
     assert setpoint_row["occurred_at"] == _NOW  # Clock port (handler-time)
@@ -230,7 +230,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     second_id = UUID("01900000-0000-7000-8000-0000010c0c04")
     second_sampled = datetime(2026, 5, 15, 12, 0, 5, tzinfo=UTC)
     await handler2(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=procedure_id,
             entries=(
                 _entry(
@@ -247,7 +247,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
     # Stream still at v3 (no second open emitted).
     events, version = await deps2.event_store.load("Procedure", procedure_id)
     assert version == 3
-    open_count = sum(1 for e in events if e.event_type == "ProcedureStepsLogbookOpened")
+    open_count = sum(1 for e in events if e.event_type == "ProcedureActivitiesLogbookOpened")
     assert open_count == 1
     # entries table has 4 rows now, all in the same logbook.
     all_rows = await _read_steps_for_procedure(db_pool, procedure_id)
@@ -256,7 +256,7 @@ async def test_append_procedure_steps_lazy_open_and_polymorphic_round_trip(
 
 
 @pytest.mark.integration
-async def test_append_procedure_steps_dedups_on_event_id_in_postgres(
+async def test_append_activities_dedups_on_event_id_in_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     """Producer retry with same event_id: ON CONFLICT DO NOTHING silently."""
@@ -266,13 +266,13 @@ async def test_append_procedure_steps_dedups_on_event_id_in_postgres(
     eid = UUID("01900000-0000-7000-8000-0000010c0d11")
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[logbook_id, open_event_id])
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     await _seed_running_procedure(deps.event_store, procedure_id)
 
     handler = bind_append(deps, step_store=step_store)
     sampled_at = datetime(2026, 5, 15, 12, 0, 1, tzinfo=UTC)
     await handler(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=procedure_id,
             entries=(
                 _entry(
@@ -289,7 +289,7 @@ async def test_append_procedure_steps_dedups_on_event_id_in_postgres(
     # Re-issue with the SAME event_id but a different body shape.
     deps2 = build_postgres_deps(db_pool, now=_NOW, ids=[])
     await bind_append(deps2, step_store=step_store)(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=procedure_id,
             entries=(
                 _entry(
@@ -315,5 +315,5 @@ async def test_append_procedure_steps_dedups_on_event_id_in_postgres(
 @pytest.mark.integration
 async def test_postgres_step_store_handles_empty_batch(db_pool: asyncpg.Pool) -> None:
     """Empty batch is a no-op at the adapter layer (early return)."""
-    store = PostgresStepStore(db_pool)
+    store = PostgresActivityStore(db_pool)
     await store.append([])  # No exception, no rows touched.

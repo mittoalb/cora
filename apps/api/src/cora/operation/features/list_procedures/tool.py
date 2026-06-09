@@ -33,7 +33,7 @@ class _ProcedureSummaryItemDTO(BaseModel):
     target_asset_ids: list[UUID]
     parent_run_id: UUID | None = None
     status: ProcedureStatus
-    steps_logbook_id: UUID | None = None
+    activity_logbook_id: UUID | None = None
     registered_at: datetime
     last_status_changed_at: datetime | None = None
     last_status_reason: str | None = Field(
@@ -114,7 +114,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
                     target_asset_ids=item.target_asset_ids,
                     parent_run_id=item.parent_run_id,
                     status=ProcedureStatus(item.status),
-                    steps_logbook_id=item.steps_logbook_id,
+                    activity_logbook_id=item.activity_logbook_id,
                     registered_at=item.registered_at,
                     last_status_changed_at=item.last_status_changed_at,
                     last_status_reason=item.last_status_reason,

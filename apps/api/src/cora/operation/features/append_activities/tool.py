@@ -1,4 +1,4 @@
-"""MCP tool for the `append_procedure_steps` slice.
+"""MCP tool for the `append_activities` slice.
 
 The MCP tool exposes the SAME contract as the HTTP route: a batch of
 polymorphic step entries, lazy open-on-first-write, dedup via Postgres
@@ -17,11 +17,11 @@ from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
 from cora.operation.aggregates.procedure import StepKind
-from cora.operation.features.append_procedure_steps.command import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities.command import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps.handler import Handler
+from cora.operation.features.append_activities.handler import Handler
 
 
 class _ProcedureStepEntry(BaseModel):
@@ -41,10 +41,10 @@ class _ProcedureStepEntry(BaseModel):
 
 
 def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
-    """Register the `append_procedure_steps` tool on the given MCP server."""
+    """Register the `append_activities` tool on the given MCP server."""
 
     @mcp.tool(
-        name="append_procedure_steps",
+        name="append_activities",
         description=(
             "Append a batch of polymorphic procedural steps "
             "(setpoint / action / check) to a Procedure's steps "
@@ -54,7 +54,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             "via UUIDv7 event_id."
         ),
     )
-    async def append_procedure_steps_tool(  # pyright: ignore[reportUnusedFunction]
+    async def append_activities_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
         procedure_id: Annotated[
             UUID,
@@ -71,10 +71,10 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     ) -> int:
         handler = get_handler()
         return await handler(
-            AppendProcedureSteps(
+            AppendProcedureActivities(
                 procedure_id=procedure_id,
                 entries=tuple(
-                    ProcedureStepInput(
+                    ActivityInput(
                         event_id=e.event_id,
                         step_kind=e.step_kind,
                         payload=e.payload,

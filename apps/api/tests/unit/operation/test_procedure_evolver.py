@@ -9,12 +9,12 @@ from cora.operation.aggregates.procedure import (
     STEPS_LOGBOOK_SCHEMA,
     Procedure,
     ProcedureAborted,
+    ProcedureActivitiesLogbookOpened,
     ProcedureCompleted,
     ProcedureName,
     ProcedureRegistered,
     ProcedureStarted,
     ProcedureStatus,
-    ProcedureStepsLogbookOpened,
     ProcedureTruncated,
     evolve,
     fold,
@@ -295,14 +295,14 @@ def test_evolve_procedure_aborted_on_empty_state_raises() -> None:
         evolve(None, ProcedureAborted(procedure_id=uuid4(), reason="x", occurred_at=_NOW))
 
 
-# --- ProcedureStepsLogbookOpened arm ---
+# --- ProcedureActivitiesLogbookOpened arm ---
 
 
 @pytest.mark.unit
 def test_genesis_state_has_no_steps_logbook_id() -> None:
-    """Procedure starts with steps_logbook_id=None; lazy-opened on first step."""
+    """Procedure starts with activity_logbook_id=None; lazy-opened on first step."""
     state = _defined()
-    assert state.steps_logbook_id is None
+    assert state.activity_logbook_id is None
 
 
 @pytest.mark.unit
@@ -312,7 +312,7 @@ def test_evolve_steps_logbook_opened_sets_logbook_id() -> None:
     logbook_id = uuid4()
     state = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=logbook_id,
             kind="steps",
@@ -320,7 +320,7 @@ def test_evolve_steps_logbook_opened_sets_logbook_id() -> None:
             occurred_at=_NOW,
         ),
     )
-    assert state.steps_logbook_id == logbook_id
+    assert state.activity_logbook_id == logbook_id
 
 
 @pytest.mark.unit
@@ -330,7 +330,7 @@ def test_evolve_steps_logbook_opened_does_not_change_status() -> None:
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
     state = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=uuid4(),
             kind="steps",
@@ -355,7 +355,7 @@ def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
     logbook_id = uuid4()
     state = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=logbook_id,
             kind="steps",
@@ -368,12 +368,12 @@ def test_evolve_steps_logbook_opened_preserves_all_other_fields() -> None:
     assert state.kind == "alignment"
     assert state.target_asset_ids == frozenset({asset})
     assert state.parent_run_id == parent_run
-    assert state.steps_logbook_id == logbook_id
+    assert state.activity_logbook_id == logbook_id
 
 
 @pytest.mark.unit
 def test_evolve_transition_arms_preserve_steps_logbook_id() -> None:
-    """Critical invariant extension: once steps_logbook_id is set,
+    """Critical invariant extension: once activity_logbook_id is set,
     later transitions (Complete, Abort) must preserve it. Otherwise the additive
     field gets silently wiped on terminal transitions."""
     prior = _defined()
@@ -381,7 +381,7 @@ def test_evolve_transition_arms_preserve_steps_logbook_id() -> None:
     logbook_id = uuid4()
     after_open = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=logbook_id,
             kind="steps",
@@ -390,13 +390,13 @@ def test_evolve_transition_arms_preserve_steps_logbook_id() -> None:
         ),
     )
     completed = evolve(after_open, ProcedureCompleted(procedure_id=prior.id, occurred_at=_NOW))
-    assert completed.steps_logbook_id == logbook_id
+    assert completed.activity_logbook_id == logbook_id
     # And same on the abort terminal:
     aborted = evolve(
         after_open,
         ProcedureAborted(procedure_id=prior.id, reason="x", occurred_at=_NOW),
     )
-    assert aborted.steps_logbook_id == logbook_id
+    assert aborted.activity_logbook_id == logbook_id
 
 
 @pytest.mark.unit
@@ -413,7 +413,7 @@ def test_fold_lazy_open_then_complete_yields_completed_with_logbook_id() -> None
             occurred_at=_NOW,
         ),
         ProcedureStarted(procedure_id=pid, occurred_at=_NOW),
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=pid,
             logbook_id=logbook_id,
             kind="steps",
@@ -425,15 +425,15 @@ def test_fold_lazy_open_then_complete_yields_completed_with_logbook_id() -> None
     state = fold(events)
     assert state is not None
     assert state.status is ProcedureStatus.COMPLETED
-    assert state.steps_logbook_id == logbook_id
+    assert state.activity_logbook_id == logbook_id
 
 
 @pytest.mark.unit
 def test_evolve_steps_logbook_opened_on_empty_state_raises() -> None:
-    with pytest.raises(ValueError, match="ProcedureStepsLogbookOpened"):
+    with pytest.raises(ValueError, match="ProcedureActivitiesLogbookOpened"):
         evolve(
             None,
-            ProcedureStepsLogbookOpened(
+            ProcedureActivitiesLogbookOpened(
                 procedure_id=uuid4(),
                 logbook_id=uuid4(),
                 kind="steps",
@@ -488,13 +488,13 @@ def test_evolve_procedure_truncated_preserves_all_fields() -> None:
 
 @pytest.mark.unit
 def test_evolve_procedure_truncated_preserves_steps_logbook_id() -> None:
-    """Critical-invariant extension: truncate must preserve steps_logbook_id."""
+    """Critical-invariant extension: truncate must preserve activity_logbook_id."""
     prior = _defined()
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
     logbook_id = uuid4()
     after_open = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=logbook_id,
             kind="steps",
@@ -508,7 +508,7 @@ def test_evolve_procedure_truncated_preserves_steps_logbook_id() -> None:
             procedure_id=prior.id, reason="r", interrupted_at=None, occurred_at=_NOW
         ),
     )
-    assert state.steps_logbook_id == logbook_id
+    assert state.activity_logbook_id == logbook_id
 
 
 @pytest.mark.unit
@@ -573,7 +573,7 @@ def test_evolve_procedure_started_preserves_capability_id() -> None:
     """Invariant: ProcedureStarted MUST carry capability_id
     through from prior state. The Procedure(...) constructor without
     explicit `capability_id=` would silently wipe the additive field
-    to None — same risk as the steps_logbook_id preservation invariant
+    to None — same risk as the activity_logbook_id preservation invariant
     pinned by the analogous test at line ~373."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
@@ -620,14 +620,14 @@ def test_evolve_procedure_truncated_preserves_capability_id() -> None:
 def test_evolve_steps_logbook_opened_preserves_capability_id() -> None:
     """Invariant: lazy-open envelope event preserves capability_id.
     Pinned because StepsLogbookOpened sets a different additive field
-    (steps_logbook_id) without touching the lifecycle status, so its
+    (activity_logbook_id) without touching the lifecycle status, so its
     handler had to carry every other additive field through manually."""
     capability_id = uuid4()
     prior = _defined(capability_id=capability_id)
     started = evolve(prior, ProcedureStarted(procedure_id=prior.id, occurred_at=_NOW))
     after_open = evolve(
         started,
-        ProcedureStepsLogbookOpened(
+        ProcedureActivitiesLogbookOpened(
             procedure_id=prior.id,
             logbook_id=uuid4(),
             kind="steps",

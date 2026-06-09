@@ -2,7 +2,7 @@
 
 Pinned: ProcedureTruncated round-trips through jsonb (interrupted_at
 as ISO-8601 string when set, null when None) and the Procedure folds
-back to TRUNCATED state with all additive fields (steps_logbook_id
+back to TRUNCATED state with all additive fields (activity_logbook_id
 included) preserved.
 """
 

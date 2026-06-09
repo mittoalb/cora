@@ -1,4 +1,4 @@
-"""Contract tests for `POST /procedures/{procedure_id}/steps`.
+"""Contract tests for `POST /procedures/{procedure_id}/activities`.
 
 Action endpoint with `entries` batch body, 200 OK with
 `{"event_count": N}` on success. Covers happy path (after register +

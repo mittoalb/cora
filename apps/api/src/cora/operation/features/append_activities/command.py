@@ -1,4 +1,4 @@
-"""The `AppendProcedureSteps` command, intent dataclass for this slice.
+"""The `AppendProcedureActivities` command, intent dataclass for this slice.
 
 Batch shape from day one (matches `append_observations` and
 `append_inferences` precedents). Length-1 batches are the
@@ -13,8 +13,8 @@ semantics for free.
 ## Lazy open-on-first-write
 
 The handler loads the parent Procedure, checks whether
-`procedure.steps_logbook_id` is set, and emits a
-`ProcedureStepsLogbookOpened` event lazily on first write.
+`procedure.activity_logbook_id` is set, and emits a
+`ProcedureActivitiesLogbookOpened` event lazily on first write.
 `start_procedure` stays unchanged; the logbook
 attaches when the first step arrives. Per [[project_operation_design]]
 and [[project_logbook_entry_storage]].
@@ -37,10 +37,10 @@ from uuid import UUID
 
 
 @dataclass(frozen=True)
-class ProcedureStepInput:
+class ActivityInput:
     """One step entry's input payload from the producer.
 
-    Mirrors `ProcedureStep` but omits the CORA-infra fields
+    Mirrors `Activity` but omits the CORA-infra fields
     (procedure_id / logbook_id / actor_id / command_name /
     correlation_id / causation_id) which are populated by the handler
     from the URL path + envelope.
@@ -63,8 +63,8 @@ class ProcedureStepInput:
 
 
 @dataclass(frozen=True)
-class AppendProcedureSteps:
+class AppendProcedureActivities:
     """Append a batch of steps to a Procedure's steps logbook."""
 
     procedure_id: UUID
-    entries: tuple[ProcedureStepInput, ...]
+    entries: tuple[ActivityInput, ...]

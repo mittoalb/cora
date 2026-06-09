@@ -49,7 +49,7 @@ def test_projection_metadata() -> None:
             "ProcedureCompleted",
             "ProcedureAborted",
             "ProcedureTruncated",
-            "ProcedureStepsLogbookOpened",
+            "ProcedureActivitiesLogbookOpened",
         }
     )
 
@@ -210,18 +210,18 @@ async def test_procedure_steps_logbook_opened_updates_logbook_id() -> None:
     conn = AsyncMock()
     logbook_id = uuid4()
     event = _stored(
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         {
             "procedure_id": str(_PROCEDURE_ID),
             "logbook_id": str(logbook_id),
-            "kind": "steps",
+            "kind": "activities",
             "schema": {"fields": {}, "description": ""},
             "occurred_at": _NOW.isoformat(),
         },
     )
     await proj.apply(event, conn)
     sql = conn.execute.call_args.args[0]
-    assert "steps_logbook_id = $2" in sql
+    assert "activity_logbook_id = $2" in sql
     assert conn.execute.call_args.args[2] == logbook_id
 
 

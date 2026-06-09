@@ -989,9 +989,25 @@
         "title": "AppendObservationsResponse",
         "type": "object"
       },
+      "AppendProcedureActivitiesResponse": {
+        "description": "Response body for the append slice.",
+        "properties": {
+          "event_count": {
+            "description": "Number of entries accepted by the store (includes silently-deduped retries; producer can re-call with the same event_ids safely).",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_count"
+        ],
+        "title": "AppendProcedureActivitiesResponse",
+        "type": "object"
+      },
       "AppendProcedureStepsRequest": {
         "additionalProperties": false,
-        "description": "Body for `POST /procedures/{procedure_id}/steps`.",
+        "description": "Body for `POST /procedures/{procedure_id}/activities`.",
         "properties": {
           "entries": {
             "description": "List of step entries to append (1-500).",
@@ -1008,22 +1024,6 @@
           "entries"
         ],
         "title": "AppendProcedureStepsRequest",
-        "type": "object"
-      },
-      "AppendProcedureStepsResponse": {
-        "description": "Response body for the append slice.",
-        "properties": {
-          "event_count": {
-            "description": "Number of entries accepted by the store (includes silently-deduped retries; producer can re-call with the same event_ids safely).",
-            "minimum": 0.0,
-            "title": "Event Count",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "event_count"
-        ],
-        "title": "AppendProcedureStepsResponse",
         "type": "object"
       },
       "AppendReasoningEntriesRequest": {
@@ -8474,7 +8474,7 @@
         "type": "object"
       },
       "ProcedureStatus": {
-        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; legacy events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure. Step events accepted\n                      via append_procedure_steps.\n  - `Completed`   -- happy path via complete_procedure.\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure.\n  - `Truncated`   -- retroactive cleanup via truncate_procedure.\n                      Mirrors RunTruncated.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field). Held / Resumed\ndeferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
+        "description": "The Procedure's lifecycle state.\n\nFive values declared day one for forward-compat\n(additive-state pattern; legacy events fold cleanly because\nonly DEFINED is reachable after register_procedure):\n\n  - `Defined`     -- registration-time genesis; pre-execution.\n                      Operator can edit / inspect / submit for\n                      review (future Decision BC integration).\n                      Cannot accept step events yet.\n  - `Running`     -- post-start_procedure. Step events accepted\n                      via append_activities.\n  - `Completed`   -- happy path via complete_procedure.\n                      Strict-not-idempotent.\n  - `Aborted`     -- emergency exit via abort_procedure.\n  - `Truncated`   -- retroactive cleanup via truncate_procedure.\n                      Mirrors RunTruncated.\n\n`Verifying` and `Held / Resumed` are deliberately NOT in this\nenum. Per [[project_operation_design]] standards-corpus research:\n`Verifying` is NOT standards-blessed at FSM level (PackML uses\n`Completing` for closeout/check work; OPC UA Programs has no\nVerify state). Per-step Check happens within Running synchronously\n(via the Step logbook's check_passed field). Held / Resumed\ndeferred until pilot operator feedback surfaces a need.\n\nNaming convention (per Run BC gate review): gerund /\nadjective for active steady-states (matches PackML / Bluesky);\npast-participle for terminals. `Defined` is past-participle (a\nprocedure WAS defined); `Running` is gerund-as-adjective; the\nrest are past-participle terminals.\n\nEnum values are PascalCase strings (matches BC-map status\nvocabulary; log lines and DTOs read naturally without mapping).",
         "enum": [
           "Defined",
           "Running",
@@ -8543,6 +8543,18 @@
       "ProcedureSummaryDTO": {
         "description": "One procedure in a paginated list.",
         "properties": {
+          "activity_logbook_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Logbook Id"
+          },
           "interrupted_at": {
             "anyOf": [
               {
@@ -8613,18 +8625,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ProcedureStatus"
-          },
-          "steps_logbook_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Steps Logbook Id"
           },
           "target_asset_ids": {
             "items": {
@@ -32018,6 +32018,113 @@
         ]
       }
     },
+    "/procedures/{procedure_id}/activities": {
+      "post": {
+        "operationId": "post_procedures_steps_procedures__procedure_id__activities_post",
+        "parameters": [
+          {
+            "description": "Target procedure's id.",
+            "in": "path",
+            "name": "procedure_id",
+            "required": true,
+            "schema": {
+              "description": "Target procedure's id.",
+              "format": "uuid",
+              "title": "Procedure Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendProcedureStepsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppendProcedureActivitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Per-entry validation failed in the handler (InvalidStepKindError; defensive guard for direct in-process callers that bypass Pydantic)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Procedure exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Procedure is not in `Running` (Defined hasn't started; terminals have ended); the steps logbook is implicitly closed. Or a concurrent write to the same Procedure stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Request body failed schema validation: empty entries list, batch over cap, missing required fields, invalid step_kind value."
+          }
+        },
+        "summary": "Append a batch of polymorphic procedural steps to a Procedure's steps logbook (lazy open-on-first-write).",
+        "tags": [
+          "operation"
+        ]
+      }
+    },
     "/procedures/{procedure_id}/complete": {
       "post": {
         "operationId": "post_procedures_complete_procedures__procedure_id__complete_post",
@@ -32265,113 +32372,6 @@
           }
         },
         "summary": "Transition an existing Procedure from Defined to Running",
-        "tags": [
-          "operation"
-        ]
-      }
-    },
-    "/procedures/{procedure_id}/steps": {
-      "post": {
-        "operationId": "post_procedures_steps_procedures__procedure_id__steps_post",
-        "parameters": [
-          {
-            "description": "Target procedure's id.",
-            "in": "path",
-            "name": "procedure_id",
-            "required": true,
-            "schema": {
-              "description": "Target procedure's id.",
-              "format": "uuid",
-              "title": "Procedure Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-            "in": "header",
-            "name": "X-Principal-Id",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
-              "title": "X-Principal-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AppendProcedureStepsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppendProcedureStepsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Per-entry validation failed in the handler (InvalidStepKindError; defensive guard for direct in-process callers that bypass Pydantic)."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Authorize port denied the command."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No Procedure exists with the given id."
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Procedure is not in `Running` (Defined hasn't started; terminals have ended); the steps logbook is implicitly closed. Or a concurrent write to the same Procedure stream conflicted (optimistic concurrency)."
-          },
-          "422": {
-            "description": "Request body failed schema validation: empty entries list, batch over cap, missing required fields, invalid step_kind value."
-          }
-        },
-        "summary": "Append a batch of polymorphic procedural steps to a Procedure's steps logbook (lazy open-on-first-write).",
         "tags": [
           "operation"
         ]
