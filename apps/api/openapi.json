@@ -13438,6 +13438,29 @@
         "title": "VersionCapabilityRequest",
         "type": "object"
       },
+      "VersionClearanceTemplateRequest": {
+        "description": "Body for `POST /clearance-templates/{template_id}/versions`.",
+        "properties": {
+          "new_version": {
+            "description": "Monotonic version number to bump to. Must equal current version + 1.",
+            "minimum": 2.0,
+            "title": "New Version",
+            "type": "integer"
+          },
+          "supersedes_template_id": {
+            "description": "The parent ClearanceTemplate id this version supersedes. Must be in the same facility per the cross-facility identity lock.",
+            "format": "uuid",
+            "title": "Supersedes Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_version",
+          "supersedes_template_id"
+        ],
+        "title": "VersionClearanceTemplateRequest",
+        "type": "object"
+      },
       "VersionFamilyRequest": {
         "description": "Body for `POST /families/{family_id}/version`.",
         "properties": {
@@ -21840,6 +21863,200 @@
           }
         },
         "summary": "Get a clearance template by id",
+        "tags": [
+          "safety"
+        ]
+      }
+    },
+    "/clearance-templates/{template_id}/activate": {
+      "post": {
+        "operationId": "post_clearance_templates_activate_clearance_templates__template_id__activate_post",
+        "parameters": [
+          {
+            "description": "Target clearance template's id.",
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "description": "Target clearance template's id.",
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No clearance template exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Clearance template is not in Draft status (activate_clearance_template is single-source from Draft only)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate a Draft clearance template (Draft -> Active)",
+        "tags": [
+          "safety"
+        ]
+      }
+    },
+    "/clearance-templates/{template_id}/versions": {
+      "post": {
+        "operationId": "post_clearance_template_versions_clearance_templates__template_id__versions_post",
+        "parameters": [
+          {
+            "description": "Target clearance template's id.",
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "description": "Target clearance template's id.",
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionClearanceTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No clearance template exists with the given id, or the supersedes_template_id parent template was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Template is not in Active status, new_version is not the current version plus one, or the parent template belongs to a different facility."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record a new version of an Active clearance template",
         "tags": [
           "safety"
         ]

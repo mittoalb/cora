@@ -1,11 +1,12 @@
 """ClearanceTemplateSummaryProjection: folds the ClearanceTemplate aggregate's
 events into the `proj_safety_clearance_template_summary` read model.
 
-Subscribed events (9A):
-  - ClearanceTemplateDefined -> INSERT
-
-Future events (9B+9C):
+Subscribed events (9A + 9B):
+  - ClearanceTemplateDefined     -> INSERT (status=Draft)
   - ClearanceTemplateActivated   -> UPDATE status='Active'
+  - ClearanceTemplateVersioned   -> UPDATE version + supersedes_template_id
+
+Future events (9C):
   - ClearanceTemplateDeprecated  -> UPDATE status='Deprecated'
   - ClearanceTemplateWithdrawn   -> UPDATE status='Withdrawn'
 
@@ -14,6 +15,8 @@ mapping per the ClearanceTemplateStatus enum.
 
 All branches are idempotent. The ClearanceTemplateDefined INSERT uses
 `ON CONFLICT (template_id) DO NOTHING` to handle duplicate-event replay.
+Activated and Versioned UPDATEs are naturally idempotent (same status / same
+version value re-applied).
 
 The projection's PARTIAL UNIQUE INDEX on (facility_code, code) WHERE
 status != 'Withdrawn' enforces facility-scoped uniqueness at the read side.
@@ -38,12 +41,30 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, 'Draft', $8, $9, now(), now())
 ON CONFLICT (template_id) DO NOTHING
 """
 
+_UPDATE_CLEARANCE_TEMPLATE_STATUS_SQL = """
+UPDATE proj_safety_clearance_template_summary
+SET status = $2, updated_at = now()
+WHERE template_id = $1
+"""
+
+_UPDATE_CLEARANCE_TEMPLATE_VERSION_SQL = """
+UPDATE proj_safety_clearance_template_summary
+SET version = $2, supersedes_template_id = $3, updated_at = now()
+WHERE template_id = $1
+"""
+
 
 class ClearanceTemplateSummaryProjection:
     """Maintains the `proj_safety_clearance_template_summary` read model."""
 
     name = "proj_safety_clearance_template_summary"
-    subscribed_event_types = frozenset({"ClearanceTemplateDefined"})
+    subscribed_event_types = frozenset(
+        {
+            "ClearanceTemplateDefined",
+            "ClearanceTemplateActivated",
+            "ClearanceTemplateVersioned",
+        }
+    )
 
     async def apply(
         self,
@@ -65,6 +86,23 @@ class ClearanceTemplateSummaryProjection:
                 event.payload.get("external_ref"),
                 datetime.fromisoformat(event.payload["occurred_at"]),
                 UUID(event.payload["defined_by"]),
+            )
+            return
+
+        if event.event_type == "ClearanceTemplateActivated":
+            await conn.execute(
+                _UPDATE_CLEARANCE_TEMPLATE_STATUS_SQL,
+                UUID(event.payload["template_id"]),
+                "Active",
+            )
+            return
+
+        if event.event_type == "ClearanceTemplateVersioned":
+            await conn.execute(
+                _UPDATE_CLEARANCE_TEMPLATE_VERSION_SQL,
+                UUID(event.payload["template_id"]),
+                event.payload["new_version"],
+                UUID(event.payload["supersedes_template_id"]),
             )
             return
 

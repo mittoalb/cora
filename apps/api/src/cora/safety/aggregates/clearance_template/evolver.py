@@ -1,7 +1,10 @@
 """Evolver: replay events to reconstruct ClearanceTemplate state.
 
 Status mapping per event type:
-  - `ClearanceTemplateDefined` -> DRAFT (genesis; version=1)
+  - `ClearanceTemplateDefined`   -> DRAFT  (genesis; version=1)
+  - `ClearanceTemplateActivated` -> ACTIVE (transition; version unchanged)
+  - `ClearanceTemplateVersioned` -> status unchanged (additive within Active;
+                                    bumps version + sets supersedes_template_id)
 
 The event type IS the state-change indicator (no status field in event payloads).
 
@@ -9,11 +12,14 @@ Transition events applied to empty state raise ValueError.
 """
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import assert_never
 
 from cora.safety.aggregates.clearance_template.events import (
+    ClearanceTemplateActivated,
     ClearanceTemplateDefined,
     ClearanceTemplateEvent,
+    ClearanceTemplateVersioned,
 )
 from cora.safety.aggregates.clearance_template.state import (
     ClearanceTemplate,
@@ -52,6 +58,23 @@ def evolve(state: ClearanceTemplate | None, event: ClearanceTemplateEvent) -> Cl
                 version=ClearanceTemplateVersion(version),
                 supersedes_template_id=supersedes_template_id,
                 external_ref=external_ref,
+            )
+        case ClearanceTemplateActivated():
+            if state is None:
+                msg = "ClearanceTemplateActivated requires prior ClearanceTemplateDefined"
+                raise ValueError(msg)
+            return replace(state, status=ClearanceTemplateStatus.ACTIVE)
+        case ClearanceTemplateVersioned(
+            new_version=new_version,
+            supersedes_template_id=supersedes_template_id,
+        ):
+            if state is None:
+                msg = "ClearanceTemplateVersioned requires prior ClearanceTemplateDefined"
+                raise ValueError(msg)
+            return replace(
+                state,
+                version=ClearanceTemplateVersion(new_version),
+                supersedes_template_id=supersedes_template_id,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

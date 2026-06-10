@@ -26,6 +26,7 @@ Clearance template (9A+):
 
 from cora.safety.features import (
     activate_clearance,
+    activate_clearance_template,
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
@@ -39,10 +40,12 @@ from cora.safety.features import (
     reject_clearance,
     start_clearance_review,
     submit_clearance,
+    version_clearance_template,
 )
 
 __all__ = [
     "activate_clearance",
+    "activate_clearance_template",
     "amend_clearance",
     "append_clearance_review_step",
     "approve_clearance",
@@ -56,4 +59,5 @@ __all__ = [
     "reject_clearance",
     "start_clearance_review",
     "submit_clearance",
+    "version_clearance_template",
 ]

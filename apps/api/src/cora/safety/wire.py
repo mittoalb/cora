@@ -44,6 +44,7 @@ from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.safety.features import (
     activate_clearance,
+    activate_clearance_template,
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
@@ -57,6 +58,7 @@ from cora.safety.features import (
     reject_clearance,
     start_clearance_review,
     submit_clearance,
+    version_clearance_template,
 )
 
 _BC = "safety"
@@ -80,6 +82,8 @@ class SafetyHandlers:
     define_clearance_template: define_clearance_template.IdempotentHandler
     get_clearance_template: get_clearance_template.Handler
     list_clearance_templates: list_clearance_templates.Handler
+    activate_clearance_template: activate_clearance_template.Handler
+    version_clearance_template: version_clearance_template.Handler
 
 
 def wire_safety(deps: Kernel) -> SafetyHandlers:
@@ -179,5 +183,15 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
             command_name="ListClearanceTemplates",
             bc=_BC,
             kind="query",
+        ),
+        activate_clearance_template=with_tracing(
+            activate_clearance_template.bind(deps),
+            command_name="ActivateClearanceTemplate",
+            bc=_BC,
+        ),
+        version_clearance_template=with_tracing(
+            version_clearance_template.bind(deps),
+            command_name="VersionClearanceTemplate",
+            bc=_BC,
         ),
     )

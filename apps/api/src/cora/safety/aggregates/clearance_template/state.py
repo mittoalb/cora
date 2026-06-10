@@ -90,6 +90,63 @@ class ClearanceTemplateFacilityNotFoundError(Exception):
         self.facility_code = facility_code
 
 
+class ClearanceTemplateCannotActivateError(Exception):
+    """Attempted `activate_clearance_template` from a disqualifying status.
+
+    Activation is locked to Draft per [[project_slice9_design]] L2; any other
+    starting status raises this strict-not-idempotent error.
+    """
+
+    def __init__(self, template_id: UUID, current_status: ClearanceTemplateStatus) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} cannot be activated: currently in status "
+            f"{current_status.value}, activate_clearance_template requires "
+            f"{ClearanceTemplateStatus.DRAFT.value}"
+        )
+        self.template_id = template_id
+        self.current_status = current_status
+
+
+class ClearanceTemplateCannotVersionError(Exception):
+    """Attempted `version_clearance_template` from a disqualifying status.
+
+    Version bumps are additive within Active per [[project_slice9_design]] L4;
+    Draft/Deprecated/Withdrawn parents are not eligible.
+    """
+
+    def __init__(self, template_id: UUID, current_status: ClearanceTemplateStatus) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} cannot be versioned: currently in status "
+            f"{current_status.value}, version_clearance_template requires "
+            f"{ClearanceTemplateStatus.ACTIVE.value}"
+        )
+        self.template_id = template_id
+        self.current_status = current_status
+
+
+class ClearanceTemplateFacilityMismatchError(Exception):
+    """A version-chain parent belongs to a different facility than the child.
+
+    Enforces the cross-facility identity lock per [[project_slice9_design]] L5:
+    a template's supersedes lineage stays within one facility's scope.
+    """
+
+    def __init__(
+        self,
+        template_id: UUID,
+        template_facility_code: FacilityCode,
+        parent_facility_code: FacilityCode,
+    ) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} (facility {template_facility_code.value}) "
+            f"cannot supersede a parent in facility {parent_facility_code.value}: "
+            "version chains are same-facility-scoped"
+        )
+        self.template_id = template_id
+        self.template_facility_code = template_facility_code
+        self.parent_facility_code = parent_facility_code
+
+
 @dataclass(frozen=True)
 class ClearanceTemplate:
     """Aggregate root: a reusable clearance form template definition.

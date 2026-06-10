@@ -46,6 +46,9 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.aggregates.clearance_template import (
     ClearanceTemplateAlreadyExistsError,
+    ClearanceTemplateCannotActivateError,
+    ClearanceTemplateCannotVersionError,
+    ClearanceTemplateFacilityMismatchError,
     ClearanceTemplateFacilityNotFoundError,
     ClearanceTemplateNotFoundError,
     InvalidClearanceTemplateCodeError,
@@ -55,6 +58,7 @@ from cora.safety.aggregates.clearance_template import (
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import (
     activate_clearance,
+    activate_clearance_template,
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
@@ -68,6 +72,7 @@ from cora.safety.features import (
     reject_clearance,
     start_clearance_review,
     submit_clearance,
+    version_clearance_template,
 )
 from cora.shared.identifier import InvalidIdentifierError
 
@@ -140,10 +145,12 @@ def register_safety_routes(app: FastAPI) -> None:
     # 11a-c-2 terminal slices
     app.include_router(expire_clearance.router)
     app.include_router(amend_clearance.router)
-    # Slice 9A ClearanceTemplate slices
+    # ClearanceTemplate slices
     app.include_router(define_clearance_template.router)
     app.include_router(get_clearance_template.router)
     app.include_router(list_clearance_templates.router)
+    app.include_router(activate_clearance_template.router)
+    app.include_router(version_clearance_template.router)
     for validation_cls in (
         InvalidClearanceTitleError,
         InvalidClearanceBindingsError,
@@ -184,6 +191,9 @@ def register_safety_routes(app: FastAPI) -> None:
         ClearanceCannotActivateError,
         ClearanceCannotExpireError,
         ClearanceCannotAmendError,
+        ClearanceTemplateCannotActivateError,
+        ClearanceTemplateCannotVersionError,
+        ClearanceTemplateFacilityMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

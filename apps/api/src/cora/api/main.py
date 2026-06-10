@@ -162,7 +162,7 @@ from cora.safety import (
     register_safety_tools,
     wire_safety,
 )
-from cora.safety.adapters import PostgresClearanceLookup
+from cora.safety.adapters import PostgresClearanceLookup, PostgresClearanceTemplateLookup
 from cora.subject import (
     SubjectHandlers,
     register_subject_projections,
@@ -411,6 +411,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             deps, teardown = await build_kernel(
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
+                clearance_template_lookup_factory=PostgresClearanceTemplateLookup,
                 caution_lookup_factory=PostgresCautionLookup,
                 capability_lookup_factory=PostgresCapabilityLookup,
                 supply_lookup_factory=PostgresSupplyLookup,

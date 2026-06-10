@@ -1,11 +1,19 @@
 """Domain events emitted by the ClearanceTemplate aggregate.
 
-Event type: `ClearanceTemplateDefined` (genesis; status=Draft implicit).
-Future events (9B+9C): `ClearanceTemplateActivated`, `ClearanceTemplateVersioned`,
-`ClearanceTemplateDeprecated`, `ClearanceTemplateWithdrawn`.
+Event types:
+
+  - `ClearanceTemplateDefined` (genesis; status=Draft implicit per evolver)
+  - `ClearanceTemplateActivated` (Draft -> Active; locked starting status per L2)
+  - `ClearanceTemplateVersioned` (additive within Active; no FSM transition
+    per L4; mirrors CalibrationRevisionAppended)
+
+Future events (9C): `ClearanceTemplateDeprecated`, `ClearanceTemplateWithdrawn`.
 
 Status is NOT carried in event payloads -- the event type itself encodes the
 state change. The evolver hardcodes the mapping per match arm.
+
+Each event carries the actor (`<verb>_by`) per [[project_fold_symmetry_design]]:
+defined_by on Defined, activated_by on Activated, versioned_by on Versioned.
 """
 
 from dataclasses import dataclass
@@ -37,8 +45,35 @@ class ClearanceTemplateDefined:
     external_ref: str | None = None
 
 
-# Type alias for future extensibility (9B+9C events will be added here)
-ClearanceTemplateEvent = ClearanceTemplateDefined
+@dataclass(frozen=True)
+class ClearanceTemplateActivated:
+    """A Draft clearance template was activated (Draft -> Active)."""
+
+    template_id: UUID
+    occurred_at: datetime
+    activated_by: UUID
+
+
+@dataclass(frozen=True)
+class ClearanceTemplateVersioned:
+    """A bump within Active that records the parent's UUID + the new version.
+
+    Additive within Active per [[project_slice9_design]] L4: NO FSM transition.
+    `new_version` is monotonic; the decider checks `new_version == state.version + 1`.
+    `supersedes_template_id` is the parent template (must be in the same facility
+    per L5; enforced via `ClearanceTemplateLookup` at handler time).
+    """
+
+    template_id: UUID
+    new_version: int
+    supersedes_template_id: UUID
+    occurred_at: datetime
+    versioned_by: UUID
+
+
+ClearanceTemplateEvent = (
+    ClearanceTemplateDefined | ClearanceTemplateActivated | ClearanceTemplateVersioned
+)
 
 
 def event_type_name(event: ClearanceTemplateEvent) -> str:
@@ -73,6 +108,30 @@ def to_payload(event: ClearanceTemplateEvent) -> dict[str, Any]:
                 else None,
                 "external_ref": external_ref,
             }
+        case ClearanceTemplateActivated(
+            template_id=template_id,
+            occurred_at=occurred_at,
+            activated_by=activated_by,
+        ):
+            return {
+                "template_id": str(template_id),
+                "occurred_at": occurred_at.isoformat(),
+                "activated_by": str(activated_by),
+            }
+        case ClearanceTemplateVersioned(
+            template_id=template_id,
+            new_version=new_version,
+            supersedes_template_id=supersedes_template_id,
+            occurred_at=occurred_at,
+            versioned_by=versioned_by,
+        ):
+            return {
+                "template_id": str(template_id),
+                "new_version": new_version,
+                "supersedes_template_id": str(supersedes_template_id),
+                "occurred_at": occurred_at.isoformat(),
+                "versioned_by": str(versioned_by),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -98,14 +157,36 @@ def from_stored(stored: StoredEvent) -> ClearanceTemplateEvent:
                     external_ref=payload.get("external_ref"),
                 ),
             )
+        case "ClearanceTemplateActivated":
+            return deserialize_or_raise(
+                "ClearanceTemplateActivated",
+                lambda: ClearanceTemplateActivated(
+                    template_id=UUID(payload["template_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    activated_by=UUID(payload["activated_by"]),
+                ),
+            )
+        case "ClearanceTemplateVersioned":
+            return deserialize_or_raise(
+                "ClearanceTemplateVersioned",
+                lambda: ClearanceTemplateVersioned(
+                    template_id=UUID(payload["template_id"]),
+                    new_version=payload["new_version"],
+                    supersedes_template_id=UUID(payload["supersedes_template_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    versioned_by=UUID(payload["versioned_by"]),
+                ),
+            )
         case _:
             msg = f"Unknown ClearanceTemplateEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
 
 
 __all__ = [
+    "ClearanceTemplateActivated",
     "ClearanceTemplateDefined",
     "ClearanceTemplateEvent",
+    "ClearanceTemplateVersioned",
     "event_type_name",
     "from_stored",
     "to_payload",

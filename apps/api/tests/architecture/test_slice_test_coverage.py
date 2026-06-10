@@ -93,7 +93,10 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         # (amend / append_review_step / approve / reject / start_review
         # / submit) substring-match sibling contract tests, so the
         # rule passes without an exemption.
-        "cora.safety.features.activate_clearance",
+        # `activate_clearance` was here historically; the
+        # `test_activate_clearance_template_endpoint.py` shipped with
+        # the ClearanceTemplate slices now substring-matches it, so the
+        # entry was removed.
         "cora.safety.features.expire_clearance",
         # Supply monitor trigger (Port B): in-process-only slice per
         # [[project_supply_monitor_trigger_design]] design lock. No REST
@@ -165,7 +168,10 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.recipe.features.list_plans",
         "cora.recipe.features.list_practices",
         "cora.recipe.features.update_plan_default_parameters",
-        "cora.safety.features.activate_clearance",
+        # `activate_clearance` was here historically; the
+        # `test_activate_clearance_template_mcp_tool.py` shipped with
+        # the ClearanceTemplate slices now substring-matches it, so
+        # the entry was removed.
         "cora.safety.features.expire_clearance",
         # Frame slices: MCP contract tests deferred to a follow-up
         # commit so REST + MCP suite can be authored together. Remove
