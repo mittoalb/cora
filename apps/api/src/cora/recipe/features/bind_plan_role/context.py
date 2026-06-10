@@ -31,7 +31,7 @@ the Role even when no individual Family in `asset.family_ids`
 declares it. None when the Asset is not in a Fixture or when
 the Fixture / Assembly projection lookup misses (the Family path
 may still succeed; if it does not the existing
-AssetDoesNotPresentRequiredRoleError fires).
+PlanRoleAssetCannotPresentError fires).
 """
 
 from collections.abc import Mapping

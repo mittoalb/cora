@@ -63,7 +63,6 @@ from cora.recipe.aggregates.method import (
     RoleRequirementBindingDuplicateError,
 )
 from cora.recipe.aggregates.plan import (
-    AssetDoesNotPresentRequiredRoleError,
     InvalidPlanDefaultParametersError,
     InvalidPlanNameError,
     InvalidPlanVersionTagError,
@@ -83,6 +82,7 @@ from cora.recipe.aggregates.plan import (
     PlanPseudoAxisFanoutSignalTypeMismatchError,
     PlanPseudoAxisOutputCardinalityError,
     PlanRoleAlreadyBoundError,
+    PlanRoleAssetCannotPresentError,
     PlanRoleAssetNotBoundError,
     PlanRoleFamilyMismatchError,
     PlanRoleFamilyNotResolvableError,
@@ -400,7 +400,7 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanRoleFamilyNotResolvableError,
         PlanRoleNameNotDeclaredError,
         PlanRolePortCoverageNotSatisfiedError,
-        AssetDoesNotPresentRequiredRoleError,
+        PlanRoleAssetCannotPresentError,
         # Structural closure between role_bindings and wires: a Wire
         # endpoint port matches a role's required_ports but terminates
         # at a different Asset than the one bound to that role.

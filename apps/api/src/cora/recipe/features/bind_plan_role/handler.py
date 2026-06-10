@@ -181,7 +181,7 @@ def bind(deps: Kernel) -> Handler:
             # assembly.presents_as on top of the Family disjunction.
             # Missed Fixture / Assembly silently fall through to the
             # Family-only path; the decider raises
-            # AssetDoesNotPresentRequiredRoleError if no path
+            # PlanRoleAssetCannotPresentError if no path
             # satisfies.
             if asset.fixture_id is not None:
                 fixture = await load_fixture(deps.event_store, asset.fixture_id)

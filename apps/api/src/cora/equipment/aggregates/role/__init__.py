@@ -34,10 +34,7 @@ from cora.equipment.aggregates.role.events import (
     to_payload,
 )
 from cora.equipment.aggregates.role.evolver import evolve, fold
-from cora.equipment.aggregates.role.read import (
-    find_missing_role_ids,
-    load_role,
-)
+from cora.equipment.aggregates.role.read import load_role
 from cora.equipment.aggregates.role.state import (
     ROLE_DOCSTRING_MAX_LENGTH,
     ROLE_NAME_MAX_LENGTH,
@@ -77,7 +74,6 @@ __all__ = [
     "SignalType",
     "event_type_name",
     "evolve",
-    "find_missing_role_ids",
     "fold",
     "from_stored",
     "load_role",

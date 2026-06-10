@@ -102,8 +102,9 @@ class CapabilitySuggestedRolesUpdated:
     the evolver replaces state.suggested_role_ids wholesale.
 
     Per memo Lock 10: documentation-only. The handler validates that
-    every role_id resolves via `find_missing_role_ids` (read.py
-    helper, NOT a new RoleLookup port method); no decider gates on
+    every role_id resolves via `Kernel.role_lookup.lookup` (parallel
+    `asyncio.gather` edge-load) so callers see `RoleNotFoundError`
+    rather than a satisfaction-side mis-record; no decider gates on
     the set membership itself.
 
     Restricted to Defined + Versioned status by the decider

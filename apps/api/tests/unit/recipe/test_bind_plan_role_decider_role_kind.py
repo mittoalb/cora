@@ -25,9 +25,9 @@ from cora.recipe.aggregates.method import (
     RoleRequirement,
 )
 from cora.recipe.aggregates.plan import (
-    AssetDoesNotPresentRequiredRoleError,
     Plan,
     PlanName,
+    PlanRoleAssetCannotPresentError,
     PlanRoleBound,
     PlanRoleFamilyNotResolvableError,
     PlanStatus,
@@ -198,7 +198,7 @@ def test_decide_role_kind_path_raises_when_no_family_advertises_role() -> None:
             affordances=frozenset({"Imageable"}),
         )
     }
-    with pytest.raises(AssetDoesNotPresentRequiredRoleError) as exc:
+    with pytest.raises(PlanRoleAssetCannotPresentError) as exc:
         bind_plan_role.decide(
             state=state,
             command=BindPlanRole(plan_id=state.id, role_name=RoleName("detector"), asset_id=aid),
@@ -232,7 +232,7 @@ def test_decide_role_kind_path_raises_when_family_advertises_but_lacks_affordanc
             affordances=frozenset({"Imageable"}),  # missing Streamable
         )
     }
-    with pytest.raises(AssetDoesNotPresentRequiredRoleError):
+    with pytest.raises(PlanRoleAssetCannotPresentError):
         bind_plan_role.decide(
             state=state,
             command=BindPlanRole(plan_id=state.id, role_name=RoleName("detector"), asset_id=aid),
@@ -388,7 +388,7 @@ def test_decide_role_kind_path_raises_when_neither_family_nor_assembly_satisfies
         )
     }
     assembly = _assembly_lookup(asmid, presents_as=frozenset())  # also empty
-    with pytest.raises(AssetDoesNotPresentRequiredRoleError):
+    with pytest.raises(PlanRoleAssetCannotPresentError):
         bind_plan_role.decide(
             state=state,
             command=BindPlanRole(plan_id=state.id, role_name=RoleName("imager"), asset_id=aid),
@@ -466,7 +466,7 @@ def test_decide_role_kind_path_raises_when_asset_not_in_fixture_and_family_misse
         )
     }
     assembly = _assembly_lookup(asmid, presents_as=frozenset({rid}))
-    with pytest.raises(AssetDoesNotPresentRequiredRoleError):
+    with pytest.raises(PlanRoleAssetCannotPresentError):
         bind_plan_role.decide(
             state=state,
             command=BindPlanRole(plan_id=state.id, role_name=RoleName("imager"), asset_id=aid),

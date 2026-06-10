@@ -1019,7 +1019,7 @@ class PlanRoleFamilyNotResolvableError(Exception):
         self.missing_family_id = missing_family_id
 
 
-class AssetDoesNotPresentRequiredRoleError(Exception):
+class PlanRoleAssetCannotPresentError(Exception):
     """No Family on the bound Asset advertises the required Role contract.
 
     Layer 3 sub-slice 3D, ANY-single-family disjunction per Lock 17:

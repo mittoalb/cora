@@ -1,15 +1,15 @@
 """Application handler for `update_capability_suggested_roles`.
 
-Update-style handler: load Capability + edge-load RoleLookup for
-each role_id in the command's `suggested_role_ids` + decide + append.
+Update-style handler: load Capability + edge-load each role_id in the
+command's `suggested_role_ids` via `Kernel.role_lookup.lookup`
+(parallel batch via `asyncio.gather`) + decide + append.
 
-Per memo critique B1 (3E): role existence validates via the
-equipment-aggregates `find_missing_role_ids` read helper (parallel
-RoleLookup batch under the hood) rather than a new
-`RoleLookup.batch_lookup` port method -- keeps RoleLookup narrow at
-single `lookup()`. None-resolving role_ids surface as
-RoleNotFoundError at the handler edge so callers see a 404 rather
-than a satisfaction-side mis-record.
+Per memo critique B1 (3E): role existence validates by edge-loading
+each id through the RoleLookup port rather than introducing a
+`RoleLookup.batch_lookup` method -- keeps RoleLookup narrow at single
+`lookup()`. None-resolving role_ids surface as RoleNotFoundError at
+the handler edge so callers see a 404 rather than a satisfaction-side
+mis-record.
 
 Documentation-only event per memo Lock 10: no fitness gates on the
 set membership itself.

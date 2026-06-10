@@ -28,7 +28,7 @@ XOR invariant enforced by the VO. The satisfaction check splits:
     Assembly satisfaction path accepts the binding (Assembly
     affordance-superset is enforced at register_fixture time, not
     at template time per 3C state docstring). If neither path
-    succeeds, `AssetDoesNotPresentRequiredRoleError` fires.
+    succeeds, `PlanRoleAssetCannotPresentError` fires.
 
 Invariants:
   - State must not be None -> PlanNotFoundError
@@ -50,11 +50,11 @@ from datetime import datetime
 from cora.equipment.aggregates.asset import AssetNotFoundError, PortDirection
 from cora.recipe.aggregates.method import MethodNotFoundError, RoleRequirement
 from cora.recipe.aggregates.plan import (
-    AssetDoesNotPresentRequiredRoleError,
     Plan,
     PlanCannotMutateRoleBindingsError,
     PlanNotFoundError,
     PlanRoleAlreadyBoundError,
+    PlanRoleAssetCannotPresentError,
     PlanRoleAssetNotBoundError,
     PlanRoleBound,
     PlanRoleFamilyMismatchError,
@@ -97,7 +97,7 @@ def decide(
         ANY-single-family disjunction), OR (if the Asset is in a
         Fixture) the loaded Assembly's presents_as must contain
         role_kind ->
-        AssetDoesNotPresentRequiredRoleError
+        PlanRoleAssetCannotPresentError
       - Asset.ports must cover every role.required_ports triple
         exactly -> PlanRolePortCoverageNotSatisfiedError
       - No existing wire's endpoint port may claim a role's
@@ -149,13 +149,17 @@ def decide(
         # accept iff AT LEAST ONE Family advertises role_kind in
         # presents_as AND has affordances superset
         # role.required_affordances.
+        # Handler contract: role_lookup_result MUST be populated when
+        # matching_role.role_kind is set. Mirror the symmetric XOR
+        # guard at line 178 below: assert (not a domain error) so a
+        # buggy handler / test fails loud rather than silently mis-
+        # binding. Operators never see this; only callers that
+        # bypass the handler can trigger it.
+        assert context.role_lookup_result is not None, (
+            "handler contract violation: role_lookup_result must be populated "
+            f"when matching_role.role_kind is set (role_kind={matching_role.role_kind})"
+        )
         role_lookup = context.role_lookup_result
-        if role_lookup is None:
-            # Handler contract: role_lookup_result MUST be populated
-            # when matching_role.role_kind is set. Defensive guard:
-            # surface MethodNotFoundError-shape so the test/wire
-            # mistake fails loud rather than silently mis-binding.
-            raise MethodNotFoundError(matching_role.role_kind)
         required_affordances = role_lookup.required_affordances
         satisfied_by: bool = False
         for family_id in asset.family_ids:
@@ -185,7 +189,7 @@ def decide(
             if assembly_row is not None and matching_role.role_kind in assembly_row.presents_as:
                 satisfied_by = True
         if not satisfied_by:
-            raise AssetDoesNotPresentRequiredRoleError(
+            raise PlanRoleAssetCannotPresentError(
                 state.id,
                 command.role_name,
                 command.asset_id,

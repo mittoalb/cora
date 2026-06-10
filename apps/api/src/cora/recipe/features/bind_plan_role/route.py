@@ -85,7 +85,7 @@ router = APIRouter(tags=["recipe"])
                 "role's required Family (family_id path), OR for the "
                 "3D role_kind path: no Family on the Asset advertises "
                 "the Role with covering affordances "
-                "(AssetDoesNotPresentRequiredRoleError), or a Family "
+                "(PlanRoleAssetCannotPresentError), or a Family "
                 "id on the Asset does not resolve via FamilyLookup "
                 "(PlanRoleFamilyNotResolvableError), OR Asset missing "
                 "one or more of the role's required port triples."

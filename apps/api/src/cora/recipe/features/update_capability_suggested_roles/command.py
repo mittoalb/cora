@@ -12,8 +12,8 @@ class UpdateCapabilitySuggestedRoles:
     full new set; the evolver replaces wholesale. Bare frozenset[UUID]
     per cross-BC convention symmetric with RoleRequirement.role_kind.
 
-    The handler resolves each role_id via the equipment-aggregates
-    `find_missing_role_ids` read helper at the edge so callers see
+    The handler edge-loads each role_id via `Kernel.role_lookup.lookup`
+    (parallel `asyncio.gather` batch) so callers see
     `RoleNotFoundError` rather than a satisfaction-side mis-record.
     """
 

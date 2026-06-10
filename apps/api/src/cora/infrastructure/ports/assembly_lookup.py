@@ -82,7 +82,7 @@ class AssemblyLookup(Protocol):
         Returning None signals "no Assembly with that id is visible in
         the projection". The 3D bind_plan_role decider treats None as
         a missed Assembly satisfaction (the Family disjunction may
-        still succeed; if it does not, AssetDoesNotPresentRequiredRoleError
+        still succeed; if it does not, PlanRoleAssetCannotPresentError
         fires).
 
         Assemblies in EVERY status are returned (Defined, Versioned,
