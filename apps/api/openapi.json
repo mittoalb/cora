@@ -319,6 +319,22 @@
         "title": "AddFacilityTrustAnchorCredentialBody",
         "type": "object"
       },
+      "AddFamilyPresentsAsRequest": {
+        "description": "Body for `POST /families/{family_id}/add-presents-as`.",
+        "properties": {
+          "role_id": {
+            "description": "Global Role contract id to add to the Family's presents_as set. Existence is verified at the handler edge against the read-side Role projection; the Family's affordances must superset the Role's required_affordances or the add is rejected.",
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "title": "AddFamilyPresentsAsRequest",
+        "type": "object"
+      },
       "AddMethodRequiredRoleRequest": {
         "description": "Body for `POST /methods/{method_id}/add-required-role`.",
         "properties": {
@@ -10755,6 +10771,22 @@
           "credential_id"
         ],
         "title": "RemoveFacilityTrustAnchorCredentialBody",
+        "type": "object"
+      },
+      "RemoveFamilyPresentsAsRequest": {
+        "description": "Body for `POST /families/{family_id}/remove-presents-as`.",
+        "properties": {
+          "role_id": {
+            "description": "Global Role contract id to withdraw from the Family's presents_as set. Strict-not-idempotent: removing a Role the Family does not advertise raises.",
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "title": "RemoveFamilyPresentsAsRequest",
         "type": "object"
       },
       "RemoveMethodRequiredRoleRequest": {
@@ -24068,6 +24100,96 @@
         ]
       }
     },
+    "/families/{family_id}/add-presents-as": {
+      "post": {
+        "operationId": "post_families_add_presents_as_families__family_id__add_presents_as_post",
+        "parameters": [
+          {
+            "description": "Target Family's id.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "description": "Target Family's id.",
+              "format": "uuid",
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFamilyPresentsAsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Family exists with the given id, OR no Role exists with the supplied role_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Family cannot present the requested Role (missing required Affordances), OR the role_id is already in the Family's presents_as set (strict-not-idempotent), OR a concurrent write to the same Family stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Add a global Role contract to a Family's presents_as set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/families/{family_id}/deprecate": {
       "post": {
         "operationId": "post_families_deprecate_families__family_id__deprecate_post",
@@ -24150,6 +24272,96 @@
           }
         },
         "summary": "Mark an existing family as deprecated",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/families/{family_id}/remove-presents-as": {
+      "post": {
+        "operationId": "post_families_remove_presents_as_families__family_id__remove_presents_as_post",
+        "parameters": [
+          {
+            "description": "Target Family's id.",
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "description": "Target Family's id.",
+              "format": "uuid",
+              "title": "Family Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveFamilyPresentsAsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Family exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "role_id is not in the Family's presents_as set (strict-not-idempotent), OR a concurrent write to the same Family stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Remove a global Role contract from a Family's presents_as set",
         "tags": [
           "equipment"
         ]

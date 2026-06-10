@@ -49,6 +49,7 @@ from cora.infrastructure.ports import (
     CredentialLookup,
     EventStore,
     FacilityLookup,
+    FamilyLookup,
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
@@ -173,6 +174,17 @@ class Kernel:
     cross-BC binding tests seed assets via the adapter's
     `register(...)` helper.
 
+    `family_lookup`: cross-aggregate port consumed by Layer-3 sub-slice
+    3D's `bind_plan_role` handler (per
+    [[project-role-aggregate-design]] Lock 17). Walks
+    Asset.family_ids -> FamilyLookup.lookup -> presents_as ∩
+    affordance-superset using the ANY-single-family disjunction
+    semantic. Equipment BC ships `PostgresFamilyLookup` as the
+    production adapter (reads `proj_equipment_family_summary` with
+    the Layer-3 sub-slice 3B presents_as + affordances columns).
+    Test environments default to `InMemoryFamilyLookup`; 3D consumer
+    tests seed Families via the adapter's `register(...)` helper.
+
     `role_lookup`: cross-aggregate port consumed by Layer-3 sub-slices
     of [[project-role-aggregate-design]]. 3B `add_family_presents_as`
     decider validates role_id resolves AND that the Family's
@@ -245,6 +257,7 @@ class Kernel:
     credential_lookup: CredentialLookup
     facility_lookup: FacilityLookup
     asset_lookup: AssetLookup
+    family_lookup: FamilyLookup
     role_lookup: RoleLookup
     profile_store: ProfileStore
     canonicalization_registry: CanonicalizationRegistry

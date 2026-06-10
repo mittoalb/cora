@@ -102,8 +102,11 @@ from cora.equipment.aggregates.asset import (
 from cora.equipment.aggregates.family import (
     FamilyAlreadyExistsError,
     FamilyCannotDeprecateError,
+    FamilyCannotPresentAsError,
     FamilyCannotVersionError,
     FamilyNotFoundError,
+    FamilyRolePresentsAsAlreadyError,
+    FamilyRolePresentsAsNotPresentError,
     InvalidAffordanceError,
     InvalidFamilyNameError,
     InvalidFamilySettingsSchemaError,
@@ -186,6 +189,7 @@ from cora.equipment.features import (
     add_asset_family,
     add_asset_owner,
     add_asset_port,
+    add_family_presents_as,
     add_model_family,
     assign_asset_persistent_id,
     assign_fixture_persistent_id,
@@ -225,6 +229,7 @@ from cora.equipment.features import (
     remove_asset_family,
     remove_asset_owner,
     remove_asset_port,
+    remove_family_presents_as,
     remove_model_family,
     restore_asset,
     uninstall_asset,
@@ -403,6 +408,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(update_family_settings_schema.router)
     app.include_router(get_family.router)
     app.include_router(list_families.router)
+    app.include_router(add_family_presents_as.router)
+    app.include_router(remove_family_presents_as.router)
     # Role aggregate
     app.include_router(define_role.router)
     # Model aggregate
@@ -556,6 +563,9 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetModelMismatchError,
         FamilyCannotVersionError,
         FamilyCannotDeprecateError,
+        FamilyCannotPresentAsError,
+        FamilyRolePresentsAsAlreadyError,
+        FamilyRolePresentsAsNotPresentError,
         FrameCannotUpdateError,
         FrameCannotDecommissionError,
         FrameCannotSupersedeError,

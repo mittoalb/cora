@@ -20,6 +20,7 @@ from cora.equipment.features.add_asset_family import (
 )
 from cora.equipment.features.add_asset_owner import tool as add_asset_owner_tool
 from cora.equipment.features.add_asset_port import tool as add_asset_port_tool
+from cora.equipment.features.add_family_presents_as import tool as add_family_presents_as_tool
 from cora.equipment.features.add_model_family import tool as add_model_family_tool
 from cora.equipment.features.assign_asset_persistent_id import (
     tool as assign_asset_persistent_id_tool,
@@ -75,6 +76,9 @@ from cora.equipment.features.remove_asset_family import (
 )
 from cora.equipment.features.remove_asset_owner import tool as remove_asset_owner_tool
 from cora.equipment.features.remove_asset_port import tool as remove_asset_port_tool
+from cora.equipment.features.remove_family_presents_as import (
+    tool as remove_family_presents_as_tool,
+)
 from cora.equipment.features.remove_model_family import tool as remove_model_family_tool
 from cora.equipment.features.restore_asset import tool as restore_asset_tool
 from cora.equipment.features.uninstall_asset import tool as uninstall_asset_tool
@@ -125,6 +129,14 @@ def register_equipment_tools(
     list_families_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_families,
+    )
+    add_family_presents_as_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_family_presents_as,
+    )
+    remove_family_presents_as_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_family_presents_as,
     )
     # Role aggregate
     define_role_tool.register(

@@ -49,6 +49,10 @@ from cora.infrastructure.ports.facility_lookup import (
     FacilityLookup,
     FacilityLookupResult,
 )
+from cora.infrastructure.ports.family_lookup import (
+    FamilyLookup,
+    FamilyLookupResult,
+)
 from cora.infrastructure.ports.id_generator import (
     FixedIdGenerator,
     FixedIdGeneratorExhaustedError,
@@ -152,6 +156,8 @@ __all__ = [
     "FakeLLM",
     "FakeLLMExhaustedError",
     "FakeLLMResponse",
+    "FamilyLookup",
+    "FamilyLookupResult",
     "FixedIdGenerator",
     "FixedIdGeneratorExhaustedError",
     "HashConflict",

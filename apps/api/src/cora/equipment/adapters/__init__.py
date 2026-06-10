@@ -19,9 +19,19 @@ Layer 3 sub-slice 3A of [[project-role-aggregate-design]]. Reads
 `proj_equipment_role_summary`; the test-tier `InMemoryRoleLookup`
 lives at `cora.infrastructure.adapters` mirroring the
 `AssetLookup` / `FacilityLookup` split.
+
+`PostgresFamilyLookup` is the production `FamilyLookup` adapter per
+Layer 3 sub-slice 3B. Reads `proj_equipment_family_summary` (with
+the presents_as + affordances columns added by 3B); consumed by
+3D's `bind_plan_role` handler.
 """
 
 from cora.equipment.adapters.postgres_asset_lookup import PostgresAssetLookup
+from cora.equipment.adapters.postgres_family_lookup import PostgresFamilyLookup
 from cora.equipment.adapters.postgres_role_lookup import PostgresRoleLookup
 
-__all__ = ["PostgresAssetLookup", "PostgresRoleLookup"]
+__all__ = [
+    "PostgresAssetLookup",
+    "PostgresFamilyLookup",
+    "PostgresRoleLookup",
+]

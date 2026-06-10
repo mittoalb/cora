@@ -40,6 +40,7 @@ from cora.equipment.features import (
     add_asset_family,
     add_asset_owner,
     add_asset_port,
+    add_family_presents_as,
     add_model_family,
     assign_asset_persistent_id,
     assign_fixture_persistent_id,
@@ -79,6 +80,7 @@ from cora.equipment.features import (
     remove_asset_family,
     remove_asset_owner,
     remove_asset_port,
+    remove_family_presents_as,
     remove_model_family,
     restore_asset,
     uninstall_asset,
@@ -128,6 +130,8 @@ class EquipmentHandlers:
     update_family_settings_schema: update_family_settings_schema.Handler
     get_family: get_family.Handler
     list_families: list_families.Handler
+    add_family_presents_as: add_family_presents_as.Handler
+    remove_family_presents_as: remove_family_presents_as.Handler
 
     # Role aggregate
     define_role: define_role.IdempotentHandler
@@ -267,6 +271,16 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="ListFamilies",
             bc=_BC,
             kind="query",
+        ),
+        add_family_presents_as=with_tracing(
+            add_family_presents_as.bind(deps),
+            command_name="AddFamilyPresentsAs",
+            bc=_BC,
+        ),
+        remove_family_presents_as=with_tracing(
+            remove_family_presents_as.bind(deps),
+            command_name="RemoveFamilyPresentsAs",
+            bc=_BC,
         ),
         # Role aggregate
         define_role=with_tracing(

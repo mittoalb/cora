@@ -62,6 +62,7 @@ from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLoo
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
+from cora.infrastructure.adapters.in_memory_family_lookup import InMemoryFamilyLookup
 from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
 from cora.infrastructure.adapters.in_memory_role_lookup import InMemoryRoleLookup
@@ -88,6 +89,7 @@ from cora.infrastructure.ports import (
     CredentialLookup,
     EventStore,
     FacilityLookup,
+    FamilyLookup,
     IdempotencyStore,
     IdGenerator,
     LogbookMirror,
@@ -151,6 +153,7 @@ def make_postgres_kernel(
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
+    family_lookup: FamilyLookup | None = None,
     role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
@@ -228,6 +231,14 @@ def make_postgres_kernel(
     `build_kernel` injects the real `PostgresAssetLookup` via the
     `asset_lookup_factory` argument.
 
+    `family_lookup` defaults to a fresh `InMemoryFamilyLookup` (empty
+    record map). Layer-3 consumer tests (3D `bind_plan_role`
+    role_kind satisfaction path) seed Families explicitly via the
+    adapter's `register(...)` helper; tests that don't bind via
+    role_kind never touch it. Production's `build_kernel` injects
+    the real `PostgresFamilyLookup` via the `family_lookup_factory`
+    argument.
+
     `role_lookup` defaults to a fresh `InMemoryRoleLookup` (empty
     record map). Layer-3 consumer tests (3B add_family_presents_as,
     3C add_assembly_presents_as, 3D bind_plan_role, 3E
@@ -277,6 +288,7 @@ def make_postgres_kernel(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
+        family_lookup=(family_lookup if family_lookup is not None else InMemoryFamilyLookup()),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
@@ -306,6 +318,7 @@ def make_inmemory_kernel(
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
+    family_lookup: FamilyLookup | None = None,
     role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
@@ -373,6 +386,13 @@ def make_inmemory_kernel(
     adapter's `register(...)` helper; tests that don't bind to an
     Asset never touch it.
 
+    `family_lookup` defaults to a fresh `InMemoryFamilyLookup` for
+    the same reason: no projection worker, no
+    `proj_equipment_family_summary` table to read from. Layer-3
+    consumer tests (3D `bind_plan_role`) seed Families via the
+    adapter's `register(...)` helper; tests that don't bind via
+    role_kind leave the dict empty (the default).
+
     `role_lookup` defaults to a fresh `InMemoryRoleLookup` for the
     same reason: no projection worker, no `proj_equipment_role_summary`
     table to read from. Layer-3 consumer tests seed Roles via the
@@ -419,6 +439,7 @@ def make_inmemory_kernel(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
+        family_lookup=(family_lookup if family_lookup is not None else InMemoryFamilyLookup()),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
@@ -578,6 +599,25 @@ class AssetLookupFactory(Protocol):
     ) -> AssetLookup: ...
 
 
+class FamilyLookupFactory(Protocol):
+    """Builds the production FamilyLookup port for the Kernel.
+
+    Equipment BC's `cora.equipment.adapters.PostgresFamilyLookup` is
+    the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `AssetLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryFamilyLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> FamilyLookup: ...
+
+
 class RoleLookupFactory(Protocol):
     """Builds the production RoleLookup port for the Kernel.
 
@@ -633,6 +673,7 @@ async def build_kernel(
     credential_lookup_factory: CredentialLookupFactory | None = None,
     facility_lookup_factory: FacilityLookupFactory | None = None,
     asset_lookup_factory: AssetLookupFactory | None = None,
+    family_lookup_factory: FamilyLookupFactory | None = None,
     role_lookup_factory: RoleLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
@@ -745,6 +786,9 @@ async def build_kernel(
     asset_lookup: AssetLookup = (
         asset_lookup_factory(pool) if asset_lookup_factory is not None else InMemoryAssetLookup()
     )
+    family_lookup: FamilyLookup = (
+        family_lookup_factory(pool) if family_lookup_factory is not None else InMemoryFamilyLookup()
+    )
     role_lookup: RoleLookup = (
         role_lookup_factory(pool) if role_lookup_factory is not None else InMemoryRoleLookup()
     )
@@ -764,6 +808,7 @@ async def build_kernel(
         credential_lookup=credential_lookup,
         facility_lookup=facility_lookup,
         asset_lookup=asset_lookup,
+        family_lookup=family_lookup,
         role_lookup=role_lookup,
         llm=llm,
         token_verifier=token_verifier,
@@ -843,6 +888,7 @@ __all__ = [
     "ClearanceLookupFactory",
     "CredentialLookupFactory",
     "FacilityLookupFactory",
+    "FamilyLookupFactory",
     "LLMFactory",
     "RoleLookupFactory",
     "SupplyLookupFactory",
