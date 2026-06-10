@@ -12,7 +12,8 @@ Per [[project_safety_clearance_design]], the design locks:
     -> Active -> Expired | Rejected | Superseded`
   - 10-value `ClearanceKind` StrEnum covering 9 surveyed facilities
     (form-type only; facility identity carried separately by
-    `facility_asset_id` referencing Asset.Level.Site)
+    `facility_code` referencing the Federation Facility's cross-deployment
+    convergent slug)
   - Multi-binding `frozenset[ClearanceBinding]` covering Subject /
     Asset / Run / Procedure + ExternalRefBinding(ref=Identifier) for
     upstream-deferred refs (Proposal / BTR / LabVisit / Session per
@@ -80,6 +81,7 @@ from uuid import UUID
 
 from cora.safety.aggregates.clearance.hazard_classification import HazardClassification, RiskBand
 from cora.shared.bounded_text import validate_bounded_text
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import Identifier
 from cora.shared.identity import ActorId
 
@@ -133,8 +135,8 @@ class ClearanceKind(StrEnum):
 
     Ten facility-independent form-types covering the 9 surveyed facilities
     (cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).
-    Facility identity is carried separately via `Clearance.facility_asset_id`
-    (a reference to the `Asset.Level.Site` for the facility); it is NOT
+    Facility identity is carried separately via `Clearance.facility_code`
+    (the Federation Facility's cross-deployment convergent slug); it is NOT
     smushed into the kind value.
 
       - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;
@@ -149,8 +151,8 @@ class ClearanceKind(StrEnum):
       - `BTR`      -- SLAC Beam Time Request safety review
       - `Form9`    -- SPring-8 Form 9 (per-visit)
 
-    `(kind=ESAF, facility_asset_id=<APS_SITE_UUID>)` and
-    `(kind=ESAF, facility_asset_id=<ALS_SITE_UUID>)` are distinct without
+    `(kind=ESAF, facility_code="aps")` and
+    `(kind=ESAF, facility_code="als")` are distinct without
     string-mangling. Two orthogonal concepts (form-type + facility) are
     cleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.
 
@@ -359,6 +361,14 @@ class ClearanceNotFoundError(Exception):
     def __init__(self, clearance_id: UUID) -> None:
         super().__init__(f"Clearance {clearance_id} not found")
         self.clearance_id = clearance_id
+
+
+class ClearanceFacilityNotFoundError(Exception):
+    """The facility code referenced at clearance registration does not resolve."""
+
+    def __init__(self, facility_code: str) -> None:
+        super().__init__(f"Facility {facility_code!r} not found for clearance registration")
+        self.facility_code = facility_code
 
 
 class ClearanceCannotSubmitError(Exception):
@@ -697,7 +707,7 @@ class Clearance:
 
     id: UUID
     kind: ClearanceKind
-    facility_asset_id: UUID  # references the Asset.Level.Site for the facility
+    facility_code: FacilityCode  # Federation Facility's cross-deployment convergent slug
     title: ClearanceTitle
     bindings: frozenset[ClearanceBinding]
     declarations: frozenset[HazardDeclaration] = field(default_factory=frozenset[HazardDeclaration])

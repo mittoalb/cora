@@ -16,7 +16,7 @@ from cora.api.main import create_app
 def _body() -> dict[str, object]:
     return {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "Pilot ESAF",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -54,7 +54,7 @@ def test_post_clearances_same_key_different_body_returns_422() -> None:
             "/clearances",
             json={
                 "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "facility_code": "cora",
                 "title": "First",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },
@@ -64,7 +64,7 @@ def test_post_clearances_same_key_different_body_returns_422() -> None:
             "/clearances",
             json={
                 "kind": "SAF",
-                "facility_asset_id": str(uuid4()),
+                "facility_code": "cora",
                 "title": "Second",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },

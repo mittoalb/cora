@@ -23,9 +23,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotAmendError,
+    ClearanceFacilityNotFoundError,
     ClearanceRegistered,
     ClearanceStatus,
     ClearanceSuperseded,
@@ -70,11 +72,14 @@ def decide(
     context: ClearanceAmendmentContext,
     now: datetime,
     new_id: UUID,
+    facility_lookup_result: FacilityLookupResult | None,
 ) -> AmendmentEvents:
     """Decide the parent+child events produced by amending an Active clearance.
 
     Invariants:
       - Parent status must be Active -> ClearanceCannotAmendError
+      - facility_lookup_result must be non-None
+        -> ClearanceFacilityNotFoundError(command.facility_code)
       - Title must be valid -> InvalidClearanceTitleError
         (via ClearanceTitle VO)
       - bindings must be non-empty -> InvalidClearanceBindingsError
@@ -94,6 +99,9 @@ def decide(
     parent = context.parent
     if parent.status not in _AMENDABLE_STATUSES:
         raise ClearanceCannotAmendError(parent.id, parent.status)
+
+    if facility_lookup_result is None:
+        raise ClearanceFacilityNotFoundError(command.facility_code)
 
     # ---- Validate the child's fields (mirrors register_clearance decider) ----
 
@@ -136,7 +144,7 @@ def decide(
         ClearanceRegistered(
             clearance_id=new_id,
             kind=command.kind.value,
-            facility_asset_id=command.facility_asset_id,
+            facility_code=facility_lookup_result.code.value,
             title=title.value,
             bindings=bindings_payload,
             declarations=declarations_payload,

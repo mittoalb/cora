@@ -755,10 +755,12 @@
             ],
             "title": "External Id"
           },
-          "facility_asset_id": {
-            "description": "Reference to the Asset.Level.Site for the facility issuing the child clearance. Typically matches the parent's facility.",
-            "format": "uuid",
-            "title": "Facility Asset Id",
+          "facility_code": {
+            "description": "Cross-deployment convergent slug for the Federation Facility issuing the child clearance. Typically matches the parent's facility.",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "title": "Facility Code",
             "type": "string"
           },
           "kind": {
@@ -809,7 +811,7 @@
         },
         "required": [
           "kind",
-          "facility_asset_id",
+          "facility_code",
           "title",
           "bindings"
         ],
@@ -2925,7 +2927,7 @@
         "type": "object"
       },
       "ClearanceKind": {
-        "description": "The form-type (template) this Clearance wraps.\n\nTen facility-independent form-types covering the 9 surveyed facilities\n(cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).\nFacility identity is carried separately via `Clearance.facility_asset_id`\n(a reference to the `Asset.Level.Site` for the facility); it is NOT\nsmushed into the kind value.\n\n  - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;\n                  facility distinguishes between the two)\n  - `SAF`      -- Safety Approval Form (used by NSLS-II + ESRF)\n  - `AForm`    -- ESRF A-form (per-proposal)\n  - `DUO`      -- MAX IV DUO (proposal-level)\n  - `ESRA`     -- MAX IV ESRA (per-experiment, pairs with DUO)\n  - `ERA`      -- DLS Experiment Risk Assessment (per-session)\n  - `PLHD`     -- DLS Personal Lab Hazard Declaration (per-lab-visit)\n  - `DOOR`     -- DESY DOOR (per-beamtime)\n  - `BTR`      -- SLAC Beam Time Request safety review\n  - `Form9`    -- SPring-8 Form 9 (per-visit)\n\n`(kind=ESAF, facility_asset_id=<APS_SITE_UUID>)` and\n`(kind=ESAF, facility_asset_id=<ALS_SITE_UUID>)` are distinct without\nstring-mangling. Two orthogonal concepts (form-type + facility) are\ncleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.\n\nPer [[project_safety_clearance_design]] \u00a7\"Facility lives at\nAsset.Level.Site\": facility identity is the existing Asset.Site in\nCORA's Equipment hierarchy, NOT a parallel StrEnum. Adding a new\nfacility requires no enum change at all (just register a new Site\nAsset). A 13th form-type (rare; the global form-type registry is\nrelatively stable) lands as a new enum member.\n\nFuture ClearanceTemplate aggregate (watch item): when first\nper-template body-schema-validation OR template-versioning need\nsurfaces, this StrEnum gets replaced by `template_id: UUID`\nreferencing a typed `ClearanceTemplate` aggregate (mirrors Family\ninside Equipment BC). Same trigger pattern as ProcedureTemplate watch\nitem in [[project_operation_design]].",
+        "description": "The form-type (template) this Clearance wraps.\n\nTen facility-independent form-types covering the 9 surveyed facilities\n(cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).\nFacility identity is carried separately via `Clearance.facility_code`\n(the Federation Facility's cross-deployment convergent slug); it is NOT\nsmushed into the kind value.\n\n  - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;\n                  facility distinguishes between the two)\n  - `SAF`      -- Safety Approval Form (used by NSLS-II + ESRF)\n  - `AForm`    -- ESRF A-form (per-proposal)\n  - `DUO`      -- MAX IV DUO (proposal-level)\n  - `ESRA`     -- MAX IV ESRA (per-experiment, pairs with DUO)\n  - `ERA`      -- DLS Experiment Risk Assessment (per-session)\n  - `PLHD`     -- DLS Personal Lab Hazard Declaration (per-lab-visit)\n  - `DOOR`     -- DESY DOOR (per-beamtime)\n  - `BTR`      -- SLAC Beam Time Request safety review\n  - `Form9`    -- SPring-8 Form 9 (per-visit)\n\n`(kind=ESAF, facility_code=\"aps\")` and\n`(kind=ESAF, facility_code=\"als\")` are distinct without\nstring-mangling. Two orthogonal concepts (form-type + facility) are\ncleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.\n\nPer [[project_safety_clearance_design]] \u00a7\"Facility lives at\nAsset.Level.Site\": facility identity is the existing Asset.Site in\nCORA's Equipment hierarchy, NOT a parallel StrEnum. Adding a new\nfacility requires no enum change at all (just register a new Site\nAsset). A 13th form-type (rare; the global form-type registry is\nrelatively stable) lands as a new enum member.\n\nFuture ClearanceTemplate aggregate (watch item): when first\nper-template body-schema-validation OR template-versioning need\nsurfaces, this StrEnum gets replaced by `template_id: UUID`\nreferencing a typed `ClearanceTemplate` aggregate (mirrors Family\ninside Equipment BC). Same trigger pattern as ProcedureTemplate watch\nitem in [[project_operation_design]].",
         "enum": [
           "ESAF",
           "SAF",
@@ -3000,9 +3002,8 @@
             ],
             "title": "External Id"
           },
-          "facility_asset_id": {
-            "format": "uuid",
-            "title": "Facility Asset Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "id": {
@@ -3090,7 +3091,7 @@
         "required": [
           "id",
           "kind",
-          "facility_asset_id",
+          "facility_code",
           "title",
           "bindings",
           "declarations",
@@ -3138,9 +3139,8 @@
             ],
             "title": "External Id"
           },
-          "facility_asset_id": {
-            "format": "uuid",
-            "title": "Facility Asset Id",
+          "facility_code": {
+            "title": "Facility Code",
             "type": "string"
           },
           "kind": {
@@ -3256,7 +3256,7 @@
         "required": [
           "clearance_id",
           "kind",
-          "facility_asset_id",
+          "facility_code",
           "title",
           "status",
           "bindings",
@@ -9843,15 +9843,17 @@
             "description": "Optional facility-minted regulatory ID (for example 'ESAF-12345'); lazy-mint per the PID landscape pattern.",
             "title": "External Id"
           },
-          "facility_asset_id": {
-            "description": "Reference to the Asset.Level.Site for the facility that issued (or will issue) this clearance. CORA does NOT verify the Asset exists at register time (eventual-consistency convention).",
-            "format": "uuid",
-            "title": "Facility Asset Id",
+          "facility_code": {
+            "description": "Cross-deployment convergent slug for the Federation Facility that issued (or will issue) this clearance. Resolved at handler time via FacilityLookup.lookup_by_code; an unknown code surfaces as 404.",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "title": "Facility Code",
             "type": "string"
           },
           "kind": {
             "$ref": "#/components/schemas/ClearanceKind",
-            "description": "Form-type (template). 10 facility-independent form-types covering 9 surveyed facilities. Facility identity carried separately in `facility_asset_id`."
+            "description": "Form-type (template). 10 facility-independent form-types covering 9 surveyed facilities. Facility identity carried separately in `facility_code`."
           },
           "risk_band": {
             "anyOf": [
@@ -9900,7 +9902,7 @@
         },
         "required": [
           "kind",
-          "facility_asset_id",
+          "facility_code",
           "title",
           "bindings"
         ],
@@ -22354,22 +22356,24 @@
             }
           },
           {
-            "description": "Optional facility filter; matches Asset.Level.Site.",
+            "description": "Optional facility filter; cross-deployment convergent slug (Federation Facility code).",
             "in": "query",
-            "name": "facility_asset_id",
+            "name": "facility_code",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "format": "uuid",
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9-]{1,32}$",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Optional facility filter; matches Asset.Level.Site.",
-              "title": "Facility Asset Id"
+              "description": "Optional facility filter; cross-deployment convergent slug (Federation Facility code).",
+              "title": "Facility Code"
             }
           },
           {

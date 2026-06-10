@@ -172,7 +172,7 @@ async def _walk_clearance_to_active(deps, subject_id: UUID) -> UUID:  # type: ig
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="cora",
             title="Pilot",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),
         ),
@@ -269,7 +269,7 @@ async def test_run_start_raises_coverage_mismatch_when_only_defined(
     await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="cora",
             title="Stays Defined",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),
         ),
@@ -432,7 +432,7 @@ async def test_run_start_succeeds_when_clearance_binds_controller_via_controller
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="cora",
             title="Controller firmware lockout",
             bindings=frozenset({AssetBinding(asset_id=controller_asset_id)}),
         ),

@@ -175,7 +175,7 @@ async def _walk_clearance_to_active(deps: Kernel, subject_id: UUID) -> UUID:
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="cora",
             title="Pilot",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),
         ),

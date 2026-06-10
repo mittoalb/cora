@@ -21,7 +21,7 @@ def _seed_clearance(client: TestClient, session_headers: dict[str, str]) -> str:
                 "name": "register_clearance",
                 "arguments": {
                     "kind": "ESAF",
-                    "facility_asset_id": str(uuid4()),
+                    "facility_code": "cora",
                     "title": "Pilot",
                     "bindings": [{"kind": "Run", "id": str(uuid4())}],
                     "risk_band": "Yellow",

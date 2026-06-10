@@ -197,12 +197,15 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
             ClearanceKind,
             Field(description="Form-type (10 facility-independent form-types)."),
         ],
-        facility_asset_id: Annotated[
-            UUID,
+        facility_code: Annotated[
+            str,
             Field(
+                min_length=1,
+                max_length=32,
+                pattern=r"^[a-z0-9-]{1,32}$",
                 description=(
-                    "Reference to the Asset.Level.Site for the facility that issued "
-                    "(or will issue) this clearance."
+                    "Cross-deployment convergent slug for the Federation Facility "
+                    "that issued (or will issue) this clearance."
                 ),
             ),
         ],
@@ -262,7 +265,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         clearance_id = await handler(
             RegisterClearance(
                 kind=kind,
-                facility_asset_id=facility_asset_id,
+                facility_code=facility_code,
                 title=title,
                 bindings=frozenset(_binding_from_arg(b) for b in bindings),
                 declarations=frozenset(_declaration_from_arg(d) for d in (declarations or [])),

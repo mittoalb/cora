@@ -8,8 +8,8 @@ bc_touches: Access, Safety
 Scenario test for the Safety BC's full Clearance lifecycle in a
 beamtime-intake context: a proposal arrives, an ESAF
 (Experiment Safety Assessment Form) is registered against the
-proposal Subject + APS Site, walks through the standard 2-step
-review chain (Beamline Scientist + ESRB), gets approved, and
+proposal Subject + self-Facility code, walks through the standard
+2-step review chain (Beamline Scientist + ESRB), gets approved, and
 activates ready for the first Run to bind against.
 
 Phase operations.
@@ -184,6 +184,10 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000440b21")
 # are registered by `install_aps_unit` (canonical fixture-owned UUIDs).
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000440f01")
 
+# Self-Facility slug seeded by `build_postgres_deps` default
+# `InMemoryFacilityLookup` (matches `Settings.self_facility_code`).
+_FACILITY_CODE = "cora"
+
 _DEVICES = (
     DeviceSpec(
         "Aerotech_ABRS_rotary",
@@ -281,7 +285,7 @@ async def test_proposal_clearance_walks_to_active(
     new_clearance_id = await bind_register_clearance(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=_APS_SITE_ID,
+            facility_code=_FACILITY_CODE,
             title="Proposal 2026-1234 ESAF (porous sandstone tomography)",
             bindings=frozenset({subject_binding, proposal_binding}),
             declarations=frozenset(
@@ -316,7 +320,7 @@ async def test_proposal_clearance_walks_to_active(
     assert defined is not None
     assert defined.status == ClearanceStatus.DEFINED
     assert defined.kind == ClearanceKind.ESAF
-    assert defined.facility_asset_id == _APS_SITE_ID
+    assert defined.facility_code.value == _FACILITY_CODE
     assert defined.review_steps == ()
 
     # ----- Defined -> Submitted (PI submits the form) -----
@@ -415,7 +419,7 @@ async def test_proposal_clearance_walks_to_active(
     assert active.status == ClearanceStatus.ACTIVE
     # Identity + bindings preserved across the full FSM walk.
     assert active.kind == ClearanceKind.ESAF
-    assert active.facility_asset_id == _APS_SITE_ID
+    assert active.facility_code.value == _FACILITY_CODE
     assert subject_binding in active.bindings
     assert proposal_binding in active.bindings
 

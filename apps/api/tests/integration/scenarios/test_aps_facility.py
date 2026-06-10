@@ -244,7 +244,7 @@ async def test_facility_install_plays_out_end_to_end(
     await bind_register_clearance(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=_APS_SITE_ID,
+            facility_code="cora",
             title="Facility umbrella",
             bindings=frozenset({AssetBinding(asset_id=_APS_SITE_ID)}),
         ),

@@ -1,7 +1,7 @@
 """Application-handler tests for `register_clearance` slice."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
@@ -22,6 +22,7 @@ _NEW_ID = UUID("01900000-0000-7000-8000-000000011011")
 _EVENT_ID = UUID("01900000-0000-7000-8000-000000011012")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_FACILITY_CODE = "cora"
 
 
 def _build_deps(
@@ -44,7 +45,7 @@ async def test_handler_returns_generated_clearance_id() -> None:
     result = await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=UUID(int=42))}),
         ),
@@ -63,7 +64,7 @@ async def test_handler_appends_clearance_registered_event() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -93,7 +94,7 @@ async def test_handler_serializes_multi_binding_set() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Multi-bind",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
         ),
@@ -113,7 +114,7 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
         await handler(
             RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code=_FACILITY_CODE,
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -132,7 +133,7 @@ async def test_handler_does_not_append_when_denied() -> None:
         await handler(
             RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code=_FACILITY_CODE,
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -153,7 +154,7 @@ async def test_handler_records_causation_id_when_provided() -> None:
     await handler(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="t",
             bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
         ),

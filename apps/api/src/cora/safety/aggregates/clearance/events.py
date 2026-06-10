@@ -75,7 +75,7 @@ class ClearanceRegistered:
 
     clearance_id: UUID
     kind: str
-    facility_asset_id: UUID
+    facility_code: str
     title: str
     bindings: tuple[dict[str, Any], ...]
     declarations: tuple[dict[str, Any], ...]
@@ -425,7 +425,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
         case ClearanceRegistered(
             clearance_id=clearance_id,
             kind=kind,
-            facility_asset_id=facility_asset_id,
+            facility_code=facility_code,
             title=title,
             bindings=bindings,
             declarations=declarations,
@@ -439,7 +439,7 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
             return {
                 "clearance_id": str(clearance_id),
                 "kind": kind,
-                "facility_asset_id": str(facility_asset_id),
+                "facility_code": facility_code,
                 "title": title,
                 "bindings": list(bindings),
                 "declarations": list(declarations),
@@ -552,7 +552,7 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                 return ClearanceRegistered(
                     clearance_id=UUID(payload["clearance_id"]),
                     kind=payload["kind"],
-                    facility_asset_id=UUID(payload["facility_asset_id"]),
+                    facility_code=payload["facility_code"],
                     title=payload["title"],
                     bindings=tuple(payload.get("bindings", [])),
                     declarations=tuple(payload.get("declarations", [])),

@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceBinding,
@@ -32,15 +33,26 @@ from cora.safety.features.amend_clearance import (
     AmendClearance,
     ClearanceAmendmentContext,
 )
+from cora.shared.facility_code import FacilityCode
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _lookup_result(code: str = "aps") -> FacilityLookupResult:
+    return FacilityLookupResult(
+        id=uuid4(),
+        code=FacilityCode(code),
+        kind="Site",
+        status="Active",
+        trust_anchor_credential_ids=frozenset(),
+    )
 
 
 def _parent(status: ClearanceStatus = ClearanceStatus.ACTIVE) -> Clearance:
     return Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Original"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         status=status,
@@ -56,7 +68,7 @@ def _command(
     return AmendClearance(
         parent_id=parent_id,
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title=title,
         bindings=bindings if bindings is not None else frozenset({RunBinding(run_id=uuid4())}),
     )
@@ -75,6 +87,7 @@ def test_decide_emits_parent_superseded_and_child_registered() -> None:
         context=ctx,
         now=_NOW,
         new_id=new_id,
+        facility_lookup_result=_lookup_result("aps"),
     )
 
     assert len(result.parent_events) == 1
@@ -100,13 +113,20 @@ def test_decide_child_carries_validity_window_when_provided() -> None:
     cmd = AmendClearance(
         parent_id=parent.id,
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title="Amended",
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         valid_from=valid_from,
         valid_until=valid_until,
     )
-    result = amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+    result = amend_clearance.decide(
+        state=None,
+        command=cmd,
+        context=ctx,
+        now=_NOW,
+        new_id=uuid4(),
+        facility_lookup_result=_lookup_result("aps"),
+    )
     assert result.child_events[0].valid_from == valid_from
     assert result.child_events[0].valid_until == valid_until
 
@@ -129,7 +149,14 @@ def test_decide_rejects_when_parent_not_active(status: ClearanceStatus) -> None:
     ctx = ClearanceAmendmentContext(parent=parent, parent_version=1)
     cmd = _command(parent.id)
     with pytest.raises(ClearanceCannotAmendError):
-        amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+        amend_clearance.decide(
+            state=None,
+            command=cmd,
+            context=ctx,
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
+        )
 
 
 @pytest.mark.unit
@@ -138,7 +165,14 @@ def test_decide_rejects_empty_child_title() -> None:
     ctx = ClearanceAmendmentContext(parent=parent, parent_version=1)
     cmd = _command(parent.id, title="   ")
     with pytest.raises(InvalidClearanceTitleError):
-        amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+        amend_clearance.decide(
+            state=None,
+            command=cmd,
+            context=ctx,
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
+        )
 
 
 @pytest.mark.unit
@@ -147,7 +181,14 @@ def test_decide_rejects_empty_child_bindings() -> None:
     ctx = ClearanceAmendmentContext(parent=parent, parent_version=1)
     cmd = _command(parent.id, bindings=frozenset())
     with pytest.raises(InvalidClearanceBindingsError):
-        amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+        amend_clearance.decide(
+            state=None,
+            command=cmd,
+            context=ctx,
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
+        )
 
 
 @pytest.mark.unit
@@ -157,14 +198,21 @@ def test_decide_rejects_inverted_child_validity_window() -> None:
     cmd = AmendClearance(
         parent_id=parent.id,
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title="Amended",
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         valid_from=datetime(2026, 9, 1, tzinfo=UTC),
         valid_until=datetime(2026, 6, 1, tzinfo=UTC),
     )
     with pytest.raises(InvalidClearanceValidityWindowError):
-        amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+        amend_clearance.decide(
+            state=None,
+            command=cmd,
+            context=ctx,
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
+        )
 
 
 @pytest.mark.unit
@@ -180,10 +228,17 @@ def test_decide_rejects_child_declaration_target_outside_bindings() -> None:
     cmd = AmendClearance(
         parent_id=parent.id,
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title="Amended",
         bindings=frozenset({in_scope}),
         declarations=frozenset({HazardDeclaration(target=out_of_scope)}),
     )
     with pytest.raises(InvalidClearanceDeclarationTargetError):
-        amend_clearance.decide(state=None, command=cmd, context=ctx, now=_NOW, new_id=uuid4())
+        amend_clearance.decide(
+            state=None,
+            command=cmd,
+            context=ctx,
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
+        )

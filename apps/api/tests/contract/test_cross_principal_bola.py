@@ -232,7 +232,7 @@ def _create_clearance_as(client: TestClient, principal: UUID) -> UUID:
         "/clearances",
         json={
             "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "facility_code": "cora",
             "title": "P1's clearance",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },

@@ -52,11 +52,14 @@ class AmendClearanceRequest(BaseModel):
         ...,
         description="Form-type for the child clearance (may differ from parent's).",
     )
-    facility_asset_id: UUID = Field(
+    facility_code: str = Field(
         ...,
+        min_length=1,
+        max_length=32,
+        pattern=r"^[a-z0-9-]{1,32}$",
         description=(
-            "Reference to the Asset.Level.Site for the facility issuing the "
-            "child clearance. Typically matches the parent's facility."
+            "Cross-deployment convergent slug for the Federation Facility "
+            "issuing the child clearance. Typically matches the parent's facility."
         ),
     )
     title: str = Field(
@@ -97,7 +100,7 @@ def _command_from_request(
     return AmendClearance(
         parent_id=parent_id,
         kind=body.kind,
-        facility_asset_id=body.facility_asset_id,
+        facility_code=body.facility_code,
         title=body.title,
         bindings=frozenset(binding_from_dto(b) for b in body.bindings),
         declarations=frozenset(declaration_from_dto(d) for d in body.declarations),

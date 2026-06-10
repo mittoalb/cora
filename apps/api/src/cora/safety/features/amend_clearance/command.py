@@ -40,7 +40,7 @@ class AmendClearance:
 
     parent_id: UUID
     kind: ClearanceKind
-    facility_asset_id: UUID
+    facility_code: str
     title: str
     bindings: frozenset[ClearanceBinding]
     declarations: frozenset[HazardDeclaration] = field(default_factory=frozenset[HazardDeclaration])

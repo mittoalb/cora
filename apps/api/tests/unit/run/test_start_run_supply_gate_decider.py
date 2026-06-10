@@ -53,7 +53,7 @@ def _active_clearance() -> ClearanceReference:
         clearance_id=uuid4(),
         status="Active",
         kind="RadiationWork",
-        facility_asset_id=uuid4(),
+        facility_code="aps",
     )
 
 

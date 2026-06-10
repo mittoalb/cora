@@ -388,7 +388,7 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
     await bind_register_clearance(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=_APS_SITE_ID,
+            facility_code="cora",
             title="Proposal 2026-1234 ESAF (porous sandstone tomography)",
             bindings=frozenset({subject_binding}),
         ),

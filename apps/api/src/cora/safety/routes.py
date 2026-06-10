@@ -29,6 +29,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceCannotRejectError,
     ClearanceCannotStartReviewError,
     ClearanceCannotSubmitError,
+    ClearanceFacilityNotFoundError,
     ClearanceNotFoundError,
     InvalidClearanceBindingsError,
     InvalidClearanceDeclarationTargetError,
@@ -179,6 +180,7 @@ def register_safety_routes(app: FastAPI) -> None:
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
         ClearanceNotFoundError,
+        ClearanceFacilityNotFoundError,
         ClearanceTemplateNotFoundError,
         ClearanceTemplateFacilityNotFoundError,
     ):

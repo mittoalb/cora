@@ -5,9 +5,11 @@ from uuid import uuid4
 
 import pytest
 
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceAlreadyExistsError,
+    ClearanceFacilityNotFoundError,
     ClearanceKind,
     ClearanceTitle,
     HazardDeclaration,
@@ -22,8 +24,20 @@ from cora.safety.aggregates.clearance import (
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.features import register_clearance
 from cora.safety.features.register_clearance import RegisterClearance
+from cora.shared.facility_code import FacilityCode
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
+
+
+def _lookup_result(code: str = "aps") -> FacilityLookupResult:
+    """Build a stub FacilityLookupResult for the given facility slug."""
+    return FacilityLookupResult(
+        id=uuid4(),
+        code=FacilityCode(code),
+        kind="Site",
+        status="Active",
+        trust_anchor_credential_ids=frozenset(),
+    )
 
 
 @pytest.mark.unit
@@ -34,17 +48,19 @@ def test_decide_emits_clearance_registered_when_stream_is_empty() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
         now=_NOW,
         new_id=new_id,
+        facility_lookup_result=_lookup_result("aps"),
     )
     assert len(events) == 1
     event = events[0]
     assert event.clearance_id == new_id
     assert event.kind == "ESAF"
+    assert event.facility_code == "aps"
     assert event.title == "Pilot ESAF"
     assert event.bindings == ({"kind": "Run", "id": str(rid)},)
     assert event.declarations == ()
@@ -63,12 +79,13 @@ def test_decide_serializes_multi_binding() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.SAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="Multi",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
         ),
         now=_NOW,
         new_id=aid,
+        facility_lookup_result=_lookup_result("aps"),
     )
     binding_kinds = {b["kind"] for b in events[0].bindings}
     assert binding_kinds == {"Subject", "Run"}
@@ -81,7 +98,7 @@ def test_decide_serializes_declaration_with_classifications() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="With hazards",
             bindings=frozenset({SubjectBinding(subject_id=sid)}),
             declarations=frozenset(
@@ -97,6 +114,7 @@ def test_decide_serializes_declaration_with_classifications() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        facility_lookup_result=_lookup_result("aps"),
     )
     assert len(events[0].declarations) == 1
     assert events[0].risk_band == "Yellow"
@@ -108,13 +126,14 @@ def test_decide_trims_external_id() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="t",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
             external_id="  ESAF-12345  ",
         ),
         now=_NOW,
         new_id=uuid4(),
+        facility_lookup_result=_lookup_result("aps"),
     )
     assert events[0].external_id == "ESAF-12345"
 
@@ -124,7 +143,7 @@ def test_decide_rejects_existing_state() -> None:
     existing = Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("existing"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
     )
@@ -133,14 +152,37 @@ def test_decide_rejects_existing_state() -> None:
             state=existing,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="other",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
     assert exc_info.value.clearance_id == existing.id
+
+
+@pytest.mark.unit
+def test_decide_rejects_unknown_facility_code() -> None:
+    """When the handler's FacilityLookup miss surfaces as
+    facility_lookup_result=None, the decider raises
+    ClearanceFacilityNotFoundError carrying the original slug from the
+    command. Mirrors the Slice 8A register_asset precedent."""
+    with pytest.raises(ClearanceFacilityNotFoundError) as exc_info:
+        register_clearance.decide(
+            state=None,
+            command=RegisterClearance(
+                kind=ClearanceKind.ESAF,
+                facility_code="unknown",
+                title="t",
+                bindings=frozenset({RunBinding(run_id=uuid4())}),
+            ),
+            now=_NOW,
+            new_id=uuid4(),
+            facility_lookup_result=None,
+        )
+    assert exc_info.value.facility_code == "unknown"
 
 
 @pytest.mark.unit
@@ -150,12 +192,13 @@ def test_decide_rejects_empty_title() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="   ",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -166,12 +209,13 @@ def test_decide_rejects_too_long_title() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="a" * 201,
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -182,12 +226,13 @@ def test_decide_rejects_empty_bindings() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset(),
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -198,13 +243,14 @@ def test_decide_rejects_empty_external_id() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 external_id="   ",
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -215,13 +261,14 @@ def test_decide_rejects_too_long_external_id() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 external_id="a" * 101,
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -234,7 +281,7 @@ def test_decide_rejects_inverted_validity_window() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 valid_from=later,
@@ -242,6 +289,7 @@ def test_decide_rejects_inverted_validity_window() -> None:
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -252,7 +300,7 @@ def test_decide_accepts_validity_window_when_only_one_side_provided() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="t",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
             valid_from=_NOW,
@@ -260,6 +308,7 @@ def test_decide_accepts_validity_window_when_only_one_side_provided() -> None:
         ),
         now=_NOW,
         new_id=uuid4(),
+        facility_lookup_result=_lookup_result("aps"),
     )
 
 
@@ -273,7 +322,7 @@ def test_decide_rejects_zero_duration_validity_window() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),
                 valid_from=instant,
@@ -281,6 +330,7 @@ def test_decide_rejects_zero_duration_validity_window() -> None:
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -296,7 +346,7 @@ def test_decide_rejects_declaration_target_not_in_bindings() -> None:
             state=None,
             command=RegisterClearance(
                 kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                facility_code="aps",
                 title="t",
                 bindings=frozenset({SubjectBinding(subject_id=in_set_subject)}),
                 declarations=frozenset(
@@ -309,6 +359,7 @@ def test_decide_rejects_declaration_target_not_in_bindings() -> None:
             ),
             now=_NOW,
             new_id=uuid4(),
+            facility_lookup_result=_lookup_result("aps"),
         )
 
 
@@ -320,13 +371,14 @@ def test_decide_accepts_declaration_target_when_in_bindings() -> None:
         state=None,
         command=RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="t",
             bindings=frozenset({SubjectBinding(subject_id=sid)}),
             declarations=frozenset({HazardDeclaration(target=SubjectBinding(subject_id=sid))}),
         ),
         now=_NOW,
         new_id=uuid4(),
+        facility_lookup_result=_lookup_result("aps"),
     )
 
 
@@ -336,10 +388,15 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     rid = uuid4()
     cmd = RegisterClearance(
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title="repeatable",
         bindings=frozenset({RunBinding(run_id=rid)}),
     )
-    first = register_clearance.decide(state=None, command=cmd, now=_NOW, new_id=new_id)
-    second = register_clearance.decide(state=None, command=cmd, now=_NOW, new_id=new_id)
+    lookup = _lookup_result("aps")
+    first = register_clearance.decide(
+        state=None, command=cmd, now=_NOW, new_id=new_id, facility_lookup_result=lookup
+    )
+    second = register_clearance.decide(
+        state=None, command=cmd, now=_NOW, new_id=new_id, facility_lookup_result=lookup
+    )
     assert first == second

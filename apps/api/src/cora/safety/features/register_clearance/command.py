@@ -28,7 +28,6 @@ Per [[project_safety_clearance_design]]:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from uuid import UUID
 
 from cora.safety.aggregates.clearance import (
     ClearanceBinding,
@@ -42,15 +41,15 @@ from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 class RegisterClearance:
     """Register a new safety-form clearance (lands in `Defined`).
 
-    `facility_asset_id` references the Asset.Level.Site for the facility
-    that issued (or will issue) this clearance. Per CORA's eventual-
-    consistency convention, the decider does NOT verify the Asset exists;
-    cross-aggregate-context loaders re-validate when needed (Run.start
-    gating).
+    `facility_code` is the cross-deployment convergent slug of the
+    Federation Facility that issued (or will issue) this clearance. The
+    handler resolves the slug via `FacilityLookup.lookup_by_code` and the
+    decider rejects unknown codes with `ClearanceFacilityNotFoundError`
+    (HTTP 404), mirroring the Slice 8A `register_asset` precedent.
     """
 
     kind: ClearanceKind
-    facility_asset_id: UUID
+    facility_code: str
     title: str
     bindings: frozenset[ClearanceBinding]
     declarations: frozenset[HazardDeclaration] = field(default_factory=frozenset[HazardDeclaration])

@@ -42,7 +42,7 @@ import asyncpg
 from cora.infrastructure.ports.clearance_lookup import ClearanceReference
 
 _FIND_REFERENCING_RUN_SQL = """
-SELECT clearance_id, status, kind, facility_asset_id
+SELECT clearance_id, status, kind, facility_code
 FROM proj_safety_clearance_summary
 WHERE $1 = ANY(run_binding_ids)
    OR ($2::uuid IS NOT NULL AND $2 = ANY(subject_binding_ids))
@@ -81,5 +81,5 @@ def _row_to_reference(row: Any) -> ClearanceReference:
         clearance_id=row["clearance_id"],
         status=str(row["status"]),
         kind=str(row["kind"]),
-        facility_asset_id=row["facility_asset_id"],
+        facility_code=str(row["facility_code"]),
     )

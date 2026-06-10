@@ -48,15 +48,18 @@ class RegisterClearanceRequest(BaseModel):
         description=(
             "Form-type (template). 10 facility-independent form-types covering 9 "
             "surveyed facilities. Facility identity carried separately in "
-            "`facility_asset_id`."
+            "`facility_code`."
         ),
     )
-    facility_asset_id: UUID = Field(
+    facility_code: str = Field(
         ...,
+        min_length=1,
+        max_length=32,
+        pattern=r"^[a-z0-9-]{1,32}$",
         description=(
-            "Reference to the Asset.Level.Site for the facility that issued "
-            "(or will issue) this clearance. CORA does NOT verify the Asset "
-            "exists at register time (eventual-consistency convention)."
+            "Cross-deployment convergent slug for the Federation Facility that "
+            "issued (or will issue) this clearance. Resolved at handler time via "
+            "FacilityLookup.lookup_by_code; an unknown code surfaces as 404."
         ),
     )
     title: str = Field(
@@ -130,7 +133,7 @@ class RegisterClearanceResponse(BaseModel):
 def _command_from_request(body: RegisterClearanceRequest) -> RegisterClearance:
     return RegisterClearance(
         kind=body.kind,
-        facility_asset_id=body.facility_asset_id,
+        facility_code=body.facility_code,
         title=body.title,
         bindings=frozenset(binding_from_dto(b) for b in body.bindings),
         declarations=frozenset(declaration_from_dto(d) for d in body.declarations),

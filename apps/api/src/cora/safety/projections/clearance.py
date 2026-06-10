@@ -49,7 +49,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_CLEARANCE_SQL = """
 INSERT INTO proj_safety_clearance_summary
-    (clearance_id, kind, facility_asset_id, title, external_id, status,
+    (clearance_id, kind, facility_code, title, external_id, status,
      risk_band,
      subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids,
      parent_id, registered_at,
@@ -189,7 +189,7 @@ class ClearanceSummaryProjection:
                 _INSERT_CLEARANCE_SQL,
                 UUID(payload["clearance_id"]),
                 payload["kind"],
-                UUID(payload["facility_asset_id"]),
+                payload["facility_code"],
                 payload["title"],
                 payload.get("external_id"),
                 payload.get("risk_band"),

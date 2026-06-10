@@ -28,7 +28,7 @@ from cora.safety.features.register_clearance.route import (
 def _minimal_body() -> dict[str, object]:
     return {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "Pilot ESAF for 2-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -97,7 +97,7 @@ def test_post_clearances_accepts_declarations_with_classifications() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "With hazards",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -184,7 +184,7 @@ def test_post_clearances_rejects_nfpa704_quadrant_above_4_with_422() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "Bad NFPA",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -284,7 +284,7 @@ def test_post_clearances_rejects_declaration_target_not_in_bindings_with_400() -
     sid_out_of_set = str(uuid4())
     body: dict[str, object] = {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "Target out of scope",
         "bindings": [{"kind": "Subject", "id": sid_in_set}],
         "declarations": [
@@ -300,3 +300,33 @@ def test_post_clearances_rejects_declaration_target_not_in_bindings_with_400() -
         response = client.post("/clearances", json=body)
     assert response.status_code == 400
     assert "not present in the Clearance's bindings" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_clearances_returns_404_when_facility_code_unseeded() -> None:
+    """An unseeded facility_code triggers ClearanceFacilityNotFoundError ->
+    404 at the handler boundary. Mirrors the bind_asset / register_supply /
+    define_clearance_template 404 contract.
+    """
+    body = _minimal_body()
+    body["facility_code"] = "ghost-facility"
+    with TestClient(create_app()) as client:
+        response = client.post("/clearances", json=body)
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert "ghost-facility" in detail
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "bad_code",
+    ["INVALID UPPER", "with space", "_underscore", "slash/value", "a" * 33],
+)
+def test_post_clearances_rejects_malformed_facility_code_with_422(bad_code: str) -> None:
+    """Pydantic anchored regex ^[a-z0-9-]{1,32}$ rejects uppercase, whitespace,
+    underscore, and over-length facility codes at the API boundary."""
+    body = _minimal_body()
+    body["facility_code"] = bad_code
+    with TestClient(create_app()) as client:
+        response = client.post("/clearances", json=body)
+    assert response.status_code == 422

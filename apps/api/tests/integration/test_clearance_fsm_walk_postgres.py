@@ -39,18 +39,18 @@ from tests.integration._helpers import build_postgres_deps
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_FACILITY_CODE = "cora"
 
 
 @pytest.mark.integration
 async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
     rid = uuid4()
-    fid = uuid4()
 
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=fid,
+            facility_code=_FACILITY_CODE,
             title="Pilot",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -118,7 +118,7 @@ async def test_full_fsm_walk_to_active_postgres(db_pool: asyncpg.Pool) -> None:
     assert state is not None
     assert state.status == ClearanceStatus.ACTIVE
     # Identity + facility preserved across the full FSM walk
-    assert state.facility_asset_id == fid
+    assert state.facility_code.value == _FACILITY_CODE
     assert state.kind == ClearanceKind.ESAF
 
 
@@ -129,7 +129,7 @@ async def test_full_fsm_walk_to_rejected_postgres(db_pool: asyncpg.Pool) -> None
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Pilot",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
         ),

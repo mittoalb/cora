@@ -36,7 +36,7 @@ def _seed_under_review_clearance(
         "register_clearance",
         {
             "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "facility_code": "cora",
             "title": "Pilot",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },

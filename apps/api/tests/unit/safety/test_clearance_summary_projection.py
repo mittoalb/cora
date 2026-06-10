@@ -140,7 +140,6 @@ async def test_apply_clearance_registered_emits_insert() -> None:
     proj = ClearanceSummaryProjection()
     conn = _RecordingConn()
     cid = uuid4()
-    fid = uuid4()
     sid = uuid4()
     await proj.apply(
         _stored(
@@ -148,7 +147,7 @@ async def test_apply_clearance_registered_emits_insert() -> None:
             {
                 "clearance_id": str(cid),
                 "kind": "ESAF",
-                "facility_asset_id": str(fid),
+                "facility_code": "aps",
                 "title": "Pilot",
                 "external_id": None,
                 "risk_band": None,
@@ -167,7 +166,7 @@ async def test_apply_clearance_registered_emits_insert() -> None:
     assert "INSERT INTO proj_safety_clearance_summary" in sql
     assert args[0] == cid
     assert args[1] == "ESAF"
-    assert args[2] == fid
+    assert args[2] == "aps"
     assert args[6] == [sid]  # subject_binding_ids
 
 

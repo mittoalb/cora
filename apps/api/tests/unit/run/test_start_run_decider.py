@@ -74,7 +74,7 @@ def _active_clearance_stub() -> tuple[ClearanceReference, ...]:
             clearance_id=UUID(int=0),
             status="Active",
             kind="ESAF",
-            facility_asset_id=UUID(int=0),
+            facility_code="aps",
         ),
     )
 

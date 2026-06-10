@@ -31,7 +31,7 @@ def _genesis_event(*, with_optional: bool = False) -> ClearanceRegistered:
     return ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
         kind="ESAF",
-        facility_asset_id=uuid4(),
+        facility_code="aps",
         title="Pilot",
         bindings=({"kind": "Subject", "id": str(sid)},),
         declarations=(

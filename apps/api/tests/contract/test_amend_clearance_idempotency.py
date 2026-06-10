@@ -31,7 +31,7 @@ def _walk_parent_to_active(client: TestClient) -> str:
         "/clearances",
         json={
             "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "facility_code": "cora",
             "title": "Original",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },
@@ -67,7 +67,7 @@ def _walk_parent_to_active(client: TestClient) -> str:
 def _amend_body() -> dict[str, object]:
     return {
         "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "facility_code": "cora",
         "title": "Amended after scope-change",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -120,7 +120,7 @@ def test_post_amend_same_key_different_body_returns_422() -> None:
             f"/clearances/{parent_id}/amend",
             json={
                 "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "facility_code": "cora",
                 "title": "First amendment",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },
@@ -130,7 +130,7 @@ def test_post_amend_same_key_different_body_returns_422() -> None:
             f"/clearances/{parent_id}/amend",
             json={
                 "kind": "SAF",
-                "facility_asset_id": str(uuid4()),
+                "facility_code": "cora",
                 "title": "Different amendment",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },

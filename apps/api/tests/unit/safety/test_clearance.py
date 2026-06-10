@@ -25,6 +25,7 @@ from cora.safety.aggregates.clearance import (
     SubjectBinding,
 )
 from cora.safety.aggregates.clearance.hazard_classification import NFPA704Rating, RiskBand
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import Identifier, InvalidIdentifierError
 from cora.shared.identity import ActorId
 
@@ -220,7 +221,7 @@ def test_clearance_is_frozen() -> None:
     c = Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
     )
@@ -233,7 +234,7 @@ def test_clearance_status_defaults_to_defined() -> None:
     c = Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
     )
@@ -245,7 +246,7 @@ def test_clearance_optional_fields_default_to_none_or_empty() -> None:
     c = Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
     )

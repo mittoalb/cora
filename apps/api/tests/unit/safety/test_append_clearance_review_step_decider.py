@@ -25,6 +25,7 @@ from cora.safety.aggregates.clearance.state import (
 )
 from cora.safety.features import append_clearance_review_step
 from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
@@ -39,7 +40,7 @@ def _clearance(
     return Clearance(
         id=uuid4(),
         kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         review_steps=review_steps,

@@ -42,9 +42,11 @@ slice sets it; this slice is genesis-only).
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceAlreadyExistsError,
+    ClearanceFacilityNotFoundError,
     ClearanceRegistered,
     ClearanceTitle,
     InvalidClearanceBindingsError,
@@ -68,12 +70,15 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
+    facility_lookup_result: FacilityLookupResult | None,
 ) -> list[ClearanceRegistered]:
     """Decide the events produced by registering a new clearance.
 
     Invariants:
       - State must be None (genesis-only)
         -> ClearanceAlreadyExistsError
+      - facility_lookup_result must be non-None
+        -> ClearanceFacilityNotFoundError(command.facility_code)
       - Title must be valid -> InvalidClearanceTitleError
         (via ClearanceTitle VO)
       - bindings must be non-empty -> InvalidClearanceBindingsError
@@ -86,6 +91,9 @@ def decide(
     """
     if state is not None:
         raise ClearanceAlreadyExistsError(state.id)
+
+    if facility_lookup_result is None:
+        raise ClearanceFacilityNotFoundError(command.facility_code)
 
     # Validate + trim title via VO (raises InvalidClearanceTitleError on bad input)
     title = ClearanceTitle(command.title)
@@ -132,7 +140,7 @@ def decide(
         ClearanceRegistered(
             clearance_id=new_id,
             kind=command.kind.value,
-            facility_asset_id=command.facility_asset_id,
+            facility_code=facility_lookup_result.code.value,
             title=title.value,
             bindings=bindings_payload,
             declarations=declarations_payload,

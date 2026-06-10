@@ -53,6 +53,7 @@ from cora.safety.aggregates.clearance.state import (
     ClearanceTitle,
     ReviewStep,
 )
+from cora.shared.facility_code import FacilityCode
 
 
 def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
@@ -61,7 +62,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
         case ClearanceRegistered(
             clearance_id=clearance_id,
             kind=kind,
-            facility_asset_id=facility_asset_id,
+            facility_code=facility_code,
             title=title,
             bindings=bindings,
             declarations=declarations,
@@ -75,7 +76,7 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             return Clearance(
                 id=clearance_id,
                 kind=ClearanceKind(kind),
-                facility_asset_id=facility_asset_id,
+                facility_code=FacilityCode(facility_code),
                 title=ClearanceTitle(title),
                 bindings=frozenset(deserialize_binding(b) for b in bindings),
                 declarations=frozenset(deserialize_declaration(d) for d in declarations),
@@ -143,7 +144,7 @@ def _replace_status(prior: Clearance, new_status: ClearanceStatus) -> Clearance:
     return Clearance(
         id=prior.id,
         kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,
@@ -163,7 +164,7 @@ def _replace_review_steps(prior: Clearance, new_review_steps: tuple[ReviewStep, 
     return Clearance(
         id=prior.id,
         kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,
@@ -189,7 +190,7 @@ def _replace_approved(
     return Clearance(
         id=prior.id,
         kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,

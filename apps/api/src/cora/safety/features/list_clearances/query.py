@@ -45,7 +45,7 @@ class ListClearances:
     kind: ClearanceKindFilter | None = None
     status: ClearanceStatusFilter | None = None
     risk_band: RiskBandFilter | None = None
-    facility_asset_id: UUID | None = None
+    facility_code: str | None = None
     binds_to_subject_id: UUID | None = None
     binds_to_asset_id: UUID | None = None
     binds_to_run_id: UUID | None = None

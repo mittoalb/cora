@@ -64,7 +64,7 @@ def test_get_clearances_rejects_limit_below_1_with_422() -> None:
 @pytest.mark.contract
 def test_get_clearances_accepts_full_filter_set() -> None:
     """All 8 filters provided at once should parse cleanly (returns empty list)."""
-    sid, aid, rid, pid, fid = (uuid4() for _ in range(5))
+    sid, aid, rid, pid = (uuid4() for _ in range(4))
     with TestClient(create_app()) as client:
         response = client.get(
             "/clearances",
@@ -72,7 +72,7 @@ def test_get_clearances_accepts_full_filter_set() -> None:
                 "kind": "ESAF",
                 "status": "Active",
                 "risk_band": "Yellow",
-                "facility_asset_id": str(fid),
+                "facility_code": "cora",
                 "binds_to_subject_id": str(sid),
                 "binds_to_asset_id": str(aid),
                 "binds_to_run_id": str(rid),

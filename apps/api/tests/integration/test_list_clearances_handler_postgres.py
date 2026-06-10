@@ -5,7 +5,7 @@ projection worker via the integration helper, then queries
 list_clearances and verifies:
   - all 3 surface in the projection
   - status filter narrows correctly
-  - facility_asset_id filter narrows correctly
+  - facility_code filter narrows correctly
   - subject-binding filter narrows correctly via UUID[] GIN
   - cursor pagination produces disjoint pages whose union is complete
 """
@@ -47,8 +47,14 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 @pytest.mark.integration
 async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(40)])
-    fid_aps = uuid4()
-    fid_als = uuid4()
+    fc_aps = "aps"
+    fc_als = "als"
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc_aps, kind="Site", status="Active"
+    )
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc_als, kind="Site", status="Active"
+    )
     sid_target = uuid4()  # Subject we'll filter on
 
     # Seed 3 Clearances:
@@ -61,7 +67,7 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     c1_id = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=fid_aps,
+            facility_code=fc_aps,
             title="C1",
             bindings=frozenset({SubjectBinding(subject_id=sid_target)}),
         ),
@@ -72,7 +78,7 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     c2_id = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=fid_als,
+            facility_code=fc_als,
             title="C2",
             bindings=frozenset(
                 {
@@ -95,7 +101,7 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     c3_id = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.SAF,
-            facility_asset_id=fid_aps,
+            facility_code=fc_aps,
             title="C3",
             bindings=frozenset({SubjectBinding(subject_id=sid_other)}),
             risk_band=RiskBand.GREEN,
@@ -129,9 +135,9 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     assert c1_id not in submitted_ids
     assert c3_id not in submitted_ids
 
-    # facility_asset_id filter narrows to APS-issued (c1 + c3)
+    # facility_code filter narrows to APS-issued (c1 + c3)
     page = await handler(
-        ListClearances(facility_asset_id=fid_aps),
+        ListClearances(facility_code=fc_aps),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -200,13 +206,16 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     )
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code="aps", kind="Site", status="Active"
+    )
     valid_from = datetime(2026, 6, 1, tzinfo=UTC)
     valid_until = datetime(2026, 9, 1, tzinfo=UTC)
 
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code="aps",
             title="Approve-window override",
             bindings=frozenset({SubjectBinding(subject_id=uuid4())}),
         ),
@@ -266,14 +275,17 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
     union covers all 3 created."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
     unique_kind = "DOOR"  # Use DOOR to scope to just this test's seeds
-    fid = uuid4()
+    fc = "aps"
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc, kind="Site", status="Active"
+    )
 
     seeded_ids: list[UUID] = []
     for i in range(3):
         cid = await register_clearance.bind(deps)(
             RegisterClearance(
                 kind=ClearanceKind(unique_kind),
-                facility_asset_id=fid,
+                facility_code=fc,
                 title=f"PaginationTest-{i}",
                 bindings=frozenset({SubjectBinding(subject_id=uuid4())}),
             ),
@@ -285,9 +297,9 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
     await _drain(db_pool)
 
     handler = list_clearances.bind(deps)
-    # Page 1: limit=2 with kind=DOOR + facility_asset_id=fid scopes tightly
+    # Page 1: limit=2 with kind=DOOR + facility_code=fc scopes tightly
     page1 = await handler(
-        ListClearances(limit=2, kind=unique_kind, facility_asset_id=fid),
+        ListClearances(limit=2, kind=unique_kind, facility_code=fc),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -301,7 +313,7 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
             cursor=page1.next_cursor,
             limit=2,
             kind=unique_kind,
-            facility_asset_id=fid,
+            facility_code=fc,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

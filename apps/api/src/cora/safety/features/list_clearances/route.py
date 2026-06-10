@@ -73,7 +73,7 @@ class ClearanceSummaryDTO(BaseModel):
 
     clearance_id: UUID
     kind: ClearanceKind
-    facility_asset_id: UUID
+    facility_code: str
     title: str = Field(..., max_length=CLEARANCE_TITLE_MAX_LENGTH)
     external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
     status: ClearanceStatus
@@ -152,9 +152,17 @@ async def list_clearances(
         RiskBandFilter | None,
         Query(description="Optional risk-band filter (Green / Yellow / Red)."),
     ] = None,
-    facility_asset_id: Annotated[
-        UUID | None,
-        Query(description="Optional facility filter; matches Asset.Level.Site."),
+    facility_code: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=32,
+            pattern=r"^[a-z0-9-]{1,32}$",
+            description=(
+                "Optional facility filter; cross-deployment convergent slug "
+                "(Federation Facility code)."
+            ),
+        ),
     ] = None,
     binds_to_subject_id: Annotated[
         UUID | None,
@@ -180,7 +188,7 @@ async def list_clearances(
             kind=kind,
             status=status_filter,
             risk_band=risk_band,
-            facility_asset_id=facility_asset_id,
+            facility_code=facility_code,
             binds_to_subject_id=binds_to_subject_id,
             binds_to_asset_id=binds_to_asset_id,
             binds_to_run_id=binds_to_run_id,
@@ -195,7 +203,7 @@ async def list_clearances(
             ClearanceSummaryDTO(
                 clearance_id=item.clearance_id,
                 kind=ClearanceKind(item.kind),
-                facility_asset_id=item.facility_asset_id,
+                facility_code=item.facility_code,
                 title=item.title,
                 external_id=item.external_id,
                 status=ClearanceStatus(item.status),

@@ -42,6 +42,7 @@ from tests.integration._helpers import build_postgres_deps
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000b001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000b002")
+_FACILITY_CODE = "cora"
 
 
 async def _seed_active_clearance(
@@ -53,7 +54,7 @@ async def _seed_active_clearance(
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Pilot",
             bindings=bindings,
         ),
@@ -191,7 +192,7 @@ async def test_returns_non_active_clearances_too(db_pool: asyncpg.Pool) -> None:
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
             kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            facility_code=_FACILITY_CODE,
             title="Stayed in Defined",
             bindings=frozenset({RunBinding(run_id=run_id)}),
         ),
