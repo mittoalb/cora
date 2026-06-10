@@ -69,7 +69,10 @@ from cora.recipe.features.define_practice import DefinePractice
 from cora.recipe.features.define_practice import bind as bind_define_practice
 from cora.safety.aggregates.clearance import (
     AssetBinding,
-    ClearanceKind,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.register_clearance import bind as bind_register_clearance
@@ -241,9 +244,24 @@ async def test_facility_install_plays_out_end_to_end(
 
     # ----- Safety BC: one Clearance issued at APS -----
 
+    # Seed the in-memory ClearanceTemplateLookup with an Active "ESAF"
+    # template in the "cora" facility so the handler's cross-aggregate
+    # template lookup resolves before the decider runs. (Integration
+    # tests using build_postgres_deps directly do not trigger the
+    # lifespan auto-seed that ships templates per Active facility.)
+    _esaf_template_id: ClearanceTemplateId = ClearanceTemplateId(
+        clearance_template_stream_id("cora", "ESAF")
+    )
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_esaf_template_id,
+        facility_code="cora",
+        code="ESAF",
+        status="Active",
+        version=1,
+    )
     await bind_register_clearance(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
+            template_id=_esaf_template_id,
             facility_code="cora",
             title="Facility umbrella",
             bindings=frozenset({AssetBinding(asset_id=_APS_SITE_ID)}),

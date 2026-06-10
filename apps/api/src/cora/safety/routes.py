@@ -53,6 +53,7 @@ from cora.safety.aggregates.clearance_template import (
     ClearanceTemplateCannotWithdrawError,
     ClearanceTemplateFacilityMismatchError,
     ClearanceTemplateFacilityNotFoundError,
+    ClearanceTemplateNotBindableError,
     ClearanceTemplateNotFoundError,
     InvalidClearanceTemplateCodeError,
     InvalidClearanceTemplateTitleError,
@@ -204,6 +205,7 @@ def register_safety_routes(app: FastAPI) -> None:
         ClearanceTemplateCannotVersionError,
         ClearanceTemplateCannotWithdrawError,
         ClearanceTemplateFacilityMismatchError,
+        ClearanceTemplateNotBindableError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

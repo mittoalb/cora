@@ -9,13 +9,16 @@ from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceApproved,
     ClearanceCannotApproveError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceStatus,
     ClearanceTitle,
     InvalidClearanceValidityWindowError,
     ReviewStep,
     RunBinding,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features import approve_clearance
 from cora.safety.features.approve_clearance import ApproveClearance
@@ -52,7 +55,7 @@ def _clearance(
 ) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF")),
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),

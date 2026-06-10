@@ -29,9 +29,9 @@ from cora.safety._clearance_dtos import (
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
-    ClearanceKind,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.safety.features.amend_clearance.command import AmendClearance
 from cora.safety.features.amend_clearance.handler import IdempotentHandler
 
@@ -61,7 +61,15 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     async def amend_clearance_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
         parent_id: Annotated[UUID, Field(description="Parent clearance's id.")],
-        kind: Annotated[ClearanceKind, Field(description="Child form-type.")],
+        template_id: Annotated[
+            UUID,
+            Field(
+                description=(
+                    "ClearanceTemplate id for the child clearance (may differ from "
+                    "parent's). Only Active templates accept bindings."
+                ),
+            ),
+        ],
         facility_code: Annotated[
             str,
             Field(
@@ -124,7 +132,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         child_clearance_id = await handler(
             AmendClearance(
                 parent_id=parent_id,
-                kind=kind,
+                template_id=ClearanceTemplateId(template_id),
                 facility_code=facility_code,
                 title=title,
                 bindings=frozenset(binding_from_dto(b) for b in parsed_bindings),

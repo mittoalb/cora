@@ -22,6 +22,8 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import AsyncClient
 
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
+
 
 async def _register_and_activate_clearance(
     client: AsyncClient,
@@ -34,10 +36,11 @@ async def _register_and_activate_clearance(
     `bound_asset_id` is the Asset id the Clearance gates against (matches
     `ClearanceLookup.find_referencing_run`'s `asset_ids` set). Returns the
     activated Clearance's id."""
+    template_id = clearance_template_stream_id(facility_code, "ESAF")
     registered = await client.post(
         "/clearances",
         json={
-            "kind": "ESAF",
+            "template_id": str(template_id),
             "facility_code": facility_code,
             "title": "E2E test clearance",
             "bindings": [{"kind": "Asset", "id": str(bound_asset_id)}],

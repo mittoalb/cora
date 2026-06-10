@@ -6,11 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 
 
 def _seed_clearance(client: TestClient, **overrides: object) -> str:
     body: dict[str, object] = {
-        "kind": "ESAF",
+        "template_id": str(clearance_template_stream_id("cora", "ESAF")),
         "facility_code": "cora",
         "title": "Pilot ESAF for 2-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -33,7 +34,7 @@ def test_get_clearances_returns_200_with_full_state() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == cid
-    assert body["kind"] == "ESAF"
+    assert body["template_id"] == str(clearance_template_stream_id("cora", "ESAF"))
     assert body["title"] == "Pilot ESAF for 2-BM"
     assert body["risk_band"] == "Yellow"
     assert body["external_id"] == "ESAF-12345"
@@ -62,7 +63,7 @@ def test_get_clearances_returns_bindings_with_kind_discriminator() -> None:
     with TestClient(create_app()) as client:
         sid, rid = str(uuid4()), str(uuid4())
         body = {
-            "kind": "ESAF",
+            "template_id": str(clearance_template_stream_id("cora", "ESAF")),
             "facility_code": "cora",
             "title": "Multi",
             "bindings": [
@@ -85,7 +86,7 @@ def test_get_clearances_returns_declarations_with_classifications() -> None:
     with TestClient(create_app()) as client:
         sid = str(uuid4())
         body: dict[str, object] = {
-            "kind": "ESAF",
+            "template_id": str(clearance_template_stream_id("cora", "ESAF")),
             "facility_code": "cora",
             "title": "With hazards",
             "bindings": [{"kind": "Subject", "id": sid}],

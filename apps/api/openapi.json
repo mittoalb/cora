@@ -763,10 +763,6 @@
             "title": "Facility Code",
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/ClearanceKind",
-            "description": "Form-type for the child clearance (may differ from parent's)."
-          },
           "risk_band": {
             "anyOf": [
               {
@@ -776,6 +772,12 @@
                 "type": "null"
               }
             ]
+          },
+          "template_id": {
+            "description": "ClearanceTemplate id for the child clearance (may differ from parent's). Only Active templates accept bindings.",
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
           },
           "title": {
             "description": "Operator-readable title for the child clearance.",
@@ -810,7 +812,7 @@
           }
         },
         "required": [
-          "kind",
+          "template_id",
           "facility_code",
           "title",
           "bindings"
@@ -2926,23 +2928,6 @@
         "title": "ChecksumResponse",
         "type": "object"
       },
-      "ClearanceKind": {
-        "description": "The form-type (template) this Clearance wraps.\n\nTen facility-independent form-types covering the 9 surveyed facilities\n(cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).\nFacility identity is carried separately via `Clearance.facility_code`\n(the Federation Facility's cross-deployment convergent slug); it is NOT\nsmushed into the kind value.\n\n  - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;\n                  facility distinguishes between the two)\n  - `SAF`      -- Safety Approval Form (used by NSLS-II + ESRF)\n  - `AForm`    -- ESRF A-form (per-proposal)\n  - `DUO`      -- MAX IV DUO (proposal-level)\n  - `ESRA`     -- MAX IV ESRA (per-experiment, pairs with DUO)\n  - `ERA`      -- DLS Experiment Risk Assessment (per-session)\n  - `PLHD`     -- DLS Personal Lab Hazard Declaration (per-lab-visit)\n  - `DOOR`     -- DESY DOOR (per-beamtime)\n  - `BTR`      -- SLAC Beam Time Request safety review\n  - `Form9`    -- SPring-8 Form 9 (per-visit)\n\n`(kind=ESAF, facility_code=\"aps\")` and\n`(kind=ESAF, facility_code=\"als\")` are distinct without\nstring-mangling. Two orthogonal concepts (form-type + facility) are\ncleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.\n\nPer [[project_safety_clearance_design]] \u00a7\"Facility lives at\nAsset.Level.Site\": facility identity is the existing Asset.Site in\nCORA's Equipment hierarchy, NOT a parallel StrEnum. Adding a new\nfacility requires no enum change at all (just register a new Site\nAsset). A 13th form-type (rare; the global form-type registry is\nrelatively stable) lands as a new enum member.\n\nFuture ClearanceTemplate aggregate (watch item): when first\nper-template body-schema-validation OR template-versioning need\nsurfaces, this StrEnum gets replaced by `template_id: UUID`\nreferencing a typed `ClearanceTemplate` aggregate (mirrors Family\ninside Equipment BC). Same trigger pattern as ProcedureTemplate watch\nitem in [[project_operation_design]].",
-        "enum": [
-          "ESAF",
-          "SAF",
-          "AForm",
-          "DUO",
-          "ESRA",
-          "ERA",
-          "PLHD",
-          "DOOR",
-          "BTR",
-          "Form9"
-        ],
-        "title": "ClearanceKind",
-        "type": "string"
-      },
       "ClearanceListResponse": {
         "description": "Page of clearances plus opaque next-page cursor.",
         "properties": {
@@ -3011,9 +2996,6 @@
             "title": "Id",
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/ClearanceKind"
-          },
           "next_review_due_at": {
             "anyOf": [
               {
@@ -3058,6 +3040,11 @@
           "status": {
             "$ref": "#/components/schemas/ClearanceStatus"
           },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
           "title": {
             "maxLength": 200,
             "title": "Title",
@@ -3090,7 +3077,7 @@
         },
         "required": [
           "id",
-          "kind",
+          "template_id",
           "facility_code",
           "title",
           "bindings",
@@ -3142,9 +3129,6 @@
           "facility_code": {
             "title": "Facility Code",
             "type": "string"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/ClearanceKind"
           },
           "last_reviewed_by": {
             "anyOf": [
@@ -3223,6 +3207,15 @@
           "status": {
             "$ref": "#/components/schemas/ClearanceStatus"
           },
+          "template_code": {
+            "title": "Template Code",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
           "title": {
             "maxLength": 200,
             "title": "Title",
@@ -3255,7 +3248,8 @@
         },
         "required": [
           "clearance_id",
-          "kind",
+          "template_id",
+          "template_code",
           "facility_code",
           "title",
           "status",
@@ -9851,10 +9845,6 @@
             "title": "Facility Code",
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/ClearanceKind",
-            "description": "Form-type (template). 10 facility-independent form-types covering 9 surveyed facilities. Facility identity carried separately in `facility_code`."
-          },
           "risk_band": {
             "anyOf": [
               {
@@ -9865,6 +9855,12 @@
               }
             ],
             "description": "Optional triage band (Green / Yellow / Red) per HSE ALARP semantics. Used by ESRF / MAX IV / DLS / DESY / SLAC variants; None for APS-style ESAF."
+          },
+          "template_id": {
+            "description": "ClearanceTemplate id (Safety BC; auto-seeded per facility). The handler resolves via ClearanceTemplateLookup; only Active templates are bindable (404 on unknown id, 409 on non-Active status).",
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
           },
           "title": {
             "description": "Operator-readable title for the clearance.",
@@ -9901,7 +9897,7 @@
           }
         },
         "required": [
-          "kind",
+          "template_id",
           "facility_code",
           "title",
           "bindings"
@@ -22275,33 +22271,42 @@
             }
           },
           {
-            "description": "Optional form-type filter (one of the 10 ClearanceKind values).",
+            "description": "Optional template-id filter (exact match).",
             "in": "query",
-            "name": "kind",
+            "name": "template_id",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "enum": [
-                    "ESAF",
-                    "SAF",
-                    "AForm",
-                    "DUO",
-                    "ESRA",
-                    "ERA",
-                    "PLHD",
-                    "DOOR",
-                    "BTR",
-                    "Form9"
-                  ],
+                  "format": "uuid",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Optional form-type filter (one of the 10 ClearanceKind values).",
-              "title": "Kind"
+              "description": "Optional template-id filter (exact match).",
+              "title": "Template Id"
+            }
+          },
+          {
+            "description": "Optional template-code filter (exact match, e.g. 'ESAF').",
+            "in": "query",
+            "name": "template_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 50,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional template-code filter (exact match, e.g. 'ESAF').",
+              "title": "Template Code"
             }
           },
           {

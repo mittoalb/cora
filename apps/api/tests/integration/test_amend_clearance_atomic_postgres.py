@@ -20,10 +20,13 @@ import pytest
 
 from cora.infrastructure.kernel import Kernel
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     ClearanceStatus,
     RunBinding,
     load_clearance,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features import (
     activate_clearance,
@@ -47,13 +50,33 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000a001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000a002")
 _FACILITY_CODE = "cora"
+_TEMPLATE_CODE = "ESAF"
+_TEMPLATE_ID = ClearanceTemplateId(clearance_template_stream_id(_FACILITY_CODE, _TEMPLATE_CODE))
+
+
+def _seed_template(deps: Kernel) -> None:
+    """Seed the in-memory ClearanceTemplateLookup with an Active template.
+
+    `build_postgres_deps` defaults to an `InMemoryClearanceTemplateLookup`
+    (the lifespan auto-seed only runs against the full app). The
+    register/amend handlers now resolve `command.template_id` through
+    that lookup, so each test must install an Active record keyed by
+    the deterministic stream id before driving the clearance FSM.
+    """
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_TEMPLATE_ID,
+        facility_code=_FACILITY_CODE,
+        code=_TEMPLATE_CODE,
+        status="Active",
+        version=1,
+    )
 
 
 async def _drive_to_active(deps: Kernel) -> UUID:
     """Drive a fresh clearance through the FSM to Active. Returns its id."""
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
+            template_id=_TEMPLATE_ID,
             facility_code=_FACILITY_CODE,
             title="Original pilot",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
@@ -101,12 +124,13 @@ async def test_amend_writes_parent_superseded_and_child_registered_atomically(
     db_pool: asyncpg.Pool,
 ) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(30)])
+    _seed_template(deps)
     parent_id = await _drive_to_active(deps)
 
     child_id = await amend_clearance.bind(deps)(
         AmendClearance(
             parent_id=parent_id,
-            kind=ClearanceKind.ESAF,
+            template_id=_TEMPLATE_ID,
             facility_code=_FACILITY_CODE,
             title="Amended pilot (post scope-change)",
             bindings=frozenset({RunBinding(run_id=uuid4())}),
@@ -149,6 +173,7 @@ async def test_amend_on_non_active_parent_raises_with_no_child_stream(
     from cora.safety.features.expire_clearance import ExpireClearance
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(30)])
+    _seed_template(deps)
     parent_id = await _drive_to_active(deps)
 
     # Move parent Active -> Expired before attempting the amend.
@@ -164,7 +189,7 @@ async def test_amend_on_non_active_parent_raises_with_no_child_stream(
         await amend_clearance.bind(deps)(
             AmendClearance(
                 parent_id=parent_id,
-                kind=ClearanceKind.ESAF,
+                template_id=_TEMPLATE_ID,
                 facility_code=_FACILITY_CODE,
                 title="Should refuse",
                 bindings=frozenset({RunBinding(run_id=uuid4())}),

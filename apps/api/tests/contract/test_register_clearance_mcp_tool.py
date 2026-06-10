@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
@@ -26,6 +27,7 @@ def test_mcp_lists_register_clearance_tool() -> None:
 
 @pytest.mark.contract
 def test_mcp_register_clearance_tool_returns_structured_clearance_id() -> None:
+    template_id = clearance_template_stream_id("cora", "ESAF")
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -37,7 +39,7 @@ def test_mcp_register_clearance_tool_returns_structured_clearance_id() -> None:
                 "params": {
                     "name": "register_clearance",
                     "arguments": {
-                        "kind": "ESAF",
+                        "template_id": str(template_id),
                         "facility_code": "cora",
                         "title": "Pilot ESAF",
                         "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -56,6 +58,7 @@ def test_mcp_register_clearance_tool_returns_structured_clearance_id() -> None:
 
 @pytest.mark.contract
 def test_mcp_register_clearance_tool_accepts_multi_binding() -> None:
+    template_id = clearance_template_stream_id("cora", "SAF")
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -67,7 +70,7 @@ def test_mcp_register_clearance_tool_accepts_multi_binding() -> None:
                 "params": {
                     "name": "register_clearance",
                     "arguments": {
-                        "kind": "SAF",
+                        "template_id": str(template_id),
                         "facility_code": "cora",
                         "title": "Multi-bind",
                         "bindings": [
@@ -90,6 +93,7 @@ def test_mcp_register_clearance_tool_accepts_multi_binding() -> None:
 def test_mcp_register_clearance_tool_returns_iserror_on_whitespace_title() -> None:
     """Whitespace-only title passes Pydantic min_length=1 but trips the VO;
     FastMCP wraps the raised InvalidClearanceTitleError as isError: true."""
+    template_id = clearance_template_stream_id("cora", "ESAF")
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
         response = client.post(
@@ -101,7 +105,7 @@ def test_mcp_register_clearance_tool_returns_iserror_on_whitespace_title() -> No
                 "params": {
                     "name": "register_clearance",
                     "arguments": {
-                        "kind": "ESAF",
+                        "template_id": str(template_id),
                         "facility_code": "cora",
                         "title": "   ",
                         "bindings": [{"kind": "Run", "id": str(uuid4())}],

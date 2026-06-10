@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
@@ -32,10 +33,11 @@ def _seed_under_review_clearance(
         assert body["result"]["isError"] is False, body
         return body["result"]
 
+    template_id = clearance_template_stream_id("cora", "ESAF")
     register = _call(
         "register_clearance",
         {
-            "kind": "ESAF",
+            "template_id": str(template_id),
             "facility_code": "cora",
             "title": "Pilot",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],

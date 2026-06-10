@@ -8,7 +8,6 @@ import pytest
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotRejectError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceRejected,
     ClearanceStatus,
@@ -18,6 +17,10 @@ from cora.safety.aggregates.clearance import (
 )
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REJECT_REASON_MAX_LENGTH,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features import reject_clearance
 from cora.safety.features.reject_clearance import RejectClearance
@@ -29,7 +32,7 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 def _clearance(status: ClearanceStatus = ClearanceStatus.UNDER_REVIEW) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF")),
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),

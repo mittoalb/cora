@@ -8,12 +8,15 @@ import pytest
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotSubmitError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceStatus,
     ClearanceSubmitted,
     ClearanceTitle,
     RunBinding,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features import submit_clearance
 from cora.safety.features.submit_clearance import SubmitClearance
@@ -25,7 +28,7 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 def _clearance(status: ClearanceStatus = ClearanceStatus.DEFINED) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF")),
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),

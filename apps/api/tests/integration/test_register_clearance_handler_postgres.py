@@ -7,13 +7,16 @@ import asyncpg
 import pytest
 
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     HazardDeclaration,
     RunBinding,
     SubjectBinding,
     load_clearance,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import get_clearance, register_clearance
 from cora.safety.features.get_clearance import GetClearance
 from cora.safety.features.register_clearance import RegisterClearance
@@ -24,6 +27,13 @@ _NEW_ID = UUID("01900000-0000-7000-8000-00000055ca81")
 _EVENT_ID = UUID("01900000-0000-7000-8000-00000055ca8e")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_FACILITY_CODE = "cora"
+_ESAF_TEMPLATE_ID: ClearanceTemplateId = ClearanceTemplateId(
+    clearance_template_stream_id(_FACILITY_CODE, "ESAF")
+)
+_SAF_TEMPLATE_ID: ClearanceTemplateId = ClearanceTemplateId(
+    clearance_template_stream_id(_FACILITY_CODE, "SAF")
+)
 
 
 @pytest.mark.integration
@@ -31,12 +41,22 @@ async def test_register_clearance_persists_event_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
+    # Seed the in-memory ClearanceTemplateLookup with an Active "ESAF"
+    # template in the "cora" facility so the handler's cross-aggregate
+    # template lookup resolves before the decider runs.
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_ESAF_TEMPLATE_ID,
+        facility_code=_FACILITY_CODE,
+        code="ESAF",
+        status="Active",
+        version=1,
+    )
     rid = uuid4()
 
     clearance_id = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_code="cora",
+            template_id=_ESAF_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="Pilot ESAF for 2-BM",
             bindings=frozenset({RunBinding(run_id=rid)}),
             risk_band=RiskBand.YELLOW,
@@ -54,7 +74,8 @@ async def test_register_clearance_persists_event_to_postgres(
     assert stored.event_type == "ClearanceRegistered"
     assert stored.schema_version == 1
     assert stored.payload["clearance_id"] == str(_NEW_ID)
-    assert stored.payload["kind"] == "ESAF"
+    assert stored.payload["template_id"] == str(_ESAF_TEMPLATE_ID)
+    assert stored.payload["template_code"] == "ESAF"
     assert stored.payload["title"] == "Pilot ESAF for 2-BM"
     assert stored.payload["bindings"] == [{"kind": "Run", "id": str(rid)}]
     assert stored.payload["risk_band"] == "Yellow"
@@ -74,13 +95,20 @@ async def test_register_then_get_clearance_round_trip_via_postgres(
     """Round-trip: register a clearance, then fetch it back via get_clearance.
     Pins both sides of the lazy-load + fold cycle against real Postgres."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_SAF_TEMPLATE_ID,
+        facility_code=_FACILITY_CODE,
+        code="SAF",
+        status="Active",
+        version=1,
+    )
     sid = uuid4()
     rid = uuid4()
 
     clearance_id = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.SAF,
-            facility_code="cora",
+            template_id=_SAF_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="NSLS-II SAF roundtrip",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
             declarations=frozenset(
@@ -106,7 +134,7 @@ async def test_register_then_get_clearance_round_trip_via_postgres(
     )
     assert state is not None
     assert state.id == clearance_id
-    assert state.kind == ClearanceKind.SAF
+    assert state.template_id == _SAF_TEMPLATE_ID
     assert state.title.value == "NSLS-II SAF roundtrip"
     assert state.risk_band == RiskBand.GREEN
     assert SubjectBinding(subject_id=sid) in state.bindings

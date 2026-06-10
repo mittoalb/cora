@@ -31,15 +31,23 @@ from datetime import datetime
 
 from cora.safety.aggregates.clearance import (
     ClearanceBinding,
-    ClearanceKind,
     HazardDeclaration,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 
 
 @dataclass(frozen=True)
 class RegisterClearance:
     """Register a new safety-form clearance (lands in `Defined`).
+
+    `template_id` is the foreign key to the `ClearanceTemplate` this
+    clearance instantiates. The handler resolves it via
+    `ClearanceTemplateLookup.lookup_by_id` and the decider rejects
+    unknown ids with `ClearanceTemplateNotFoundError` (HTTP 404) and
+    non-Active templates with `ClearanceTemplateNotBindableError`
+    (HTTP 409). The auto-seed lifespan hook ships ten Active templates
+    per facility on first boot per [[project_slice9_design]] L8.
 
     `facility_code` is the cross-deployment convergent slug of the
     Federation Facility that issued (or will issue) this clearance. The
@@ -48,7 +56,7 @@ class RegisterClearance:
     (HTTP 404), mirroring the Slice 8A `register_asset` precedent.
     """
 
-    kind: ClearanceKind
+    template_id: ClearanceTemplateId
     facility_code: str
     title: str
     bindings: frozenset[ClearanceBinding]

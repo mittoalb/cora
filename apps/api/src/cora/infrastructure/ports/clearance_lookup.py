@@ -66,7 +66,8 @@ class ClearanceReference:
 
     clearance_id: UUID
     status: str
-    kind: str
+    template_id: UUID
+    template_code: str
     facility_code: str
 
 
@@ -141,7 +142,8 @@ class AlwaysCoveredClearanceLookup:
             ClearanceReference(
                 clearance_id=NIL_SENTINEL_ID,  # sentinel "test stub" id
                 status="Active",
-                kind="ESAF",
+                template_id=NIL_SENTINEL_ID,
+                template_code="test-stub",
                 facility_code="test-stub",
             )
         ]

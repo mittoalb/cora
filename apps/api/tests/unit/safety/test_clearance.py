@@ -11,7 +11,6 @@ from cora.safety.aggregates.clearance import (
     CLEARANCE_TITLE_MAX_LENGTH,
     AssetBinding,
     Clearance,
-    ClearanceKind,
     ClearanceStatus,
     ClearanceTitle,
     ExternalRefBinding,
@@ -25,6 +24,10 @@ from cora.safety.aggregates.clearance import (
     SubjectBinding,
 )
 from cora.safety.aggregates.clearance.hazard_classification import NFPA704Rating, RiskBand
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import Identifier, InvalidIdentifierError
 from cora.shared.identity import ActorId
@@ -218,9 +221,10 @@ def test_reviewer_step_carries_all_fields() -> None:
 
 @pytest.mark.unit
 def test_clearance_is_frozen() -> None:
+    template_id = ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF"))
     c = Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=template_id,
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
@@ -231,9 +235,10 @@ def test_clearance_is_frozen() -> None:
 
 @pytest.mark.unit
 def test_clearance_status_defaults_to_defined() -> None:
+    template_id = ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF"))
     c = Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=template_id,
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
@@ -243,9 +248,10 @@ def test_clearance_status_defaults_to_defined() -> None:
 
 @pytest.mark.unit
 def test_clearance_optional_fields_default_to_none_or_empty() -> None:
+    template_id = ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF"))
     c = Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=template_id,
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("test"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
@@ -274,21 +280,4 @@ def test_clearance_status_has_eight_locked_values() -> None:
         "Expired",
         "Rejected",
         "Superseded",
-    }
-
-
-@pytest.mark.unit
-def test_clearance_kind_has_twelve_locked_values() -> None:
-    """12 values cover the 9 surveyed facilities (some have two coexisting forms)."""
-    assert {k.value for k in ClearanceKind} == {
-        "ESAF",
-        "SAF",
-        "AForm",
-        "DUO",
-        "ESRA",
-        "ERA",
-        "PLHD",
-        "DOOR",
-        "BTR",
-        "Form9",
     }

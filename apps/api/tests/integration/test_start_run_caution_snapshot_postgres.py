@@ -49,7 +49,11 @@ from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
 from cora.safety._projections import register_safety_projections
 from cora.safety.adapters import PostgresClearanceLookup
-from cora.safety.aggregates.clearance import ClearanceKind, SubjectBinding
+from cora.safety.aggregates.clearance import SubjectBinding
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import (
     activate_clearance,
     append_clearance_review_step,
@@ -172,9 +176,17 @@ async def _seed_upstream_chain(
 async def _walk_clearance_to_active(deps: Kernel, subject_id: UUID) -> UUID:
     """Stand up an Active Safety Clearance covering the Subject so
     the 11a-c-3 gate passes; the snapshot test isn't about Safety."""
+    template_uuid = clearance_template_stream_id("cora", "ESAF")
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=template_uuid,
+        facility_code="cora",
+        code="ESAF",
+        status="Active",
+        version=1,
+    )
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
+            template_id=ClearanceTemplateId(template_uuid),
             facility_code="cora",
             title="Pilot",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),

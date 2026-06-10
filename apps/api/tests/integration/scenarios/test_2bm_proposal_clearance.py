@@ -16,8 +16,9 @@ Phase operations.
 
 See [[project_pilot_docs_design]] for the phase / file-naming
 taxonomy. See [[project_safety_clearance_design]] for the design
-lock on the 8-state FSM, the 10-value `ClearanceKind` vocabulary,
-and the multi-binding shape (typed CORA refs + `ExternalRefBinding`).
+lock on the 8-state FSM, the per-facility `ClearanceTemplate`
+vocabulary, and the multi-binding shape (typed CORA refs +
+`ExternalRefBinding`).
 
 ## Why this scenario exists
 
@@ -120,7 +121,6 @@ import pytest
 
 from cora.campaign.aggregates.campaign import CampaignIntent
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     ClearanceStatus,
     ExternalRefBinding,
     HazardDeclaration,
@@ -128,6 +128,10 @@ from cora.safety.aggregates.clearance import (
     load_clearance,
 )
 from cora.safety.aggregates.clearance.hazard_classification import NFPA704Rating
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features.activate_clearance import ActivateClearance
 from cora.safety.features.activate_clearance import bind as bind_activate_clearance
 from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
@@ -187,6 +191,16 @@ _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000440f01")
 # Self-Facility slug seeded by `build_postgres_deps` default
 # `InMemoryFacilityLookup` (matches `Settings.self_facility_code`).
 _FACILITY_CODE = "cora"
+
+# ESAF template within the self-Facility; lifespan-time auto-seed does
+# not run for tests that build the kernel via `build_postgres_deps`
+# directly, so the test pre-registers the template in the in-memory
+# `ClearanceTemplateLookup` stub below (no projection write needed; the
+# handler only consults the lookup port).
+_TEMPLATE_CODE = "ESAF"
+_TEMPLATE_ID: ClearanceTemplateId = ClearanceTemplateId(
+    clearance_template_stream_id(_FACILITY_CODE, _TEMPLATE_CODE)
+)
 
 _DEVICES = (
     DeviceSpec(
@@ -250,6 +264,19 @@ async def test_proposal_clearance_walks_to_active(
     each transition lands and Active is the terminal state."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=_id_queue())
 
+    # Pre-seed the in-memory ClearanceTemplateLookup so register_clearance's
+    # cross-aggregate template lookup resolves to an Active ESAF template
+    # at the self-Facility. The lifespan-time auto-seed (which writes
+    # the projection that the Postgres adapter would read) does not run
+    # under build_postgres_deps; this stub stands in for that projection.
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_TEMPLATE_ID,
+        facility_code=_FACILITY_CODE,
+        code=_TEMPLATE_CODE,
+        status="Active",
+        version=1,
+    )
+
     # ----- Facility hierarchy + beamtime intake -----
 
     await install_aps_unit(
@@ -284,7 +311,7 @@ async def test_proposal_clearance_walks_to_active(
 
     new_clearance_id = await bind_register_clearance(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
+            template_id=_TEMPLATE_ID,
             facility_code=_FACILITY_CODE,
             title="Proposal 2026-1234 ESAF (porous sandstone tomography)",
             bindings=frozenset({subject_binding, proposal_binding}),
@@ -319,7 +346,7 @@ async def test_proposal_clearance_walks_to_active(
     defined = await load_clearance(deps.event_store, _CLEARANCE_ID)
     assert defined is not None
     assert defined.status == ClearanceStatus.DEFINED
-    assert defined.kind == ClearanceKind.ESAF
+    assert defined.template_id == _TEMPLATE_ID
     assert defined.facility_code.value == _FACILITY_CODE
     assert defined.review_steps == ()
 
@@ -418,7 +445,7 @@ async def test_proposal_clearance_walks_to_active(
     assert active is not None
     assert active.status == ClearanceStatus.ACTIVE
     # Identity + bindings preserved across the full FSM walk.
-    assert active.kind == ClearanceKind.ESAF
+    assert active.template_id == _TEMPLATE_ID
     assert active.facility_code.value == _FACILITY_CODE
     assert subject_binding in active.bindings
     assert proposal_binding in active.bindings

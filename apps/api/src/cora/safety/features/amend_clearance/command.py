@@ -21,10 +21,10 @@ from uuid import UUID
 
 from cora.safety.aggregates.clearance import (
     ClearanceBinding,
-    ClearanceKind,
     HazardDeclaration,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class AmendClearance:
     """
 
     parent_id: UUID
-    kind: ClearanceKind
+    template_id: ClearanceTemplateId
     facility_code: str
     title: str
     bindings: frozenset[ClearanceBinding]

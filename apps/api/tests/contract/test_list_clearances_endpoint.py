@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 
 
 @pytest.mark.contract
@@ -27,10 +28,11 @@ def test_get_clearances_returns_200_with_empty_items_when_no_data() -> None:
 
 
 @pytest.mark.contract
-def test_get_clearances_rejects_invalid_kind_with_422() -> None:
+def test_get_clearances_accepts_unknown_template_code_with_empty_result() -> None:
     with TestClient(create_app()) as client:
-        response = client.get("/clearances?kind=Mystery")
-    assert response.status_code == 422
+        response = client.get("/clearances?template_code=Mystery")
+    assert response.status_code == 200
+    assert response.json()["items"] == []
 
 
 @pytest.mark.contract
@@ -63,13 +65,15 @@ def test_get_clearances_rejects_limit_below_1_with_422() -> None:
 
 @pytest.mark.contract
 def test_get_clearances_accepts_full_filter_set() -> None:
-    """All 8 filters provided at once should parse cleanly (returns empty list)."""
+    """All 9 filters provided at once should parse cleanly (returns empty list)."""
     sid, aid, rid, pid = (uuid4() for _ in range(4))
+    template_id = clearance_template_stream_id("cora", "ESAF")
     with TestClient(create_app()) as client:
         response = client.get(
             "/clearances",
             params={
-                "kind": "ESAF",
+                "template_id": str(template_id),
+                "template_code": "ESAF",
                 "status": "Active",
                 "risk_band": "Yellow",
                 "facility_code": "cora",

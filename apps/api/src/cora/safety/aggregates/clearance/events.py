@@ -15,8 +15,12 @@ as primitive-encoded structures (see `serialize_bindings` and
 `serialize_declarations` for the JSON shape). The evolver reconstructs
 typed VOs.
 
-`kind` and `risk_band` travel as primitive strings (StrEnum values);
-the evolver reconstructs via `ClearanceKind(payload["kind"])` and
+`template_id` travels as a UUID string and is reconstructed via
+`UUID(payload["template_id"])` then wrapped in `ClearanceTemplateId`
+at the evolver. `template_code` is denormalized onto the payload so
+the projection can render display + filter rows without an extra
+cross-aggregate lookup. `risk_band` travels as a primitive StrEnum
+value; the evolver reconstructs via
 `RiskBand(payload["risk_band"]) if payload.get("risk_band") else None`.
 
 The 4 typed ClearanceBinding arms (Subject / Asset / Run / Procedure)
@@ -65,8 +69,11 @@ class ClearanceRegistered:
     state-change indicator.
 
     Carries the full Clearance shape at registration time:
-    `kind / title / bindings / declarations / risk_band /
-    external_id? / valid_from? / valid_until? / parent_id?`.
+    `template_id / template_code / facility_code / title / bindings /
+    declarations / risk_band / external_id? / valid_from? /
+    valid_until? / parent_id?`. `template_id` is the FK into the bound
+    ClearanceTemplate; `template_code` is the denormalized form code the
+    projection serves to read clients without a cross-aggregate join.
 
     `parent_id` is non-None only for Clearances registered via the
     `amend_clearance` slice. For `register_clearance`, parent_id is
@@ -74,7 +81,8 @@ class ClearanceRegistered:
     """
 
     clearance_id: UUID
-    kind: str
+    template_id: UUID
+    template_code: str
     facility_code: str
     title: str
     bindings: tuple[dict[str, Any], ...]
@@ -424,7 +432,8 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
     match event:
         case ClearanceRegistered(
             clearance_id=clearance_id,
-            kind=kind,
+            template_id=template_id,
+            template_code=template_code,
             facility_code=facility_code,
             title=title,
             bindings=bindings,
@@ -438,7 +447,8 @@ def to_payload(event: ClearanceEvent) -> dict[str, Any]:
         ):
             return {
                 "clearance_id": str(clearance_id),
-                "kind": kind,
+                "template_id": str(template_id),
+                "template_code": template_code,
                 "facility_code": facility_code,
                 "title": title,
                 "bindings": list(bindings),
@@ -551,7 +561,8 @@ def from_stored(stored: StoredEvent) -> ClearanceEvent:
                 raw_parent = payload.get("parent_id")
                 return ClearanceRegistered(
                     clearance_id=UUID(payload["clearance_id"]),
-                    kind=payload["kind"],
+                    template_id=UUID(payload["template_id"]),
+                    template_code=payload["template_code"],
                     facility_code=payload["facility_code"],
                     title=payload["title"],
                     bindings=tuple(payload.get("bindings", [])),

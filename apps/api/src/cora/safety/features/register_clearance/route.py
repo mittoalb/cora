@@ -33,9 +33,9 @@ from cora.safety._clearance_dtos import (
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
-    ClearanceKind,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.safety.features.register_clearance.command import RegisterClearance
 from cora.safety.features.register_clearance.handler import IdempotentHandler
 
@@ -43,12 +43,12 @@ from cora.safety.features.register_clearance.handler import IdempotentHandler
 class RegisterClearanceRequest(BaseModel):
     """Body for `POST /clearances`."""
 
-    kind: ClearanceKind = Field(
+    template_id: UUID = Field(
         ...,
         description=(
-            "Form-type (template). 10 facility-independent form-types covering 9 "
-            "surveyed facilities. Facility identity carried separately in "
-            "`facility_code`."
+            "ClearanceTemplate id (Safety BC; auto-seeded per facility). The "
+            "handler resolves via ClearanceTemplateLookup; only Active templates "
+            "are bindable (404 on unknown id, 409 on non-Active status)."
         ),
     )
     facility_code: str = Field(
@@ -132,7 +132,7 @@ class RegisterClearanceResponse(BaseModel):
 
 def _command_from_request(body: RegisterClearanceRequest) -> RegisterClearance:
     return RegisterClearance(
-        kind=body.kind,
+        template_id=ClearanceTemplateId(body.template_id),
         facility_code=body.facility_code,
         title=body.title,
         bindings=frozenset(binding_from_dto(b) for b in body.bindings),

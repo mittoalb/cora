@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
-from cora.safety.aggregates.clearance import ClearanceKind, ClearanceStatus
+from cora.safety.aggregates.clearance import ClearanceStatus
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
@@ -19,7 +19,6 @@ from cora.safety.aggregates.clearance.state import (
 )
 from cora.safety.features.list_clearances.handler import Handler
 from cora.safety.features.list_clearances.query import (
-    ClearanceKindFilter,
     ClearanceStatusFilter,
     ListClearances,
     RiskBandFilter,
@@ -44,7 +43,8 @@ class BindingsByKindOutput(BaseModel):
 
 class ClearanceSummaryItemOutput(BaseModel):
     clearance_id: UUID
-    kind: ClearanceKind
+    template_id: UUID
+    template_code: str
     facility_code: str
     title: str = Field(..., max_length=CLEARANCE_TITLE_MAX_LENGTH)
     external_id: str | None = Field(default=None, max_length=CLEARANCE_EXTERNAL_ID_MAX_LENGTH)
@@ -91,8 +91,18 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         limit: Annotated[
             int, Field(default=50, ge=1, le=100, description="Page size (1-100).")
         ] = 50,
-        kind: Annotated[
-            ClearanceKindFilter | None, Field(default=None, description="Form-type filter.")
+        template_id: Annotated[
+            UUID | None,
+            Field(default=None, description="Template-id filter (exact match)."),
+        ] = None,
+        template_code: Annotated[
+            str | None,
+            Field(
+                default=None,
+                min_length=1,
+                max_length=50,
+                description="Template-code filter (exact match).",
+            ),
         ] = None,
         status: Annotated[
             ClearanceStatusFilter | None, Field(default=None, description="Status filter.")
@@ -128,7 +138,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             ListClearances(
                 cursor=cursor,
                 limit=limit,
-                kind=kind,
+                template_id=template_id,
+                template_code=template_code,
                 status=status,
                 risk_band=risk_band,
                 facility_code=facility_code,
@@ -145,7 +156,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             items=[
                 ClearanceSummaryItemOutput(
                     clearance_id=item.clearance_id,
-                    kind=ClearanceKind(item.kind),
+                    template_id=item.template_id,
+                    template_code=item.template_code,
                     facility_code=item.facility_code,
                     title=item.title,
                     external_id=item.external_id,

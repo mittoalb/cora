@@ -53,6 +53,7 @@ from cora.safety.aggregates.clearance_template.state import (
     ClearanceTemplateCannotWithdrawError,
     ClearanceTemplateFacilityMismatchError,
     ClearanceTemplateFacilityNotFoundError,
+    ClearanceTemplateNotBindableError,
     ClearanceTemplateNotFoundError,
     ClearanceTemplateStatus,
 )
@@ -75,6 +76,7 @@ __all__ = [
     "ClearanceTemplateFacilityMismatchError",
     "ClearanceTemplateFacilityNotFoundError",
     "ClearanceTemplateId",
+    "ClearanceTemplateNotBindableError",
     "ClearanceTemplateNotFoundError",
     "ClearanceTemplateStatus",
     "ClearanceTemplateTitle",

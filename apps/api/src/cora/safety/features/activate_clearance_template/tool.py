@@ -29,8 +29,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         name="activate_clearance_template",
         description=(
             "Activate a Draft clearance template (Draft -> Active). The "
-            "template becomes available as the `kind` parameter on new "
-            "clearance proposals. Requires template to be in 'Draft' status."
+            "template becomes bindable via the `template_id` parameter on "
+            "new clearance proposals. Requires template to be in 'Draft' status."
         ),
     )
     async def activate_clearance_template_tool(  # pyright: ignore[reportUnusedFunction]

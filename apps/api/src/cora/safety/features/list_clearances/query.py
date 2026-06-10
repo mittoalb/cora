@@ -30,9 +30,6 @@ ClearanceStatusFilter = Literal[
     "Rejected",
     "Superseded",
 ]
-ClearanceKindFilter = Literal[
-    "ESAF", "SAF", "AForm", "DUO", "ESRA", "ERA", "PLHD", "DOOR", "BTR", "Form9"
-]
 RiskBandFilter = Literal["Green", "Yellow", "Red"]
 
 
@@ -42,7 +39,8 @@ class ListClearances:
 
     cursor: str | None = None
     limit: int = 50
-    kind: ClearanceKindFilter | None = None
+    template_id: UUID | None = None
+    template_code: str | None = None
     status: ClearanceStatusFilter | None = None
     risk_band: RiskBandFilter | None = None
     facility_code: str | None = None

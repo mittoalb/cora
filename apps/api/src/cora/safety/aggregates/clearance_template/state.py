@@ -183,6 +183,29 @@ class ClearanceTemplateCannotWithdrawError(Exception):
         self.current_status = current_status
 
 
+class ClearanceTemplateNotBindableError(Exception):
+    """A register_clearance or amend_clearance command referenced a non-Active template.
+
+    Only `Active` templates accept new Clearance bindings per
+    [[project_slice9_design]] L11 (binding-gate semantics). Draft templates
+    have not been activated yet; Deprecated and Withdrawn templates are
+    tombstones for new-binding purposes (existing bindings continue to
+    gate; the projection's UNIQUE INDEX on `(facility_code, code)
+    WHERE status != 'Withdrawn'` lets a Withdrawn code be redefined).
+
+    Mapped to HTTP 409 (operator-correctable: pick a different template).
+    """
+
+    def __init__(self, template_id: UUID, current_status: ClearanceTemplateStatus) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} cannot be bound to a Clearance: "
+            f"currently in status {current_status.value}, binding requires "
+            f"{ClearanceTemplateStatus.ACTIVE.value}"
+        )
+        self.template_id = template_id
+        self.current_status = current_status
+
+
 @dataclass(frozen=True)
 class ClearanceTemplate:
     """Aggregate root: a reusable clearance form template definition.

@@ -42,6 +42,9 @@ slice sets it; this slice is genesis-only).
 from datetime import datetime
 from uuid import UUID
 
+from cora.infrastructure.ports.clearance_template_lookup import (
+    ClearanceTemplateLookupResult,
+)
 from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.safety.aggregates.clearance import (
     Clearance,
@@ -61,6 +64,11 @@ from cora.safety.aggregates.clearance.events import (
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateNotBindableError,
+    ClearanceTemplateNotFoundError,
+    ClearanceTemplateStatus,
+)
 from cora.safety.features.register_clearance.command import RegisterClearance
 
 
@@ -71,6 +79,7 @@ def decide(
     now: datetime,
     new_id: UUID,
     facility_lookup_result: FacilityLookupResult | None,
+    template_lookup_result: ClearanceTemplateLookupResult | None,
 ) -> list[ClearanceRegistered]:
     """Decide the events produced by registering a new clearance.
 
@@ -79,6 +88,10 @@ def decide(
         -> ClearanceAlreadyExistsError
       - facility_lookup_result must be non-None
         -> ClearanceFacilityNotFoundError(command.facility_code)
+      - template_lookup_result must be non-None
+        -> ClearanceTemplateNotFoundError(command.template_id)
+      - template_lookup_result.status must be Active
+        -> ClearanceTemplateNotBindableError(template_id, current_status)
       - Title must be valid -> InvalidClearanceTitleError
         (via ClearanceTitle VO)
       - bindings must be non-empty -> InvalidClearanceBindingsError
@@ -94,6 +107,13 @@ def decide(
 
     if facility_lookup_result is None:
         raise ClearanceFacilityNotFoundError(command.facility_code)
+
+    if template_lookup_result is None:
+        raise ClearanceTemplateNotFoundError(command.template_id)
+
+    template_status = ClearanceTemplateStatus(template_lookup_result.status)
+    if template_status != ClearanceTemplateStatus.ACTIVE:
+        raise ClearanceTemplateNotBindableError(command.template_id, template_status)
 
     # Validate + trim title via VO (raises InvalidClearanceTitleError on bad input)
     title = ClearanceTitle(command.title)
@@ -139,7 +159,8 @@ def decide(
     return [
         ClearanceRegistered(
             clearance_id=new_id,
-            kind=command.kind.value,
+            template_id=template_lookup_result.id,
+            template_code=template_lookup_result.code,
             facility_code=facility_lookup_result.code.value,
             title=title.value,
             bindings=bindings_payload,

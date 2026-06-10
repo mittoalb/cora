@@ -34,9 +34,9 @@ from cora.safety._clearance_dtos import (
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
-    ClearanceKind,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.safety.features.amend_clearance.command import AmendClearance
 from cora.safety.features.amend_clearance.handler import IdempotentHandler
 
@@ -48,9 +48,12 @@ class AmendClearanceRequest(BaseModel):
     `parent_id` comes from the URL path, not the body.
     """
 
-    kind: ClearanceKind = Field(
+    template_id: UUID = Field(
         ...,
-        description="Form-type for the child clearance (may differ from parent's).",
+        description=(
+            "ClearanceTemplate id for the child clearance (may differ from "
+            "parent's). Only Active templates accept bindings."
+        ),
     )
     facility_code: str = Field(
         ...,
@@ -99,7 +102,7 @@ def _command_from_request(
 ) -> AmendClearance:
     return AmendClearance(
         parent_id=parent_id,
-        kind=body.kind,
+        template_id=ClearanceTemplateId(body.template_id),
         facility_code=body.facility_code,
         title=body.title,
         bindings=frozenset(binding_from_dto(b) for b in body.bindings),

@@ -58,6 +58,8 @@ from cora.safety.aggregates.clearance_template import (
 )
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from cora.infrastructure.kernel import Kernel
     from cora.shared.facility_code import FacilityCode
 
@@ -169,6 +171,7 @@ async def _seed_one_template(
             facility_code=facility_code.value,
             template_code=template_code,
         )
+        _seed_in_memory_clearance_template_lookup(kernel, stream_id, facility_code, template_code)
         return
 
     _log.info(
@@ -176,6 +179,57 @@ async def _seed_one_template(
         template_id=str(stream_id),
         facility_code=facility_code.value,
         template_code=template_code,
+    )
+    _seed_in_memory_clearance_template_lookup(kernel, stream_id, facility_code, template_code)
+
+
+def _seed_in_memory_clearance_template_lookup(
+    kernel: Kernel,
+    template_id: UUID,
+    facility_code: FacilityCode,
+    template_code: str,
+) -> None:
+    """Mirror the seeded template into the ClearanceTemplateLookup adapter (in-memory path).
+
+    Production wires `PostgresClearanceTemplateLookup` which reads
+    `proj_safety_clearance_template_summary`; the projection worker catches
+    up the read model from the seeded ClearanceTemplate{Defined,Activated}
+    events so the lookup resolves the template within a bookmark tick.
+
+    The in-memory app variant (test runs, the `test` AppEnv) wires
+    `InMemoryClearanceTemplateLookup` which has no event-store subscription;
+    without an explicit `register(...)` here, the seed leaves the lookup
+    empty and downstream `register_clearance` / `amend_clearance` see
+    `ClearanceTemplateNotFoundError` (404) even though the template stream
+    exists. Duck-type on the adapter's `register` attribute so production's
+    `PostgresClearanceTemplateLookup` short-circuits.
+
+    Mirrors the `_seed_in_memory_facility_lookup` precedent in
+    `cora.federation._bootstrap`. Active status matches the seed's
+    Define + Activate event pair (lifecycle terminal: templates land
+    Active and stay Active until an operator deprecate/withdraws).
+
+    Anti-hook: `.register(...)` is a TEST-only seed helper on
+    `InMemoryClearanceTemplateLookup`. Do NOT promote it to the
+    `ClearanceTemplateLookup` Protocol surface (would force every
+    adapter to implement an in-memory seeding shape that has no
+    production meaning). This is the SECOND site of the duck-typed
+    in-memory seed (after `_seed_in_memory_facility_lookup`); a THIRD
+    consumer is the rule-of-three trigger to extract a bounded
+    `TestSeedingLookup` Protocol and isinstance-check at all sites.
+    """
+    register = getattr(kernel.clearance_template_lookup, "register", None)
+    if register is None:
+        return
+    register(
+        template_id=template_id,
+        facility_code=facility_code.value,
+        code=template_code,
+        status="Active",
+        # The seed writes Define + Activate at version 1 and templates land
+        # Active terminal, so version is always 1 here. A future baseline-
+        # template bump would need this to read the real version.
+        version=1,
     )
 
 

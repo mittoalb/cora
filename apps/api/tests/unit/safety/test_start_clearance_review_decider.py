@@ -8,13 +8,16 @@ import pytest
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotStartReviewError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceReviewStarted,
     ClearanceStatus,
     ClearanceTitle,
     InvalidClearanceReviewerRoleError,
     RunBinding,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features import start_clearance_review
 from cora.safety.features.start_clearance_review import StartClearanceReview
@@ -26,7 +29,7 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 def _clearance(status: ClearanceStatus = ClearanceStatus.SUBMITTED) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
+        template_id=ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF")),
         facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),

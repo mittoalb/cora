@@ -36,7 +36,8 @@ class ClearanceSummaryItem:
     """One row from the clearance projection."""
 
     clearance_id: UUID
-    kind: str
+    template_id: UUID
+    template_code: str
     facility_code: str
     title: str
     external_id: str | None
@@ -78,7 +79,8 @@ class Handler(Protocol):
 
 
 _SELECT_COLUMNS = (
-    "clearance_id, kind, facility_code, title, external_id, status, risk_band, "
+    "clearance_id, template_id, template_code, facility_code, title, external_id, status, "
+    "risk_band, "
     "subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids, "
     "parent_id, registered_at, "
     "last_status_changed_at, last_status_reason, last_reviewed_by, "
@@ -89,7 +91,8 @@ _SELECT_COLUMNS = (
 def _row_to_item(row: Any) -> ClearanceSummaryItem:
     return ClearanceSummaryItem(
         clearance_id=row["clearance_id"],
-        kind=str(row["kind"]),
+        template_id=row["template_id"],
+        template_code=str(row["template_code"]),
         facility_code=str(row["facility_code"]),
         title=str(row["title"]),
         external_id=str(row["external_id"]) if row["external_id"] is not None else None,
@@ -114,7 +117,8 @@ def _row_to_item(row: Any) -> ClearanceSummaryItem:
 
 def _log_fields(query: ListClearances) -> dict[str, Any]:
     return {
-        "kind": query.kind,
+        "template_id": str(query.template_id) if query.template_id is not None else None,
+        "template_code": query.template_code,
         "status": query.status,
         "risk_band": query.risk_band,
         "facility_code": query.facility_code,
@@ -133,7 +137,8 @@ def bind(deps: Kernel) -> Handler:
         time_column="registered_at",
         id_column="clearance_id",
         filters=[
-            ScalarFilter(attr="kind"),
+            ScalarFilter(attr="template_id"),
+            ScalarFilter(attr="template_code"),
             ScalarFilter(attr="status"),
             ScalarFilter(attr="risk_band"),
             ScalarFilter(attr="facility_code"),

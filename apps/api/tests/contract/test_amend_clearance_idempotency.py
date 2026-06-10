@@ -13,12 +13,20 @@ threshold.
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateNotBindableError,
+    ClearanceTemplateStatus,
+    clearance_template_stream_id,
+)
+from cora.safety.features.amend_clearance.route import (
+    _get_handler as _get_amend_clearance_handler,  # pyright: ignore[reportPrivateUsage]
+)
 
 
 def _walk_parent_to_active(client: TestClient) -> str:
@@ -30,7 +38,7 @@ def _walk_parent_to_active(client: TestClient) -> str:
     register_resp = client.post(
         "/clearances",
         json={
-            "kind": "ESAF",
+            "template_id": str(clearance_template_stream_id("cora", "ESAF")),
             "facility_code": "cora",
             "title": "Original",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -66,7 +74,7 @@ def _walk_parent_to_active(client: TestClient) -> str:
 
 def _amend_body() -> dict[str, object]:
     return {
-        "kind": "ESAF",
+        "template_id": str(clearance_template_stream_id("cora", "ESAF")),
         "facility_code": "cora",
         "title": "Amended after scope-change",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -109,6 +117,26 @@ def test_post_amend_same_key_and_body_returns_same_child_clearance_id() -> None:
 
 
 @pytest.mark.contract
+async def test_post_amend_returns_409_when_template_not_bindable() -> None:
+    """Amending onto a template that resolves but is not Active (Draft /
+    Deprecated / Withdrawn) maps to 409 via the cannot_transition handler,
+    distinct from the unknown-template 404. Mirrors the register_clearance
+    wire-mapping guard."""
+    app = create_app()
+    template_id = uuid4()
+
+    async def fake_handler(*args: object, **kwargs: object) -> UUID:
+        _ = (args, kwargs)
+        raise ClearanceTemplateNotBindableError(template_id, ClearanceTemplateStatus.WITHDRAWN)
+
+    app.dependency_overrides[_get_amend_clearance_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post(f"/clearances/{uuid4()}/amend", json=_amend_body())
+    assert response.status_code == 409
+    assert "cannot be bound" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
 def test_post_amend_same_key_different_body_returns_422() -> None:
     """The cross-BC idempotency contract: same key + different body
     -> 422 (idempotency conflict; client must use a fresh key for
@@ -119,7 +147,7 @@ def test_post_amend_same_key_different_body_returns_422() -> None:
         r1 = client.post(
             f"/clearances/{parent_id}/amend",
             json={
-                "kind": "ESAF",
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
                 "facility_code": "cora",
                 "title": "First amendment",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -129,7 +157,7 @@ def test_post_amend_same_key_different_body_returns_422() -> None:
         r2 = client.post(
             f"/clearances/{parent_id}/amend",
             json={
-                "kind": "SAF",
+                "template_id": str(clearance_template_stream_id("cora", "SAF")),
                 "facility_code": "cora",
                 "title": "Different amendment",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],

@@ -11,11 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 
 
 def _body() -> dict[str, object]:
     return {
-        "kind": "ESAF",
+        "template_id": str(clearance_template_stream_id("cora", "ESAF")),
         "facility_code": "cora",
         "title": "Pilot ESAF",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -53,7 +54,7 @@ def test_post_clearances_same_key_different_body_returns_422() -> None:
         r1 = client.post(
             "/clearances",
             json={
-                "kind": "ESAF",
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
                 "facility_code": "cora",
                 "title": "First",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
@@ -63,7 +64,7 @@ def test_post_clearances_same_key_different_body_returns_422() -> None:
         r2 = client.post(
             "/clearances",
             json={
-                "kind": "SAF",
+                "template_id": str(clearance_template_stream_id("cora", "SAF")),
                 "facility_code": "cora",
                 "title": "Second",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],

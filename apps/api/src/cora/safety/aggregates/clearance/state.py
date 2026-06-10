@@ -1,4 +1,4 @@
-"""Clearance aggregate state, value objects, status/kind enums, bindings, and errors.
+"""Clearance aggregate state, value objects, status enum, bindings, and errors.
 
 `Clearance` wraps a facility safety form (APS ESAF, NSLS-II SAF,
 ESRF A-form / SAF, MAX IV DUO / ESRA, DLS ERA / PLHD, DESY DOOR,
@@ -10,10 +10,11 @@ Per [[project_safety_clearance_design]], the design locks:
 
   - 8-state FSM: `Defined -> Submitted -> UnderReview -> Approved
     -> Active -> Expired | Rejected | Superseded`
-  - 10-value `ClearanceKind` StrEnum covering 9 surveyed facilities
-    (form-type only; facility identity carried separately by
-    `facility_code` referencing the Federation Facility's cross-deployment
-    convergent slug)
+  - `template_id` foreign key into the `ClearanceTemplate` aggregate
+    (template-tier; auto-seeded per facility per
+    [[project_slice9_design]] L8). Form-type identity is carried by
+    the template's `(facility_code, code)` pair, not a closed enum
+    on Clearance.
   - Multi-binding `frozenset[ClearanceBinding]` covering Subject /
     Asset / Run / Procedure + ExternalRefBinding(ref=Identifier) for
     upstream-deferred refs (Proposal / BTR / LabVisit / Session per
@@ -24,7 +25,7 @@ Per [[project_safety_clearance_design]], the design locks:
     `cora.safety.aggregates.clearance.hazard_classification`
 
 
-State + ClearanceStatus / ClearanceKind StrEnums + ClearanceTitle VO +
+State + ClearanceStatus StrEnum + ClearanceTitle VO +
 ClearanceBinding union + HazardDeclaration + ReviewStep + 7 errors.
 Genesis decider only (`register_clearance`); transition slices land in
 11a-b.
@@ -36,11 +37,13 @@ Genesis decider only (`register_clearance`); transition slices land in
 `ProcedureStatus`). State holds the typed enum; evolver derives status
 from event type (`ClearanceRegistered -> DEFINED`).
 
-`ClearanceKind` is locked 10 values day one per the cross-facility
-portability research (v3 pass at /tmp/cora_hazard_research_v3.md;
-a later refactor split form-type from facility identity so the
-enum shrank from the originally-planned 12 down to 10). Extending to
-an 11th facility-form is purely additive.
+Form-type identity is now carried by `template_id` (FK into the
+`ClearanceTemplate` aggregate). The earlier closed-enum
+`ClearanceKind` was retired in favour of an aggregate so future
+per-facility schema-validation + template-versioning can land
+additively (see [[project_slice9_design]] L11; cross-facility
+portability research v3 at /tmp/cora_hazard_research_v3.md retained
+for design context).
 
 ## Bindings: multi (frozenset), polymorphic (5 typed arms + ExternalRefBinding)
 
@@ -80,6 +83,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from cora.safety.aggregates.clearance.hazard_classification import HazardClassification, RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.shared.bounded_text import validate_bounded_text
 from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import Identifier
@@ -128,59 +132,6 @@ class ClearanceStatus(StrEnum):
     EXPIRED = "Expired"
     REJECTED = "Rejected"
     SUPERSEDED = "Superseded"
-
-
-class ClearanceKind(StrEnum):
-    """The form-type (template) this Clearance wraps.
-
-    Ten facility-independent form-types covering the 9 surveyed facilities
-    (cross-facility portability research v3 at /tmp/cora_hazard_research_v3.md).
-    Facility identity is carried separately via `Clearance.facility_code`
-    (the Federation Facility's cross-deployment convergent slug); it is NOT
-    smushed into the kind value.
-
-      - `ESAF`     -- Experiment Safety Assessment Form (used by APS + ALS;
-                      facility distinguishes between the two)
-      - `SAF`      -- Safety Approval Form (used by NSLS-II + ESRF)
-      - `AForm`    -- ESRF A-form (per-proposal)
-      - `DUO`      -- MAX IV DUO (proposal-level)
-      - `ESRA`     -- MAX IV ESRA (per-experiment, pairs with DUO)
-      - `ERA`      -- DLS Experiment Risk Assessment (per-session)
-      - `PLHD`     -- DLS Personal Lab Hazard Declaration (per-lab-visit)
-      - `DOOR`     -- DESY DOOR (per-beamtime)
-      - `BTR`      -- SLAC Beam Time Request safety review
-      - `Form9`    -- SPring-8 Form 9 (per-visit)
-
-    `(kind=ESAF, facility_code="aps")` and
-    `(kind=ESAF, facility_code="als")` are distinct without
-    string-mangling. Two orthogonal concepts (form-type + facility) are
-    cleanly separated; no `ESAF_APS` / `ESAF_ALS` smush.
-
-    Per [[project_safety_clearance_design]] §"Facility lives at
-    Asset.Level.Site": facility identity is the existing Asset.Site in
-    CORA's Equipment hierarchy, NOT a parallel StrEnum. Adding a new
-    facility requires no enum change at all (just register a new Site
-    Asset). A 13th form-type (rare; the global form-type registry is
-    relatively stable) lands as a new enum member.
-
-    Future ClearanceTemplate aggregate (watch item): when first
-    per-template body-schema-validation OR template-versioning need
-    surfaces, this StrEnum gets replaced by `template_id: UUID`
-    referencing a typed `ClearanceTemplate` aggregate (mirrors Family
-    inside Equipment BC). Same trigger pattern as ProcedureTemplate watch
-    item in [[project_operation_design]].
-    """
-
-    ESAF = "ESAF"
-    SAF = "SAF"
-    AFORM = "AForm"
-    DUO = "DUO"
-    ESRA = "ESRA"
-    ERA = "ERA"
-    PLHD = "PLHD"
-    DOOR = "DOOR"
-    BTR = "BTR"
-    FORM9 = "Form9"
 
 
 # ---------------------------------------------------------------------------
@@ -706,7 +657,7 @@ class Clearance:
     """
 
     id: UUID
-    kind: ClearanceKind
+    template_id: ClearanceTemplateId  # FK to ClearanceTemplate; auto-seeded per facility
     facility_code: FacilityCode  # Federation Facility's cross-deployment convergent slug
     title: ClearanceTitle
     bindings: frozenset[ClearanceBinding]
