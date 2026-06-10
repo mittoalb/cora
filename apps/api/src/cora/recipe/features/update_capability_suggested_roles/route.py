@@ -27,7 +27,7 @@ from cora.recipe.features.update_capability_suggested_roles.handler import Handl
 class UpdateCapabilitySuggestedRolesRequest(BaseModel):
     """Body for `POST /capabilities/{capability_id}/suggested-roles`."""
 
-    suggested_roles: list[UUID] = Field(
+    suggested_role_ids: list[UUID] = Field(
         ...,
         description=(
             "FULL replacement set of global Role contract ids the "
@@ -67,7 +67,7 @@ router = APIRouter(tags=["recipe"])
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": (
-                "Capability is Deprecated; suggested_roles updates "
+                "Capability is Deprecated; suggested_role_ids updates "
                 "require Defined or Versioned status."
             ),
         },
@@ -75,7 +75,7 @@ router = APIRouter(tags=["recipe"])
             "description": "Path parameter or request body failed schema validation.",
         },
     },
-    summary="Author the editorial suggested_roles set on a Capability",
+    summary="Author the editorial suggested_role_ids set on a Capability",
 )
 async def post_capabilities_suggested_roles(
     capability_id: Annotated[UUID, Path(description="Target Capability's id.")],
@@ -88,7 +88,7 @@ async def post_capabilities_suggested_roles(
     await handler(
         UpdateCapabilitySuggestedRoles(
             capability_id=capability_id,
-            suggested_role_ids=frozenset(body.suggested_roles),
+            suggested_role_ids=frozenset(body.suggested_role_ids),
         ),
         principal_id=principal_id,
         correlation_id=cid,

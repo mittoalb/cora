@@ -27,7 +27,7 @@ def _create_role(
     client: TestClient,
     app: FastAPI,
     *,
-    name: str = "Imager",
+    name: str = "Diagnostician",
 ) -> UUID:
     response = client.post(
         "/roles",
@@ -57,11 +57,11 @@ def test_post_returns_204_on_successful_update() -> None:
     app = create_app()
     with TestClient(app) as client:
         capability_id = _define_capability(client)
-        role_a = _create_role(client, app, name="Imager")
-        role_b = _create_role(client, app, name="Detector")
+        role_a = _create_role(client, app, name="Diagnostician")
+        role_b = _create_role(client, app, name="Cartographer")
         response = client.post(
             f"/capabilities/{capability_id}/suggested-roles",
-            json={"suggested_roles": [str(role_a), str(role_b)]},
+            json={"suggested_role_ids": [str(role_a), str(role_b)]},
         )
     assert response.status_code == 204, response.text
 
@@ -73,7 +73,7 @@ def test_post_accepts_empty_set_to_clear_suggested_roles() -> None:
         capability_id = _define_capability(client)
         response = client.post(
             f"/capabilities/{capability_id}/suggested-roles",
-            json={"suggested_roles": []},
+            json={"suggested_role_ids": []},
         )
     assert response.status_code == 204, response.text
 
@@ -85,7 +85,7 @@ def test_post_returns_404_when_role_id_unresolved() -> None:
         capability_id = _define_capability(client)
         response = client.post(
             f"/capabilities/{capability_id}/suggested-roles",
-            json={"suggested_roles": ["00000000-0000-0000-0000-000000000999"]},
+            json={"suggested_role_ids": ["00000000-0000-0000-0000-000000000999"]},
         )
     assert response.status_code == 404, response.text
 
@@ -95,7 +95,7 @@ def test_post_returns_404_when_capability_unknown() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
             "/capabilities/00000000-0000-0000-0000-000000000999/suggested-roles",
-            json={"suggested_roles": []},
+            json={"suggested_role_ids": []},
         )
     assert response.status_code == 404, response.text
 
@@ -106,7 +106,7 @@ def test_post_rejects_malformed_uuid_with_422() -> None:
         capability_id = _define_capability(client)
         response = client.post(
             f"/capabilities/{capability_id}/suggested-roles",
-            json={"suggested_roles": ["not-a-uuid"]},
+            json={"suggested_role_ids": ["not-a-uuid"]},
         )
     assert response.status_code == 422
 
@@ -118,7 +118,7 @@ def test_post_idempotent_wholesale_republish_returns_204() -> None:
     with TestClient(app) as client:
         capability_id = _define_capability(client)
         role_id = _create_role(client, app)
-        body = {"suggested_roles": [str(role_id)]}
+        body = {"suggested_role_ids": [str(role_id)]}
         first = client.post(f"/capabilities/{capability_id}/suggested-roles", json=body)
         second = client.post(f"/capabilities/{capability_id}/suggested-roles", json=body)
     assert first.status_code == 204

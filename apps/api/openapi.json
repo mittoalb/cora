@@ -12999,18 +12999,18 @@
       "UpdateCapabilitySuggestedRolesRequest": {
         "description": "Body for `POST /capabilities/{capability_id}/suggested-roles`.",
         "properties": {
-          "suggested_roles": {
+          "suggested_role_ids": {
             "description": "FULL replacement set of global Role contract ids the operator suggests this Capability is naturally satisfied by (Layer 3 sub-slice 3E; documentation-only per memo Lock 10). Each role_id is verified to resolve via the Role projection at the handler edge. Empty list clears the set. Deduplicated server-side.",
             "items": {
               "format": "uuid",
               "type": "string"
             },
-            "title": "Suggested Roles",
+            "title": "Suggested Role Ids",
             "type": "array"
           }
         },
         "required": [
-          "suggested_roles"
+          "suggested_role_ids"
         ],
         "title": "UpdateCapabilitySuggestedRolesRequest",
         "type": "object"
@@ -20805,13 +20805,13 @@
                 }
               }
             },
-            "description": "Capability is Deprecated; suggested_roles updates require Defined or Versioned status."
+            "description": "Capability is Deprecated; suggested_role_ids updates require Defined or Versioned status."
           },
           "422": {
             "description": "Path parameter or request body failed schema validation."
           }
         },
-        "summary": "Author the editorial suggested_roles set on a Capability",
+        "summary": "Author the editorial suggested_role_ids set on a Capability",
         "tags": [
           "recipe"
         ]

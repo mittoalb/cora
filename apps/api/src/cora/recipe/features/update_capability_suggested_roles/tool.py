@@ -22,7 +22,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
     @mcp.tool(
         name="update_capability_suggested_roles",
         description=(
-            "Author the editorial suggested_roles set on a Capability "
+            "Author the editorial suggested_role_ids set on a Capability "
             "(Layer 3 sub-slice 3E; documentation-only per memo Lock "
             "10). Wholesale-replace shape. Every role_id is verified "
             "to resolve via the Role projection at the handler edge. "
@@ -35,7 +35,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
             UUID,
             Field(description="Target Capability's id."),
         ],
-        suggested_roles: Annotated[
+        suggested_role_ids: Annotated[
             list[UUID],
             Field(
                 description=(
@@ -49,7 +49,7 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], Handler]) -> None:
         await handler(
             UpdateCapabilitySuggestedRoles(
                 capability_id=capability_id,
-                suggested_role_ids=frozenset(suggested_roles),
+                suggested_role_ids=frozenset(suggested_role_ids),
             ),
             principal_id=get_mcp_principal_id(ctx),
             correlation_id=current_correlation_id(),

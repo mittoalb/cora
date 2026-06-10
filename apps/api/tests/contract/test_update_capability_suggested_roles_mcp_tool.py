@@ -24,7 +24,7 @@ def _seed(client: TestClient, app: FastAPI) -> tuple[UUID, UUID]:
     role_resp = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],
@@ -35,7 +35,7 @@ def _seed(client: TestClient, app: FastAPI) -> tuple[UUID, UUID]:
     role_id = UUID(role_resp.json()["role_id"])
     app.state.deps.role_lookup.register(
         role_id=role_id,
-        name="Imager",
+        name="Diagnostician",
         required_affordances=["Imageable"],
     )
     return capability_id, role_id
@@ -71,7 +71,7 @@ def test_mcp_update_capability_suggested_roles_tool_call_succeeds() -> None:
                     "name": "update_capability_suggested_roles",
                     "arguments": {
                         "capability_id": str(capability_id),
-                        "suggested_roles": [str(role_id)],
+                        "suggested_role_ids": [str(role_id)],
                     },
                 },
             },
@@ -106,7 +106,7 @@ def test_mcp_tool_returns_iserror_on_unresolved_role_id() -> None:
                     "name": "update_capability_suggested_roles",
                     "arguments": {
                         "capability_id": str(capability_id),
-                        "suggested_roles": ["00000000-0000-0000-0000-000000000999"],
+                        "suggested_role_ids": ["00000000-0000-0000-0000-000000000999"],
                     },
                 },
             },
