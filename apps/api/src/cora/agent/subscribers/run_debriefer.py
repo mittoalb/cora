@@ -96,7 +96,7 @@ errors never propagate.
 
 The Anthropic SDK error messages may carry the API key in
 diagnostic output (defensive against a future SDK regression).
-`_redact_secrets` strips `sk-ant-*` substrings from any LLM
+`redact_secrets` strips `sk-ant-*` substrings from any LLM
 error message before structured-logging it (per security gate-review
 convention).
 
@@ -214,13 +214,6 @@ def redact_secrets(message: str) -> str:
     `regenerate_run_debrief` handler for parallel error-logging redaction.
     """
     return _API_KEY_LIKE_PATTERN.sub(_REDACTED_TOKEN, message)
-
-
-# Backward-compat alias retained for the existing test that pins
-# the private name. The public name `redact_secrets` is the one
-# to use going forward; the alias is dropped at the rule-of-three
-# trigger (third consumer or first second-agent ship).
-_redact_secrets = redact_secrets
 
 
 def _derive_decision_id(terminal_event_id: UUID) -> UUID:

@@ -34,7 +34,7 @@ from cora.agent.subscribers._terminal_run_helpers import (
 from cora.agent.subscribers.run_debriefer import (
     RunDebrieferSubscriber,
     _derive_decision_id,
-    _redact_secrets,
+    redact_secrets,
 )
 from cora.decision.aggregates.decision import load_decision
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
@@ -911,7 +911,7 @@ def test_redact_secrets_strips_anthropic_api_key_pattern() -> None:
     substrings before structured-logging error messages so a future
     SDK regression that echoes the key doesn't persist it forever."""
     raw = "Authentication failed; key sk-ant-VERYSECRETabc123-xyz prefix exposed"
-    cleaned = _redact_secrets(raw)
+    cleaned = redact_secrets(raw)
     assert "sk-ant-VERYSECRETabc123-xyz" not in cleaned
     assert "[REDACTED]" in cleaned
 
@@ -920,13 +920,13 @@ def test_redact_secrets_strips_anthropic_api_key_pattern() -> None:
 def test_redact_secrets_no_op_on_clean_message() -> None:
     """No false-positive redaction on regular error text."""
     raw = "connection reset by peer"
-    assert _redact_secrets(raw) == raw
+    assert redact_secrets(raw) == raw
 
 
 @pytest.mark.unit
 def test_redact_secrets_handles_multiple_occurrences() -> None:
     raw = "first sk-ant-AAA111 then sk-ant-BBB222 done"
-    cleaned = _redact_secrets(raw)
+    cleaned = redact_secrets(raw)
     assert "sk-ant-AAA111" not in cleaned
     assert "sk-ant-BBB222" not in cleaned
     assert cleaned.count("[REDACTED]") == 2
