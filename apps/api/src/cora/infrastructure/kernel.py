@@ -53,6 +53,7 @@ from cora.infrastructure.ports import (
     IdGenerator,
     LogbookMirror,
     ProfileStore,
+    RoleLookup,
     Signer,
     SupplyLookup,
     TokenVerifier,
@@ -172,6 +173,23 @@ class Kernel:
     cross-BC binding tests seed assets via the adapter's
     `register(...)` helper.
 
+    `role_lookup`: cross-aggregate port consumed by Layer-3 sub-slices
+    of [[project-role-aggregate-design]]. 3B `add_family_presents_as`
+    decider validates role_id resolves AND that the Family's
+    Affordances superset Role.required_affordances. 3C
+    `add_assembly_presents_as` decider validates role_id resolves
+    (affordance-superset deferred to register_fixture layer). 3D
+    `bind_plan_role` handler walks Asset.family_ids ->
+    FamilyLookup.batch_lookup -> RoleLookup.lookup for the role_kind
+    satisfaction path (Lock 17 ANY-single-family disjunction). 3E
+    `update_capability_suggested_roles` handler validates every
+    proposed RoleId resolves (Lock 10 documentation-only event).
+    Equipment BC ships `PostgresRoleLookup` as the production adapter
+    (reads `proj_equipment_role_summary` shipped Layer-3 sub-slice
+    3A). Test environments default to `InMemoryRoleLookup`; consumer
+    tests seed Roles via the adapter's `register(...)` helper or
+    leave the registry empty for the missing-role path.
+
     `llm`: optional LLM-chat port consumed by Agent BC subscribers
     (RunDebriefer, CautionDrafter). Production wires
     `AnthropicLLM` when `Settings.anthropic_api_key` is set;
@@ -227,6 +245,7 @@ class Kernel:
     credential_lookup: CredentialLookup
     facility_lookup: FacilityLookup
     asset_lookup: AssetLookup
+    role_lookup: RoleLookup
     profile_store: ProfileStore
     canonicalization_registry: CanonicalizationRegistry
     signing_registry: SigningRegistry

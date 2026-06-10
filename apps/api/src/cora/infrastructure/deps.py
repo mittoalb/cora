@@ -64,6 +64,7 @@ from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStor
 from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
 from cora.infrastructure.adapters.in_memory_idempotency_store import InMemoryIdempotencyStore
 from cora.infrastructure.adapters.in_memory_profile_store import InMemoryProfileStore
+from cora.infrastructure.adapters.in_memory_role_lookup import InMemoryRoleLookup
 from cora.infrastructure.adapters.postgres_event_store import PostgresEventStore
 from cora.infrastructure.adapters.postgres_idempotency_store import PostgresIdempotencyStore
 from cora.infrastructure.adapters.postgres_profile_store import PostgresProfileStore
@@ -91,6 +92,7 @@ from cora.infrastructure.ports import (
     IdGenerator,
     LogbookMirror,
     ProfileStore,
+    RoleLookup,
     SupplyLookup,
     SystemClock,
     TokenVerifier,
@@ -149,6 +151,7 @@ def make_postgres_kernel(
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
+    role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -225,6 +228,15 @@ def make_postgres_kernel(
     `build_kernel` injects the real `PostgresAssetLookup` via the
     `asset_lookup_factory` argument.
 
+    `role_lookup` defaults to a fresh `InMemoryRoleLookup` (empty
+    record map). Layer-3 consumer tests (3B add_family_presents_as,
+    3C add_assembly_presents_as, 3D bind_plan_role, 3E
+    update_capability_suggested_roles) seed Roles explicitly via the
+    adapter's `register(...)` helper; tests that don't touch a Role
+    leave the dict empty (the default). Production's `build_kernel`
+    injects the real `PostgresRoleLookup` via the
+    `role_lookup_factory` argument.
+
     `llm` defaults to `None` because most BCs and tests don't need
     an LLM; only Agent BC subscribers consume it. Production's
     `build_kernel` injects `AnthropicLLM` when
@@ -265,6 +277,7 @@ def make_postgres_kernel(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
+        role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -293,6 +306,7 @@ def make_inmemory_kernel(
     credential_lookup: CredentialLookup | None = None,
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
+    role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -359,6 +373,12 @@ def make_inmemory_kernel(
     adapter's `register(...)` helper; tests that don't bind to an
     Asset never touch it.
 
+    `role_lookup` defaults to a fresh `InMemoryRoleLookup` for the
+    same reason: no projection worker, no `proj_equipment_role_summary`
+    table to read from. Layer-3 consumer tests seed Roles via the
+    adapter's `register(...)` helper; tests that don't touch a Role
+    leave the dict empty (the default).
+
     `llm` defaults to `None`; the in-memory kernel is for unit /
     contract tests that don't exercise LLM subscribers. Subscriber
     tests that DO exercise the LLM path inject `FakeLLM`
@@ -399,6 +419,7 @@ def make_inmemory_kernel(
             facility_lookup if facility_lookup is not None else InMemoryFacilityLookup()
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
+        role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -557,6 +578,25 @@ class AssetLookupFactory(Protocol):
     ) -> AssetLookup: ...
 
 
+class RoleLookupFactory(Protocol):
+    """Builds the production RoleLookup port for the Kernel.
+
+    Equipment BC's `cora.equipment.adapters.PostgresRoleLookup` is
+    the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `AssetLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryRoleLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> RoleLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -593,6 +633,7 @@ async def build_kernel(
     credential_lookup_factory: CredentialLookupFactory | None = None,
     facility_lookup_factory: FacilityLookupFactory | None = None,
     asset_lookup_factory: AssetLookupFactory | None = None,
+    role_lookup_factory: RoleLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
     permit_lookup_factory: "Callable[[], PermitLookup] | None" = None,
@@ -704,6 +745,9 @@ async def build_kernel(
     asset_lookup: AssetLookup = (
         asset_lookup_factory(pool) if asset_lookup_factory is not None else InMemoryAssetLookup()
     )
+    role_lookup: RoleLookup = (
+        role_lookup_factory(pool) if role_lookup_factory is not None else InMemoryRoleLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -720,6 +764,7 @@ async def build_kernel(
         credential_lookup=credential_lookup,
         facility_lookup=facility_lookup,
         asset_lookup=asset_lookup,
+        role_lookup=role_lookup,
         llm=llm,
         token_verifier=token_verifier,
         publish_port=publish_port_factory() if publish_port_factory is not None else None,
@@ -799,6 +844,8 @@ __all__ = [
     "CredentialLookupFactory",
     "FacilityLookupFactory",
     "LLMFactory",
+    "RoleLookupFactory",
+    "SupplyLookupFactory",
     "build_kernel",
     "make_inmemory_kernel",
     "make_postgres_kernel",

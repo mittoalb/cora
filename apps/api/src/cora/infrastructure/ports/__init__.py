@@ -90,6 +90,10 @@ from cora.infrastructure.ports.llm import (
 )
 from cora.infrastructure.ports.logbook_mirror import LogbookMirror
 from cora.infrastructure.ports.profile_store import Profile, ProfileStore
+from cora.infrastructure.ports.role_lookup import (
+    RoleLookup,
+    RoleLookupResult,
+)
 from cora.infrastructure.ports.signer import (
     Signer,
     SignerKeyInactiveError,
@@ -178,6 +182,8 @@ __all__ = [
     "PrincipalKind",
     "Profile",
     "ProfileStore",
+    "RoleLookup",
+    "RoleLookupResult",
     "Signer",
     "SignerKeyInactiveError",
     "SignerKeyNotFoundError",

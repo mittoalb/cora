@@ -136,6 +136,10 @@ _FOLD_NEITHER_ALLOWLIST: dict[str, str] = {
     "equipment.Family": "fold-NEITHER posture across all events",
     "equipment.Frame": "fold-NEITHER posture across all events",
     "equipment.Mount": "fold-NEITHER posture across all events",
+    "equipment.Role": (
+        "fold-NEITHER posture across all events; 3A ships RoleDefined only "
+        "with no _at / _by fields on state (Lock 14 versioning deferred)"
+    ),
     "operation.Procedure": (
         "fold-NEITHER per slim-aggregate stance; per-step entries are out of scope"
     ),

@@ -5077,6 +5077,82 @@
         "title": "DefineRecipeResponse",
         "type": "object"
       },
+      "DefineRoleRequest": {
+        "description": "Body for `POST /roles`.",
+        "properties": {
+          "consumes": {
+            "description": "Open-vocabulary SignalType labels satisfying Assets accept (in-direction port signal_type). Each entry trimmed server-side to 1-50 chars; empty list accepted.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Consumes",
+            "type": "array"
+          },
+          "docstring": {
+            "description": "Operator-readable one-paragraph contract explanation. Surfaced at Method-authoring time when operators pick among candidate Roles. Required; non-empty after trim.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Docstring",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display name for the new global Role contract.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "optional_affordances": {
+            "description": "Affordance value strings a satisfying Family MAY advertise. Deduplicated server-side. Must be disjoint with required_affordances.",
+            "items": {
+              "$ref": "#/components/schemas/Affordance"
+            },
+            "title": "Optional Affordances",
+            "type": "array"
+          },
+          "produces": {
+            "description": "Open-vocabulary SignalType labels satisfying Assets emit (out-direction port signal_type). Each entry trimmed server-side to 1-50 chars; empty list accepted.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Produces",
+            "type": "array"
+          },
+          "required_affordances": {
+            "description": "Affordance value strings every satisfying Family MUST advertise. Deduplicated server-side. Must be disjoint with optional_affordances.",
+            "items": {
+              "$ref": "#/components/schemas/Affordance"
+            },
+            "title": "Required Affordances",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "docstring",
+          "required_affordances",
+          "optional_affordances",
+          "produces",
+          "consumes"
+        ],
+        "title": "DefineRoleRequest",
+        "type": "object"
+      },
+      "DefineRoleResponse": {
+        "description": "Response body for `POST /roles`.",
+        "properties": {
+          "role_id": {
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "title": "DefineRoleResponse",
+        "type": "object"
+      },
       "DefineSurfaceRequest": {
         "description": "Body for `POST /surfaces`.",
         "properties": {
@@ -32711,6 +32787,99 @@
         "summary": "Issue a new version label + replacement steps for a Recipe",
         "tags": [
           "recipe"
+        ]
+      }
+    },
+    "/roles": {
+      "post": {
+        "operationId": "post_roles_roles_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Role.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Role.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineRoleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: whitespace-only name or docstring, required and optional Affordance sets overlap, or a SignalType entry is empty or too long."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Define a new global Role contract",
+        "tags": [
+          "equipment"
         ]
       }
     },

@@ -50,6 +50,7 @@ from cora.equipment.features import (
     define_assembly,
     define_family,
     define_model,
+    define_role,
     degrade_asset,
     deprecate_assembly,
     deprecate_family,
@@ -127,6 +128,9 @@ class EquipmentHandlers:
     update_family_settings_schema: update_family_settings_schema.Handler
     get_family: get_family.Handler
     list_families: list_families.Handler
+
+    # Role aggregate
+    define_role: define_role.IdempotentHandler
 
     # Model aggregate
     define_model: define_model.IdempotentHandler
@@ -263,6 +267,19 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
             command_name="ListFamilies",
             bc=_BC,
             kind="query",
+        ),
+        # Role aggregate
+        define_role=with_tracing(
+            with_idempotency(
+                define_role.bind(deps),
+                deps.idempotency_store,
+                command_name="DefineRole",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="DefineRole",
+            bc=_BC,
         ),
         # Model aggregate
         define_model=with_tracing(

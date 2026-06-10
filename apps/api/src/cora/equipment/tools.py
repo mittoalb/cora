@@ -34,6 +34,7 @@ from cora.equipment.features.decommission_mount import tool as decommission_moun
 from cora.equipment.features.define_assembly import tool as define_assembly_tool
 from cora.equipment.features.define_family import tool as define_family_tool
 from cora.equipment.features.define_model import tool as define_model_tool
+from cora.equipment.features.define_role import tool as define_role_tool
 from cora.equipment.features.degrade_asset import tool as degrade_asset_tool
 from cora.equipment.features.deprecate_assembly import tool as deprecate_assembly_tool
 from cora.equipment.features.deprecate_family import (
@@ -124,6 +125,11 @@ def register_equipment_tools(
     list_families_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_families,
+    )
+    # Role aggregate
+    define_role_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_role,
     )
     # Model aggregate
     define_model_tool.register(

@@ -16,7 +16,7 @@ does not re-register them.
 
 ## Loop-collapse pattern
 
-Equipment owns five aggregates (Family, Model, Asset, Frame, Mount).
+Equipment owns six aggregates (Family, Model, Asset, Frame, Mount, Role).
 Three error families share the same response shape and get collapsed
 via Trust's `_handle_invalid_name`-style loop pattern:
 
@@ -159,6 +159,14 @@ from cora.equipment.aggregates.mount import (
     MountIsEmptyError,
     MountNotFoundError,
 )
+from cora.equipment.aggregates.role import (
+    InvalidRoleDocstringError,
+    InvalidRoleNameError,
+    InvalidSignalTypeError,
+    RoleAffordanceOverlapError,
+    RoleAlreadyExistsError,
+    RoleNotFoundError,
+)
 from cora.equipment.errors import (
     AssetNameMissingError,
     FixtureLandingPageMissingError,
@@ -188,6 +196,7 @@ from cora.equipment.features import (
     define_assembly,
     define_family,
     define_model,
+    define_role,
     degrade_asset,
     deprecate_assembly,
     deprecate_family,
@@ -394,6 +403,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(update_family_settings_schema.router)
     app.include_router(get_family.router)
     app.include_router(list_families.router)
+    # Role aggregate
+    app.include_router(define_role.router)
     # Model aggregate
     app.include_router(define_model.router)
     app.include_router(version_model.router)
@@ -451,6 +462,10 @@ def register_equipment_routes(app: FastAPI) -> None:
         InvalidFamilyNameError,
         InvalidFamilySettingsSchemaError,
         InvalidFamilyVersionTagError,
+        InvalidRoleNameError,
+        InvalidRoleDocstringError,
+        InvalidSignalTypeError,
+        RoleAffordanceOverlapError,
         InvalidAssetNameError,
         InvalidAssetParentError,
         InvalidAssetPortNameError,
@@ -493,6 +508,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
         FamilyNotFoundError,
+        RoleNotFoundError,
         AssetNotFoundError,
         AssetOwnerNotPresentError,
         FrameNotFoundError,
@@ -508,6 +524,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
         FamilyAlreadyExistsError,
+        RoleAlreadyExistsError,
         AssetAlreadyExistsError,
         FrameAlreadyExistsError,
         MountAlreadyExistsError,
