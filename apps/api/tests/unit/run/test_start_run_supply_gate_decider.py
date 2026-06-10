@@ -45,6 +45,7 @@ def _ref(kind: str, status: str) -> SupplyReference:
         kind=kind,
         name=f"<test {kind}>",
         status=status,
+        facility_code="<test-facility>",
     )
 
 

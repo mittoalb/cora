@@ -93,6 +93,7 @@ from cora.data.features import (
     list_datasets,
     promote_dataset,
     register_dataset,
+    register_distribution,
 )
 
 
@@ -178,6 +179,7 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(demote_dataset.router)
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
+    app.include_router(register_distribution.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,

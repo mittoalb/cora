@@ -1,9 +1,11 @@
 """Postgres adapter implementing `SupplyLookup` over `proj_supply_summary`.
 
-Consumed by Run BC's `start_run` handler and Operation BC's
-`start_procedure` handler via the `Kernel.supply_lookup` port. Reads
-the projection's `(supply_id, kind, name, status)` columns; returns
-Supplies grouped by kind, excluding `Decommissioned` rows.
+Consumed by Run BC's `start_run` handler, Operation BC's
+`start_procedure` handler, and Data BC's `register_distribution`
+handler via the `Kernel.supply_lookup` port. Reads the projection's
+`(supply_id, kind, name, status, facility_code)` columns; returns
+Supplies grouped by kind (Run + Operation), or per-supply-id
+(Data BC).
 
 ## Why query the projection (not the event store)
 
@@ -13,7 +15,9 @@ synchronous call to the upstream aggregate. `proj_supply_summary` is
 a denormalized cross-stream view maintained by the projection worker.
 The lookup adapter reads it directly via the shared asyncpg pool.
 
-## Query shape
+## Query shapes
+
+### find_supplies_by_kind (Run + Operation pre-flight gate)
 
 Single SELECT with a single ANY() match over the indexed `kind`
 column plus an explicit `Decommissioned` exclusion. The projection
@@ -24,10 +28,26 @@ UNIQUENESS, not from reads); this SELECT excludes them at read time
 so tombstoned Supplies do not contribute to gate satisfaction.
 
 ```sql
-SELECT supply_id, kind, name, status
+SELECT supply_id, kind, name, status, facility_code
 FROM proj_supply_summary
 WHERE kind = ANY($1) AND status != 'Decommissioned'
 ORDER BY kind, registered_at, supply_id
+```
+
+### lookup (Data BC register_distribution)
+
+Single SELECT by `supply_id` returning every status (including
+Decommissioned). The consumer's decider partitions on `status` if
+it needs to distinguish lifecycle states; register_distribution
+intentionally binds against any status so archival-only Supplies
+can carry Distributions. Mirrors `PostgresAssetLookup.lookup`
+shape.
+
+```sql
+SELECT supply_id, kind, name, status, facility_code
+FROM proj_supply_summary
+WHERE supply_id = $1
+LIMIT 1
 ```
 """
 
@@ -35,16 +55,24 @@ ORDER BY kind, registered_at, supply_id
 
 from collections.abc import Mapping
 from typing import Any
+from uuid import UUID
 
 import asyncpg
 
 from cora.infrastructure.ports.supply_lookup import SupplyReference
 
 _FIND_SUPPLIES_BY_KIND_SQL = """
-SELECT supply_id, kind, name, status
+SELECT supply_id, kind, name, status, facility_code
 FROM proj_supply_summary
 WHERE kind = ANY($1) AND status != 'Decommissioned'
 ORDER BY kind, registered_at, supply_id
+"""
+
+_LOOKUP_BY_ID_SQL = """
+SELECT supply_id, kind, name, status, facility_code
+FROM proj_supply_summary
+WHERE supply_id = $1
+LIMIT 1
 """
 
 
@@ -72,6 +100,13 @@ class PostgresSupplyLookup:
             grouped.setdefault(ref.kind, []).append(ref)
         return grouped
 
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(_LOOKUP_BY_ID_SQL, supply_id)
+        if row is None:
+            return None
+        return _row_to_reference(row)
+
 
 def _row_to_reference(row: Any) -> SupplyReference:
     return SupplyReference(
@@ -79,4 +114,5 @@ def _row_to_reference(row: Any) -> SupplyReference:
         kind=str(row["kind"]),
         name=str(row["name"]),
         status=str(row["status"]),
+        facility_code=str(row["facility_code"]),
     )

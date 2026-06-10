@@ -34,6 +34,7 @@ from cora.data.features import (
     list_datasets,
     promote_dataset,
     register_dataset,
+    register_distribution,
 )
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
@@ -52,6 +53,7 @@ class DataHandlers:
     demote_dataset: demote_dataset.Handler
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
+    register_distribution: register_distribution.IdempotentHandler
 
 
 def wire_data(deps: Kernel) -> DataHandlers:
@@ -97,5 +99,17 @@ def wire_data(deps: Kernel) -> DataHandlers:
             command_name="ListDatasets",
             bc=_BC,
             kind="query",
+        ),
+        register_distribution=with_tracing(
+            with_idempotency(
+                register_distribution.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterDistribution",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterDistribution",
+            bc=_BC,
         ),
     )

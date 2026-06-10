@@ -113,6 +113,19 @@
         "title": "AbortVisitRequest",
         "type": "object"
       },
+      "AccessProtocol": {
+        "description": "The Distribution's transport family.\n\nThe URI scheme implies the transport (s3://, https://, globus://,\nfile://, nfs://, oai-pmh://), but the operator-asserted enum is\nthe source of truth because not every URI string is parseable\ninto a clean scheme (custom file:// URIs sometimes carry POSIX\nsemantics implicitly). Closed StrEnum; widening is additive when\na new transport family's first adapter ships.\n\nMember name SCREAMING_SNAKE; string value PascalCase (or canonical\nform like ``OAI_PMH`` for OAI-PMH which is conventionally\nunderscore-bracketed).",
+        "enum": [
+          "HTTPS",
+          "Globus",
+          "S3",
+          "POSIX",
+          "NFS",
+          "OAI_PMH"
+        ],
+        "title": "AccessProtocol",
+        "type": "string"
+      },
       "ActorListResponse": {
         "description": "Page of actors plus opaque next-page cursor.\n\n`next_cursor` is None when no more pages. Pass it back as\n`?cursor=...` to fetch the next page.",
         "properties": {
@@ -5461,6 +5474,57 @@
         "title": "DismountSubjectRequest",
         "type": "object"
       },
+      "DistributionChecksumRequest": {
+        "description": "Bulk-content integrity hash on the registration request body.",
+        "properties": {
+          "algorithm": {
+            "description": "Checksum algorithm name. Only 'sha256' is accepted today; the field is structured for forward-compatible algorithm addition (BLAKE3, SHA3, etc.).",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "value": {
+            "description": "Canonical checksum value. For sha256: exactly 64 lowercase hex chars.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "value"
+        ],
+        "title": "DistributionChecksumRequest",
+        "type": "object"
+      },
+      "DistributionEncodingRequest": {
+        "description": "Structured encoding descriptor on the registration request body.",
+        "properties": {
+          "conforms_to": {
+            "description": "Profile URIs the Distribution claims to conform to (NeXus, OME-Zarr, CIF, etc.). Empty when no profile is claimed.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Conforms To",
+            "type": "array"
+          },
+          "media_type": {
+            "description": "Loose MIME-type-ish string describing the wire encoding (for example 'application/x-hdf5', 'application/x-zarr').",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_type"
+        ],
+        "title": "DistributionEncodingRequest",
+        "type": "object"
+      },
       "DrawingBody": {
         "description": "Wire format for a `Drawing` value object.",
         "properties": {
@@ -9976,6 +10040,75 @@
           "decision_id"
         ],
         "title": "RegisterDecisionResponse",
+        "type": "object"
+      },
+      "RegisterDistributionRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /distributions`.",
+        "properties": {
+          "access_protocol": {
+            "$ref": "#/components/schemas/AccessProtocol",
+            "description": "Transport family of the URI. Closed enum: HTTPS, Globus, S3, POSIX, NFS, OAI_PMH. Widening is additive when a new transport adapter ships."
+          },
+          "byte_size": {
+            "description": "Bulk content size in bytes. Zero is valid (empty Distribution of an empty Dataset). Must match the parent Dataset's byte_size.",
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum": {
+            "$ref": "#/components/schemas/DistributionChecksumRequest",
+            "description": "Bulk-content integrity hash (algorithm + value)."
+          },
+          "dataset_id": {
+            "description": "Identifier of the parent logical Dataset. Must resolve to a non-Discarded Dataset whose checksum + byte_size match the command's values (byte-identical-copy invariant).",
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "encoding": {
+            "$ref": "#/components/schemas/DistributionEncodingRequest",
+            "description": "Structured encoding descriptor (media_type + conforms_to profile URIs)."
+          },
+          "supply_id": {
+            "description": "Identifier of the storage-kind Supply hosting the bytes. Must resolve to a Supply with kind='Storage'; lifecycle status is not gated (Decommissioned Supplies accept new Distributions for archival completeness).",
+            "format": "uuid",
+            "title": "Supply Id",
+            "type": "string"
+          },
+          "uri": {
+            "description": "Opaque URI string pointing at the bulk content (s3://, file://, https://, globus://, etc.).",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "supply_id",
+          "uri",
+          "checksum",
+          "byte_size",
+          "encoding",
+          "access_protocol"
+        ],
+        "title": "RegisterDistributionRequest",
+        "type": "object"
+      },
+      "RegisterDistributionResponse": {
+        "description": "Response body for `POST /distributions`.",
+        "properties": {
+          "distribution_id": {
+            "format": "uuid",
+            "title": "Distribution Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "distribution_id"
+        ],
+        "title": "RegisterDistributionResponse",
         "type": "object"
       },
       "RegisterEnclosureRequest": {
@@ -23902,6 +24035,119 @@
         "summary": "Append a batch of AI-decider reasoning entries to a Decision's reasoning logbook (lazy open-on-first-write).",
         "tags": [
           "decision"
+        ]
+      }
+    },
+    "/distributions": {
+      "post": {
+        "operationId": "post_distributions_distributions_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Distribution.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Distribution.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDistributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterDistributionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed URI, non-sha256 or malformed checksum, negative byte_size, invalid encoding media_type, or invalid conforms_to entry."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-aggregate reference does not exist: dataset_id (same-BC) or supply_id (cross-BC via SupplyLookup)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Registration-time conflict: Dataset is Discarded, Supply kind is not 'Storage', or checksum / byte_size do not match the parent Dataset (byte-identical-copy invariant)."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Register a new Distribution",
+        "tags": [
+          "data"
         ]
       }
     },
