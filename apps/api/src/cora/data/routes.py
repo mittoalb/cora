@@ -67,6 +67,24 @@ from cora.data.aggregates.dataset import (
     LinkedSubjectNotFoundError,
     ProducingRunNotFoundError,
 )
+from cora.data.aggregates.distribution import (
+    DefaultStorageSupplyCodeUnsetError,
+    DefaultStorageSupplyKindMismatchError,
+    DefaultStorageSupplyNotAvailableError,
+    DefaultStorageSupplyNotFoundError,
+    DistributionAlreadyExistsError,
+    DistributionByteSizeMismatchError,
+    DistributionCannotRegisterOnDiscardedDatasetError,
+    DistributionCannotRegisterOnNonStorageSupplyError,
+    DistributionChecksumMismatchError,
+    DistributionSupplyNotFoundError,
+    InvalidAccessProtocolError,
+    InvalidDistributionByteSizeError,
+    InvalidDistributionChecksumError,
+    InvalidDistributionEncodingError,
+    InvalidDistributionUriError,
+    UnmappedDistributionUriSchemeError,
+)
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
     demote_dataset,
@@ -174,6 +192,21 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDemotionReasonError,
         # 12c validation guard: cardinality cap on AsShot citation set.
         InvalidUsedCalibrationsError,
+        # Distribution VO validation + lifespan-bootstrap fail-loud branches.
+        # All produce {"detail": str(exc)} 400 responses. The bootstrap
+        # classes are raised at app startup before any route opens; the
+        # registration here is defensive in case a test-harness exercises
+        # them via direct decider invocation.
+        InvalidDistributionUriError,
+        InvalidDistributionChecksumError,
+        InvalidDistributionByteSizeError,
+        InvalidDistributionEncodingError,
+        InvalidAccessProtocolError,
+        UnmappedDistributionUriSchemeError,
+        DefaultStorageSupplyCodeUnsetError,
+        DefaultStorageSupplyNotFoundError,
+        DefaultStorageSupplyKindMismatchError,
+        DefaultStorageSupplyNotAvailableError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -185,9 +218,14 @@ def register_data_routes(app: FastAPI) -> None:
         ProducingRunNotFoundError,
         LinkedSubjectNotFoundError,
         DerivedFromDatasetsNotFoundError,
+        # Distribution cross-BC not-found family.
+        DistributionSupplyNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (DatasetAlreadyExistsError,):
+    for already_exists_cls in (
+        DatasetAlreadyExistsError,
+        DistributionAlreadyExistsError,
+    ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for lineage_state_cls in (DerivedFromDatasetsDiscardedError,):
         app.add_exception_handler(lineage_state_cls, _handle_lineage_state_conflict)
@@ -204,6 +242,14 @@ def register_data_routes(app: FastAPI) -> None:
         # strict-not-idempotent re-demote rejection.
         DatasetCannotDemoteError,
         DatasetAlreadyRetractedError,
+        # Distribution registration-time guards: storage-kind requirement,
+        # Discarded-Dataset binding rejection, and the byte-identical-copy
+        # invariants (checksum + byte_size must match parent Dataset).
+        # All 409 with {"detail": str(exc)}.
+        DistributionCannotRegisterOnNonStorageSupplyError,
+        DistributionCannotRegisterOnDiscardedDatasetError,
+        DistributionChecksumMismatchError,
+        DistributionByteSizeMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)
