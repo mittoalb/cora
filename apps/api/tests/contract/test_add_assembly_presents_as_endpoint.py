@@ -54,7 +54,7 @@ def _create_imager_role(client: TestClient, app: FastAPI) -> UUID:
     response = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],

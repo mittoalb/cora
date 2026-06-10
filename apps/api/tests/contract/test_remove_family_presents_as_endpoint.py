@@ -23,7 +23,7 @@ def _seed_family_with_imager(client: TestClient, app: FastAPI) -> tuple[str, str
     role_resp = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],
@@ -80,7 +80,7 @@ def test_post_remove_presents_as_returns_409_when_role_not_advertised() -> None:
         role_resp = client.post(
             "/roles",
             json={
-                "name": "Imager",
+                "name": "Diagnostician",
                 "docstring": "Acquires 2D image frames.",
                 "required_affordances": ["Imageable"],
                 "optional_affordances": [],

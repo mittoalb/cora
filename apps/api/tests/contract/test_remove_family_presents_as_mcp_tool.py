@@ -19,7 +19,7 @@ def _seed_family_with_imager(client: TestClient, app: FastAPI) -> tuple[str, str
     role_resp = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],
@@ -91,7 +91,7 @@ def test_mcp_remove_family_presents_as_tool_returns_iserror_on_not_advertised() 
         role_resp = client.post(
             "/roles",
             json={
-                "name": "Imager",
+                "name": "Diagnostician",
                 "docstring": "Acquires 2D image frames.",
                 "required_affordances": ["Imageable"],
                 "optional_affordances": [],

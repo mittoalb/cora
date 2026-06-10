@@ -19,7 +19,7 @@ def _seed_family_and_role(client: TestClient, app: FastAPI) -> tuple[str, str]:
     role_resp = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],

@@ -7,12 +7,17 @@ import asyncpg
 import pytest
 
 from cora.equipment.aggregates.family import Affordance
+from cora.equipment.aggregates.role import SEED_ROLE_IMAGER_ID
 from cora.equipment.features import define_role
 from cora.equipment.features.define_role import DefineRole
 from tests.integration._helpers import build_postgres_deps
 
 _NOW = datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
-_NEW_ID = UUID("01900000-0000-7000-8000-00000074ca01")
+# The handler derives the stream_id deterministically from the name
+# (role_stream_id(RoleName("Imager")) = uuid5(_ROLE_NAMESPACE, "imager")
+# = SEED_ROLE_IMAGER_ID), so the returned id is the pinned seed id, not
+# an IdGenerator value. The generator supplies only the event_id.
+_NEW_ID = SEED_ROLE_IMAGER_ID
 _EVENT_ID = UUID("01900000-0000-7000-8000-00000074ca0e")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
@@ -22,7 +27,7 @@ _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
 async def test_define_role_persists_event_to_postgres(
     db_pool: asyncpg.Pool,
 ) -> None:
-    deps = build_postgres_deps(db_pool, now=_NOW, ids=[_NEW_ID, _EVENT_ID])
+    deps = build_postgres_deps(db_pool, now=_NOW, ids=[_EVENT_ID])
 
     role_id = await define_role.bind(deps)(
         DefineRole(

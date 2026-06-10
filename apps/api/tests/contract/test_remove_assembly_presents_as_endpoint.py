@@ -28,7 +28,7 @@ def _seed_assembly_with_role(client: TestClient, app: FastAPI) -> tuple[UUID, UU
     role_resp = client.post(
         "/roles",
         json={
-            "name": "Imager",
+            "name": "Diagnostician",
             "docstring": "Acquires 2D image frames.",
             "required_affordances": ["Imageable"],
             "optional_affordances": [],
