@@ -33,6 +33,7 @@ from cora.data.features import (
     get_dataset,
     list_datasets,
     promote_dataset,
+    record_attestation,
     register_dataset,
     register_distribution,
 )
@@ -54,6 +55,7 @@ class DataHandlers:
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
     register_distribution: register_distribution.IdempotentHandler
+    record_attestation: record_attestation.IdempotentHandler
 
 
 def wire_data(deps: Kernel) -> DataHandlers:
@@ -110,6 +112,18 @@ def wire_data(deps: Kernel) -> DataHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterDistribution",
+            bc=_BC,
+        ),
+        record_attestation=with_tracing(
+            with_idempotency(
+                record_attestation.bind(deps),
+                deps.idempotency_store,
+                command_name="RecordAttestation",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RecordAttestation",
             bc=_BC,
         ),
     )

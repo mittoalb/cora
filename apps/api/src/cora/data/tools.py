@@ -16,6 +16,7 @@ from cora.data.features.discard_dataset import tool as discard_dataset_tool
 from cora.data.features.get_dataset import tool as get_dataset_tool
 from cora.data.features.list_datasets import tool as list_datasets_tool
 from cora.data.features.promote_dataset import tool as promote_dataset_tool
+from cora.data.features.record_attestation import tool as record_attestation_tool
 from cora.data.features.register_dataset import tool as register_dataset_tool
 from cora.data.features.register_distribution import tool as register_distribution_tool
 from cora.data.wire import DataHandlers
@@ -54,4 +55,8 @@ def register_data_tools(
     register_distribution_tool.register(
         mcp,
         get_handler=lambda: get_handlers().register_distribution,
+    )
+    record_attestation_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().record_attestation,
     )
