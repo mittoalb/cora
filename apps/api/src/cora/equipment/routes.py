@@ -78,6 +78,7 @@ from cora.equipment.aggregates.asset import (
     AssetCannotRemoveFamilyError,
     AssetCannotRemovePortError,
     AssetCannotUpdatePartitionRuleError,
+    AssetFacilityCodeAlreadyAssignedError,
     AssetFacilityNotFoundError,
     AssetHasFixtureBindingError,
     AssetIsInstalledError,
@@ -183,6 +184,7 @@ from cora.equipment.features import (
     assign_asset_persistent_id,
     assign_fixture_persistent_id,
     attach_asset_to_fixture,
+    bind_asset_to_facility,
     decommission_asset,
     decommission_frame,
     decommission_mount,
@@ -442,6 +444,7 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(deprecate_assembly.router)
     app.include_router(register_fixture.router)
     app.include_router(attach_asset_to_fixture.router)
+    app.include_router(bind_asset_to_facility.router)
     app.include_router(detach_asset_from_fixture.router)
     app.include_router(assign_fixture_persistent_id.router)
     app.include_router(get_fixture.router)
@@ -535,6 +538,7 @@ def register_equipment_routes(app: FastAPI) -> None:
         AssetCannotAddAlternateIdentifierError,
         AssetOwnerAlreadyPresentError,
         AssetCannotAddOwnerError,
+        AssetFacilityCodeAlreadyAssignedError,
         AssetPersistentIdAlreadyAssignedError,
         AssetPersistentIdAssignmentForbiddenError,
         FixturePersistentIdAlreadyAssignedError,

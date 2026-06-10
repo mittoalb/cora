@@ -260,7 +260,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `model_id?`, `owners`, `occurred_at` | `register_asset` succeeds (genesis); optional `model_id` and seed `owners` may be carried |
+| `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `model_id?`, `facility_code?`, `owners`, `occurred_at` | `register_asset` succeeds (genesis); optional `model_id`, `facility_code`, and seed `owners` may be carried |
 | `AssetActivated` | `asset_id`, `occurred_at` | `activate_asset` succeeds |
 | `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_asset_maintenance` succeeds |
 | `AssetMaintenanceExited` | `asset_id`, `occurred_at` | `exit_asset_maintenance` succeeds |
@@ -280,6 +280,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 | `AssetAlternateIdentifierRemoved` | `asset_id`, `alternate_identifier`, `occurred_at` | `remove_asset_alternate_identifier` succeeds; payload carries the full removed VO for audit |
 | `AssetAttachedToFixture` | `asset_id`, `fixture_id`, `occurred_at` | `attach_asset_to_fixture` succeeds; sets the back-reference |
 | `AssetDetachedFromFixture` | `asset_id`, `previous_fixture_id`, `occurred_at` | `detach_asset_from_fixture` succeeds; clears the back-reference, carrying the prior id for audit |
+| `AssetFacilityCodeAssigned` | `asset_id`, `facility_code`, `occurred_at`, `assigned_by` | `bind_asset_to_facility` succeeds; sets the post-genesis Facility binding (set-once per Slice 8 Lock L2; rebind requires decommission + re-register) |
 
 ### Frame events
 
@@ -365,6 +366,7 @@ The seven aggregates expose fifty-four slices end to end.
 | `AddAssetAlternateIdentifier` | MODIFIED | `POST /assets/{asset_id}/add-alternate-identifier` | `add_asset_alternate_identifier` | none |
 | `RemoveAssetAlternateIdentifier` | MODIFIED | `POST /assets/{asset_id}/remove-alternate-identifier` | `remove_asset_alternate_identifier` | none |
 | `AttachAssetToFixture` | MODIFIED | `POST /assets/{asset_id}/attach-to-fixture` | `attach_asset_to_fixture` | none |
+| `BindAssetToFacility` | MODIFIED | `POST /assets/{asset_id}/bind-to-facility` | `bind_asset_to_facility` | none |
 | `DetachAssetFromFixture` | MODIFIED | `POST /assets/{asset_id}/detach-from-fixture` | `detach_asset_from_fixture` | none |
 | `GetAsset` | QUERY | `GET /assets/{asset_id}` | `get_asset` | none |
 | `GetAssetIntegrationView` | QUERY | `GET /assets/{asset_id}/integration-view` | `get_asset_integration_view` | none |
@@ -426,7 +428,7 @@ The seven aggregates expose fifty-four slices end to end.
 : `ModelNotFound`, `ModelCannotAddFamily` / `ModelCannotRemoveFamily`, `ModelFamilyAlreadyPresent` / `ModelFamilyNotPresent`, `FamilyNotFound` (add only), `Unauthorized`
 
 `RegisterAsset`
-: `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `ModelNotFound`, `AssetOwnerAlreadyPresent` (seed owners with duplicate names), `Unauthorized`
+: `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `ModelNotFound`, `AssetOwnerAlreadyPresent` (seed owners with duplicate names), `AssetFacilityNotFound` (facility_code supplied but the Facility is not visible in the Federation projection; Slice 8A binding), `Unauthorized`
 
 `ActivateAsset` / `EnterAssetMaintenance` / `ExitAssetMaintenance` / `DecommissionAsset`
 : `AssetNotFound`, `AssetCannot<Activate|EnterMaintenance|ExitMaintenance|Decommission>`, `Unauthorized`
@@ -451,6 +453,9 @@ The seven aggregates expose fifty-four slices end to end.
 
 `AttachAssetToFixture` / `DetachAssetFromFixture`
 : `AssetNotFound`, `FixtureNotFound` (attach only), `AssetAlreadyAttachedToFixture` (attach only), `AssetCannotAttachToFixture` (attach only, Asset is Decommissioned), `AssetNotBoundInFixture` (attach only, Asset is not listed in the Fixture's slot bindings), `AssetNotAttachedToFixture` (detach only), `AssetAttachedToDifferentFixture` (detach only, defensive id mismatch), `Unauthorized`
+
+`BindAssetToFacility`
+: `AssetNotFound`, `AssetFacilityNotFound` (facility_code supplied but the Facility is not visible in the Federation projection), `AssetFacilityCodeAlreadyAssigned` (set-once per Slice 8 Lock L2: the target Asset already carries a facility_code from register_asset genesis OR a prior bind_asset_to_facility call; rebind path is decommission + re-register), `Unauthorized`
 
 `RegisterFrame` / `UpdateFramePlacement` / `DecommissionFrame`
 : `FrameAlreadyExists` (register only), `FrameNotFound` (update / decommission), `FrameCannotSupersede` (register only, supersedes pointer not in Active), `InvalidFrameRoot` (register or update; root Frame placement / parent constraint), `FrameCannotUpdate` (Decommissioned), `FrameCannotDecommission` (Decommissioned), `FrameInUse` (decommission only, active consumers exist), `Unauthorized`

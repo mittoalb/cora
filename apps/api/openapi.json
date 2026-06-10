@@ -1582,6 +1582,24 @@
         "title": "AttachAssetToFixtureRequest",
         "type": "object"
       },
+      "BindAssetToFacilityRequest": {
+        "description": "Body for `POST /assets/{asset_id}/bind-to-facility`.",
+        "properties": {
+          "facility_code": {
+            "description": "Cross-deployment Facility slug (for example 'aps', 'maxiv'). Lowercase ASCII alphanumeric plus dash, 1-32 chars. The handler resolves the slug via the Federation BC's FacilityLookup port; unknown codes raise HTTP 404. Decommissioned-Facility binding is allowed.",
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "title": "Facility Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "facility_code"
+        ],
+        "title": "BindAssetToFacilityRequest",
+        "type": "object"
+      },
       "BindPlanRoleRequest": {
         "description": "Body for `POST /plans/{plan_id}/bind-role`.",
         "properties": {
@@ -17082,6 +17100,96 @@
           }
         },
         "summary": "Bind an existing Asset to a registered Fixture",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assets/{asset_id}/bind-to-facility": {
+      "post": {
+        "operationId": "post_assets_bind_to_facility_assets__asset_id__bind_to_facility_post",
+        "parameters": [
+          {
+            "description": "Target Asset's id.",
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "description": "Target Asset's id.",
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindAssetToFacilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Either the Asset does not exist (AssetNotFoundError) OR facility_code does not resolve to a Facility row in the Federation projection (AssetFacilityNotFoundError). Operator remedies: register the missing parent first (`POST /federation/facilities`), or correct the slug."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Asset is already bound to a Facility (AssetFacilityCodeAlreadyAssignedError; set-once per Slice 8 Lock L2; rebind requires decommission + re-register)."
+          },
+          "422": {
+            "description": "Request body failed schema validation (missing field, malformed facility_code, regex violation)."
+          }
+        },
+        "summary": "Bind an existing Asset to its owning Federation Facility (set-once)",
         "tags": [
           "equipment"
         ]

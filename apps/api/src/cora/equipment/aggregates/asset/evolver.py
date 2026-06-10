@@ -27,6 +27,9 @@ Lifecycle mapping per event type:
     into owners frozenset)
   - `AssetOwnerRemoved`            -> (lifecycle UNCHANGED; removes owner
     matching name from owners frozenset)
+  - `AssetFacilityCodeAssigned`    -> (lifecycle UNCHANGED;
+    facility_code -> event.facility_code, set-once per
+    [[project-slice8-design]] L2)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -104,6 +107,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetDegraded,
     AssetDetachedFromFixture,
     AssetEvent,
+    AssetFacilityCodeAssigned,
     AssetFamilyAdded,
     AssetFamilyRemoved,
     AssetFaulted,
@@ -863,6 +867,39 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
                 facility_code=prior.facility_code,
+                tier=prior.tier,
+            )
+        case AssetFacilityCodeAssigned(facility_code=facility_code):
+            # Set-once binding: the decider's
+            # AssetFacilityCodeAlreadyAssignedError enforces "must be
+            # None at command time", so this evolver arm always
+            # transitions None -> Some(facility_code). Every other
+            # field carries from prior state (single-field mutation,
+            # mirrors AssetPersistentIdAssigned).
+            prior = require_state(state, "AssetFacilityCodeAssigned")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                family_ids=prior.family_ids,
+                settings=prior.settings,
+                ports=prior.ports,
+                drawing=prior.drawing,
+                model_id=prior.model_id,
+                alternate_identifiers=prior.alternate_identifiers,
+                owners=prior.owners,
+                fixture_id=prior.fixture_id,
+                partition_rule=prior.partition_rule,
+                commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
+                decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
+                persistent_id=prior.persistent_id,
+                controller_id=prior.controller_id,
+                facility_code=facility_code,
                 tier=prior.tier,
             )
         case _:  # pragma: no cover  # exhaustiveness guard

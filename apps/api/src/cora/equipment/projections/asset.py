@@ -222,6 +222,13 @@ SET persistent_id = jsonb_build_object(
 WHERE asset_id = $1
 """
 
+_UPDATE_FACILITY_CODE_ASSIGNED_SQL = """
+UPDATE proj_equipment_asset_summary
+SET facility_code = $2::text,
+    updated_at = now()
+WHERE asset_id = $1
+"""
+
 
 class AssetSummaryProjection:
     """Maintains the `proj_equipment_asset_summary` read model."""
@@ -246,6 +253,7 @@ class AssetSummaryProjection:
             "AssetAttachedToFixture",
             "AssetDetachedFromFixture",
             "AssetPartitionRuleUpdated",
+            "AssetFacilityCodeAssigned",
         }
     )
 
@@ -370,6 +378,17 @@ class AssetSummaryProjection:
                     _UPDATE_PARTITION_RULE_KIND_SQL,
                     UUID(event.payload["asset_id"]),
                     kind,
+                )
+            case "AssetFacilityCodeAssigned":
+                # Slice 8C: post-genesis bind_asset_to_facility writes
+                # the facility_code column. AssetRegistered.facility_code
+                # already populates the column at genesis; this event
+                # covers the post-genesis assignment path. Set-once
+                # invariant enforced at the aggregate layer.
+                await conn.execute(
+                    _UPDATE_FACILITY_CODE_ASSIGNED_SQL,
+                    UUID(event.payload["asset_id"]),
+                    event.payload["facility_code"],
                 )
             case _:
                 pass

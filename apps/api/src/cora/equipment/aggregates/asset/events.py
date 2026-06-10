@@ -479,6 +479,39 @@ class AssetOwnerRemoved:
 
 
 @dataclass(frozen=True)
+class AssetFacilityCodeAssigned:
+    """A facility_code (cross-BC binding to a Federation Facility) was
+    assigned to an Asset post-genesis via the bind_asset_to_facility
+    slice.
+
+    Set-once at the aggregate level: the decider's
+    `AssetFacilityCodeAlreadyAssignedError` enforces "must currently be
+    absent" at command time, so the stream can contain AT MOST ONE
+    `AssetFacilityCodeAssigned` event per Asset (the `register_asset`
+    genesis path can also pre-assign via `AssetRegistered.facility_code`;
+    in that case `bind_asset_to_facility` is rejected as already-set).
+
+    The typed `FacilityCode` VO travels in the payload as the bare
+    `.value` string on disk per the Permit / Credential / Seal wire
+    convention; `from_stored` re-wraps with `FacilityCode(...)` inside
+    `deserialize_or_raise` with
+    `extra=(InvalidFacilityCodeError, ValueError)` so malformed slugs
+    in stored events surface as `Malformed AssetFacilityCodeAssigned
+    payload` rather than silently passing the VO's
+    `InvalidFacilityCodeError` upstream.
+
+    `occurred_at` + `assigned_by` carry the fold-symmetry attribution
+    pair: every transversal-time fact is paired with a transversal-
+    attribution fact (`assigned_by: ActorId`).
+    """
+
+    asset_id: UUID
+    facility_code: FacilityCode
+    occurred_at: datetime
+    assigned_by: ActorId
+
+
+@dataclass(frozen=True)
 class AssetPersistentIdAssigned:
     """A persistent identifier (PIDINST v1.0 Property 1) was assigned to an Asset.
 
@@ -641,6 +674,7 @@ AssetEvent = (
     | AssetPersistentIdAssigned
     | AssetAttachedToFixture
     | AssetDetachedFromFixture
+    | AssetFacilityCodeAssigned
 )
 
 
@@ -922,6 +956,18 @@ def to_payload(event: AssetEvent) -> dict[str, Any]:
                 "asset_id": str(asset_id),
                 "fixture_id": str(fixture_id),
                 "occurred_at": occurred_at.isoformat(),
+            }
+        case AssetFacilityCodeAssigned(
+            asset_id=asset_id,
+            facility_code=facility_code,
+            occurred_at=occurred_at,
+            assigned_by=assigned_by,
+        ):
+            return {
+                "asset_id": str(asset_id),
+                "facility_code": facility_code.value,
+                "occurred_at": occurred_at.isoformat(),
+                "assigned_by": str(assigned_by),
             }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
@@ -1208,6 +1254,17 @@ def from_stored(stored: StoredEvent) -> AssetEvent:
                     occurred_at=datetime.fromisoformat(payload["occurred_at"]),
                 ),
             )
+        case "AssetFacilityCodeAssigned":
+            return deserialize_or_raise(
+                "AssetFacilityCodeAssigned",
+                lambda: AssetFacilityCodeAssigned(
+                    asset_id=UUID(payload["asset_id"]),
+                    facility_code=FacilityCode(payload["facility_code"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    assigned_by=ActorId(UUID(payload["assigned_by"])),
+                ),
+                extra=(InvalidFacilityCodeError, ValueError),
+            )
         case _:
             msg = f"Unknown AssetEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -1222,6 +1279,7 @@ __all__ = [
     "AssetDegraded",
     "AssetDetachedFromFixture",
     "AssetEvent",
+    "AssetFacilityCodeAssigned",
     "AssetFamilyAdded",
     "AssetFamilyRemoved",
     "AssetFaulted",

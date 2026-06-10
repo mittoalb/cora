@@ -67,6 +67,7 @@ def test_projection_metadata() -> None:
             "AssetAttachedToFixture",
             "AssetDetachedFromFixture",
             "AssetPartitionRuleUpdated",
+            "AssetFacilityCodeAssigned",
         }
     )
 

@@ -775,6 +775,29 @@ class AssetNotFoundError(Exception):
         self.asset_id = asset_id
 
 
+class AssetFacilityCodeAlreadyAssignedError(Exception):
+    """`bind_asset_to_facility` attempted to bind an Asset already
+    bound to a Facility.
+
+    Set-once at the aggregate level per [[project-slice8-design]] L2:
+    `Asset.facility_code` is captured ONCE (either at `register_asset`
+    or at `bind_asset_to_facility`), never rebound in place. Re-issuing
+    the slice on an Asset whose `facility_code` is already non-None
+    raises this error (HTTP 409). Operator remedy: decommission the
+    Asset + re-register with the desired `facility_code` (mirrors the
+    Asset.model_id Lock A rebind precedent).
+    """
+
+    def __init__(self, asset_id: UUID, current_facility_code: FacilityCode) -> None:
+        super().__init__(
+            f"Asset {asset_id} is already bound to Facility "
+            f"{current_facility_code.value!r}; rebind requires "
+            f"decommission + re-register"
+        )
+        self.asset_id = asset_id
+        self.current_facility_code = current_facility_code
+
+
 class AssetFacilityNotFoundError(Exception):
     """`register_asset` referenced a Facility code with no projection row.
 
