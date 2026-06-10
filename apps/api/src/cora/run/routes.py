@@ -25,7 +25,7 @@ InvalidRunInterruptedAtError).
   - 400 (validation): InvalidRunNameError, InvalidRunAbortReasonError,
     InvalidRunStopReasonError, InvalidRunTruncateReasonError,
     InvalidRunInterruptedAtError, InvalidRunParametersError,
-    InvalidChannelNameError, InvalidReadingValueError,
+    InvalidChannelNameError, InvalidObservationValueError,
     InvalidSamplingProcedureError, InvalidRunExternalRefError
   - 404 (load miss): RunNotFoundError
   - 409 (defensive guard for AlreadyExists): RunAlreadyExistsError
@@ -41,7 +41,7 @@ InvalidRunInterruptedAtError).
   - 409 (Run transition guards, 6f-3): RunCannotHoldError,
     RunCannotResumeError, RunCannotStopError
   - 409 (Run transition guards, 6f-4): RunCannotTruncateError
-  - 409 (reading logbook guard, 6f-5b): RunReadingLogbookClosedError
+  - 409 (observation logbook guard, 6f-5b): RunObservationLogbookClosedError
   - 400 (Run adjust validation guards, 6j): InvalidRunAdjustPatchError,
     InvalidRunAdjustSchemaError, InvalidRunAdjustReasonError
   - 409 (Run adjust transition guard, 6j): RunCannotAdjustError
@@ -53,8 +53,8 @@ from fastapi.responses import JSONResponse
 
 from cora.run.aggregates.run import (
     InvalidChannelNameError,
+    InvalidObservationValueError,
     InvalidPinnedCalibrationsError,
-    InvalidReadingValueError,
     InvalidRunAbortReasonError,
     InvalidRunAdjustPatchError,
     InvalidRunAdjustReasonError,
@@ -79,11 +79,13 @@ from cora.run.aggregates.run import (
     RunCannotTruncateError,
     RunCapabilitiesNotSatisfiedError,
     RunClearanceCoverageMismatchError,
+    RunEnclosureCoverageMismatchError,
     RunNotFoundError,
+    RunObservationLogbookClosedError,
     RunPlanAssetDecommissionedError,
-    RunReadingLogbookClosedError,
     RunRequiresActiveClearanceError,
     RunRequiresAvailableSupplyError,
+    RunRequiresPermittedEnclosureError,
     RunSubjectNotMountableError,
     RunSupplyCoverageMismatchError,
 )
@@ -91,7 +93,7 @@ from cora.run.errors import UnauthorizedError
 from cora.run.features import (
     abort_run,
     adjust_run,
-    append_run_readings,
+    append_observations,
     complete_run,
     get_run,
     hold_run,
@@ -169,7 +171,7 @@ def register_run_routes(app: FastAPI) -> None:
     app.include_router(stop_run.router)
     app.include_router(truncate_run.router)
     app.include_router(adjust_run.router)
-    app.include_router(append_run_readings.router)
+    app.include_router(append_observations.router)
     app.include_router(get_run.router)
     app.include_router(list_runs.router)
     for validation_cls in (
@@ -181,7 +183,7 @@ def register_run_routes(app: FastAPI) -> None:
         InvalidRunParametersError,
         # Reading-entry validation guards (6f-5b).
         InvalidChannelNameError,
-        InvalidReadingValueError,
+        InvalidObservationValueError,
         InvalidSamplingProcedureError,
         # ExternalRef validation guard (11a-c-3).
         InvalidRunExternalRefError,
@@ -210,6 +212,10 @@ def register_run_routes(app: FastAPI) -> None:
         # Run-start supply pre-flight gate.
         RunRequiresAvailableSupplyError,
         RunSupplyCoverageMismatchError,
+        # Run-start enclosure pre-flight gate per
+        # [[project_enclosure_stage1_design]] L-pre-1.
+        RunRequiresPermittedEnclosureError,
+        RunEnclosureCoverageMismatchError,
         # Run-start campaign-membership gate (6i-c).
         RunCannotJoinCampaignError,
         # Run-side campaign-membership invariant (6i-c).
@@ -224,7 +230,7 @@ def register_run_routes(app: FastAPI) -> None:
         # Run transition guards (6f-4).
         RunCannotTruncateError,
         # Reading logbook closed (6f-5b): Run is in a terminal status.
-        RunReadingLogbookClosedError,
+        RunObservationLogbookClosedError,
         # Run adjust transition guard (6j).
         RunCannotAdjustError,
     ):

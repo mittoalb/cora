@@ -21,7 +21,7 @@ persistence-envelope construction (`NewEvent`) lives at
     additive on the same triggers documented at
     `InvalidProcedureAbortReasonError`).
 
-`ProcedureStepsLogbookOpened` is the lazy envelope event for the
+`ProcedureActivitiesLogbookOpened` is the lazy envelope event for the
 per-step logbook table. `ProcedureTruncated` mirrors RunTruncated.
 `ProcedureHeld` / `ProcedureResumed` are deferred until the pilot
 needs the surface.
@@ -110,8 +110,8 @@ class RecipeExpansionRecorded:
     Captures the template-invocation grain provenance per the design
     lock ([[project-recipe-aggregate-design]]): one event per Recipe
     invocation, NOT one per expanded step. Per-step records live in
-    `entries_operation_procedure_steps` via the existing
-    `append_procedure_steps` handler; this event lifts the binding
+    `entries_operation_procedure_activities` via the existing
+    `append_activities` handler; this event lifts the binding
     context above the per-step granularity so PROV-O / 21 CFR Part 11
     audit trails point at the activity that produced the entity, not
     at every intermediate state.
@@ -191,36 +191,36 @@ class ProcedureCompleted:
 
 
 @dataclass(frozen=True)
-class ProcedureStepsLogbookOpened:
+class ProcedureActivitiesLogbookOpened:
     """A steps logbook was attached to this Procedure.
 
     Naming note: this event carries the entry-noun (`Steps`) in its name,
     vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Same rationale
-    as Run BC's `RunReadingLogbookOpened`: Procedure is planned to host
+    as Run BC's `RunObservationLogbookOpened`: Procedure is planned to host
     multiple logbook kinds in the future (operator-action audit, hazard
     observations are likely future additions), so the event name carries
     the entry-noun discriminator upfront. Per
     [[project_logbook_entry_storage]] cross-BC family table.
 
-    Lazy open-on-first-write: emitted by the `append_procedure_steps`
+    Lazy open-on-first-write: emitted by the `append_activities`
     handler the first time a step is appended for this Procedure, NOT by
     `start_procedure` (mirrors Decision BC's precedent for
     `DecisionLogbookOpened` and Run BC's precedent for
-    `RunReadingLogbookOpened`). Subsequent appends find the logbook
+    `RunObservationLogbookOpened`). Subsequent appends find the logbook
     already attached and skip the open-event emission.
 
     `kind` discriminates the logbook category. Today only
-    `LOGBOOK_KIND_STEPS` from state.py; future per-Procedure logbook
+    `LOGBOOK_KIND_ACTIVITY` from state.py; future per-Procedure logbook
     kinds (operator-action audit, hazard) would use distinct constants
     and distinct state fields, not additional values for `kind` here.
 
-    `schema` declares the row shape of `entries_operation_procedure_steps`,
+    `schema` declares the row shape of `entries_operation_procedure_activities`,
     documenting the polymorphic `(step_kind, payload, sampled_at,
     occurred_at, recorded_at)` shape for downstream projections.
 
     No `ProcedureStepsLogbookClosed` event today: Procedure.status
     terminals (Completed | Aborted | Truncated) are the implicit close
-    signal; `append_procedure_steps` rejects writes when status is not
+    signal; `append_activities` rejects writes when status is not
     Running via `ProcedureStepsLogbookClosedError`. Audit fidelity is
     preserved: the open event timestamps the logbook lifecycle start;
     the terminal ProcedureCompleted / ProcedureAborted / etc. event
@@ -290,7 +290,7 @@ class ProcedureAborted:
 
 # Discriminated union of every event the Procedure aggregate emits.
 # The FSM is closed by the three transition events; the per-step
-# logbook envelope event `ProcedureStepsLogbookOpened` opens lazily
+# logbook envelope event `ProcedureActivitiesLogbookOpened` opens lazily
 # on first append.
 ProcedureEvent = (
     ProcedureRegistered
@@ -298,7 +298,7 @@ ProcedureEvent = (
     | ProcedureCompleted
     | ProcedureAborted
     | ProcedureTruncated
-    | ProcedureStepsLogbookOpened
+    | ProcedureActivitiesLogbookOpened
     | RecipeExpansionRecorded
 )
 
@@ -374,7 +374,7 @@ def to_payload(event: ProcedureEvent) -> dict[str, Any]:
                 "interrupted_at": interrupted_at_iso,
                 "occurred_at": occurred_at.isoformat(),
             }
-        case ProcedureStepsLogbookOpened(
+        case ProcedureActivitiesLogbookOpened(
             procedure_id=procedure_id,
             logbook_id=logbook_id,
             kind=kind,
@@ -507,10 +507,10 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
                 )
 
             return deserialize_or_raise("ProcedureTruncated", _build_truncated)
-        case "ProcedureStepsLogbookOpened":
+        case "ProcedureActivitiesLogbookOpened":
             return deserialize_or_raise(
-                "ProcedureStepsLogbookOpened",
-                lambda: ProcedureStepsLogbookOpened(
+                "ProcedureActivitiesLogbookOpened",
+                lambda: ProcedureActivitiesLogbookOpened(
                     procedure_id=UUID(payload["procedure_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     kind=payload["kind"],
@@ -543,11 +543,11 @@ def from_stored(stored: StoredEvent) -> ProcedureEvent:
 
 __all__ = [
     "ProcedureAborted",
+    "ProcedureActivitiesLogbookOpened",
     "ProcedureCompleted",
     "ProcedureEvent",
     "ProcedureRegistered",
     "ProcedureStarted",
-    "ProcedureStepsLogbookOpened",
     "ProcedureTruncated",
     "RecipeExpansionRecorded",
     "event_type_name",

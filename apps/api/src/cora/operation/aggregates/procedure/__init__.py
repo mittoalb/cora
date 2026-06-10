@@ -6,23 +6,23 @@ state and event types.
 
 Public surface: VOs + errors + events (genesis +
 start/complete/abort/truncate + steps lazy-open envelope) + evolver +
-load_procedure + per-step logbook entries (StepStore port +
-InMemory + Postgres adapters + ProcedureStep dataclass) + projection.
+load_procedure + per-step logbook entries (ActivityStore port +
+InMemory + Postgres adapters + Activity dataclass) + projection.
 """
 
 from cora.operation.aggregates.procedure.entries import (
-    InMemoryStepStore,
-    PostgresStepStore,
-    ProcedureStep,
-    StepStore,
+    Activity,
+    ActivityStore,
+    InMemoryActivityStore,
+    PostgresActivityStore,
 )
 from cora.operation.aggregates.procedure.events import (
     ProcedureAborted,
+    ProcedureActivitiesLogbookOpened,
     ProcedureCompleted,
     ProcedureEvent,
     ProcedureRegistered,
     ProcedureStarted,
-    ProcedureStepsLogbookOpened,
     ProcedureTruncated,
     RecipeExpansionRecorded,
     event_type_name,
@@ -35,7 +35,7 @@ from cora.operation.aggregates.procedure.read import (
     load_procedure_with_events,
 )
 from cora.operation.aggregates.procedure.state import (
-    LOGBOOK_KIND_STEPS,
+    LOGBOOK_KIND_ACTIVITY,
     PROCEDURE_ABORT_REASON_MAX_LENGTH,
     PROCEDURE_KIND_MAX_LENGTH,
     PROCEDURE_NAME_MAX_LENGTH,
@@ -59,10 +59,12 @@ from cora.operation.aggregates.procedure.state import (
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
     ProcedureCapabilityExecutorMismatchError,
+    ProcedureEnclosureCoverageMismatchError,
     ProcedureName,
     ProcedureNotFoundError,
     ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
+    ProcedureRequiresPermittedEnclosureError,
     ProcedureStatus,
     ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
@@ -78,7 +80,7 @@ from cora.operation.aggregates.procedure.state import (
 )
 
 __all__ = [
-    "LOGBOOK_KIND_STEPS",
+    "LOGBOOK_KIND_ACTIVITY",
     "PROCEDURE_ABORT_REASON_MAX_LENGTH",
     "PROCEDURE_KIND_MAX_LENGTH",
     "PROCEDURE_NAME_MAX_LENGTH",
@@ -86,7 +88,9 @@ __all__ = [
     "RECIPE_EXPANSION_STEP_MAX",
     "STEPS_LOGBOOK_SCHEMA",
     "STEP_KIND_VALUES",
-    "InMemoryStepStore",
+    "Activity",
+    "ActivityStore",
+    "InMemoryActivityStore",
     "InvalidProcedureAbortReasonError",
     "InvalidProcedureInterruptedAtError",
     "InvalidProcedureKindError",
@@ -94,10 +98,11 @@ __all__ = [
     "InvalidProcedureTruncateReasonError",
     "InvalidRecipeBindingsError",
     "InvalidStepKindError",
-    "PostgresStepStore",
+    "PostgresActivityStore",
     "Procedure",
     "ProcedureAbortReason",
     "ProcedureAborted",
+    "ProcedureActivitiesLogbookOpened",
     "ProcedureAlreadyExistsError",
     "ProcedureBoundCapabilityDeprecatedError",
     "ProcedureCannotAbortError",
@@ -106,18 +111,18 @@ __all__ = [
     "ProcedureCannotTruncateError",
     "ProcedureCapabilityExecutorMismatchError",
     "ProcedureCompleted",
+    "ProcedureEnclosureCoverageMismatchError",
     "ProcedureEvent",
     "ProcedureName",
     "ProcedureNotFoundError",
     "ProcedurePlanAssetDecommissionedError",
     "ProcedureRegistered",
     "ProcedureRequiresAvailableSupplyError",
+    "ProcedureRequiresPermittedEnclosureError",
     "ProcedureStarted",
     "ProcedureStatus",
-    "ProcedureStep",
     "ProcedureStepsForbiddenForRecipeDrivenError",
     "ProcedureStepsLogbookClosedError",
-    "ProcedureStepsLogbookOpened",
     "ProcedureSupplyCoverageMismatchError",
     "ProcedureTruncateReason",
     "ProcedureTruncated",
@@ -129,7 +134,6 @@ __all__ = [
     "RecipeExpansionRecorded",
     "RecipeExpansionReplayMismatchError",
     "StepKind",
-    "StepStore",
     "event_type_name",
     "evolve",
     "fold",

@@ -3,7 +3,7 @@
 Per ISA-99, a Conduit is a governed communications path between two
 Zones. Each Conduit has its own SL-T (Security Level Target) and an
 agreed contract describing what may flow through it; runtime
-traversal events accumulate against the Conduit's traversals
+verdict events accumulate against the Conduit's verdicts
 observation logbook.
 
 Conduit is intentionally minimal: `id` + `name` + the two endpoint
@@ -13,7 +13,7 @@ pattern as Zone — fields default in the evolver when added.
 
 **Logbook state**: `logbooks: dict[str, UUID]` maps logbook kind →
 currently-open logbook id for each observation logbook attached to
-this Conduit. The traversals logbook is opened automatically at
+this Conduit. The verdict logbook is opened automatically at
 conduit-creation (gate-review locked: per-Conduit logbook scoping).
 The state encodes the
 **at-most-one-open-per-kind invariant** directly — opening a second
@@ -56,11 +56,11 @@ from cora.shared.bounded_text import bounded_name
 CONDUIT_NAME_MAX_LENGTH = 200
 
 # Logbook-kind discriminators. Each kind names a category of
-# observation a Conduit can attach. Today: just traversals (per-
+# observation a Conduit can attach. Today: just verdicts (per-
 # decision authorization audit log). Future kinds (for example,
 # rate-limit-events, schema-violations) follow the same naming
 # convention: snake_case, plural noun, domain-meaningful.
-LOGBOOK_KIND_TRAVERSALS: Final = "traversals"
+LOGBOOK_KIND_VERDICT: Final = "verdict"
 
 
 class InvalidConduitNameError(ValueError):

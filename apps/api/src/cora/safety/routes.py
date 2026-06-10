@@ -29,6 +29,7 @@ from cora.safety.aggregates.clearance import (
     ClearanceCannotRejectError,
     ClearanceCannotStartReviewError,
     ClearanceCannotSubmitError,
+    ClearanceFacilityNotFoundError,
     ClearanceNotFoundError,
     InvalidClearanceBindingsError,
     InvalidClearanceDeclarationTargetError,
@@ -44,19 +45,40 @@ from cora.safety.aggregates.clearance import (
     InvalidClearanceTitleError,
     InvalidClearanceValidityWindowError,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateAlreadyExistsError,
+    ClearanceTemplateCannotActivateError,
+    ClearanceTemplateCannotDeprecateError,
+    ClearanceTemplateCannotVersionError,
+    ClearanceTemplateCannotWithdrawError,
+    ClearanceTemplateFacilityMismatchError,
+    ClearanceTemplateFacilityNotFoundError,
+    ClearanceTemplateNotBindableError,
+    ClearanceTemplateNotFoundError,
+    InvalidClearanceTemplateCodeError,
+    InvalidClearanceTemplateTitleError,
+    InvalidClearanceTemplateVersionError,
+)
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import (
     activate_clearance,
+    activate_clearance_template,
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    define_clearance_template,
+    deprecate_clearance_template,
     expire_clearance,
     get_clearance,
+    get_clearance_template,
+    list_clearance_templates,
     list_clearances,
     register_clearance,
     reject_clearance,
     start_clearance_review,
     submit_clearance,
+    version_clearance_template,
+    withdraw_clearance_template,
 )
 from cora.shared.identifier import InvalidIdentifierError
 
@@ -129,6 +151,14 @@ def register_safety_routes(app: FastAPI) -> None:
     # 11a-c-2 terminal slices
     app.include_router(expire_clearance.router)
     app.include_router(amend_clearance.router)
+    # ClearanceTemplate slices
+    app.include_router(define_clearance_template.router)
+    app.include_router(get_clearance_template.router)
+    app.include_router(list_clearance_templates.router)
+    app.include_router(activate_clearance_template.router)
+    app.include_router(version_clearance_template.router)
+    app.include_router(deprecate_clearance_template.router)
+    app.include_router(withdraw_clearance_template.router)
     for validation_cls in (
         InvalidClearanceTitleError,
         InvalidClearanceBindingsError,
@@ -144,11 +174,22 @@ def register_safety_routes(app: FastAPI) -> None:
         InvalidClearanceReviewStepIndexError,
         InvalidClearanceRejectReasonError,
         InvalidClearanceExpireReasonError,
+        InvalidClearanceTemplateCodeError,
+        InvalidClearanceTemplateTitleError,
+        InvalidClearanceTemplateVersionError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (ClearanceNotFoundError,):
+    for not_found_cls in (
+        ClearanceNotFoundError,
+        ClearanceFacilityNotFoundError,
+        ClearanceTemplateNotFoundError,
+        ClearanceTemplateFacilityNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (ClearanceAlreadyExistsError,):
+    for already_exists_cls in (
+        ClearanceAlreadyExistsError,
+        ClearanceTemplateAlreadyExistsError,
+    ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         ClearanceCannotSubmitError,
@@ -159,6 +200,12 @@ def register_safety_routes(app: FastAPI) -> None:
         ClearanceCannotActivateError,
         ClearanceCannotExpireError,
         ClearanceCannotAmendError,
+        ClearanceTemplateCannotActivateError,
+        ClearanceTemplateCannotDeprecateError,
+        ClearanceTemplateCannotVersionError,
+        ClearanceTemplateCannotWithdrawError,
+        ClearanceTemplateFacilityMismatchError,
+        ClearanceTemplateNotBindableError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

@@ -88,6 +88,7 @@ from uuid import UUID
 from cora.equipment.aggregates._drawing import Drawing
 from cora.equipment.aggregates._partition_rule import PartitionRule
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identifier import (
     AlternateIdentifier,
     AlternateIdentifierKind,
@@ -117,6 +118,28 @@ class AssetLevel(StrEnum):
     is allowed when reality demands it (smart instruments). Levels
     are conventional, not enforced: the decider does not check that
     a Device's parent is a Component.
+
+    ## Upper tiers DEPRECATED in favor of facility_code + AssetTier
+
+    Per [[project-slice8-design]] L4: the upper tiers
+    `ENTERPRISE` / `SITE` / `AREA` are DEPRECATED. New Assets that
+    represent facility-envelope concerns should bind to the owning
+    Federation Facility via `Asset.facility_code` (Slice 8A binding,
+    shipped 2026-06-09) rather than carry an upper-tier level. The
+    lower tiers `UNIT` / `COMPONENT` / `DEVICE` continue to carry an
+    honest intrinsic-tier meaning and are exposed as the closed
+    `AssetTier` StrEnum (Slice 8B, shipped 2026-06-10) for cross-BC
+    consumers that need the intrinsic facet without the facility-
+    envelope ambiguity.
+
+    The architecture fitness test
+    `tests/architecture/test_asset_level_upper_tier_deprecated.py`
+    rejects new occurrences of `AssetLevel.ENTERPRISE` /
+    `AssetLevel.SITE` / `AssetLevel.AREA` in `cora/equipment/`,
+    `cora/run/`, and `cora/operation/` source trees outside an
+    explicit allowlist (enum definition + parent-id-null invariant +
+    evolver case arms + canonical APS facility fixture). Post-pilot,
+    a forward-only migration drops the deprecated members entirely.
     """
 
     ENTERPRISE = "Enterprise"
@@ -125,6 +148,63 @@ class AssetLevel(StrEnum):
     UNIT = "Unit"
     COMPONENT = "Component"
     DEVICE = "Device"
+
+
+class AssetTier(StrEnum):
+    """The intrinsic operational tier of an Asset.
+
+    Per [[project-slice8-design]] L3 + L9: the lower three
+    `AssetLevel` values graduate to a separate closed StrEnum that
+    carries an honest intrinsic meaning (does this Asset model an
+    operational unit, a composed sub-system, or an addressable
+    control surface?), orthogonal to the structural Facility
+    binding. The upper three AssetLevel values
+    (ENTERPRISE / SITE / AREA) are deprecated by
+    `Asset.facility_code` and DO NOT participate in the tier
+    enum.
+
+    `AssetTier` is an evolver-derived facet on `Asset` state, NOT a
+    command field, NOT an event payload key. The derivation is a
+    pure function of `Asset.level`: `UNIT -> Unit`, `COMPONENT ->
+    Component`, `DEVICE -> Device`, and any upper tier maps to
+    `None` (the Asset has no intrinsic tier when it represents a
+    facility envelope). Legacy AssetRegistered events fold cleanly
+    because the derivation operates on existing payload data.
+
+    The Component / Device ophyd-collision rename
+    (Component -> Module, Device -> Instrument per
+    [[project-equipment-naming-latent-risks]] risks #3+#4) is OUT
+    OF SCOPE for this slice per master memo line 162; defer to its
+    own slice on its own trigger.
+    """
+
+    UNIT = "Unit"
+    COMPONENT = "Component"
+    DEVICE = "Device"
+
+
+_LEVEL_TO_TIER: dict[AssetLevel, AssetTier] = {
+    AssetLevel.UNIT: AssetTier.UNIT,
+    AssetLevel.COMPONENT: AssetTier.COMPONENT,
+    AssetLevel.DEVICE: AssetTier.DEVICE,
+}
+
+
+def tier_from_level(level: AssetLevel) -> AssetTier | None:
+    """Derive `AssetTier` from `AssetLevel` per [[project-slice8-design]] L9.
+
+    Returns the matching `AssetTier` for the three lower
+    `AssetLevel` values (`UNIT`, `COMPONENT`, `DEVICE`); returns
+    `None` for the three upper values (`ENTERPRISE`, `SITE`,
+    `AREA`) because those are facility-envelope levels deprecated
+    by `Asset.facility_code`.
+
+    Pure function used by the evolver to compute `Asset.tier` from
+    the on-disk `level` payload. Legacy AssetRegistered streams
+    fold cleanly because the derivation depends only on a field
+    that has always been present.
+    """
+    return _LEVEL_TO_TIER.get(level)
 
 
 class AssetLifecycle(StrEnum):
@@ -693,6 +773,62 @@ class AssetNotFoundError(Exception):
     def __init__(self, asset_id: UUID) -> None:
         super().__init__(f"Asset {asset_id} not found")
         self.asset_id = asset_id
+
+
+class AssetFacilityCodeAlreadyAssignedError(Exception):
+    """`bind_asset_to_facility` attempted to bind an Asset already
+    bound to a Facility.
+
+    Set-once at the aggregate level per [[project-slice8-design]] L2:
+    `Asset.facility_code` is captured ONCE (either at `register_asset`
+    or at `bind_asset_to_facility`), never rebound in place. Re-issuing
+    the slice on an Asset whose `facility_code` is already non-None
+    raises this error (HTTP 409). Operator remedy: decommission the
+    Asset + re-register with the desired `facility_code` (mirrors the
+    Asset.model_id Lock A rebind precedent).
+    """
+
+    def __init__(self, asset_id: UUID, current_facility_code: FacilityCode) -> None:
+        super().__init__(
+            f"Asset {asset_id} is already bound to Facility "
+            f"{current_facility_code.value!r}; rebind requires "
+            f"decommission + re-register"
+        )
+        self.asset_id = asset_id
+        self.current_facility_code = current_facility_code
+
+
+class AssetFacilityNotFoundError(Exception):
+    """`register_asset` referenced a Facility code with no projection row.
+
+    Cross-BC binding: an Asset MAY be bound to its owning Federation
+    Facility via the cross-deployment convergent slug
+    (`Facility.code`) at the two-tier identity. When
+    `command.facility_code` is non-None, the handler resolves it via
+    `FacilityLookup.lookup_by_code` before threading the result into
+    the decider; a `None` result means no Facility with that code is
+    visible in `proj_federation_facility_summary` and the registration
+    is rejected with HTTP 404. Operator remedies: register the Facility
+    first via `POST /federation/facilities`, or correct the typo on
+    the Asset registration. Assets that omit `facility_code` entirely
+    skip the lookup; the decider does NOT validate in that path.
+
+    Status filter mirrors the Supply Slice 7A
+    `SupplyFacilityNotFoundError` precedent: every Facility status
+    (Active, Decommissioned) is a valid binding target; operators
+    keep Decommissioned-facility lineage visible by binding Assets
+    against it. The decider does NOT partition on Facility status.
+
+    Cross-BC eventual consistency: if `register_asset` is called
+    immediately after `register_facility`, the Federation projection
+    may not have caught up yet and the lookup returns `None`. The
+    handler surfaces this same 404; operator remedies are identical
+    (retry after projection bookmark advances).
+    """
+
+    def __init__(self, facility_code: str) -> None:
+        super().__init__(f"Facility {facility_code!r} not found for asset registration")
+        self.facility_code = facility_code
 
 
 class AssetCannotActivateError(Exception):
@@ -1268,3 +1404,28 @@ class Asset:
     # standards convergence (OPC UA DI, ISA-88, AAS DigitalNameplate,
     # MTConnect, PIDINST).
     controller_id: UUID | None = None
+    # Optional cross-BC reference to the Federation Facility that owns
+    # this Asset, keyed on the cross-deployment convergent slug
+    # (`FacilityCode`) per [[project-facility-aggregate-design]]
+    # two-tier identity. Set ONCE at `register_asset` per the
+    # model-binding Lock A precedent; rebind path is decommission +
+    # re-register. The handler resolves the slug via
+    # `FacilityLookup.lookup_by_code` and rejects unknown codes with
+    # `AssetFacilityNotFoundError` (HTTP 404). Decommissioned-Facility
+    # binding is allowed (mirrors the `SupplyFacilityNotFoundError`
+    # precedent: every Facility status is a valid binding target).
+    # Defaults to None so legacy AssetRegistered streams without the
+    # field fold cleanly via the additive-state pattern. See
+    # [[project-slice8-design]] L1.
+    facility_code: FacilityCode | None = None
+    # Evolver-derived intrinsic operational tier per
+    # [[project-slice8-design]] L3 + L9. Pure function of `level`:
+    # UNIT / COMPONENT / DEVICE map to the matching `AssetTier` value;
+    # upper levels (ENTERPRISE / SITE / AREA) map to None. NOT a
+    # command field, NOT an event payload key; the evolver computes
+    # the value via `tier_from_level(level)` on every Asset
+    # construction. Defaults to None so legacy AssetRegistered streams
+    # fold cleanly via the additive-state pattern; legacy events
+    # produce the correctly-derived value because the derivation reads
+    # the on-disk level only.
+    tier: AssetTier | None = None

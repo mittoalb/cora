@@ -7,7 +7,7 @@ and event types.
 Logbook-lifecycle infrastructure: `logbooks` (dict mapping kind →
 currently-open logbook id) on the aggregate state,
 `ConduitLogbookOpened` / `ConduitLogbookClosed` events on the main
-stream, and the `traversals` logbook kind constant. Per-decision
+stream, and the `verdicts` logbook kind constant. Per-decision
 authz audit entries live in the sibling `entries.py` module
 (separate from the aggregate event-store path).
 """
@@ -25,7 +25,7 @@ from cora.trust.aggregates.conduit.evolver import evolve, fold
 from cora.trust.aggregates.conduit.read import load_conduit
 from cora.trust.aggregates.conduit.state import (
     CONDUIT_NAME_MAX_LENGTH,
-    LOGBOOK_KIND_TRAVERSALS,
+    LOGBOOK_KIND_VERDICT,
     Conduit,
     ConduitAlreadyExistsError,
     ConduitLogbookAlreadyOpenError,
@@ -36,7 +36,7 @@ from cora.trust.aggregates.conduit.state import (
 
 __all__ = [
     "CONDUIT_NAME_MAX_LENGTH",
-    "LOGBOOK_KIND_TRAVERSALS",
+    "LOGBOOK_KIND_VERDICT",
     "Conduit",
     "ConduitAlreadyExistsError",
     "ConduitDefined",

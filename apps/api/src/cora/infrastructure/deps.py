@@ -60,6 +60,9 @@ from cora.infrastructure.adapters.default_canonicalization_adapter import (
 )
 from cora.infrastructure.adapters.in_memory_assembly_lookup import InMemoryAssemblyLookup
 from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLookup
+from cora.infrastructure.adapters.in_memory_clearance_template_lookup import (
+    InMemoryClearanceTemplateLookup,
+)
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
@@ -80,6 +83,7 @@ from cora.infrastructure.ports import (
     AllSatisfiedSupplyLookup,
     AlwaysCoveredClearanceLookup,
     AlwaysEmptyCapabilityLookup,
+    AlwaysPermittedEnclosureLookup,
     AlwaysQuietCautionLookup,
     AssemblyLookup,
     AssetLookup,
@@ -87,8 +91,10 @@ from cora.infrastructure.ports import (
     CapabilityLookup,
     CautionLookup,
     ClearanceLookup,
+    ClearanceTemplateLookup,
     Clock,
     CredentialLookup,
+    EnclosureLookup,
     EventStore,
     FacilityLookup,
     FamilyLookup,
@@ -149,6 +155,7 @@ def make_postgres_kernel(
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
+    clearance_template_lookup: ClearanceTemplateLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
@@ -158,6 +165,7 @@ def make_postgres_kernel(
     family_lookup: FamilyLookup | None = None,
     assembly_lookup: AssemblyLookup | None = None,
     role_lookup: RoleLookup | None = None,
+    enclosure_lookup: EnclosureLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -277,6 +285,11 @@ def make_postgres_kernel(
         clearance_lookup=(
             clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
         ),
+        clearance_template_lookup=(
+            clearance_template_lookup
+            if clearance_template_lookup is not None
+            else InMemoryClearanceTemplateLookup()
+        ),
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
@@ -296,6 +309,9 @@ def make_postgres_kernel(
             assembly_lookup if assembly_lookup is not None else InMemoryAssemblyLookup()
         ),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
+        enclosure_lookup=(
+            enclosure_lookup if enclosure_lookup is not None else AlwaysPermittedEnclosureLookup()
+        ),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -318,6 +334,7 @@ def make_inmemory_kernel(
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
+    clearance_template_lookup: ClearanceTemplateLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
@@ -327,6 +344,7 @@ def make_inmemory_kernel(
     family_lookup: FamilyLookup | None = None,
     assembly_lookup: AssemblyLookup | None = None,
     role_lookup: RoleLookup | None = None,
+    enclosure_lookup: EnclosureLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
     logbook_mirror: LogbookMirror | None = None,
@@ -432,6 +450,11 @@ def make_inmemory_kernel(
         clearance_lookup=(
             clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
         ),
+        clearance_template_lookup=(
+            clearance_template_lookup
+            if clearance_template_lookup is not None
+            else InMemoryClearanceTemplateLookup()
+        ),
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
@@ -451,6 +474,9 @@ def make_inmemory_kernel(
             assembly_lookup if assembly_lookup is not None else InMemoryAssemblyLookup()
         ),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
+        enclosure_lookup=(
+            enclosure_lookup if enclosure_lookup is not None else AlwaysPermittedEnclosureLookup()
+        ),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
         signing_registry=SigningRegistry(),
@@ -665,6 +691,44 @@ class RoleLookupFactory(Protocol):
     ) -> RoleLookup: ...
 
 
+class ClearanceTemplateLookupFactory(Protocol):
+    """Builds the production ClearanceTemplateLookup port for the Kernel.
+
+    Safety BC's `cora.safety.adapters.PostgresClearanceTemplateLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `AssetLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryClearanceTemplateLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> ClearanceTemplateLookup: ...
+
+
+class EnclosureLookupFactory(Protocol):
+    """Builds the production EnclosureLookup port for the Kernel.
+
+    Enclosure BC's `cora.enclosure.adapters.PostgresEnclosureLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `FacilityLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `AlwaysPermittedEnclosureLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> EnclosureLookup: ...
+
+
 class LLMFactory(Protocol):
     """Builds the production LLM for the Kernel.
 
@@ -695,6 +759,7 @@ async def build_kernel(
     *,
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
+    clearance_template_lookup_factory: ClearanceTemplateLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
     capability_lookup_factory: CapabilityLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
@@ -704,6 +769,7 @@ async def build_kernel(
     family_lookup_factory: FamilyLookupFactory | None = None,
     assembly_lookup_factory: AssemblyLookupFactory | None = None,
     role_lookup_factory: RoleLookupFactory | None = None,
+    enclosure_lookup_factory: EnclosureLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
     permit_lookup_factory: "Callable[[], PermitLookup] | None" = None,
@@ -826,6 +892,16 @@ async def build_kernel(
     role_lookup: RoleLookup = (
         role_lookup_factory(pool) if role_lookup_factory is not None else InMemoryRoleLookup()
     )
+    clearance_template_lookup: ClearanceTemplateLookup = (
+        clearance_template_lookup_factory(pool)
+        if clearance_template_lookup_factory is not None
+        else InMemoryClearanceTemplateLookup()
+    )
+    enclosure_lookup: EnclosureLookup = (
+        enclosure_lookup_factory(pool)
+        if enclosure_lookup_factory is not None
+        else AlwaysPermittedEnclosureLookup()
+    )
     llm: LLM | None = llm_factory(settings) if llm_factory is not None else None
     kernel = make_postgres_kernel(
         pool,
@@ -836,6 +912,7 @@ async def build_kernel(
         event_store=pg_event_store,
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,
+        clearance_template_lookup=clearance_template_lookup,
         caution_lookup=caution_lookup,
         capability_lookup=capability_lookup,
         supply_lookup=supply_lookup,
@@ -845,6 +922,7 @@ async def build_kernel(
         family_lookup=family_lookup,
         assembly_lookup=assembly_lookup,
         role_lookup=role_lookup,
+        enclosure_lookup=enclosure_lookup,
         llm=llm,
         token_verifier=token_verifier,
         publish_port=publish_port_factory() if publish_port_factory is not None else None,
@@ -922,7 +1000,9 @@ __all__ = [
     "CapabilityLookupFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
+    "ClearanceTemplateLookupFactory",
     "CredentialLookupFactory",
+    "EnclosureLookupFactory",
     "FacilityLookupFactory",
     "FamilyLookupFactory",
     "LLMFactory",

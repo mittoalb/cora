@@ -81,7 +81,7 @@ from cora.operation.conductor import (
     SetpointStep,
     WithinToleranceCriterion,
 )
-from cora.operation.features.append_procedure_steps.command import AppendProcedureSteps
+from cora.operation.features.append_activities.command import AppendProcedureActivities
 from cora.operation.ports.control_port import ControlTimeoutError, Reading
 
 _FIXED_NOW = datetime(2026, 5, 30, 9, 0, 0, tzinfo=UTC)
@@ -91,7 +91,7 @@ _FIXED_NOW = datetime(2026, 5, 30, 9, 0, 0, tzinfo=UTC)
 class _AppendCall:
     """One recorded invocation of the fake append-step handler."""
 
-    command: AppendProcedureSteps
+    command: AppendProcedureActivities
     principal_id: UUID
     correlation_id: UUID
     causation_id: UUID | None
@@ -100,7 +100,7 @@ class _AppendCall:
 
 @dataclass
 class _FakeAppendStep:
-    """Fake `Handler` for the append_procedure_steps slice.
+    """Fake `Handler` for the append_activities slice.
 
     Records every call; returns the entry count to match the real
     handler's `int` return type. Tests assert against `calls`.
@@ -110,7 +110,7 @@ class _FakeAppendStep:
 
     async def __call__(
         self,
-        command: AppendProcedureSteps,
+        command: AppendProcedureActivities,
         *,
         principal_id: UUID,
         correlation_id: UUID,

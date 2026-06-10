@@ -184,8 +184,9 @@ def test_trigger_source_has_three_locked_values() -> None:
 
 
 @pytest.mark.unit
-def test_trigger_source_operator_is_only_used_in_phase_10a() -> None:
-    """Monitor + Auto are reserved for future slice families per project_supply_design."""
+def test_trigger_source_enum_values_round_trip_verbatim() -> None:
+    """All three TriggerSource enum values are currently in use; Monitor + Auto
+    are reserved for future slice families per project_supply_design."""
     assert TriggerSource.OPERATOR.value == "Operator"
     assert TriggerSource.MONITOR.value == "Monitor"
     assert TriggerSource.AUTO.value == "Auto"

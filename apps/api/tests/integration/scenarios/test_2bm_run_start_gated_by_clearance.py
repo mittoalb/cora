@@ -122,8 +122,11 @@ from cora.run.features.start_run import bind as bind_start_run
 from cora.safety._projections import register_safety_projections
 from cora.safety.adapters import PostgresClearanceLookup
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     SubjectBinding,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.features.activate_clearance import ActivateClearance
 from cora.safety.features.activate_clearance import bind as bind_activate_clearance
@@ -186,6 +189,7 @@ _CAMPAIGN_ID = UUID("01900000-0000-7000-8000-000000441b21")
 # Reviewer Actor (`BEAMLINE_SCIENTIST_ACTOR_ID`) is registered by
 # `install_aps_unit` (canonical fixture-owned UUID).
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000441f01")
+_ESAF_TEMPLATE_ID = ClearanceTemplateId(clearance_template_stream_id("cora", "ESAF"))
 _METHOD_ID = UUID("01900000-0000-7000-8000-000000441d01")
 _CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d39f")
 _PRACTICE_ID = UUID("01900000-0000-7000-8000-000000441d11")
@@ -319,6 +323,16 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
         ids=_id_queue(),
         clearance_lookup=PostgresClearanceLookup(db_pool),
     )
+    # Seed the in-memory ClearanceTemplateLookup with an Active "ESAF"
+    # template in the "cora" facility so register_clearance's cross-
+    # aggregate template lookup resolves before the decider runs.
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_ESAF_TEMPLATE_ID,
+        facility_code="cora",
+        code="ESAF",
+        status="Active",
+        version=1,
+    )
 
     # ----- Facility hierarchy + beamtime intake -----
 
@@ -387,8 +401,8 @@ async def test_run_start_blocked_then_unblocked_by_clearance_activation(
 
     await bind_register_clearance(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=_APS_SITE_ID,
+            template_id=_ESAF_TEMPLATE_ID,
+            facility_code="cora",
             title="Proposal 2026-1234 ESAF (porous sandstone tomography)",
             bindings=frozenset({subject_binding}),
         ),

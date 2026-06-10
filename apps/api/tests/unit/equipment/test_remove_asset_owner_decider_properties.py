@@ -79,6 +79,7 @@ def test_add_then_remove_owner_is_identity_holds(owner: AssetOwner) -> None:
         now=_NOW,
         new_id=asset_id,
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     state = evolve(None, registered_events[0])
 
@@ -130,6 +131,7 @@ def test_register_asset_with_owner_set_then_extract_preserves_set_holds(
         now=_NOW,
         new_id=asset_id,
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert isinstance(events[0], AssetRegistered)
     state = evolve(None, events[0])

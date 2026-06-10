@@ -26,6 +26,7 @@ from cora.safety.aggregates.clearance import event_type_name, to_payload
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features.register_clearance.command import RegisterClearance
 from cora.safety.features.register_clearance.decider import decide
+from cora.shared.facility_code import FacilityCode
 
 _STREAM_TYPE = "Clearance"
 _COMMAND_NAME = "RegisterClearance"
@@ -104,6 +105,13 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
+        facility_lookup_result = await deps.facility_lookup.lookup_by_code(
+            FacilityCode(command.facility_code)
+        )
+        template_lookup_result = await deps.clearance_template_lookup.lookup_by_id(
+            command.template_id
+        )
+
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
@@ -112,6 +120,8 @@ def bind(deps: Kernel) -> Handler:
             command=command,
             now=now,
             new_id=new_id,
+            facility_lookup_result=facility_lookup_result,
+            template_lookup_result=template_lookup_result,
         )
 
         new_events = [

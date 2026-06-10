@@ -64,6 +64,7 @@ itself (post Slice 3 hoist) and is the cross-deployment convergent
 identity. The adapter constructs it from the raw `TEXT` column.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -133,6 +134,21 @@ class FacilityLookup(Protocol):
         Code uniqueness is enforced by the projection's UNIQUE INDEX
         on `code`, so at most one row matches; the adapter applies
         `LIMIT 1` defensively.
+        """
+        ...
+
+    async def list_active(self) -> Sequence[FacilityLookupResult]:
+        """Return every Active facility (status='Active').
+
+        Used by lifespan-time seeding hooks (Safety BC's
+        `seed_clearance_templates` iterates one template-per-form-type
+        per Active facility). Decommissioned facilities are filtered out:
+        seeds are pre-flight gates, not historical replays. Order is
+        implementation-defined; callers must not rely on it.
+
+        Returns an empty Sequence when no Active facilities are
+        registered (consistent with `lookup` returning None on miss --
+        the seed hook short-circuits naturally).
         """
         ...
 

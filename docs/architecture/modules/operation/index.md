@@ -22,7 +22,7 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Procedure` | `id: UUID` (opaque) | name, kind, target asset ids, status, optional `parent_run_id`, optional `steps_logbook_id`, optional `capability_id`, optional `recipe_id` | yes |
+| `Procedure` | `id: UUID` (opaque) | name, kind, target asset ids, status, optional `parent_run_id`, optional `activity_logbook_id`, optional `capability_id`, optional `recipe_id` | yes |
 
 ## Value Objects
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 `abort_procedure` / `truncate_procedure`
 : `reason` is REQUIRED, trimmed, 1-500 chars. `truncate_procedure` accepts an optional `interrupted_at` (operator's best guess at the actual interruption time); validated to be not later than `now`.
 
-`append_procedure_steps`
+`append_activities`
 : Status must be `Running`. Appending to a `Defined`, `Completed`, `Aborted`, or `Truncated` Procedure raises `ProcedureStepsLogbookClosedError` (the steps logbook is implicitly closed on every terminal). `step_kind` must be one of `setpoint`, `action`, `check`. Producer-supplied `event_id` deduplicates retries silently via `ON CONFLICT (event_id) DO NOTHING`.
 
 ## Events
@@ -75,12 +75,12 @@ stateDiagram-v2
 |---|---|---|
 | `ProcedureRegistered` | `procedure_id, name, kind, target_asset_ids, parent_run_id?, capability_id?, occurred_at` | `register_procedure` accepted; status implicitly `Defined`. |
 | `ProcedureStarted` | `procedure_id, occurred_at` | `start_procedure` accepted (Defined → Running). |
-| `ProcedureStepsLogbookOpened` | `procedure_id, logbook_id, kind="steps", schema, occurred_at` | First `append_procedure_steps` call for the Procedure (lazy open). |
+| `ProcedureActivitiesLogbookOpened` | `procedure_id, logbook_id, kind="steps", schema, occurred_at` | First `append_activities` call for the Procedure (lazy open). |
 | `ProcedureCompleted` | `procedure_id, occurred_at` | `complete_procedure` accepted (Running → Completed). |
 | `ProcedureAborted` | `procedure_id, reason, occurred_at` | `abort_procedure` accepted (Running → Aborted). |
 | `ProcedureTruncated` | `procedure_id, reason, interrupted_at?, occurred_at` | `truncate_procedure` accepted (Running → Truncated). |
 
-Per-step records (one row per setpoint, action, or check) write directly to the `entries_operation_procedure_steps` table via the StepStore port, NOT as events on the Procedure stream. No `ProcedureStepsLogbookClosed` event is emitted; the FSM terminal IS the close signal.
+Per-step records (one row per setpoint, action, or check) write directly to the `entries_operation_procedure_activities` table via the ActivityStore port, NOT as events on the Procedure stream. No `ProcedureStepsLogbookClosed` event is emitted; the FSM terminal IS the close signal.
 
 ## Slices
 
@@ -89,7 +89,7 @@ Per-step records (one row per setpoint, action, or check) write directly to the 
 | `RegisterProcedure` | NEW | `POST /procedures` | `register_procedure` | required |
 | `RegisterProcedureFromRecipe` | NEW | `POST /procedures/from-recipe` | `register_procedure_from_recipe` | required |
 | `StartProcedure` | MODIFIED | `POST /procedures/{procedure_id}/start` | `start_procedure` | none |
-| `AppendProcedureSteps` | MODIFIED | `POST /procedures/{procedure_id}/steps` | `append_procedure_steps` | producer-supplied `event_id` per entry |
+| `AppendProcedureActivities` | MODIFIED | `POST /procedures/{procedure_id}/steps` | `append_activities` | producer-supplied `event_id` per entry |
 | `ConductProcedure` | MODIFIED | `POST /procedures/{procedure_id}/conduct` | `conduct_procedure` | none |
 | `CompleteProcedure` | MODIFIED | `POST /procedures/{procedure_id}/complete` | `complete_procedure` | none |
 | `AbortProcedure` | MODIFIED | `POST /procedures/{procedure_id}/abort` | `abort_procedure` | none |
@@ -105,7 +105,7 @@ Per-step records (one row per setpoint, action, or check) write directly to the 
 `StartProcedure`
 : `ProcedureNotFoundError`, `ProcedureCannotStartError`, `ProcedurePlanAssetDecommissionedError`, `ProcedureCapabilityExecutorMismatchError`, `ProcedureRequiresAvailableSupplyError` (no Supply registered for a kind in the parent Run's `Method.needed_supplies`), `ProcedureSupplyCoverageMismatchError` (Supplies exist but none Available), and (for Phase-of-Run Procedures only) `RunNotFoundError` / `PlanNotFoundError` / `PracticeNotFoundError` / `MethodNotFoundError` if the parent-resolution chain has a broken link, `Unauthorized`. The Supply gate fires only when `parent_run_id` is set; standalone Procedures pass trivially today (Capability-level `needed_supplies` is a watch item).
 
-`AppendProcedureSteps`
+`AppendProcedureActivities`
 : `ProcedureNotFoundError`, `ProcedureStepsLogbookClosedError`, `InvalidStepKindError`, `Unauthorized`
 
 `CompleteProcedure` / `AbortProcedure` / `TruncateProcedure`
@@ -131,7 +131,7 @@ CREATE TABLE proj_operation_procedure_summary (
     status                 TEXT        NOT NULL CHECK (
         status IN ('Defined', 'Running', 'Completed', 'Aborted', 'Truncated')
     ),
-    steps_logbook_id       UUID,
+    activity_logbook_id       UUID,
     registered_at          TIMESTAMPTZ NOT NULL,
     last_status_changed_at TIMESTAMPTZ,
     last_status_reason     TEXT,
@@ -145,12 +145,12 @@ CREATE INDEX proj_operation_procedure_summary_target_assets_gin_idx
     ON proj_operation_procedure_summary USING GIN (target_asset_ids);
 ```
 
-`last_status_changed_at` updates on every transition out of Defined; `last_status_reason` is populated by Aborted and Truncated only (Completed is happy-path, no reason). `interrupted_at` is Truncated-only and carries the operator's best guess at when the actual interruption happened (distinct from `last_status_changed_at`, which is when the truncate command was processed). `steps_logbook_id` is NULL until the first step is appended and is set by `ProcedureStepsLogbookOpened` independently of any lifecycle transition.
+`last_status_changed_at` updates on every transition out of Defined; `last_status_reason` is populated by Aborted and Truncated only (Completed is happy-path, no reason). `interrupted_at` is Truncated-only and carries the operator's best guess at when the actual interruption happened (distinct from `last_status_changed_at`, which is when the truncate command was processed). `activity_logbook_id` is NULL until the first step is appended and is set by `ProcedureActivitiesLogbookOpened` independently of any lifecycle transition.
 
-`entries_operation_procedure_steps`:
+`entries_operation_procedure_activities`:
 
-```sql title="entries_operation_procedure_steps"
-CREATE TABLE entries_operation_procedure_steps (
+```sql title="entries_operation_procedure_activities"
+CREATE TABLE entries_operation_procedure_activities (
     event_id            uuid              PRIMARY KEY,
     procedure_id        uuid              NOT NULL,
     logbook_id          uuid              NOT NULL,
@@ -166,15 +166,15 @@ CREATE TABLE entries_operation_procedure_steps (
 );
 
 CREATE INDEX entries_operation_procedure_steps_proc_sampled_idx
-    ON entries_operation_procedure_steps (procedure_id, sampled_at DESC);
+    ON entries_operation_procedure_activities (procedure_id, sampled_at DESC);
 CREATE INDEX entries_operation_procedure_steps_proc_kind_sampled_idx
-    ON entries_operation_procedure_steps (procedure_id, step_kind, sampled_at DESC);
+    ON entries_operation_procedure_activities (procedure_id, step_kind, sampled_at DESC);
 CREATE INDEX entries_operation_procedure_steps_logbook_idx
-    ON entries_operation_procedure_steps (logbook_id);
+    ON entries_operation_procedure_activities (logbook_id);
 CREATE INDEX entries_operation_procedure_steps_recorded_at_brin_idx
-    ON entries_operation_procedure_steps USING BRIN (recorded_at);
+    ON entries_operation_procedure_activities USING BRIN (recorded_at);
 
-REVOKE UPDATE, DELETE, TRUNCATE ON entries_operation_procedure_steps FROM cora_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON entries_operation_procedure_activities FROM cora_app;
 ```
 
 Polymorphic-with-discriminator: one row per step, with `step_kind` discriminating between `setpoint`, `action`, and `check`, and the per-kind body shape carried in the `payload` jsonb column. The table is append-only at the role level (UPDATE / DELETE / TRUNCATE revoked); `event_id` is the producer-supplied UUIDv7 idempotency key, so retrying a step submission with the same id is a silent no-op via `ON CONFLICT (event_id) DO NOTHING`. Three timestamps are recorded per entry: `sampled_at` (when the step physically happened in the field), `occurred_at` (when the handler processed the append), and `recorded_at` (when Postgres wrote the row).
@@ -194,7 +194,7 @@ Polymorphic-with-discriminator: one row per step, with `step_kind` discriminatin
 
 ## Examples
 
-The four examples below follow the canonical Procedure path: register a calibration sweep targeting one Asset, start it, append one setpoint step + one check step, then complete it. The `append_procedure_steps` slice carries producer-supplied `event_id` per entry for safe retries (Idempotency-Key is not used at this slice). For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
+The four examples below follow the canonical Procedure path: register a calibration sweep targeting one Asset, start it, append one setpoint step + one check step, then complete it. The `append_activities` slice carries producer-supplied `event_id` per entry for safe retries (Idempotency-Key is not used at this slice). For the REST/MCP equivalence, auth, and idempotency conventions these examples share, see [Reading the examples](../index.md) on the Modules landing page.
 
 <!-- extracted from tests/contract/operation/test_*.py -->
 
@@ -289,13 +289,13 @@ The four examples below follow the canonical Procedure path: register a calibrat
     }
     ```
 
-    A successful call returns `200 OK` with `{"event_count": 2}`. The first call also emits `ProcedureStepsLogbookOpened` on the Procedure stream (lazy open). Re-issuing the same `event_id` values silently dedupes via `ON CONFLICT (event_id) DO NOTHING`.
+    A successful call returns `200 OK` with `{"event_count": 2}`. The first call also emits `ProcedureActivitiesLogbookOpened` on the Procedure stream (lazy open). Re-issuing the same `event_id` values silently dedupes via `ON CONFLICT (event_id) DO NOTHING`.
 
 === "MCP"
 
     ```python
     mcp.call_tool(
-        "append_procedure_steps",
+        "append_activities",
         {
             "procedure_id": "<uuid>",
             "entries": [
@@ -338,7 +338,7 @@ The four examples below follow the canonical Procedure path: register a calibrat
     X-Principal-Id: 7b1f2d4e-2a3c-4d5e-8f9a-1b2c3d4e5f60
     ```
 
-    A successful call returns `204 No Content`. Status moves to `Completed`; the steps logbook is implicitly closed (subsequent `append_procedure_steps` calls return `409 Conflict`).
+    A successful call returns `204 No Content`. Status moves to `Completed`; the steps logbook is implicitly closed (subsequent `append_activities` calls return `409 Conflict`).
 
 === "MCP"
 

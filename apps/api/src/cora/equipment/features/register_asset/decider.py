@@ -73,6 +73,22 @@ Operators are trusted to register controllers before binding
 stages to them; a dangling reference is operator error, not a
 domain invariant violation. The handler does not load any external
 stream on this field's behalf.
+
+## Facility binding (Slice 8A)
+
+`command.facility_code` flows through to the emitted AssetRegistered
+event via the typed `FacilityCode` VO loaded by the handler. The
+handler resolves the slug via `FacilityLookup.lookup_by_code` and
+threads `facility_lookup_result: FacilityLookupResult | None` into
+the decider. When `command.facility_code` is non-None and the
+lookup result is None, the decider raises
+`AssetFacilityNotFoundError` (HTTP 404). When `command.facility_code`
+is None, the decider skips this validation entirely (facility
+binding is OPTIONAL on Asset; not every Asset has a Facility, e.g.
+shared spare-parts pool). The lookup-result's `.code` field is folded
+onto the event so the event's `facility_code` reflects the
+projection's canonical typed VO, not a command-echo (mirrors the
+Supply Slice 7A handler/decider split).
 """
 
 from datetime import datetime
@@ -81,6 +97,7 @@ from uuid import UUID
 from cora.equipment.aggregates.asset import (
     Asset,
     AssetAlreadyExistsError,
+    AssetFacilityNotFoundError,
     AssetLevel,
     AssetName,
     AssetOwnerAlreadyPresentError,
@@ -88,6 +105,7 @@ from cora.equipment.aggregates.asset import (
     InvalidAssetParentError,
 )
 from cora.equipment.features.register_asset.command import RegisterAsset
+from cora.infrastructure.ports.facility_lookup import FacilityLookupResult
 from cora.shared.identity import ActorId
 
 
@@ -98,6 +116,7 @@ def decide(
     now: datetime,
     new_id: UUID,
     commissioned_by: ActorId,
+    facility_lookup_result: FacilityLookupResult | None,
 ) -> list[AssetRegistered]:
     """Decide the events produced by registering a new asset.
 
@@ -111,9 +130,15 @@ def decide(
         -> InvalidAssetParentError
       - Owner names must be unique within the payload (Lock 6)
         -> AssetOwnerAlreadyPresentError
+      - When command.facility_code is non-None,
+        facility_lookup_result must be non-None
+        -> AssetFacilityNotFoundError
     """
     if state is not None:
         raise AssetAlreadyExistsError(state.id)
+
+    if command.facility_code is not None and facility_lookup_result is None:
+        raise AssetFacilityNotFoundError(command.facility_code)
 
     name = AssetName(command.name)  # validates + trims; raises InvalidAssetNameError
 
@@ -151,5 +176,8 @@ def decide(
             alternate_identifiers=command.alternate_identifiers,
             owners=command.owners,
             controller_id=command.controller_id,
+            facility_code=(
+                facility_lookup_result.code if facility_lookup_result is not None else None
+            ),
         )
     ]

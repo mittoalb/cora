@@ -27,7 +27,7 @@ Out of scope
 |---|---|---|---|
 | `Family` | `id: UUID` | `id`, `name: FamilyName`, `status: FamilyStatus`, `version: str?`, `affordances: frozenset[Affordance]`, `settings_schema: dict?` | yes (3-state) |
 | `Model` | `id: UUID` | `id`, `name`, `manufacturer: Manufacturer`, `part_number`, `declared_family_ids: frozenset[UUID]`, `status: ModelStatus`, `version: str?` | yes (3-state) |
-| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?` | yes (4-state lifecycle, 3-state condition) |
+| `Asset` | `id: UUID` | `id`, `name`, `level`, `parent_id?`, `lifecycle`, `condition`, `family_ids: frozenset[UUID]`, `settings: dict`, `ports: frozenset[AssetPort]`, `model_id?`, `owners: frozenset[AssetOwner]`, `alternate_identifiers: frozenset[AlternateIdentifier]`, `fixture_id?`, `drawing?`, `commissioned_at?`, `decommissioned_at?`, `controller_id?`, `facility_code?`, `tier?` | yes (4-state lifecycle, 3-state condition) |
 | `Frame` | `id: UUID` | `id`, `name`, `parent_id?`, `placement: Placement?`, `supersedes: FrameRevisionLink?`, `status` | yes (2-state) |
 | `Mount` | `id: UUID` | `id`, `slot_code`, `parent_id?`, `placement: Placement`, `drawing?`, `installed_asset_id?`, `status` | yes (2-state) |
 | `Assembly` | `id: UUID` | `id`, `name`, `presents_as_family_id: UUID`, `required_slots: frozenset[TemplateSlot]`, `required_wires: frozenset[TemplateWire]`, `parameter_overrides_schema: dict?`, `drawing?`, `status: AssemblyStatus`, `version: str?`, `content_hash: str?` | yes (3-state) |
@@ -47,13 +47,15 @@ Out of scope
 | `FamilyStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Family.status` |
 | `Affordance` | closed StrEnum, ~28 values in three patterns (motion, signal, lifecycle) | members of `Family.affordances` |
 | `AssetName` | trimmed string, 1-200 chars | `Asset.name` |
-| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Component` \| `Device` | `Asset.level` |
+| `AssetLevel` | closed StrEnum: `Enterprise` \| `Site` \| `Area` \| `Unit` \| `Component` \| `Device` | `Asset.level` (upper tiers ENTERPRISE / SITE / AREA deprecated 2026-06-10 in favor of `facility_code` + `AssetTier`; runtime tolerates them, arch fitness rejects new usage) |
+| `AssetTier` | closed StrEnum: `Unit` \| `Component` \| `Device` | `Asset.tier` (evolver-derived from `Asset.level`; null for upper-tier facility-envelope Assets); the honest intrinsic-tier facet introduced in Slice 8B, orthogonal to the structural Facility binding |
 | `AssetLifecycle` | closed StrEnum: `Commissioned` \| `Active` \| `Maintenance` \| `Decommissioned` | `Asset.lifecycle` |
 | `AssetCondition` | closed StrEnum: `Nominal` \| `Degraded` \| `Faulted` | `Asset.condition` |
 | `AssetPort` | `(name, direction, signal_type)` triple; direction is `Input` \| `Output`; signal_type is free text, 1-50 chars | members of `Asset.ports` |
 | `AssetOwner` | `(name, contact?, identifier?, identifier_type?)`; identifier and identifier_type are paired (both present or both absent) | members of `Asset.owners` |
 | `AlternateIdentifier` | `(kind, value)`; kind is closed StrEnum `SerialNumber` \| `InventoryNumber` \| `Other` | members of `Asset.alternate_identifiers` |
 | `Drawing` | `(system, number, revision?)`; system is closed StrEnum `ICMS` \| `EDMS` \| `DOI`; revision None means "latest" | `Asset.drawing`, `Mount.drawing`, `Assembly.drawing` |
+| `FacilityCode` | trimmed slug `[a-z0-9-]{1,32}` from `cora.shared.facility_code`; cross-deployment convergent identity for the owning Federation Facility | `Asset.facility_code` (optional, set-once at register_asset; mirrors the Supply binding shape) |
 | `Manufacturer` | `(name, identifier?, identifier_type?)`; identifier_type is closed StrEnum `ROR` \| `GRID` \| `ISNI` and is paired with identifier | `Model.manufacturer` |
 | `ModelStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Model.status` |
 | `Placement` | 6-DoF rigid-body transform: `(translation_mm, rotation_deg)` where translation is `(x, y, z)` and rotation is `(rx, ry, rz)` extrinsic Tait-Bryan | `Frame.placement`, `Mount.placement` |
@@ -293,7 +295,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 
 | Event | Payload sketch | When emitted |
 |---|---|---|
-| `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `model_id?`, `owners`, `occurred_at` | `register_asset` succeeds (genesis); optional `model_id` and seed `owners` may be carried |
+| `AssetRegistered` | `asset_id`, `name`, `level`, `parent_id?`, `model_id?`, `facility_code?`, `owners`, `occurred_at` | `register_asset` succeeds (genesis); optional `model_id`, `facility_code`, and seed `owners` may be carried |
 | `AssetActivated` | `asset_id`, `occurred_at` | `activate_asset` succeeds |
 | `AssetMaintenanceEntered` | `asset_id`, `occurred_at` | `enter_asset_maintenance` succeeds |
 | `AssetMaintenanceExited` | `asset_id`, `occurred_at` | `exit_asset_maintenance` succeeds |
@@ -313,6 +315,7 @@ The seven aggregates emit forty-four distinct event types, grouped by aggregate.
 | `AssetAlternateIdentifierRemoved` | `asset_id`, `alternate_identifier`, `occurred_at` | `remove_asset_alternate_identifier` succeeds; payload carries the full removed VO for audit |
 | `AssetAttachedToFixture` | `asset_id`, `fixture_id`, `occurred_at` | `attach_asset_to_fixture` succeeds; sets the back-reference |
 | `AssetDetachedFromFixture` | `asset_id`, `previous_fixture_id`, `occurred_at` | `detach_asset_from_fixture` succeeds; clears the back-reference, carrying the prior id for audit |
+| `AssetFacilityCodeAssigned` | `asset_id`, `facility_code`, `occurred_at`, `assigned_by` | `bind_asset_to_facility` succeeds; sets the post-genesis Facility binding (set-once per Slice 8 Lock L2; rebind requires decommission + re-register) |
 
 ### Frame events
 
@@ -398,6 +401,7 @@ The seven aggregates expose fifty-four slices end to end.
 | `AddAssetAlternateIdentifier` | MODIFIED | `POST /assets/{asset_id}/add-alternate-identifier` | `add_asset_alternate_identifier` | none |
 | `RemoveAssetAlternateIdentifier` | MODIFIED | `POST /assets/{asset_id}/remove-alternate-identifier` | `remove_asset_alternate_identifier` | none |
 | `AttachAssetToFixture` | MODIFIED | `POST /assets/{asset_id}/attach-to-fixture` | `attach_asset_to_fixture` | none |
+| `BindAssetToFacility` | MODIFIED | `POST /assets/{asset_id}/bind-to-facility` | `bind_asset_to_facility` | none |
 | `DetachAssetFromFixture` | MODIFIED | `POST /assets/{asset_id}/detach-from-fixture` | `detach_asset_from_fixture` | none |
 | `GetAsset` | QUERY | `GET /assets/{asset_id}` | `get_asset` | none |
 | `GetAssetIntegrationView` | QUERY | `GET /assets/{asset_id}/integration-view` | `get_asset_integration_view` | none |
@@ -459,7 +463,7 @@ The seven aggregates expose fifty-four slices end to end.
 : `ModelNotFound`, `ModelCannotAddFamily` / `ModelCannotRemoveFamily`, `ModelFamilyAlreadyPresent` / `ModelFamilyNotPresent`, `FamilyNotFound` (add only), `Unauthorized`
 
 `RegisterAsset`
-: `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `ModelNotFound`, `AssetOwnerAlreadyPresent` (seed owners with duplicate names), `Unauthorized`
+: `InvalidAssetName`, `InvalidAssetParent` (Enterprise with parent, or non-Enterprise without parent), `AssetAlreadyExists`, `ModelNotFound`, `AssetOwnerAlreadyPresent` (seed owners with duplicate names), `AssetFacilityNotFound` (facility_code supplied but the Facility is not visible in the Federation projection; Slice 8A binding), `Unauthorized`
 
 `ActivateAsset` / `EnterAssetMaintenance` / `ExitAssetMaintenance` / `DecommissionAsset`
 : `AssetNotFound`, `AssetCannot<Activate|EnterMaintenance|ExitMaintenance|Decommission>`, `Unauthorized`
@@ -484,6 +488,9 @@ The seven aggregates expose fifty-four slices end to end.
 
 `AttachAssetToFixture` / `DetachAssetFromFixture`
 : `AssetNotFound`, `FixtureNotFound` (attach only), `AssetAlreadyAttachedToFixture` (attach only), `AssetCannotAttachToFixture` (attach only, Asset is Decommissioned), `AssetNotBoundInFixture` (attach only, Asset is not listed in the Fixture's slot bindings), `AssetNotAttachedToFixture` (detach only), `AssetAttachedToDifferentFixture` (detach only, defensive id mismatch), `Unauthorized`
+
+`BindAssetToFacility`
+: `AssetNotFound`, `AssetFacilityNotFound` (facility_code supplied but the Facility is not visible in the Federation projection), `AssetFacilityCodeAlreadyAssigned` (set-once per Slice 8 Lock L2: the target Asset already carries a facility_code from register_asset genesis OR a prior bind_asset_to_facility call; rebind path is decommission + re-register), `Unauthorized`
 
 `RegisterFrame` / `UpdateFramePlacement` / `DecommissionFrame`
 : `FrameAlreadyExists` (register only), `FrameNotFound` (update / decommission), `FrameCannotSupersede` (register only, supersedes pointer not in Active), `InvalidFrameRoot` (register or update; root Frame placement / parent constraint), `FrameCannotUpdate` (Decommissioned), `FrameCannotDecommission` (Decommissioned), `FrameInUse` (decommission only, active consumers exist), `Unauthorized`
@@ -841,6 +848,7 @@ The Fixture summary backs `GET /fixtures` plus filters by `assembly_id`, `surfac
 | [Safety](../safety/index.md) | shared-id-with | `Clearance.facility_asset_id` references an `Asset.Level.Site`; `AssetBinding.asset_id` references any `Asset` a Clearance gates |
 | [Access](../access/index.md) | shared-id-with | Every Equipment event envelope carries the actor id that authored the change |
 | [Federation](../federation/index.md) | shared-content-hash-with | `Assembly.content_hash` and `Fixture.assembly_content_hash` are stable across facilities for federation dedup and cross-facility composition sharing |
+| [Federation](../federation/index.md) | reads-from (via `FacilityLookup` port) | `Asset.facility_code` (optional) binds an Asset to its owning Federation Facility via the cross-deployment convergent slug. The `register_asset` handler resolves the slug via `FacilityLookup.lookup_by_code` and rejects unknown codes with `AssetFacilityNotFoundError` (HTTP 404). Decommissioned-Facility binding is allowed. Set-once at registration; rebind path is decommission + re-register. |
 
 The Asset hierarchy answers "where does this belong structurally"; Trust Zones answer "what security policy applies"; Frame / Mount answers "where is it physically installed". The three classifications are orthogonal: an Asset has all three, and zones, frames, and the structural parent tree all span Sites independently.
 

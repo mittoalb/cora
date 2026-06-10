@@ -66,9 +66,9 @@ INSERT INTO proj_equipment_asset_summary
     (asset_id, name, level, lifecycle, condition, parent_id,
      drawing_system, drawing_number, drawing_revision, model_id,
      alternate_identifiers, owners, commissioned_at, commissioned_by,
-     created_at)
+     facility_code, created_at)
 VALUES ($1, $2, $3, 'Commissioned', 'Nominal', $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $11)
+        $9, $10, $11, $12, $13, $11)
 ON CONFLICT (asset_id) DO NOTHING
 """
 
@@ -222,6 +222,13 @@ SET persistent_id = jsonb_build_object(
 WHERE asset_id = $1
 """
 
+_UPDATE_FACILITY_CODE_ASSIGNED_SQL = """
+UPDATE proj_equipment_asset_summary
+SET facility_code = $2::text,
+    updated_at = now()
+WHERE asset_id = $1
+"""
+
 
 class AssetSummaryProjection:
     """Maintains the `proj_equipment_asset_summary` read model."""
@@ -246,6 +253,7 @@ class AssetSummaryProjection:
             "AssetAttachedToFixture",
             "AssetDetachedFromFixture",
             "AssetPartitionRuleUpdated",
+            "AssetFacilityCodeAssigned",
         }
     )
 
@@ -267,6 +275,7 @@ class AssetSummaryProjection:
                 drawing_revision = drawing.get("revision") if drawing is not None else None
                 model_id_raw = event.payload.get("model_id")
                 model_id = UUID(model_id_raw) if model_id_raw else None
+                facility_code = event.payload.get("facility_code")
                 alternate_identifiers_list = _canonical_alternate_identifiers_list(
                     event.payload.get("alternate_identifiers")
                 )
@@ -285,6 +294,7 @@ class AssetSummaryProjection:
                     owners_list,
                     datetime.fromisoformat(event.payload["occurred_at"]),
                     UUID(event.payload["commissioned_by"]),
+                    facility_code,
                 )
             case "AssetActivated" | "AssetMaintenanceExited":
                 await self._update_lifecycle(event, conn, "Active")
@@ -368,6 +378,17 @@ class AssetSummaryProjection:
                     _UPDATE_PARTITION_RULE_KIND_SQL,
                     UUID(event.payload["asset_id"]),
                     kind,
+                )
+            case "AssetFacilityCodeAssigned":
+                # Slice 8C: post-genesis bind_asset_to_facility writes
+                # the facility_code column. AssetRegistered.facility_code
+                # already populates the column at genesis; this event
+                # covers the post-genesis assignment path. Set-once
+                # invariant enforced at the aggregate layer.
+                await conn.execute(
+                    _UPDATE_FACILITY_CODE_ASSIGNED_SQL,
+                    UUID(event.payload["asset_id"]),
+                    event.payload["facility_code"],
                 )
             case _:
                 pass

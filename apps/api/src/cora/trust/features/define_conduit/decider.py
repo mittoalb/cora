@@ -4,7 +4,7 @@ Pure function: given the current Conduit state (None for a fresh
 stream) and a `DefineConduit` command, returns the events to append.
 No I/O, no awaits, no side effects.
 
-`now`, `new_id`, and `traversals_logbook_id` are injected by the
+`now`, `new_id`, and `verdict_logbook_id` are injected by the
 application handler from the Clock and IdGenerator ports. The
 decider stays pure.
 
@@ -12,17 +12,17 @@ Does NOT verify that `source_zone_id` / `target_zone_id` reference
 existing Zones — see `cora.trust.aggregates.conduit.state` for the
 eventual-consistency rationale.
 
-## Auto-opens the traversals observation logbook
+## Auto-opens the verdicts observation logbook
 
 The decider emits TWO events in one append:
   1. `ConduitDefined` (genesis)
-  2. `ConduitLogbookOpened(kind="traversals", schema=...)` declaring
-     the per-decision authz audit logbook attached to this Conduit.
+  2. `ConduitLogbookOpened(kind="verdict", schema=...)` declaring
+     the per-decision authz audit (verdict) logbook attached to this Conduit.
 
-This realizes the gate-review L1 lock (per-Conduit traversal logbook
+This realizes the gate-review L1 lock (per-Conduit verdict logbook
 scoping) and the L8 lock (logbook-open events on the parent's main
 stream). The schema declared here is the column shape the
-`entries_conduit_traversals` table holds; future schema bumps emit a
+`entries_conduit_verdicts` table holds; future schema bumps emit a
 fresh `ConduitLogbookOpened` with a new logbook_id rather than
 mutating the existing one.
 """
@@ -32,7 +32,7 @@ from uuid import UUID
 
 from cora.shared.logbook import LogbookFieldSpec, LogbookSchema
 from cora.trust.aggregates.conduit import (
-    LOGBOOK_KIND_TRAVERSALS,
+    LOGBOOK_KIND_VERDICT,
     Conduit,
     ConduitAlreadyExistsError,
     ConduitDefined,
@@ -41,8 +41,8 @@ from cora.trust.aggregates.conduit import (
 )
 from cora.trust.features.define_conduit.command import DefineConduit
 
-# Schema declaration for the traversals logbook. Column shape matches
-# the `entries_conduit_traversals` table.
+# Schema declaration for the verdict logbook. Column shape matches
+# the `entries_conduit_verdicts` table.
 _TRAVERSALS_SCHEMA = LogbookSchema(
     fields={
         "actor_id": LogbookFieldSpec(
@@ -75,7 +75,7 @@ def decide(
     *,
     now: datetime,
     new_id: UUID,
-    traversals_logbook_id: UUID,
+    verdict_logbook_id: UUID,
 ) -> list[ConduitDefined | ConduitLogbookOpened]:
     """Decide the events produced by defining a new conduit.
 
@@ -98,8 +98,8 @@ def decide(
         ),
         ConduitLogbookOpened(
             conduit_id=new_id,
-            logbook_id=traversals_logbook_id,
-            kind=LOGBOOK_KIND_TRAVERSALS,
+            logbook_id=verdict_logbook_id,
+            kind=LOGBOOK_KIND_VERDICT,
             schema=_TRAVERSALS_SCHEMA,
             occurred_at=now,
         ),

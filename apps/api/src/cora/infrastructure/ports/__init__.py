@@ -36,10 +36,19 @@ from cora.infrastructure.ports.clearance_lookup import (
     ClearanceLookup,
     ClearanceReference,
 )
+from cora.infrastructure.ports.clearance_template_lookup import (
+    ClearanceTemplateLookup,
+    ClearanceTemplateLookupResult,
+)
 from cora.infrastructure.ports.clock import Clock, FakeClock, SystemClock
 from cora.infrastructure.ports.credential_lookup import (
     CredentialLookup,
     CredentialLookupResult,
+)
+from cora.infrastructure.ports.enclosure_lookup import (
+    AlwaysPermittedEnclosureLookup,
+    EnclosureLookup,
+    EnclosureReference,
 )
 from cora.infrastructure.ports.event_publisher import EventPublisher
 from cora.infrastructure.ports.event_store import (
@@ -129,6 +138,7 @@ __all__ = [
     "AllowAllAuthorize",
     "AlwaysCoveredClearanceLookup",
     "AlwaysEmptyCapabilityLookup",
+    "AlwaysPermittedEnclosureLookup",
     "AlwaysQuietCautionLookup",
     "AssemblyLookup",
     "AssemblyLookupResult",
@@ -149,11 +159,15 @@ __all__ = [
     "Claimed",
     "ClearanceLookup",
     "ClearanceReference",
+    "ClearanceTemplateLookup",
+    "ClearanceTemplateLookupResult",
     "Clock",
     "ConcurrencyError",
     "CredentialLookup",
     "CredentialLookupResult",
     "Deny",
+    "EnclosureLookup",
+    "EnclosureReference",
     "EventPublisher",
     "EventStore",
     "FacilityLookup",

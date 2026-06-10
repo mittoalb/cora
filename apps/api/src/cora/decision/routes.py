@@ -48,7 +48,7 @@ from cora.decision.errors import (
     UnauthorizedError,
 )
 from cora.decision.features import (
-    append_reasoning_entries,
+    append_inferences,
     get_decision,
     list_decisions,
     rate_decision,
@@ -112,7 +112,7 @@ def register_decision_routes(app: FastAPI) -> None:
     """Attach Decision slice routers and exception handlers."""
     app.include_router(register_decision.router)
     app.include_router(get_decision.router)
-    app.include_router(append_reasoning_entries.router)
+    app.include_router(append_inferences.router)
     app.include_router(list_decisions.router)
     app.include_router(rate_decision.router)
     for validation_cls in (

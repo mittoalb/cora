@@ -55,7 +55,7 @@ and represent placeholder assumptions until 2-BM staff verify:
 
   - **Pending(2-BM operator confirmation)**: `MCTOptics_lens_turret` Family. Assumed
     `RotaryStage` based on the Optique Peter motor positions
-    121.5942 / 61.9841 / 2.3006 reading naturally as degrees. If the
+    121.5942 / 61.9841 / 2.3006 observation naturally as degrees. If the
     turret is actually a translating slide (positions in mm), flip
     the Family to `LinearStage` and update `lens_turret_setpoint` /
     `lens_turret_feedback` signal_type strings to the `_linear_mm`
@@ -193,7 +193,7 @@ _CAP_LINEAR_STAGE_ID = UUID("01900000-0000-7000-8000-000000420c21")
 _CAP_IMAGER_ID = UUID("01900000-0000-7000-8000-000000420c31")
 _CAP_OBJECTIVE_ID = UUID("01900000-0000-7000-8000-000000420c41")
 # Pending(2-BM operator confirmation): confirm lens turret Family (RotaryStage vs LinearStage).
-# Assumed RotaryStage based on Optique Peter doc motor positions reading
+# Assumed RotaryStage based on Optique Peter doc motor positions observation
 # as degrees. Reuses _CAP_LINEAR_STAGE_ID slot if turret is linear.
 _CAP_ROTARY_STAGE_ID = UUID("01900000-0000-7000-8000-000000420c51")
 # PseudoAxis Family for the lens_select virtual axis. A LookupTable

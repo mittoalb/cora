@@ -17,14 +17,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 
 
 def _register(client: TestClient) -> str:
+    template_id = clearance_template_stream_id("cora", "ESAF")
     response = client.post(
         "/clearances",
         json={
-            "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "template_id": str(template_id),
+            "facility_code": "cora",
             "title": "FSM walk pilot",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },
@@ -461,8 +463,8 @@ def test_amend_returns_201_with_new_child_id_and_supersedes_parent() -> None:
         amend_response = client.post(
             f"/clearances/{parent_cid}/amend",
             json={
-                "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
+                "facility_code": "cora",
                 "title": "Amended pilot ESAF (post scope-change)",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },
@@ -489,8 +491,8 @@ def test_amend_returns_409_when_parent_not_active() -> None:
         response = client.post(
             f"/clearances/{parent_cid}/amend",
             json={
-                "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
+                "facility_code": "cora",
                 "title": "Amended",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },
@@ -505,8 +507,8 @@ def test_amend_returns_404_for_unknown_parent() -> None:
         response = client.post(
             f"/clearances/{uuid4()}/amend",
             json={
-                "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
+                "facility_code": "cora",
                 "title": "Amended",
                 "bindings": [{"kind": "Run", "id": str(uuid4())}],
             },
@@ -522,8 +524,8 @@ def test_amend_returns_400_on_empty_child_bindings() -> None:
         response = client.post(
             f"/clearances/{parent_cid}/amend",
             json={
-                "kind": "ESAF",
-                "facility_asset_id": str(uuid4()),
+                "template_id": str(clearance_template_stream_id("cora", "ESAF")),
+                "facility_code": "cora",
                 "title": "Amended",
                 "bindings": [],
             },

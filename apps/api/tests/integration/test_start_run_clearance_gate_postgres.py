@@ -18,6 +18,7 @@ input the handler doesn't allocate.
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -42,19 +43,27 @@ from cora.run.aggregates.run import (
 from cora.run.features import start_run
 from cora.run.features.start_run import StartRun
 from cora.safety._projections import register_safety_projections
-from cora.safety.adapters import PostgresClearanceLookup
-from cora.safety.aggregates.clearance import AssetBinding, ClearanceKind, SubjectBinding
+from cora.safety.adapters import PostgresClearanceLookup, PostgresClearanceTemplateLookup
+from cora.safety.aggregates.clearance import AssetBinding, SubjectBinding
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import (
     activate_clearance,
+    activate_clearance_template,
     append_clearance_review_step,
     approve_clearance,
+    define_clearance_template,
     register_clearance,
     start_clearance_review,
     submit_clearance,
 )
 from cora.safety.features.activate_clearance import ActivateClearance
+from cora.safety.features.activate_clearance_template import ActivateClearanceTemplate
 from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
 from cora.safety.features.approve_clearance import ApproveClearance
+from cora.safety.features.define_clearance_template import DefineClearanceTemplate
 from cora.safety.features.register_clearance import RegisterClearance
 from cora.safety.features.start_clearance_review import StartClearanceReview
 from cora.safety.features.submit_clearance import SubmitClearance
@@ -68,6 +77,36 @@ _NOW = datetime(2026, 5, 16, 12, 0, 0, tzinfo=UTC)
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-00000000c001")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-00000000c002")
 _CAPABILITY_ID = UUID("01900000-0000-7000-8000-000000c0d6c2")
+_ESAF_TEMPLATE_CODE = "ESAF"
+_FACILITY_CODE = "cora"
+
+
+async def _seed_active_esaf_template(db_pool: asyncpg.Pool) -> UUID:
+    """Define + Activate an ESAF clearance template in the "cora" facility.
+    Returns the deterministic ClearanceTemplate id (uuid5 over
+    (facility_code, template_code)). Uses its own throwaway deps so the
+    main test's FixedIdGenerator queue isn't consumed by template event
+    ids."""
+    seeding_deps = build_postgres_deps(
+        db_pool,
+        now=_NOW,
+        ids=[uuid4(), uuid4()],  # define event + activate event
+    )
+    template_id = await define_clearance_template.bind(seeding_deps)(
+        DefineClearanceTemplate(
+            code=_ESAF_TEMPLATE_CODE,
+            title="Experiment Safety Assessment Form",
+            facility_code=_FACILITY_CODE,
+        ),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    await activate_clearance_template.bind(seeding_deps)(
+        ActivateClearanceTemplate(template_id=template_id),
+        principal_id=_PRINCIPAL_ID,
+        correlation_id=_CORRELATION_ID,
+    )
+    return template_id
 
 
 async def _seed_upstream_chain(
@@ -104,14 +143,20 @@ async def _seed_upstream_chain(
         uuid4(),  # run_event_id
         *[uuid4() for _ in range(extra_ids)],
     ]
-    deps = build_postgres_deps(
-        db_pool,
-        now=_NOW,
-        ids=queue,
-        # Use the REAL PostgresClearanceLookup (override the
-        # AlwaysCovered default) so the gate fires against the real
-        # proj_safety_clearance_summary projection.
-        clearance_lookup=PostgresClearanceLookup(db_pool),
+    deps = replace(
+        build_postgres_deps(
+            db_pool,
+            now=_NOW,
+            ids=queue,
+            # Use the REAL PostgresClearanceLookup (override the
+            # AlwaysCovered default) so the gate fires against the real
+            # proj_safety_clearance_summary projection.
+            clearance_lookup=PostgresClearanceLookup(db_pool),
+        ),
+        # Real PostgresClearanceTemplateLookup so register_clearance's
+        # template lookup resolves against the seeded template projection
+        # row (Slice 9E adds template-id resolution at register time).
+        clearance_template_lookup=PostgresClearanceTemplateLookup(db_pool),
     )
     cap_id = queue[0]
 
@@ -168,11 +213,11 @@ async def _seed_upstream_chain(
     return deps, plan_id, subject_id
 
 
-async def _walk_clearance_to_active(deps, subject_id: UUID) -> UUID:  # type: ignore[no-untyped-def]
+async def _walk_clearance_to_active(deps: Kernel, subject_id: UUID, template_id: UUID) -> UUID:
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=ClearanceTemplateId(template_id),
+            facility_code=_FACILITY_CODE,
             title="Pilot",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),
         ),
@@ -227,8 +272,12 @@ async def test_run_start_succeeds_when_active_clearance_covers_subject(
     """End-to-end happy path: real projection lookup returns an Active
     clearance covering the Run's Subject, decider gate passes,
     RunStarted lands."""
+    template_id = await _seed_active_esaf_template(db_pool)
     deps, plan_id, subject_id = await _seed_upstream_chain(db_pool, extra_ids=20)
-    await _walk_clearance_to_active(deps, subject_id)
+    # Drain safety projections so the template summary row is visible to
+    # the PostgresClearanceTemplateLookup used by register_clearance.
+    await _drain_safety(db_pool)
+    await _walk_clearance_to_active(deps, subject_id, template_id)
     await _drain_safety(db_pool)
 
     returned_id = await start_run.bind(deps)(
@@ -264,12 +313,16 @@ async def test_run_start_raises_coverage_mismatch_when_only_defined(
     """End-to-end sad path #2: a Defined clearance references the
     Subject but isn't Active. Decider raises
     RunClearanceCoverageMismatchError (distinct from Requires)."""
+    template_id = await _seed_active_esaf_template(db_pool)
     deps, plan_id, subject_id = await _seed_upstream_chain(db_pool, extra_ids=5)
+    # Drain safety projections so the template summary row is visible to
+    # the PostgresClearanceTemplateLookup used by register_clearance.
+    await _drain_safety(db_pool)
     # Register but don't transition -- clearance stays in Defined.
     await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=ClearanceTemplateId(template_id),
+            facility_code=_FACILITY_CODE,
             title="Stays Defined",
             bindings=frozenset({SubjectBinding(subject_id=subject_id)}),
         ),
@@ -304,6 +357,8 @@ async def test_run_start_succeeds_when_clearance_binds_controller_via_controller
     (test_run_start_snapshots_controller_caution_via_controller_id_back_reference):
     same scope-expansion, different cross-BC lookup port, both load-bearing
     for the controller-as-Asset honesty win shipped in cb50a69de."""
+    template_id = await _seed_active_esaf_template(db_pool)
+    assert template_id == clearance_template_stream_id(_FACILITY_CODE, _ESAF_TEMPLATE_CODE)
     controller_asset_id = uuid4()
     stage_asset_id = uuid4()
     plan_id = uuid4()
@@ -336,11 +391,14 @@ async def test_run_start_succeeds_when_clearance_binds_controller_via_controller
         uuid4(),  # run event
         *[uuid4() for _ in range(20)],  # clearance walk overhead
     ]
-    deps = build_postgres_deps(
-        db_pool,
-        now=_NOW,
-        ids=queue,
-        clearance_lookup=PostgresClearanceLookup(db_pool),
+    deps = replace(
+        build_postgres_deps(
+            db_pool,
+            now=_NOW,
+            ids=queue,
+            clearance_lookup=PostgresClearanceLookup(db_pool),
+        ),
+        clearance_template_lookup=PostgresClearanceTemplateLookup(db_pool),
     )
 
     # Controller Asset + stage Asset bound via controller_id. The
@@ -426,13 +484,17 @@ async def test_run_start_succeeds_when_clearance_binds_controller_via_controller
         correlation_id=_CORRELATION_ID,
     )
 
+    # Drain safety projections so the seeded template summary row is
+    # visible to PostgresClearanceTemplateLookup before register_clearance.
+    await _drain_safety(db_pool)
+
     # Load-bearing: Active Clearance bound ONLY to the controller (no
     # SubjectBinding). The scope-expansion is the only path that lets
     # this Clearance cover the stage-targeting Run.
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=ClearanceTemplateId(template_id),
+            facility_code=_FACILITY_CODE,
             title="Controller firmware lockout",
             bindings=frozenset({AssetBinding(asset_id=controller_asset_id)}),
         ),

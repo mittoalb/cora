@@ -50,6 +50,21 @@ Eventual-consistency: the decider does NOT verify the referenced
 controller Asset exists (mirrors `parent_id`, `model_id`,
 `fixture_id`). The handler does not load any external stream on
 this field's behalf.
+
+`facility_code` is `str | None`, optional cross-BC reference to
+the Federation Facility that owns this Asset, keyed on the
+cross-deployment convergent slug (`FacilityCode`) per
+[[project-slice8-design]] L1. Set ONCE at registration per the
+Asset.model_id Lock A precedent; rebind path is decommission +
+re-register. The handler resolves the slug via
+`FacilityLookup.lookup_by_code` before invoking the decider; the
+decider rejects unknown slugs with `AssetFacilityNotFoundError`
+(HTTP 404) and skips validation entirely when the field is None.
+Bare `str` on the command (matches the Permit / Credential / Seal
+wire convention of bare-str slugs on commands + typed
+`FacilityCode` VO on aggregate state); route + tool Pydantic
+regex enforces the `[a-z0-9-]{1,32}` codepoint contract at the
+API boundary.
 """
 
 from dataclasses import dataclass, field
@@ -92,3 +107,4 @@ class RegisterAsset:
     # pairing is enforced by the AssetOwner VO.
     owners: frozenset[AssetOwner] = field(default_factory=frozenset[AssetOwner])
     controller_id: UUID | None = None
+    facility_code: str | None = None

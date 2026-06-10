@@ -1,7 +1,7 @@
-"""DecisionReasoning entry: per-AI-trace observation row.
+"""Inference entry: per-AI-trace observation row.
 
 The Decision BC's first concrete entry type. Mirrors the Conduit
-BC's `ConduitTraversal` precedent and the per-category writer
+BC's `Verdict` precedent and the per-category writer
 pattern locked there.
 
 Each entry captures one OpenTelemetry GenAI semantic-convention
@@ -22,7 +22,7 @@ trade-off `events.py` per-aggregate modules made.
 
 ## Why writes batch from day one
 
-`append(rows: list[DecisionReasoning])` always takes a list. AI
+`append(rows: list[Inference])` always takes a list. AI
 producers commonly batch (a whole conversation turn arrives as
 multiple events at once); single-element lists work for the
 "one trace at a time" case. Locked at gate-review G4 for the
@@ -85,7 +85,7 @@ DECISION_REASONING_OPERATION_CREATE_AGENT = "create_agent"
 
 
 @dataclass(frozen=True)
-class DecisionReasoning:
+class Inference:
     """One row in the per-Decision AI-reasoning audit logbook.
 
     Captures one OTel GenAI client/agent span (or one tool call) plus
@@ -141,7 +141,7 @@ class DecisionReasoning:
 # reasoning logbook is opened. Documentation-grade per the 6f-5a
 # pattern (schema lives on the open event so projections read it
 # uniformly without per-BC adapters).
-REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
+INFERENCE_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
     fields={
         "operation_name": LogbookFieldSpec(
             type="string",
@@ -195,25 +195,25 @@ REASONING_LOGBOOK_SCHEMA: LogbookSchema = LogbookSchema(
 )
 
 
-class ReasoningStore(Protocol):
-    """Per-category port for DecisionReasoning entry writes.
+class InferenceStore(Protocol):
+    """Per-category port for Inference entry writes.
 
-    Mirrors `TraversalStore` from the Conduit BC's entries
-    module. Two implementations: `PostgresReasoningStore`
-    (production) and `InMemoryReasoningStore`
+    Mirrors `VerdictStore` from the Conduit BC's entries
+    module. Two implementations: `PostgresInferenceStore`
+    (production) and `InMemoryInferenceStore`
     (tests / `app_env=test`). Both honor at-least-once: callers
     may retry the same `event_id`, the store dedups via the
     table's PK constraint (Postgres) or the in-memory dict
     (InMemory).
     """
 
-    async def append(self, rows: list[DecisionReasoning]) -> None:
+    async def append(self, rows: list[Inference]) -> None:
         """Persist reasoning entries; empty list is a no-op."""
         ...
 
 
 _APPEND_SQL = """
-INSERT INTO entries_decision_reasonings (
+INSERT INTO entries_decision_inferences (
     event_id, decision_id, logbook_id, correlation_id, causation_id,
     occurred_at, duration,
     operation_name, provider_name, request_model,
@@ -240,13 +240,13 @@ ON CONFLICT (event_id) DO NOTHING
 """
 
 
-class PostgresReasoningStore:
-    """asyncpg-backed `ReasoningStore` implementation.
+class PostgresInferenceStore:
+    """asyncpg-backed `InferenceStore` implementation.
 
     Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
     a producer that re-issues the same `event_id` (after a transient
     network failure) is a silent no-op rather than a constraint
-    violation. Mirrors `PostgresTraversalStore` exactly.
+    violation. Mirrors `PostgresVerdictStore` exactly.
 
     Uses `executemany` for batch insert (one statement per entry,
     client-side loop). For MVP-scale batches (up to 100 entries
@@ -271,7 +271,7 @@ class PostgresReasoningStore:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
-    async def append(self, rows: list[DecisionReasoning]) -> None:
+    async def append(self, rows: list[Inference]) -> None:
         if not rows:  # pragma: no cover  # callers pre-filter empty batches; defensive early-out
             return
         # asyncpg encodes Python list -> Postgres array natively;
@@ -319,24 +319,24 @@ class PostgresReasoningStore:
             )
 
 
-class InMemoryReasoningStore:
-    """Test / `app_env=test` adapter for ReasoningStore.
+class InMemoryInferenceStore:
+    """Test / `app_env=test` adapter for InferenceStore.
 
     Dict-keyed by `event_id` for at-least-once dedup. Provides an
     `all()` accessor for tests inspecting written rows. Mirrors
-    `InMemoryTraversalStore` (plain class with explicit __init__,
+    `InMemoryVerdictStore` (plain class with explicit __init__,
     not dataclass; matches the per-category writer pattern locked
     at gate-review L8).
     """
 
     def __init__(self) -> None:
-        self._rows: dict[UUID, DecisionReasoning] = {}
+        self._rows: dict[UUID, Inference] = {}
 
-    async def append(self, rows: list[DecisionReasoning]) -> None:
+    async def append(self, rows: list[Inference]) -> None:
         for row in rows:
             self._rows.setdefault(row.event_id, row)
 
-    def all(self) -> list[DecisionReasoning]:
+    def all(self) -> list[Inference]:
         """Return every stored row in insertion order (test helper)."""
         return list(self._rows.values())
 
@@ -348,10 +348,10 @@ __all__ = [
     "DECISION_REASONING_OPERATION_EXECUTE_TOOL",
     "DECISION_REASONING_OPERATION_INVOKE_AGENT",
     "DECISION_REASONING_OPERATION_TEXT_COMPLETION",
-    "REASONING_LOGBOOK_SCHEMA",
-    "DecisionReasoning",
+    "INFERENCE_LOGBOOK_SCHEMA",
     "DecisionReasoningToolType",
-    "InMemoryReasoningStore",
-    "PostgresReasoningStore",
-    "ReasoningStore",
+    "InMemoryInferenceStore",
+    "Inference",
+    "InferenceStore",
+    "PostgresInferenceStore",
 ]

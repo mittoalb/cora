@@ -1,27 +1,27 @@
-"""ProcedureStep entry: per-Procedure procedural step row.
+"""Activity entry: per-Procedure procedural step row.
 
-Fourth concrete entry kind in CORA after `ConduitTraversal`,
-`DecisionReasoning`, and `RunReading`. Same per-category
+Fourth concrete entry kind in CORA after `Verdict`,
+`Inference`, and `Observation`. Same per-category
 writer pattern: a typed dataclass + per-category Postgres adapter
-alongside the owning aggregate, with a category-local `StepStore`
+alongside the owning aggregate, with a category-local `ActivityStore`
 Protocol (NOT a shared cross-BC port).
 
 ## Storage shape: Path C in the cross-BC trichotomy
 
 Per [[project_logbook_entry_storage]] §"The rule (the trichotomy)",
-ProcedureStep sits at **Path C** (polymorphic table with discriminator
+Activity sits at **Path C** (polymorphic table with discriminator
 column + JSON-payload column):
 
-  - **Path A** (typed sibling tables, one per kind) → ConduitTraversal,
-    DecisionReasoning. Pick when shape diverges AND per-kind volume /
+  - **Path A** (typed sibling tables, one per kind) → Verdict,
+    Inference. Pick when shape diverges AND per-kind volume /
     queryability matter.
-  - **Path B** (polymorphic + typed value columns) → RunReading. Pick
+  - **Path B** (polymorphic + typed value columns) → Observation. Pick
     when shape is uniform across kinds.
-  - **Path C** (polymorphic + JSON payload) → ProcedureStep. Pick when
+  - **Path C** (polymorphic + JSON payload) → Activity. Pick when
     shape diverges BUT per-kind volume is low / no per-kind read-side
     projection is planned.
 
-ProcedureStep's body shape DIVERGES across kinds (setpoint =
+Activity's body shape DIVERGES across kinds (setpoint =
 channel + target_value + units? + ramp_rate?; action = action_name +
 params; check = channel + passed + expected? + actual? + tolerance?),
 so typed columns would mean lots of mostly-NULL per-kind columns. But
@@ -39,9 +39,9 @@ records; modern event-sourcing consensus is JSON-payload-with-
 discriminator over typed columns when per-kind shape evolves at code
 speed.
 
-## Logbook + Entry skeleton (shared with RunReading + DecisionReasoning + ConduitTraversal)
+## Logbook + Entry skeleton (shared with Observation + Inference + Verdict)
 
-The body-shape encoding diverges from RunReading, but the SKELETON is
+The body-shape encoding diverges from Observation, but the SKELETON is
 identical: lazy open-on-first-write envelope event, three timestamps,
 per-category `<EntryNoun>Store` port with InMemory + Postgres adapters,
 dedicated `entries_<aggregate>_<entry_noun_plural>` table, batch
@@ -59,7 +59,7 @@ family (cross-BC)" for the full shape.
 
 ## Why writes batch from day one
 
-`append(rows: list[ProcedureStep])` always takes a list. Operator
+`append(rows: list[Activity])` always takes a list. Operator
 workflows often record several steps at once (a calibration sweep
 with 5 setpoints + 5 checks); batch shape avoids N round-trips. Empty
 lists are a no-op.
@@ -87,7 +87,7 @@ import asyncpg
 
 
 @dataclass(frozen=True)
-class ProcedureStep:
+class Activity:
     """One row in the per-Procedure steps logbook.
 
     Polymorphic by `step_kind` (setpoint | action | check). All kinds
@@ -115,26 +115,26 @@ class ProcedureStep:
     causation_id: UUID | None
 
 
-class StepStore(Protocol):
-    """Per-category port for ProcedureStep entry writes.
+class ActivityStore(Protocol):
+    """Per-category port for Activity entry writes.
 
-    The `append_procedure_steps` handler (and any future Procedure-side
+    The `append_activities` handler (and any future Procedure-side
     step writer, for example an EPICS adapter that auto-records a step
-    per StepRecord PV update) takes a `StepStore` and calls
+    per StepRecord PV update) takes a `ActivityStore` and calls
     `append(...)` per batch.
 
-    Two implementations: `PostgresStepStore` (production) and
-    `InMemoryStepStore` (tests / `app_env=test`). Both honor the same
+    Two implementations: `PostgresActivityStore` (production) and
+    `InMemoryActivityStore` (tests / `app_env=test`). Both honor the same
     at-least-once contract: callers may retry the same `event_id`, the
     store dedups via the table's PK constraint (Postgres) or the
     in-memory dict (InMemory).
     """
 
-    async def append(self, rows: list[ProcedureStep]) -> None: ...
+    async def append(self, rows: list[Activity]) -> None: ...
 
 
 _APPEND_SQL = """
-INSERT INTO entries_operation_procedure_steps (
+INSERT INTO entries_operation_procedure_activities (
     event_id, procedure_id, logbook_id, actor_id, command_name,
     step_kind, payload, sampled_at, occurred_at, correlation_id, causation_id
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -142,21 +142,21 @@ ON CONFLICT (event_id) DO NOTHING
 """
 
 
-class PostgresStepStore:
-    """asyncpg-backed `StepStore` implementation.
+class PostgresActivityStore:
+    """asyncpg-backed `ActivityStore` implementation.
 
     Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
     a producer that re-issues the same `event_id` (after a transient
     network failure on the previous attempt) is a no-op rather than
     a constraint violation. Matches the precedent set by
-    `PostgresTraversalStore`, `PostgresReasoningStore`, and
-    `PostgresReadingStore`.
+    `PostgresVerdictStore`, `PostgresInferenceStore`, and
+    `PostgresObservationStore`.
     """
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
-    async def append(self, rows: list[ProcedureStep]) -> None:
+    async def append(self, rows: list[Activity]) -> None:
         if not rows:
             return
         async with self._pool.acquire() as conn:
@@ -186,8 +186,8 @@ class PostgresStepStore:
             )
 
 
-class InMemoryStepStore:
-    """Test / `app_env=test` adapter for `StepStore`.
+class InMemoryActivityStore:
+    """Test / `app_env=test` adapter for `ActivityStore`.
 
     Dict keyed by `event_id` for trivial dedup. Exposes `all()` so
     contract / unit tests can assert what was emitted without going
@@ -195,21 +195,21 @@ class InMemoryStepStore:
     """
 
     def __init__(self) -> None:
-        self._rows: dict[UUID, ProcedureStep] = {}
+        self._rows: dict[UUID, Activity] = {}
 
-    async def append(self, rows: list[ProcedureStep]) -> None:
+    async def append(self, rows: list[Activity]) -> None:
         for row in rows:
             # ON CONFLICT DO NOTHING semantics: existing wins (matches
             # the Postgres adapter's behavior under retry).
             self._rows.setdefault(row.event_id, row)
 
-    def all(self) -> list[ProcedureStep]:
+    def all(self) -> list[Activity]:
         return list(self._rows.values())
 
 
 __all__ = [
-    "InMemoryStepStore",
-    "PostgresStepStore",
-    "ProcedureStep",
-    "StepStore",
+    "Activity",
+    "ActivityStore",
+    "InMemoryActivityStore",
+    "PostgresActivityStore",
 ]

@@ -423,7 +423,7 @@ def test_logbook_opened_after_rated_preserves_ratings() -> None:
     `test_rated_event_preserves_other_aggregate_fields`.
     """
     from cora.decision.aggregates.decision import (
-        REASONING_LOGBOOK_SCHEMA,
+        INFERENCE_LOGBOOK_SCHEMA,
         DecisionLogbookOpened,
     )
 
@@ -443,8 +443,8 @@ def test_logbook_opened_after_rated_preserves_ratings() -> None:
     e_opened = DecisionLogbookOpened(
         decision_id=decision_id,
         logbook_id=logbook_id,
-        kind="reasoning",
-        schema=REASONING_LOGBOOK_SCHEMA,
+        kind="inference",
+        schema=INFERENCE_LOGBOOK_SCHEMA,
         occurred_at=_T2,
     )
 
@@ -453,7 +453,7 @@ def test_logbook_opened_after_rated_preserves_ratings() -> None:
     assert state is not None
     assert rater_id in state.ratings  # ratings survive the logbook-open fold
     assert state.ratings[rater_id].rating is DecisionRating.USEFUL
-    assert state.logbooks == {"reasoning": logbook_id}
+    assert state.logbooks == {"inference": logbook_id}
 
 
 @pytest.mark.unit
@@ -462,7 +462,7 @@ def test_logbook_closed_after_rated_preserves_ratings() -> None:
     that landed before a logbook closes MUST persist through the
     close fold."""
     from cora.decision.aggregates.decision import (
-        REASONING_LOGBOOK_SCHEMA,
+        INFERENCE_LOGBOOK_SCHEMA,
         DecisionLogbookClosed,
         DecisionLogbookOpened,
     )
@@ -474,8 +474,8 @@ def test_logbook_closed_after_rated_preserves_ratings() -> None:
     e_opened = DecisionLogbookOpened(
         decision_id=decision_id,
         logbook_id=logbook_id,
-        kind="reasoning",
-        schema=REASONING_LOGBOOK_SCHEMA,
+        kind="inference",
+        schema=INFERENCE_LOGBOOK_SCHEMA,
         occurred_at=_T1,
     )
     e_rated = DecisionRated(

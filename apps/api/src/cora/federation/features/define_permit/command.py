@@ -18,7 +18,7 @@ Carries the caller-controlled fields for defining a new Permit:
   - `abi_tier_floor`: lowest tier the permit honors.
   - `expires_at`: contractual upper bound; must lie in the future.
   - `terms`: tagged-union (`OutboundTerms | InboundTerms`) carrying
-    direction-specific contractual fields per the `RunReading`
+    direction-specific contractual fields per the `Observation`
     polymorphism precedent.
 
 Server-side concerns (new permit id, wall-clock timestamp,

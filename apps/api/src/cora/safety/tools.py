@@ -5,18 +5,33 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.safety.features.activate_clearance import tool as activate_clearance_tool
+from cora.safety.features.activate_clearance_template import (
+    tool as activate_clearance_template_tool,
+)
 from cora.safety.features.amend_clearance import tool as amend_clearance_tool
 from cora.safety.features.append_clearance_review_step import (
     tool as append_clearance_review_step_tool,
 )
 from cora.safety.features.approve_clearance import tool as approve_clearance_tool
+from cora.safety.features.define_clearance_template import tool as define_clearance_template_tool
+from cora.safety.features.deprecate_clearance_template import (
+    tool as deprecate_clearance_template_tool,
+)
 from cora.safety.features.expire_clearance import tool as expire_clearance_tool
 from cora.safety.features.get_clearance import tool as get_clearance_tool
+from cora.safety.features.get_clearance_template import tool as get_clearance_template_tool
+from cora.safety.features.list_clearance_templates import tool as list_clearance_templates_tool
 from cora.safety.features.list_clearances import tool as list_clearances_tool
 from cora.safety.features.register_clearance import tool as register_clearance_tool
 from cora.safety.features.reject_clearance import tool as reject_clearance_tool
 from cora.safety.features.start_clearance_review import tool as start_clearance_review_tool
 from cora.safety.features.submit_clearance import tool as submit_clearance_tool
+from cora.safety.features.version_clearance_template import (
+    tool as version_clearance_template_tool,
+)
+from cora.safety.features.withdraw_clearance_template import (
+    tool as withdraw_clearance_template_tool,
+)
 from cora.safety.wire import SafetyHandlers
 
 
@@ -69,4 +84,32 @@ def register_safety_tools(
     amend_clearance_tool.register(
         mcp,
         get_handler=lambda: get_handlers().amend_clearance,
+    )
+    define_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().define_clearance_template,
+    )
+    get_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().get_clearance_template,
+    )
+    list_clearance_templates_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().list_clearance_templates,
+    )
+    activate_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().activate_clearance_template,
+    )
+    version_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().version_clearance_template,
+    )
+    deprecate_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_clearance_template,
+    )
+    withdraw_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().withdraw_clearance_template,
     )

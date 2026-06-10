@@ -12,6 +12,7 @@ from cora.equipment.aggregates.asset import (
     AssetLevel,
     AssetLifecycle,
     AssetName,
+    AssetTier,
     evolve,
     fold,
 )
@@ -167,6 +168,7 @@ def test_fold_single_asset_registered_returns_asset() -> None:
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
         commissioned_by=_TEST_ACTOR_ID,
+        tier=AssetTier.DEVICE,
     )
 
 
@@ -194,7 +196,12 @@ def test_decider_and_evolver_round_trip_for_enterprise() -> None:
     new_id = uuid4()
     command = RegisterAsset(name="  ANL  ", level=AssetLevel.ENTERPRISE, parent_id=None)
     events = register_asset.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     rebuilt = fold(events)
     assert rebuilt == Asset(
@@ -216,7 +223,12 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
     parent_id = uuid4()
     command = RegisterAsset(name="Eiger-2X-9M", level=AssetLevel.DEVICE, parent_id=parent_id)
     events = register_asset.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     rebuilt = fold(events)
     assert rebuilt == Asset(
@@ -227,6 +239,7 @@ def test_decider_and_evolver_round_trip_for_device_with_parent() -> None:
         lifecycle=AssetLifecycle.COMMISSIONED,
         commissioned_at=_NOW,
         commissioned_by=_TEST_ACTOR_ID,
+        tier=AssetTier.DEVICE,
     )
 
 

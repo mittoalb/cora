@@ -12,7 +12,9 @@ from cora.equipment.aggregates.asset import (
     AssetLifecycle,
     AssetModelMismatchError,
     AssetName,
+    AssetTier,
     InvalidAssetNameError,
+    tier_from_level,
 )
 from cora.shared.identifier import (
     AlternateIdentifier,
@@ -112,6 +114,58 @@ def test_asset_level_can_be_constructed_from_string_value() -> None:
     for every value."""
     for level in AssetLevel:
         assert AssetLevel(level.value) == level
+
+
+# ---------- AssetTier enum + tier_from_level derivation (Slice 8B) ----------
+
+
+@pytest.mark.unit
+def test_asset_tier_has_three_lower_isa88_levels() -> None:
+    """Pin the closed AssetTier value set. The three lower
+    AssetLevel values (UNIT / COMPONENT / DEVICE) graduate to the
+    intrinsic tier facet per Slice 8B Lock L3; the upper three values
+    (ENTERPRISE / SITE / AREA) do NOT participate (those are facility-
+    envelope levels deprecated by Asset.facility_code)."""
+    assert {t.value for t in AssetTier} == {"Unit", "Component", "Device"}
+
+
+@pytest.mark.unit
+def test_asset_tier_is_str_enum_for_natural_serialization() -> None:
+    """Mirrors the AssetLevel / AssetLifecycle test pattern: StrEnum
+    means each value IS its string representation, so projection
+    column writes and JSON serialization round-trip without a
+    custom encoder."""
+    assert isinstance(AssetTier.UNIT, str)
+    assert AssetTier.UNIT == "Unit"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("level", "expected"),
+    [
+        (AssetLevel.UNIT, AssetTier.UNIT),
+        (AssetLevel.COMPONENT, AssetTier.COMPONENT),
+        (AssetLevel.DEVICE, AssetTier.DEVICE),
+    ],
+)
+def test_tier_from_level_maps_lower_levels_to_matching_tier(
+    level: AssetLevel, expected: AssetTier
+) -> None:
+    """The derivation function maps the three lower AssetLevel
+    values to the matching AssetTier value verbatim."""
+    assert tier_from_level(level) == expected
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "level",
+    [AssetLevel.ENTERPRISE, AssetLevel.SITE, AssetLevel.AREA],
+)
+def test_tier_from_level_maps_upper_levels_to_none(level: AssetLevel) -> None:
+    """The three upper AssetLevel values map to None (the Asset has
+    no intrinsic tier when it represents a facility envelope).
+    Pinned because the deprecation contract relies on this asymmetry."""
+    assert tier_from_level(level) is None
 
 
 # ---------- AssetLifecycle enum ----------

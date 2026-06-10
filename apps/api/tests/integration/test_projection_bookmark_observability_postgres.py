@@ -37,8 +37,8 @@ from cora.infrastructure.projection.worker import advance_subscriber_once
 class _CapturingProjection:
     """Test-only projection: captures events, no side effects."""
 
-    name = "proj_test_phase_8e_9_observability"
-    subscribed_event_types = frozenset({"Phase8e9Event"})
+    name = "proj_test_bookmark_obs_observability"
+    subscribed_event_types = frozenset({"BookmarkObsTestEvent"})
 
     def __init__(self) -> None:
         self.captured: list[StoredEvent] = []
@@ -83,7 +83,7 @@ async def _read_bookmark_columns(db_pool: asyncpg.Pool, name: str) -> dict[str, 
 def _make_event(principal: UUID, payload: dict[str, object] | None = None) -> NewEvent:
     return NewEvent(
         event_id=uuid4(),
-        event_type="Phase8e9Event",
+        event_type="BookmarkObsTestEvent",
         schema_version=1,
         payload=payload or {"k": "v"},
         occurred_at=datetime.now(tz=UTC),
@@ -133,7 +133,7 @@ async def test_failure_helper_records_error_and_increments_counter(
 ) -> None:
     """write_bookmark_failure populates last_error_at, last_error_message,
     and increments consecutive_failures."""
-    projection_name = "proj_test_phase_8e_9_failure_basic"
+    projection_name = "proj_test_bookmark_obs_failure_basic"
     await _ensure_bookmark(db_pool, projection_name)
 
     await write_bookmark_failure(
@@ -155,7 +155,7 @@ async def test_failure_helper_does_not_touch_position(
     """Failure path preserves bookmark position so retry semantics
     are intact. Set position to a known value, fire failure, assert
     position unchanged."""
-    projection_name = "proj_test_phase_8e_9_position_preserved"
+    projection_name = "proj_test_bookmark_obs_position_preserved"
     await _ensure_bookmark(db_pool, projection_name)
 
     # Set position to a non-sentinel value
@@ -187,7 +187,7 @@ async def test_consecutive_failures_increment_across_calls(
 ) -> None:
     """Three consecutive failures land consecutive_failures = 3 with
     the latest error message."""
-    projection_name = "proj_test_phase_8e_9_consecutive_increment"
+    projection_name = "proj_test_bookmark_obs_consecutive_increment"
     await _ensure_bookmark(db_pool, projection_name)
 
     for i in range(3):
@@ -212,7 +212,7 @@ async def test_success_after_failure_clears_failure_columns(
     # Use a unique name to avoid collision with the success-path test.
     # `_CapturingProjection` is a regular class (not a frozen dataclass),
     # so plain attribute assignment shadows the class-level default.
-    projection.name = "proj_test_phase_8e_9_recovery"
+    projection.name = "proj_test_bookmark_obs_recovery"
     await _ensure_bookmark(db_pool, projection.name)
 
     # First, record some failures
@@ -252,7 +252,7 @@ async def test_long_error_message_truncated_at_500_chars(
     """Bound bookmark UPDATE size: long error messages truncate to
     500 chars at the helper layer (full traceback goes to OTel
     spans when full surface ships)."""
-    projection_name = "proj_test_phase_8e_9_truncation"
+    projection_name = "proj_test_bookmark_obs_truncation"
     await _ensure_bookmark(db_pool, projection_name)
 
     long_message = "x" * 1000

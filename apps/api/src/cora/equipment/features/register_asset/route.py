@@ -28,6 +28,7 @@ from cora.infrastructure.routing import (
     get_principal_id,
     get_surface_id,
 )
+from cora.shared.facility_code import FACILITY_CODE_MAX_LENGTH
 
 
 class RegisterAssetRequest(BaseModel):
@@ -119,6 +120,21 @@ class RegisterAssetRequest(BaseModel):
             "consistency: the controller's existence is NOT verified."
         ),
     )
+    facility_code: str | None = Field(
+        None,
+        min_length=1,
+        max_length=FACILITY_CODE_MAX_LENGTH,
+        pattern=r"^[a-z0-9-]{1,32}$",
+        description=(
+            "Optional cross-deployment Facility slug owning this Asset "
+            "(for example 'aps', 'maxiv'). Lowercase ASCII alphanumeric "
+            "plus dash, 1-32 chars. Set ONCE at registration; rebind "
+            "path is decommission + re-register. The handler resolves "
+            "the slug via the Federation BC's FacilityLookup port; "
+            "unknown codes raise HTTP 404. Decommissioned-Facility "
+            "binding is allowed."
+        ),
+    )
 
 
 class RegisterAssetResponse(BaseModel):
@@ -158,8 +174,14 @@ router = APIRouter(tags=["equipment"])
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
             "description": (
-                "model_id was supplied but the referenced Model stream "
-                "does not exist (ModelNotFoundError)."
+                "Either model_id was supplied but the referenced Model "
+                "stream does not exist (ModelNotFoundError), OR "
+                "facility_code was supplied but the referenced Facility "
+                "is not visible in the Federation projection "
+                "(AssetFacilityNotFoundError). Operator remedies: "
+                "register the missing parent first "
+                "(`POST /federation/facilities` or via the model "
+                "registration slice), or correct the slug / id."
             ),
         },
         status.HTTP_409_CONFLICT: {
@@ -210,6 +232,7 @@ async def post_assets(
             ),
             owners=frozenset(entry.to_domain() for entry in (body.owners or [])),
             controller_id=body.controller_id,
+            facility_code=body.facility_code,
         ),
         principal_id=principal_id,
         correlation_id=cid,

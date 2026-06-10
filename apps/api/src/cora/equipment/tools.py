@@ -32,6 +32,7 @@ from cora.equipment.features.assign_fixture_persistent_id import (
     tool as assign_fixture_persistent_id_tool,
 )
 from cora.equipment.features.attach_asset_to_fixture import tool as attach_asset_to_fixture_tool
+from cora.equipment.features.bind_asset_to_facility import tool as bind_asset_to_facility_tool
 from cora.equipment.features.decommission_asset import tool as decommission_asset_tool
 from cora.equipment.features.decommission_frame import tool as decommission_frame_tool
 from cora.equipment.features.decommission_mount import tool as decommission_mount_tool
@@ -332,6 +333,10 @@ def register_equipment_tools(
     attach_asset_to_fixture_tool.register(
         mcp,
         get_handler=lambda: get_handlers().attach_asset_to_fixture,
+    )
+    bind_asset_to_facility_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().bind_asset_to_facility,
     )
     detach_asset_from_fixture_tool.register(
         mcp,

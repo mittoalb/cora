@@ -65,6 +65,7 @@ from fastapi.testclient import TestClient
 from cora.api.main import create_app
 from cora.equipment.aggregates.asset import AssetLevel
 from cora.infrastructure.event_envelope import to_new_event
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from cora.trust.aggregates.policy.events import (
     PolicyDefined,
     event_type_name,
@@ -228,11 +229,12 @@ def _create_clearance_as(client: TestClient, principal: UUID) -> UUID:
     """
     from uuid import uuid4
 
+    template_id = clearance_template_stream_id("cora", "ESAF")
     response = client.post(
         "/clearances",
         json={
-            "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "template_id": str(template_id),
+            "facility_code": "cora",
             "title": "P1's clearance",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },
@@ -578,7 +580,7 @@ def test_p1_can_still_read_their_own_aggregate(
         headers={"X-Principal-Id": str(p1)},
     )
     assert response.status_code == 200, (
-        f"P1 was unexpectedly denied reading their own aggregate "
+        f"P1 was unexpectedly denied observation their own aggregate "
         f"({response.status_code}, {response.text}). Policy/permitted-"
         f"commands setup is wrong."
     )

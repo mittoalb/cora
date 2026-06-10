@@ -9,14 +9,18 @@ from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceActivated,
     ClearanceCannotActivateError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceStatus,
     ClearanceTitle,
     RunBinding,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import activate_clearance
 from cora.safety.features.activate_clearance import ActivateClearance
+from cora.shared.facility_code import FacilityCode
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 
@@ -24,8 +28,8 @@ _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 def _clearance(status: ClearanceStatus = ClearanceStatus.APPROVED) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        template_id=ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF")),
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         status=status,

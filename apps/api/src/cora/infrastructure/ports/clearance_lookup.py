@@ -66,8 +66,9 @@ class ClearanceReference:
 
     clearance_id: UUID
     status: str
-    kind: str
-    facility_asset_id: UUID
+    template_id: UUID
+    template_code: str
+    facility_code: str
 
 
 class ClearanceLookup(Protocol):
@@ -133,14 +134,16 @@ class AlwaysCoveredClearanceLookup:
     ) -> list[ClearanceReference]:
         _ = subject_id  # unused (synthetic clearance "covers" everything)
         _ = asset_ids  # unused
-        # Use the run_id itself as the facility-asset placeholder so
-        # the synthetic clearance is deterministic per Run; the value
-        # is never read in any decider path.
+        _ = run_id  # unused (synthetic clearance binds opaquely)
+        # Use a sentinel facility-code string; the value is never read
+        # in any decider path (the stub exists for tests that don't
+        # exercise the clearance-gate logic).
         return [
             ClearanceReference(
                 clearance_id=NIL_SENTINEL_ID,  # sentinel "test stub" id
                 status="Active",
-                kind="ESAF",
-                facility_asset_id=run_id,
+                template_id=NIL_SENTINEL_ID,
+                template_code="test-stub",
+                facility_code="test-stub",
             )
         ]

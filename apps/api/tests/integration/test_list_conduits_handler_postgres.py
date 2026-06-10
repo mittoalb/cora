@@ -45,7 +45,7 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 def _conduit_ids(conduit_id: UUID) -> list[UUID]:
     """4 ids consumed by define_conduit:
-    conduit_id + traversals_logbook_id + 2 event_ids."""
+    conduit_id + verdict_logbook_id + 2 event_ids."""
     return [conduit_id, uuid4(), uuid4(), uuid4()]
 
 

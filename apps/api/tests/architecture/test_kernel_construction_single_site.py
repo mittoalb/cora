@@ -1,34 +1,13 @@
-"""Direct `Kernel(...)` construction is restricted to two helpers + the
-production primitives.
+"""Direct `Kernel(...)` construction is restricted to the production
+primitives in `cora/infrastructure/deps.py`.
 
 The two `make_postgres_kernel` / `make_inmemory_kernel` primitives in
 `cora/infrastructure/deps.py` are the only place production constructs
-a Kernel. Tests call them via thin wrappers: `tests/unit/_helpers.py::
-build_deps` (in-memory) and `tests/integration/_helpers.py::
-build_postgres_deps` (Postgres-backed).
-
-This test scans `src/` and `tests/`:
-
-  - `src/`: only `cora/infrastructure/deps.py` may construct Kernel.
-  - `tests/integration/`: only `_helpers.py` may construct Kernel.
-  - `tests/unit/`: only `_helpers.py` may construct Kernel, plus two
-    legacy holdouts (see below).
-
-## Allowlisted unit-test holdouts
-
-Two unit-test files are allowlisted because their needs don't fit the
-`make_inmemory_kernel` shape:
-
-  - `tests/unit/test_idempotency_pruner.py` passes a non-None pool
-    sentinel to test the pruner's pool-presence branch. Adding a
-    `pool=` override to `make_inmemory_kernel` would clutter the
-    primitive's contract for one test.
-
-  - `tests/unit/access/test_list_actors_handler.py` predates the
-    `build_deps` helper consolidation and constructs `Kernel(...)`
-    directly with a custom `_DenyAllAuthorize`. Migration is possible
-    but the file's auth-stub class structure differs from the canonical
-    helper's; deferred until the test file is touched for other reasons.
+a Kernel. Tests call those primitives via thin wrappers
+(`tests/unit/_helpers.py::build_deps` for in-memory,
+`tests/integration/_helpers.py::build_postgres_deps` for Postgres-
+backed), so the wrappers themselves no longer carry a direct
+`Kernel(...)` call.
 
 Adding a required `Kernel` field now lands in exactly two function
 bodies (the two primitives) instead of every callsite individually.
@@ -44,13 +23,13 @@ from tests.architecture.conftest import tracked_python_files, tracked_test_files
 # tests/architecture/test_kernel_construction_single_site.py -> apps/api/
 _API_ROOT = Path(__file__).resolve().parents[2]
 
-# The single allowed Kernel-construction sites in each scanned tree.
-# Paths are relative to apps/api/.
+# The single allowed Kernel-construction site. Paths are relative to
+# apps/api/. The meta-test `test_allowlist_files_actually_construct_kernel`
+# below verifies each entry still contains a Kernel(...) call so the
+# allowlist cannot accumulate stale entries.
 _ALLOWLIST: frozenset[str] = frozenset(
     {
         "src/cora/infrastructure/deps.py",
-        "tests/integration/_helpers.py",
-        "tests/unit/_helpers.py",
     }
 )
 
@@ -130,4 +109,25 @@ def test_allowlist_files_exist() -> None:
     assert not missing, (
         f"Allowlist references files that no longer exist: {missing}. "
         f"Update the allowlist in {Path(__file__).name}."
+    )
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("relative", sorted(_ALLOWLIST))
+def test_allowlist_files_actually_construct_kernel(relative: str) -> None:
+    """Every allowlisted file MUST actually contain a `Kernel(...)` call
+    site. Without this drift catcher, an allowlisted file that stops
+    constructing Kernel directly (because the call moved out, was
+    refactored into a helper, etc.) is silently retained: the primary
+    test's substring-based candidate filter never lifts the file into
+    its check, so its `lines, ...` assertion never fires.
+    """
+    path = _API_ROOT / relative
+    assert path.is_file(), f"{relative} no longer exists; prune from _ALLOWLIST"
+    tree = ast.parse(path.read_text(), filename=str(path))
+    lines = _kernel_call_lines(tree)
+    assert lines, (
+        f"{relative} is on _ALLOWLIST but no longer contains a "
+        f"`Kernel(...)` construction site. Either restore the direct "
+        f"construction or prune the allowlist entry."
     )

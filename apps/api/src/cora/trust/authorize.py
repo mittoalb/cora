@@ -70,29 +70,29 @@ If the configured policy is missing from the event store, this
 adapter returns Deny — fail-closed. A Settings-time check that the
 policy exists at startup would surface this earlier; deferred.
 
-## Optional traversal entry emission
+## Optional verdict entry emission
 
-When constructed with a `TraversalStore`, every Allow / Deny
-decision additionally writes one `ConduitTraversal` entry row
-to the per-Conduit traversals logbook. This is the per-Conduit
+When constructed with a `VerdictStore`, every Allow / Deny
+decision additionally writes one `Verdict` entry row
+to the per-Conduit verdict logbook. This is the per-Conduit
 authz audit log — every command that traverses a Conduit is
 captured with actor, command, decision, reason, and timestamps.
 
 Wiring is opt-in (constructor param defaults to None) so existing
 test paths and the AllowAllAuthorize fallback don't accumulate
-entries. When `traversals_store` is provided, `clock` and
+entries. When `verdict_store` is provided, `clock` and
 `id_generator` are required (for `occurred_at` and `event_id`); the
 constructor enforces this so missed wiring fails loud at app
 startup, not at the first authz call.
 
 Logbook id resolution: TrustAuthorize loads the target Conduit
 aggregate via `load_conduit` and reads `conduit.logbooks[
-LOGBOOK_KIND_TRAVERSALS]`. The Conduit stream is short (genesis +
+LOGBOOK_KIND_VERDICT]`. The Conduit stream is short (genesis +
 logbook-open, ~handful of events) so per-call fold cost is small;
 per-process caching keyed on `conduit_id` is the natural future
 optimization. If the Conduit doesn't exist (typical for
 `UUID(int=0)` sentinel until conduit-routing lands) or has no
-traversals logbook open, the entry write is silently skipped with
+verdict logbook open, the entry write is silently skipped with
 a warn log — the authz decision itself is unaffected.
 
 `correlation_id` for the entry row comes from
@@ -115,11 +115,11 @@ from cora.infrastructure.ports import (
     IdGenerator,
 )
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.trust.aggregates.conduit import LOGBOOK_KIND_TRAVERSALS, load_conduit
+from cora.trust.aggregates.conduit import LOGBOOK_KIND_VERDICT, load_conduit
 from cora.trust.aggregates.conduit.entries import (
-    ConduitTraversal,
-    TraversalDecision,
-    TraversalStore,
+    Verdict,
+    VerdictDecision,
+    VerdictStore,
 )
 from cora.trust.aggregates.policy import evaluate, load_policy
 
@@ -134,18 +134,16 @@ class TrustAuthorize:
         event_store: EventStore,
         *,
         policy_id: UUID,
-        traversals_store: TraversalStore | None = None,
+        verdict_store: VerdictStore | None = None,
         clock: Clock | None = None,
         id_generator: IdGenerator | None = None,
     ) -> None:
-        if traversals_store is not None and (clock is None or id_generator is None):
-            msg = (
-                "TrustAuthorize: traversals_store requires both clock and id_generator to be wired"
-            )
+        if verdict_store is not None and (clock is None or id_generator is None):
+            msg = "TrustAuthorize: verdict_store requires both clock and id_generator to be wired"
             raise ValueError(msg)
         self._event_store = event_store
         self._policy_id = policy_id
-        self._traversals_store = traversals_store
+        self._verdict_store = verdict_store
         self._clock = clock
         self._id_generator = id_generator
 
@@ -206,8 +204,8 @@ class TrustAuthorize:
                     correlation_id=str(current_correlation_id()),
                 )
 
-        if self._traversals_store is not None:
-            await self._emit_traversal(
+        if self._verdict_store is not None:
+            await self._emit_verdict(
                 principal_id=principal_id,
                 command_name=command_name,
                 conduit_id=conduit_id,
@@ -216,7 +214,7 @@ class TrustAuthorize:
 
         return result
 
-    async def _emit_traversal(
+    async def _emit_verdict(
         self,
         *,
         principal_id: UUID,
@@ -224,15 +222,15 @@ class TrustAuthorize:
         conduit_id: UUID,
         result: AuthzResult,
     ) -> None:
-        """Best-effort write of one ConduitTraversal entry per call.
+        """Best-effort write of one Verdict entry per call.
 
         Skipped silently with a warn log if the Conduit doesn't exist
-        or has no currently-open traversals logbook. The authz
+        or has no currently-open verdict logbook. The authz
         decision itself is unaffected.
         """
         # Type-narrowed: __init__ enforces that these are non-None
-        # whenever traversals_store is set.
-        assert self._traversals_store is not None
+        # whenever verdict_store is set.
+        assert self._verdict_store is not None
         assert self._clock is not None
         assert self._id_generator is not None
 
@@ -245,22 +243,22 @@ class TrustAuthorize:
                 correlation_id=str(current_correlation_id()),
             )
             return
-        logbook_id = conduit.logbooks.get(LOGBOOK_KIND_TRAVERSALS)
+        logbook_id = conduit.logbooks.get(LOGBOOK_KIND_VERDICT)
         if logbook_id is None:
             _log.warning(
                 "trust_authorize.skip_traversal",
                 conduit_id=str(conduit_id),
-                reason="no_open_traversals_logbook",
+                reason="no_open_verdict_logbook",
                 correlation_id=str(current_correlation_id()),
             )
             return
 
-        decision_str: TraversalDecision = "Allow" if isinstance(result, Allow) else "Deny"
+        decision_str: VerdictDecision = "Allow" if isinstance(result, Allow) else "Deny"
         reason = result.reason if isinstance(result, Deny) else None
 
-        await self._traversals_store.append(
+        await self._verdict_store.append(
             [
-                ConduitTraversal(
+                Verdict(
                     event_id=self._id_generator.new_id(),
                     conduit_id=conduit_id,
                     logbook_id=logbook_id,

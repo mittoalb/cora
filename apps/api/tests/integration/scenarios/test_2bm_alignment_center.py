@@ -105,11 +105,11 @@ from cora.equipment.features.update_family_settings_schema import (
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
 from cora.operation.aggregates.procedure import ProcedureStatus
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps import (
+from cora.operation.features.append_activities import (
     bind as bind_append_step,
 )
 from cora.operation.features.complete_procedure import (
@@ -408,7 +408,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_steps (lazy-open on first call): logbook_id, open_event_id
+        # append_activities (lazy-open on first call): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # complete_procedure: event_id
@@ -424,7 +424,7 @@ def _setpoint(
     role: str | None = None,
     note: str | None = None,
     sampled_at: datetime,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     """Build a Setpoint step input. `role` carries context-dependent
     semantics (for example, Tomo@0deg vs Tomo@180deg for the same physical
     Sample_top_X motor). `note` is operator's free-text per-step audit."""
@@ -437,7 +437,7 @@ def _setpoint(
         payload["role"] = role
     if note is not None:
         payload["note"] = note
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="setpoint",
         payload=payload,
@@ -450,9 +450,9 @@ def _action(
     action_name: str,
     sampled_at: datetime,
     **params: Any,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     """Build an Action step input. `params` are kind-specific."""
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="action",
         payload={"action_name": action_name, "params": params},
@@ -470,7 +470,7 @@ def _check(
     source: str = "operator_visual",
     sampled_at: datetime,
     **evidence: Any,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     """Build a Check step input. `source` distinguishes operator-visual
     judgment from off-line metrics (for example, tomopy.find_center_vo)."""
     payload: dict[str, Any] = {
@@ -486,7 +486,7 @@ def _check(
         payload["tolerance"] = tolerance
     if evidence:
         payload["evidence"] = evidence
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="check",
         payload=payload,
@@ -740,9 +740,9 @@ async def test_center_alignment_plays_out_end_to_end(
     assert len(all_steps) == 13, "expected 13 steps for one full convergence"
 
     # Append all steps in one batch (operator-realistic; matches how DAQ
-    # adapters batch and matches the AppendProcedureSteps batch shape).
+    # adapters batch and matches the AppendProcedureActivities batch shape).
     count = await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(procedure_id=_PROCEDURE_ID, entries=all_steps),
+        AppendProcedureActivities(procedure_id=_PROCEDURE_ID, entries=all_steps),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -765,7 +765,7 @@ async def test_center_alignment_plays_out_end_to_end(
     assert procedure_event_types == [
         "ProcedureRegistered",
         "ProcedureStarted",
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         "ProcedureCompleted",
     ]
 
@@ -824,7 +824,7 @@ async def test_center_alignment_plays_out_end_to_end(
     assert proc_summary.name == "2-BM rotation-axis alignment (vessel-A bakeout pre-scan)"
     assert proc_summary.kind == "center_alignment"
     assert proc_summary.status == ProcedureStatus.COMPLETED.value
-    assert proc_summary.steps_logbook_id == _STEPS_LOGBOOK_ID
+    assert proc_summary.activity_logbook_id == _STEPS_LOGBOOK_ID
     # All 4 target Assets surface in the read model for at-a-glance ops queries.
     assert set(proc_summary.target_asset_ids) == {
         _ASSET_AEROTECH_ABRS_ID,
@@ -880,15 +880,15 @@ async def test_center_alignment_plays_out_end_to_end(
 
 
 def _postgres_step_store(db_pool: asyncpg.Pool):
-    """Build a PostgresStepStore for the BC-internal step writer.
+    """Build a PostgresActivityStore for the BC-internal step writer.
 
     `wire_operation` constructs this normally from `deps.pool`; the
     scenario test exercises the slice handler directly via `bind_append`,
     so we construct the store here.
     """
-    from cora.operation.aggregates.procedure import PostgresStepStore
+    from cora.operation.aggregates.procedure import PostgresActivityStore
 
-    return PostgresStepStore(db_pool)
+    return PostgresActivityStore(db_pool)
 
 
 async def _read_steps(db_pool: asyncpg.Pool, procedure_id: UUID) -> list[asyncpg.Record]:
@@ -896,7 +896,7 @@ async def _read_steps(db_pool: asyncpg.Pool, procedure_id: UUID) -> list[asyncpg
         return await conn.fetch(
             """
             SELECT step_kind, payload, sampled_at
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             ORDER BY sampled_at
             """,

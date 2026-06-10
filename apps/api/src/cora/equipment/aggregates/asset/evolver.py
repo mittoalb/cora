@@ -27,6 +27,9 @@ Lifecycle mapping per event type:
     into owners frozenset)
   - `AssetOwnerRemoved`            -> (lifecycle UNCHANGED; removes owner
     matching name from owners frozenset)
+  - `AssetFacilityCodeAssigned`    -> (lifecycle UNCHANGED;
+    facility_code -> event.facility_code, set-once per
+    [[project-slice8-design]] L2)
 
 The lifecycle mapping is hardcoded per match arm — the event type
 IS the lifecycle-change indicator (no lifecycle field in event
@@ -48,8 +51,12 @@ mutated incrementally by `AssetFamilyAdded` /
 `family_ids` AND `condition` AND `settings` AND `ports` AND
 `drawing` AND `model_id` AND `alternate_identifiers` AND `owners`
 AND `fixture_id` AND `partition_rule` AND `commissioned_at` AND
-`decommissioned_at` AND `persistent_id` AND `controller_id`
-through from prior state.
+`decommissioned_at` AND `persistent_id` AND `controller_id` AND
+`facility_code` AND `tier` through from prior state. The genesis
+arm derives `tier` from `level` via `tier_from_level(...)`;
+transition arms inherit it (level never changes post-genesis, so
+the derived tier never changes either, but the explicit thread
+keeps the field-list discipline uniform).
 `partition_rule` toggles None <-> Some(rule) <-> Some(rule') <-> None
 via AssetPartitionRuleUpdated; every other transition arm preserves it. Constructing
 `Asset(id=..., name=..., level=..., parent_id=..., lifecycle=...)`
@@ -100,6 +107,7 @@ from cora.equipment.aggregates.asset.events import (
     AssetDegraded,
     AssetDetachedFromFixture,
     AssetEvent,
+    AssetFacilityCodeAssigned,
     AssetFamilyAdded,
     AssetFamilyRemoved,
     AssetFaulted,
@@ -124,6 +132,7 @@ from cora.equipment.aggregates.asset.state import (
     AssetName,
     AssetPort,
     PortDirection,
+    tier_from_level,
 )
 from cora.infrastructure.evolver import require_state
 from cora.shared.identifier import (
@@ -147,6 +156,7 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
             alternate_identifiers=alternate_identifiers,
             owners=owners,
             controller_id=controller_id,
+            facility_code=facility_code,
         ):
             _ = state  # AssetRegistered is the genesis event; prior state ignored
             return Asset(
@@ -161,6 +171,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 owners=owners,
                 fixture_id=None,
                 controller_id=controller_id,
+                facility_code=facility_code,
+                tier=tier_from_level(AssetLevel(level)),
                 # Asset enters Commissioned at genesis; AssetRegistered
                 # IS the commissioning event per L2 of the persistent-id
                 # design memo. Folding occurred_at avoids a new
@@ -204,6 +216,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetDecommissioned(
             occurred_at=occurred_at,
@@ -232,6 +246,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetRelocated(to_parent_id=to_parent_id):
             # Hierarchy mutation: only parent_id changes; lifecycle / level
@@ -262,6 +278,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetMaintenanceEntered():
             prior = require_state(state, "AssetMaintenanceEntered")
@@ -287,6 +305,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetMaintenanceExited():
             prior = require_state(state, "AssetMaintenanceExited")
@@ -312,6 +332,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetFamilyAdded(family_id=family_id):
             # Family mutation: only `family_ids` changes; everything
@@ -342,6 +364,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetFamilyRemoved(family_id=family_id):
             # Mirror of AssetFamilyAdded. Frozenset difference is a
@@ -373,6 +397,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetDegraded():
             # Condition mutation: only `condition` changes; everything
@@ -403,6 +429,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetFaulted():
             prior = require_state(state, "AssetFaulted")
@@ -428,6 +456,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetRestored():
             prior = require_state(state, "AssetRestored")
@@ -453,6 +483,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetSettingsUpdated(settings=settings):
             # Settings mutation: only `settings` changes. Event payload
@@ -485,6 +517,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetPartitionRuleUpdated(partition_rule=partition_rule):
             # Partition rule mutation: only `partition_rule` changes.
@@ -519,6 +553,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetPortAdded(
             port_name=port_name,
@@ -559,6 +595,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetPortRemoved(port_name=port_name):
             # Mirror of AssetPortAdded. Removes the port whose `name`
@@ -592,6 +630,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetAlternateIdentifierAdded(alternate_identifier=identifier):
             # Alternate-identifier mutation: only
@@ -624,6 +664,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetAlternateIdentifierRemoved(alternate_identifier=identifier):
             # Mirror of AssetAlternateIdentifierAdded. Frozenset
@@ -652,6 +694,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetOwnerAdded(owner=owner):
             # Owner mutation: only `owners` changes; everything else
@@ -683,6 +727,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetPersistentIdAssigned(
             persistent_id_scheme=scheme,
@@ -723,6 +769,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                     value=value,
                 ),
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetOwnerRemoved(owner_name=owner_name):
             # Mirror of AssetOwnerAdded. Removes the owner whose `name`
@@ -755,6 +803,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetAttachedToFixture(fixture_id=fixture_id):
             # Sets the back-reference. The Fixture side carries the
@@ -784,6 +834,8 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
             )
         case AssetDetachedFromFixture():
             # Clears the back-reference. The Fixture's own
@@ -814,6 +866,41 @@ def evolve(state: Asset | None, event: AssetEvent) -> Asset:
                 decommissioned_by=prior.decommissioned_by,
                 persistent_id=prior.persistent_id,
                 controller_id=prior.controller_id,
+                facility_code=prior.facility_code,
+                tier=prior.tier,
+            )
+        case AssetFacilityCodeAssigned(facility_code=facility_code):
+            # Set-once binding: the decider's
+            # AssetFacilityCodeAlreadyAssignedError enforces "must be
+            # None at command time", so this evolver arm always
+            # transitions None -> Some(facility_code). Every other
+            # field carries from prior state (single-field mutation,
+            # mirrors AssetPersistentIdAssigned).
+            prior = require_state(state, "AssetFacilityCodeAssigned")
+            return Asset(
+                id=prior.id,
+                name=prior.name,
+                level=prior.level,
+                parent_id=prior.parent_id,
+                lifecycle=prior.lifecycle,
+                condition=prior.condition,
+                family_ids=prior.family_ids,
+                settings=prior.settings,
+                ports=prior.ports,
+                drawing=prior.drawing,
+                model_id=prior.model_id,
+                alternate_identifiers=prior.alternate_identifiers,
+                owners=prior.owners,
+                fixture_id=prior.fixture_id,
+                partition_rule=prior.partition_rule,
+                commissioned_at=prior.commissioned_at,
+                commissioned_by=prior.commissioned_by,
+                decommissioned_at=prior.decommissioned_at,
+                decommissioned_by=prior.decommissioned_by,
+                persistent_id=prior.persistent_id,
+                controller_id=prior.controller_id,
+                facility_code=facility_code,
+                tier=prior.tier,
             )
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)

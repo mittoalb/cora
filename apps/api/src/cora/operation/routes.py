@@ -49,9 +49,11 @@ from cora.operation.aggregates.procedure import (
     ProcedureCannotStartError,
     ProcedureCannotTruncateError,
     ProcedureCapabilityExecutorMismatchError,
+    ProcedureEnclosureCoverageMismatchError,
     ProcedureNotFoundError,
     ProcedurePlanAssetDecommissionedError,
     ProcedureRequiresAvailableSupplyError,
+    ProcedureRequiresPermittedEnclosureError,
     ProcedureStepsForbiddenForRecipeDrivenError,
     ProcedureStepsLogbookClosedError,
     ProcedureSupplyCoverageMismatchError,
@@ -74,7 +76,7 @@ from cora.operation.errors import (
 )
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_steps,
+    append_activities,
     complete_procedure,
     conduct_procedure,
     get_procedure,
@@ -217,7 +219,7 @@ def register_operation_routes(app: FastAPI) -> None:
     app.include_router(complete_procedure.router)
     app.include_router(abort_procedure.router)
     app.include_router(truncate_procedure.router)
-    app.include_router(append_procedure_steps.router)
+    app.include_router(append_activities.router)
     app.include_router(get_procedure.router)
     app.include_router(list_procedures.router)
     app.include_router(conduct_procedure.router)
@@ -263,6 +265,10 @@ def register_operation_routes(app: FastAPI) -> None:
         # cross-BC Supply pre-flight gate (Phase-of-Run only).
         ProcedureRequiresAvailableSupplyError,
         ProcedureSupplyCoverageMismatchError,
+        # cross-BC Enclosure pre-flight gate per
+        # [[project_enclosure_stage1_design]] L-pre-1.
+        ProcedureRequiresPermittedEnclosureError,
+        ProcedureEnclosureCoverageMismatchError,
         # PseudoAxis pre-Conductor expansion ([[project-pseudoaxis-design]]
         # v3): the routing layer dispatched a virtual-axis setpoint
         # into the evaluator for an Asset whose Family is not PseudoAxis

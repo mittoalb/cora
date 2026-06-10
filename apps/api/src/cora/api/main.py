@@ -95,6 +95,14 @@ from cora.decision import (
     register_decision_tools,
     wire_decision,
 )
+from cora.enclosure import (
+    EnclosureHandlers,
+    register_enclosure_projections,
+    register_enclosure_routes,
+    register_enclosure_tools,
+    wire_enclosure,
+)
+from cora.enclosure.adapters import PostgresEnclosureLookup
 from cora.equipment import (
     EquipmentHandlers,
     bootstrap_equipment,
@@ -129,6 +137,7 @@ from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
 from cora.infrastructure.observability import configure_tracing, instrument_app
 from cora.infrastructure.projection import (
     ProjectionRegistry,
+    drain_projections,
     projection_worker_lifespan,
 )
 from cora.operation import (
@@ -158,9 +167,10 @@ from cora.safety import (
     register_safety_projections,
     register_safety_routes,
     register_safety_tools,
+    seed_clearance_templates,
     wire_safety,
 )
-from cora.safety.adapters import PostgresClearanceLookup
+from cora.safety.adapters import PostgresClearanceLookup, PostgresClearanceTemplateLookup
 from cora.subject import (
     SubjectHandlers,
     register_subject_projections,
@@ -350,6 +360,10 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         handlers: DecisionHandlers = fastapi_app.state.decision
         return handlers
 
+    def _get_enclosure_handlers() -> EnclosureHandlers:
+        handlers: EnclosureHandlers = fastapi_app.state.enclosure
+        return handlers
+
     def _get_supply_handlers() -> SupplyHandlers:
         handlers: SupplyHandlers = fastapi_app.state.supply
         return handlers
@@ -388,6 +402,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_data_tools(mcp, get_handlers=_get_data_handlers)
     register_decision_tools(mcp, get_handlers=_get_decision_handlers)
     register_supply_tools(mcp, get_handlers=_get_supply_handlers)
+    register_enclosure_tools(mcp, get_handlers=_get_enclosure_handlers)
     register_operation_tools(mcp, get_handlers=_get_operation_handlers)
     register_safety_tools(mcp, get_handlers=_get_safety_handlers)
     register_caution_tools(mcp, get_handlers=_get_caution_handlers)
@@ -404,6 +419,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             deps, teardown = await build_kernel(
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
+                clearance_template_lookup_factory=PostgresClearanceTemplateLookup,
                 caution_lookup_factory=PostgresCautionLookup,
                 capability_lookup_factory=PostgresCapabilityLookup,
                 supply_lookup_factory=PostgresSupplyLookup,
@@ -413,6 +429,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 family_lookup_factory=PostgresFamilyLookup,
                 assembly_lookup_factory=PostgresAssemblyLookup,
                 role_lookup_factory=PostgresRoleLookup,
+                enclosure_lookup_factory=PostgresEnclosureLookup,
                 # publish_revision slice deps: in-memory adapters
                 # wired by default until the rule-of-two trigger
                 # fires per project_federation_port_design.md.
@@ -439,6 +456,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             app.state.data = wire_data(deps)
             app.state.decision = wire_decision(deps)
             app.state.supply = wire_supply(deps)
+            app.state.enclosure = wire_enclosure(deps)
             app.state.operation = wire_operation(deps)
             app.state.safety = wire_safety(deps)
             app.state.caution = wire_caution(deps)
@@ -492,6 +510,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             register_data_projections(registry, deps)
             register_decision_projections(registry, deps)
             register_supply_projections(registry, deps)
+            register_enclosure_projections(registry, deps)
             register_operation_projections(registry, deps)
             register_safety_projections(registry, deps)
             register_caution_projections(registry, deps)
@@ -513,6 +532,33 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             await seed_run_debriefer_agent(deps)
             # same shape for CautionDrafter.
             await seed_caution_drafter_agent(deps)
+
+            # Drain Federation-owned projections so the Postgres-backed
+            # FacilityLookup.list_active() resolves the self-Facility row
+            # written by bootstrap_federation above. The projection worker
+            # has not started yet (the async-with on
+            # projection_worker_lifespan is below); without this synchronous
+            # drain, seed_clearance_templates would see an empty active
+            # facility list on first Postgres boot and silently seed zero
+            # templates. The in-memory adapter does not need the drain
+            # (bootstrap_federation seeds it inline) but the call is a
+            # cheap no-op there.
+            federation_only_registry = ProjectionRegistry()
+            register_federation_projections(federation_only_registry, deps)
+            if deps.pool is not None:
+                await drain_projections(deps.pool, federation_only_registry, deadline_seconds=5.0)
+
+            # Safety BC auto-seed: one ClearanceTemplate per
+            # (Active facility, form-type) so register_clearance can
+            # bind to a Draft -> Active template without operator
+            # ceremony at pilot start. Reads FacilityLookup.list_active
+            # for the set of facilities to seed; the Federation BC's
+            # bootstrap above wrote the self-Facility row and the
+            # drain_projections call above ensures the Postgres
+            # projection is current. Idempotent via stream-derivation
+            # per (facility, template-code) + ConcurrencyError swallow.
+            # Safe to re-run forever.
+            await seed_clearance_templates(deps)
 
             try:
                 async with (
@@ -605,6 +651,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_data_routes(fastapi_app)
     register_decision_routes(fastapi_app)
     register_supply_routes(fastapi_app)
+    register_enclosure_routes(fastapi_app)
     register_operation_routes(fastapi_app)
     register_safety_routes(fastapi_app)
     register_caution_routes(fastapi_app)

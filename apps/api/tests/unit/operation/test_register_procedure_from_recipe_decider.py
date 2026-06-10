@@ -121,7 +121,7 @@ def test_decide_raises_already_exists_when_state_present() -> None:
         target_asset_ids=frozenset(),
         status=ProcedureStatus.DEFINED,
         parent_run_id=None,
-        steps_logbook_id=None,
+        activity_logbook_id=None,
     )
     with pytest.raises(ProcedureAlreadyExistsError):
         decide(

@@ -48,6 +48,7 @@ def test_decide_emits_asset_registered_for_enterprise_with_null_parent() -> None
         now=_NOW,
         new_id=new_id,
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events == [
         AssetRegistered(
@@ -71,6 +72,7 @@ def test_decide_emits_asset_registered_for_site_with_parent() -> None:
         now=_NOW,
         new_id=new_id,
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events == [
         AssetRegistered(
@@ -94,6 +96,7 @@ def test_decide_trims_name_via_value_object() -> None:
         now=_NOW,
         new_id=new_id,
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].name == "Eiger-2X-9M"
 
@@ -107,6 +110,7 @@ def test_decide_rejects_invalid_name() -> None:
             now=_NOW,
             new_id=uuid4(),
             commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
 
 
@@ -125,6 +129,7 @@ def test_decide_rejects_existing_state() -> None:
             now=_NOW,
             new_id=uuid4(),
             commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
     assert exc_info.value.asset_id == existing.id
 
@@ -150,6 +155,7 @@ def test_decide_rejects_enterprise_with_non_null_parent() -> None:
             now=_NOW,
             new_id=uuid4(),
             commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
     assert "Enterprise" in str(exc_info.value)
     assert str(parent_id) in str(exc_info.value)
@@ -177,6 +183,7 @@ def test_decide_rejects_non_enterprise_with_null_parent(level: AssetLevel) -> No
             now=_NOW,
             new_id=uuid4(),
             commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
     assert level.value in str(exc_info.value)
 
@@ -197,6 +204,7 @@ def test_decide_carries_drawing_through_to_emitted_event() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].drawing == drawing
 
@@ -213,6 +221,7 @@ def test_decide_defaults_drawing_to_none_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].drawing is None
 
@@ -235,6 +244,7 @@ def test_decide_propagates_model_id_to_emitted_event() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].model_id == model_id
 
@@ -251,6 +261,7 @@ def test_decide_defaults_model_id_to_none_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].model_id is None
 
@@ -274,6 +285,7 @@ def test_decide_propagates_controller_id_to_emitted_event() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].controller_id == controller_id
 
@@ -292,6 +304,7 @@ def test_decide_defaults_controller_id_to_none_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].controller_id is None
 
@@ -320,6 +333,7 @@ def test_decide_passes_alternate_identifiers_through_to_emitted_event() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].alternate_identifiers == identifiers
 
@@ -336,6 +350,7 @@ def test_decide_defaults_alternate_identifiers_to_empty_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].alternate_identifiers == frozenset()
 
@@ -355,6 +370,7 @@ def test_register_asset_with_zero_owners_succeeds() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].owners == frozenset()
 
@@ -378,6 +394,7 @@ def test_register_asset_with_one_owner_succeeds() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].owners == frozenset({owner})
 
@@ -402,6 +419,7 @@ def test_register_asset_with_three_owners_succeeds() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].owners == owners
 
@@ -425,6 +443,7 @@ def test_register_asset_with_duplicate_owner_names_raises_already_present_error(
             now=_NOW,
             new_id=uuid4(),
             commissioned_by=_TEST_ACTOR_ID,
+            facility_lookup_result=None,
         )
     assert exc_info.value.name.value == "HZB"
 
@@ -443,6 +462,7 @@ def test_register_asset_emits_owners_in_payload() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert isinstance(events[0], AssetRegistered)
     assert events[0].owners == owners
@@ -460,6 +480,7 @@ def test_decide_defaults_owners_to_empty_when_omitted() -> None:
         now=_NOW,
         new_id=uuid4(),
         commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert events[0].owners == frozenset()
 
@@ -470,9 +491,19 @@ def test_decide_is_pure_same_inputs_same_outputs() -> None:
     parent_id = uuid4()
     command = RegisterAsset(name="APS", level=AssetLevel.SITE, parent_id=parent_id)
     first = register_asset.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     second = register_asset.decide(
-        state=None, command=command, now=_NOW, new_id=new_id, commissioned_by=_TEST_ACTOR_ID
+        state=None,
+        command=command,
+        now=_NOW,
+        new_id=new_id,
+        commissioned_by=_TEST_ACTOR_ID,
+        facility_lookup_result=None,
     )
     assert first == second

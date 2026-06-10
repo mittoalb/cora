@@ -29,7 +29,6 @@ from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
     Clearance,
-    ClearanceKind,
     ClearanceStatus,
     ReviewStep,
 )
@@ -67,8 +66,8 @@ class ClearanceResponse(BaseModel):
     """
 
     id: UUID
-    kind: ClearanceKind
-    facility_asset_id: UUID
+    template_id: UUID
+    facility_code: str
     title: str = Field(..., max_length=CLEARANCE_TITLE_MAX_LENGTH)
     bindings: list[dict[str, Any]]
     declarations: list[dict[str, Any]]
@@ -96,8 +95,8 @@ def _review_step_to_response(step: ReviewStep) -> ReviewStepResponse:
 def _clearance_to_response(clearance: Clearance) -> ClearanceResponse:
     return ClearanceResponse(
         id=clearance.id,
-        kind=clearance.kind,
-        facility_asset_id=clearance.facility_asset_id,
+        template_id=clearance.template_id,
+        facility_code=clearance.facility_code.value,
         title=clearance.title.value,
         bindings=[serialize_binding(b) for b in clearance.bindings],
         declarations=[serialize_declaration(d) for d in clearance.declarations],
