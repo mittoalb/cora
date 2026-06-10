@@ -12,6 +12,9 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.equipment.features.activate_asset import tool as activate_asset_tool
+from cora.equipment.features.add_assembly_presents_as import (
+    tool as add_assembly_presents_as_tool,
+)
 from cora.equipment.features.add_asset_alternate_identifier import (
     tool as add_asset_alternate_identifier_tool,
 )
@@ -68,6 +71,9 @@ from cora.equipment.features.register_fixture import tool as register_fixture_to
 from cora.equipment.features.register_frame import tool as register_frame_tool
 from cora.equipment.features.register_mount import tool as register_mount_tool
 from cora.equipment.features.relocate_asset import tool as relocate_asset_tool
+from cora.equipment.features.remove_assembly_presents_as import (
+    tool as remove_assembly_presents_as_tool,
+)
 from cora.equipment.features.remove_asset_alternate_identifier import (
     tool as remove_asset_alternate_identifier_tool,
 )
@@ -310,6 +316,14 @@ def register_equipment_tools(
     deprecate_assembly_tool.register(
         mcp,
         get_handler=lambda: get_handlers().deprecate_assembly,
+    )
+    add_assembly_presents_as_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().add_assembly_presents_as,
+    )
+    remove_assembly_presents_as_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().remove_assembly_presents_as,
     )
     register_fixture_tool.register(
         mcp,

@@ -44,6 +44,8 @@ from cora.equipment.aggregates.assembly import (
     AssemblyCannotInstantiateError,
     AssemblyCannotVersionError,
     AssemblyNotFoundError,
+    AssemblyRolePresentsAsAlreadyError,
+    AssemblyRolePresentsAsNotPresentError,
     FamilyNotFoundForAssemblyError,
     FixtureAssetFamilyMismatchError,
     FixtureAssetNotAttachableError,
@@ -185,6 +187,7 @@ from cora.equipment.errors import (
 )
 from cora.equipment.features import (
     activate_asset,
+    add_assembly_presents_as,
     add_asset_alternate_identifier,
     add_asset_family,
     add_asset_owner,
@@ -225,6 +228,7 @@ from cora.equipment.features import (
     register_frame,
     register_mount,
     relocate_asset,
+    remove_assembly_presents_as,
     remove_asset_alternate_identifier,
     remove_asset_family,
     remove_asset_owner,
@@ -457,6 +461,8 @@ def register_equipment_routes(app: FastAPI) -> None:
     app.include_router(define_assembly.router)
     app.include_router(version_assembly.router)
     app.include_router(deprecate_assembly.router)
+    app.include_router(add_assembly_presents_as.router)
+    app.include_router(remove_assembly_presents_as.router)
     app.include_router(register_fixture.router)
     app.include_router(attach_asset_to_fixture.router)
     app.include_router(detach_asset_from_fixture.router)
@@ -587,6 +593,8 @@ def register_equipment_routes(app: FastAPI) -> None:
         ModelFamilyNotPresentError,
         AssemblyCannotVersionError,
         AssemblyCannotDeprecateError,
+        AssemblyRolePresentsAsAlreadyError,
+        AssemblyRolePresentsAsNotPresentError,
         AssemblyCannotInstantiateError,
         AssetAlreadyAttachedToFixtureError,
         AssetCannotAttachToFixtureError,

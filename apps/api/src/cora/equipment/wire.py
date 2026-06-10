@@ -36,6 +36,7 @@ from cora.equipment._bootstrap import check_pidinst_landing_page_template
 from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.features import (
     activate_asset,
+    add_assembly_presents_as,
     add_asset_alternate_identifier,
     add_asset_family,
     add_asset_owner,
@@ -76,6 +77,7 @@ from cora.equipment.features import (
     register_frame,
     register_mount,
     relocate_asset,
+    remove_assembly_presents_as,
     remove_asset_alternate_identifier,
     remove_asset_family,
     remove_asset_owner,
@@ -184,6 +186,8 @@ class EquipmentHandlers:
     define_assembly: define_assembly.IdempotentHandler
     version_assembly: version_assembly.Handler
     deprecate_assembly: deprecate_assembly.Handler
+    add_assembly_presents_as: add_assembly_presents_as.Handler
+    remove_assembly_presents_as: remove_assembly_presents_as.Handler
     register_fixture: register_fixture.IdempotentHandler
     attach_asset_to_fixture: attach_asset_to_fixture.Handler
     detach_asset_from_fixture: detach_asset_from_fixture.Handler
@@ -542,6 +546,16 @@ def wire_equipment(deps: Kernel) -> EquipmentHandlers:
         deprecate_assembly=with_tracing(
             deprecate_assembly.bind(deps),
             command_name="DeprecateAssembly",
+            bc=_BC,
+        ),
+        add_assembly_presents_as=with_tracing(
+            add_assembly_presents_as.bind(deps),
+            command_name="AddAssemblyPresentsAs",
+            bc=_BC,
+        ),
+        remove_assembly_presents_as=with_tracing(
+            remove_assembly_presents_as.bind(deps),
+            command_name="RemoveAssemblyPresentsAs",
             bc=_BC,
         ),
         register_fixture=with_tracing(

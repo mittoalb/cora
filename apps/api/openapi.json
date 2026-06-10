@@ -223,6 +223,22 @@
         "title": "ActorSummaryDTO",
         "type": "object"
       },
+      "AddAssemblyPresentsAsRequest": {
+        "description": "Body for `POST /assemblies/{assembly_id}/add-presents-as`.",
+        "properties": {
+          "role_id": {
+            "description": "Global Role contract id to add to the Assembly's presents_as set. Existence is verified at the handler edge against the read-side Role projection. The affordance-superset gate is NOT enforced at template time; satisfaction lands at register_fixture layer.",
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "title": "AddAssemblyPresentsAsRequest",
+        "type": "object"
+      },
       "AddAssetAlternateIdentifierRequest": {
         "description": "Body for `POST /assets/{asset_id}/add-alternate-identifier`.\n\nBoth fields required. Pydantic enforces non-empty value at the\nboundary; the `AlternateIdentifier` VO then trims and re-validates\nlength within the decider (the VO construction site).",
         "properties": {
@@ -10680,6 +10696,22 @@
         "title": "RelocateAssetRequest",
         "type": "object"
       },
+      "RemoveAssemblyPresentsAsRequest": {
+        "description": "Body for `POST /assemblies/{assembly_id}/remove-presents-as`.",
+        "properties": {
+          "role_id": {
+            "description": "Global Role contract id to withdraw from the Assembly's presents_as set. Strict-not-idempotent: removing a Role the Assembly does not advertise raises.",
+            "format": "uuid",
+            "title": "Role Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role_id"
+        ],
+        "title": "RemoveAssemblyPresentsAsRequest",
+        "type": "object"
+      },
       "RemoveAssetAlternateIdentifierRequest": {
         "description": "Body for `POST /assets/{asset_id}/remove-alternate-identifier`.\n\nBoth fields required. Pydantic enforces non-empty value at the\nboundary; the AlternateIdentifier VO then trims and re-validates\nlength within the decider.",
         "properties": {
@@ -15774,6 +15806,96 @@
         ]
       }
     },
+    "/assemblies/{assembly_id}/add-presents-as": {
+      "post": {
+        "operationId": "post_assemblies_add_presents_as_assemblies__assembly_id__add_presents_as_post",
+        "parameters": [
+          {
+            "description": "Target Assembly's id.",
+            "in": "path",
+            "name": "assembly_id",
+            "required": true,
+            "schema": {
+              "description": "Target Assembly's id.",
+              "format": "uuid",
+              "title": "Assembly Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAssemblyPresentsAsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Assembly exists with the given id, OR no Role exists with the supplied role_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "role_id is already in the Assembly's presents_as set (strict-not-idempotent), OR a concurrent write to the same Assembly stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Add a global Role contract to an Assembly's presents_as set",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
     "/assemblies/{assembly_id}/deprecate": {
       "post": {
         "operationId": "post_assemblies_deprecate_assemblies__assembly_id__deprecate_post",
@@ -15984,6 +16106,96 @@
           }
         },
         "summary": "Register a new Fixture against an Assembly blueprint",
+        "tags": [
+          "equipment"
+        ]
+      }
+    },
+    "/assemblies/{assembly_id}/remove-presents-as": {
+      "post": {
+        "operationId": "post_assemblies_remove_presents_as_assemblies__assembly_id__remove_presents_as_post",
+        "parameters": [
+          {
+            "description": "Target Assembly's id.",
+            "in": "path",
+            "name": "assembly_id",
+            "required": true,
+            "schema": {
+              "description": "Target Assembly's id.",
+              "format": "uuid",
+              "title": "Assembly Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveAssemblyPresentsAsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Assembly exists with the given id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "role_id is not in the Assembly's presents_as set (strict-not-idempotent), OR a concurrent write to the same Assembly stream conflicted (optimistic concurrency)."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Remove a global Role contract from an Assembly's presents_as set",
         "tags": [
           "equipment"
         ]
