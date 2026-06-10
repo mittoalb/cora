@@ -1,12 +1,14 @@
 """Unit tests for `ClearanceTemplateSummaryProjection`.
 
 Covers:
-  - subscribed_event_types pinned to the 3 currently-shipped events
-    (drift-catcher: when 9C adds Deprecated + Withdrawn, this test fails
-    until the projection's frozenset is widened)
+  - subscribed_event_types pinned to the 5 currently-shipped events
+    (drift-catcher: adding a new event type without widening this set
+    leaves the projection silently skipping it)
   - apply() is a no-op for unsubscribed event types (defensive)
   - ClearanceTemplateActivated emits UPDATE status='Active'
   - ClearanceTemplateVersioned emits UPDATE with new_version + supersedes
+  - ClearanceTemplateDeprecated emits UPDATE status='Deprecated'
+  - ClearanceTemplateWithdrawn emits UPDATE status='Withdrawn'
 """
 
 from datetime import UTC, datetime
@@ -25,12 +27,12 @@ _NOW = datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
 
 
 @pytest.mark.unit
-def test_subscribed_event_types_covers_all_three_clearance_template_events() -> None:
+def test_subscribed_event_types_covers_all_five_clearance_template_events() -> None:
     """Drift-catcher: widening the projection to new events MUST update this set.
 
-    When 9C ships ClearanceTemplateDeprecated + ClearanceTemplateWithdrawn,
-    this test fails until those event-type strings are added here AND to the
-    projection's subscribed_event_types frozenset.
+    Adding a new event-type without re-pinning this assertion leaves the
+    projection silently skipping the event because the worker dispatches
+    on subscribed_event_types.
     """
     proj = ClearanceTemplateSummaryProjection()
     assert proj.subscribed_event_types == frozenset(
@@ -38,6 +40,8 @@ def test_subscribed_event_types_covers_all_three_clearance_template_events() -> 
             "ClearanceTemplateDefined",
             "ClearanceTemplateActivated",
             "ClearanceTemplateVersioned",
+            "ClearanceTemplateDeprecated",
+            "ClearanceTemplateWithdrawn",
         }
     )
 
@@ -150,3 +154,55 @@ async def test_apply_clearance_template_versioned_updates_version_and_supersedes
     assert args[0] == tid
     assert args[1] == 2
     assert args[2] == parent_tid
+
+
+@pytest.mark.unit
+async def test_apply_clearance_template_deprecated_updates_status_to_deprecated() -> None:
+    """ClearanceTemplateDeprecated emits UPDATE setting status='Deprecated'."""
+    proj = ClearanceTemplateSummaryProjection()
+    conn = _RecordingConn()
+    tid = uuid4()
+    actor = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceTemplateDeprecated",
+            {
+                "template_id": str(tid),
+                "occurred_at": _NOW.isoformat(),
+                "deprecated_by": str(actor),
+            },
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    assert len(conn.calls) == 1
+    sql, args = conn.calls[0]
+    assert "UPDATE proj_safety_clearance_template_summary" in sql
+    assert "status = $2" in sql
+    assert args[0] == tid
+    assert args[1] == "Deprecated"
+
+
+@pytest.mark.unit
+async def test_apply_clearance_template_withdrawn_updates_status_to_withdrawn() -> None:
+    """ClearanceTemplateWithdrawn emits UPDATE setting status='Withdrawn'."""
+    proj = ClearanceTemplateSummaryProjection()
+    conn = _RecordingConn()
+    tid = uuid4()
+    actor = uuid4()
+    await proj.apply(
+        _stored(
+            "ClearanceTemplateWithdrawn",
+            {
+                "template_id": str(tid),
+                "occurred_at": _NOW.isoformat(),
+                "withdrawn_by": str(actor),
+            },
+        ),
+        conn,  # type: ignore[arg-type]
+    )
+    assert len(conn.calls) == 1
+    sql, args = conn.calls[0]
+    assert "UPDATE proj_safety_clearance_template_summary" in sql
+    assert "status = $2" in sql
+    assert args[0] == tid
+    assert args[1] == "Withdrawn"

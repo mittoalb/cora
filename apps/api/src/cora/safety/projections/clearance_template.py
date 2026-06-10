@@ -1,12 +1,10 @@
 """ClearanceTemplateSummaryProjection: folds the ClearanceTemplate aggregate's
 events into the `proj_safety_clearance_template_summary` read model.
 
-Subscribed events (9A + 9B):
+Subscribed events:
   - ClearanceTemplateDefined     -> INSERT (status=Draft)
   - ClearanceTemplateActivated   -> UPDATE status='Active'
   - ClearanceTemplateVersioned   -> UPDATE version + supersedes_template_id
-
-Future events (9C):
   - ClearanceTemplateDeprecated  -> UPDATE status='Deprecated'
   - ClearanceTemplateWithdrawn   -> UPDATE status='Withdrawn'
 
@@ -63,6 +61,8 @@ class ClearanceTemplateSummaryProjection:
             "ClearanceTemplateDefined",
             "ClearanceTemplateActivated",
             "ClearanceTemplateVersioned",
+            "ClearanceTemplateDeprecated",
+            "ClearanceTemplateWithdrawn",
         }
     )
 
@@ -103,6 +103,22 @@ class ClearanceTemplateSummaryProjection:
                 UUID(event.payload["template_id"]),
                 event.payload["new_version"],
                 UUID(event.payload["supersedes_template_id"]),
+            )
+            return
+
+        if event.event_type == "ClearanceTemplateDeprecated":
+            await conn.execute(
+                _UPDATE_CLEARANCE_TEMPLATE_STATUS_SQL,
+                UUID(event.payload["template_id"]),
+                "Deprecated",
+            )
+            return
+
+        if event.event_type == "ClearanceTemplateWithdrawn":
+            await conn.execute(
+                _UPDATE_CLEARANCE_TEMPLATE_STATUS_SQL,
+                UUID(event.payload["template_id"]),
+                "Withdrawn",
             )
             return
 

@@ -45,6 +45,9 @@ def decide(
     Invariants:
       - State must not be None
         -> ClearanceTemplateNotFoundError(command.template_id)
+      - supersedes_template_id must NOT equal template_id (no self-loop in
+        the supersedes lineage)
+        -> ClearanceTemplateCannotVersionError(state.id, state.status)
       - Current status must be Active
         -> ClearanceTemplateCannotVersionError(state.id, state.status)
       - parent_lookup_result must be non-None
@@ -57,6 +60,8 @@ def decide(
     """
     if state is None:
         raise ClearanceTemplateNotFoundError(command.template_id)
+    if command.supersedes_template_id == command.template_id:
+        raise ClearanceTemplateCannotVersionError(state.id, state.status)
     if state.status != ClearanceTemplateStatus.ACTIVE:
         raise ClearanceTemplateCannotVersionError(state.id, state.status)
     if parent_lookup_result is None:

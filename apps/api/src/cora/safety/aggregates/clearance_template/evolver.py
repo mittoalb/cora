@@ -1,10 +1,12 @@
 """Evolver: replay events to reconstruct ClearanceTemplate state.
 
 Status mapping per event type:
-  - `ClearanceTemplateDefined`   -> DRAFT  (genesis; version=1)
-  - `ClearanceTemplateActivated` -> ACTIVE (transition; version unchanged)
-  - `ClearanceTemplateVersioned` -> status unchanged (additive within Active;
-                                    bumps version + sets supersedes_template_id)
+  - `ClearanceTemplateDefined`    -> DRAFT      (genesis; version=1)
+  - `ClearanceTemplateActivated`  -> ACTIVE     (transition; version unchanged)
+  - `ClearanceTemplateVersioned`  -> status unchanged (additive within Active;
+                                     bumps version + sets supersedes_template_id)
+  - `ClearanceTemplateDeprecated` -> DEPRECATED (transition; version unchanged)
+  - `ClearanceTemplateWithdrawn`  -> WITHDRAWN  (terminal transition)
 
 The event type IS the state-change indicator (no status field in event payloads).
 
@@ -18,8 +20,10 @@ from typing import assert_never
 from cora.safety.aggregates.clearance_template.events import (
     ClearanceTemplateActivated,
     ClearanceTemplateDefined,
+    ClearanceTemplateDeprecated,
     ClearanceTemplateEvent,
     ClearanceTemplateVersioned,
+    ClearanceTemplateWithdrawn,
 )
 from cora.safety.aggregates.clearance_template.state import (
     ClearanceTemplate,
@@ -76,6 +80,16 @@ def evolve(state: ClearanceTemplate | None, event: ClearanceTemplateEvent) -> Cl
                 version=ClearanceTemplateVersion(new_version),
                 supersedes_template_id=supersedes_template_id,
             )
+        case ClearanceTemplateDeprecated():
+            if state is None:
+                msg = "ClearanceTemplateDeprecated requires prior ClearanceTemplateDefined"
+                raise ValueError(msg)
+            return replace(state, status=ClearanceTemplateStatus.DEPRECATED)
+        case ClearanceTemplateWithdrawn():
+            if state is None:
+                msg = "ClearanceTemplateWithdrawn requires prior ClearanceTemplateDefined"
+                raise ValueError(msg)
+            return replace(state, status=ClearanceTemplateStatus.WITHDRAWN)
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 

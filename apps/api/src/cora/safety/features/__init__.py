@@ -31,6 +31,7 @@ from cora.safety.features import (
     append_clearance_review_step,
     approve_clearance,
     define_clearance_template,
+    deprecate_clearance_template,
     expire_clearance,
     get_clearance,
     get_clearance_template,
@@ -41,6 +42,7 @@ from cora.safety.features import (
     start_clearance_review,
     submit_clearance,
     version_clearance_template,
+    withdraw_clearance_template,
 )
 
 __all__ = [
@@ -50,6 +52,7 @@ __all__ = [
     "append_clearance_review_step",
     "approve_clearance",
     "define_clearance_template",
+    "deprecate_clearance_template",
     "expire_clearance",
     "get_clearance",
     "get_clearance_template",
@@ -60,4 +63,5 @@ __all__ = [
     "start_clearance_review",
     "submit_clearance",
     "version_clearance_template",
+    "withdraw_clearance_template",
 ]

@@ -14,6 +14,9 @@ from cora.safety.features.append_clearance_review_step import (
 )
 from cora.safety.features.approve_clearance import tool as approve_clearance_tool
 from cora.safety.features.define_clearance_template import tool as define_clearance_template_tool
+from cora.safety.features.deprecate_clearance_template import (
+    tool as deprecate_clearance_template_tool,
+)
 from cora.safety.features.expire_clearance import tool as expire_clearance_tool
 from cora.safety.features.get_clearance import tool as get_clearance_tool
 from cora.safety.features.get_clearance_template import tool as get_clearance_template_tool
@@ -25,6 +28,9 @@ from cora.safety.features.start_clearance_review import tool as start_clearance_
 from cora.safety.features.submit_clearance import tool as submit_clearance_tool
 from cora.safety.features.version_clearance_template import (
     tool as version_clearance_template_tool,
+)
+from cora.safety.features.withdraw_clearance_template import (
+    tool as withdraw_clearance_template_tool,
 )
 from cora.safety.wire import SafetyHandlers
 
@@ -98,4 +104,12 @@ def register_safety_tools(
     version_clearance_template_tool.register(
         mcp,
         get_handler=lambda: get_handlers().version_clearance_template,
+    )
+    deprecate_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().deprecate_clearance_template,
+    )
+    withdraw_clearance_template_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().withdraw_clearance_template,
     )

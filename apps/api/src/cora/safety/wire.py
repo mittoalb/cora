@@ -49,6 +49,7 @@ from cora.safety.features import (
     append_clearance_review_step,
     approve_clearance,
     define_clearance_template,
+    deprecate_clearance_template,
     expire_clearance,
     get_clearance,
     get_clearance_template,
@@ -59,6 +60,7 @@ from cora.safety.features import (
     start_clearance_review,
     submit_clearance,
     version_clearance_template,
+    withdraw_clearance_template,
 )
 
 _BC = "safety"
@@ -84,6 +86,8 @@ class SafetyHandlers:
     list_clearance_templates: list_clearance_templates.Handler
     activate_clearance_template: activate_clearance_template.Handler
     version_clearance_template: version_clearance_template.Handler
+    deprecate_clearance_template: deprecate_clearance_template.Handler
+    withdraw_clearance_template: withdraw_clearance_template.Handler
 
 
 def wire_safety(deps: Kernel) -> SafetyHandlers:
@@ -192,6 +196,16 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
         version_clearance_template=with_tracing(
             version_clearance_template.bind(deps),
             command_name="VersionClearanceTemplate",
+            bc=_BC,
+        ),
+        deprecate_clearance_template=with_tracing(
+            deprecate_clearance_template.bind(deps),
+            command_name="DeprecateClearanceTemplate",
+            bc=_BC,
+        ),
+        withdraw_clearance_template=with_tracing(
+            withdraw_clearance_template.bind(deps),
+            command_name="WithdrawClearanceTemplate",
             bc=_BC,
         ),
     )

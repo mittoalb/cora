@@ -147,6 +147,42 @@ class ClearanceTemplateFacilityMismatchError(Exception):
         self.parent_facility_code = parent_facility_code
 
 
+class ClearanceTemplateCannotDeprecateError(Exception):
+    """Attempted `deprecate_clearance_template` from a disqualifying status.
+
+    Deprecation requires Active per [[project_slice9_design]] L3. Draft has
+    never been activated so deprecation is meaningless; Deprecated /
+    Withdrawn are already past the gate.
+    """
+
+    def __init__(self, template_id: UUID, current_status: ClearanceTemplateStatus) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} cannot be deprecated: currently in status "
+            f"{current_status.value}, deprecate_clearance_template requires "
+            f"{ClearanceTemplateStatus.ACTIVE.value}"
+        )
+        self.template_id = template_id
+        self.current_status = current_status
+
+
+class ClearanceTemplateCannotWithdrawError(Exception):
+    """Attempted `withdraw_clearance_template` from a disqualifying status.
+
+    Withdrawal is the lifecycle terminal per [[project_slice9_design]] L3:
+    any non-terminal status (Draft / Active / Deprecated) flows to Withdrawn.
+    Already-Withdrawn templates are strict-not-idempotent.
+    """
+
+    def __init__(self, template_id: UUID, current_status: ClearanceTemplateStatus) -> None:
+        super().__init__(
+            f"ClearanceTemplate {template_id} cannot be withdrawn: currently in status "
+            f"{current_status.value}, withdraw_clearance_template requires "
+            f"a non-terminal status (Draft, Active, or Deprecated)"
+        )
+        self.template_id = template_id
+        self.current_status = current_status
+
+
 @dataclass(frozen=True)
 class ClearanceTemplate:
     """Aggregate root: a reusable clearance form template definition.

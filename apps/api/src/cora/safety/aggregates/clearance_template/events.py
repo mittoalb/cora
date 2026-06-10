@@ -2,18 +2,19 @@
 
 Event types:
 
-  - `ClearanceTemplateDefined` (genesis; status=Draft implicit per evolver)
-  - `ClearanceTemplateActivated` (Draft -> Active; locked starting status per L2)
-  - `ClearanceTemplateVersioned` (additive within Active; no FSM transition
-    per L4; mirrors CalibrationRevisionAppended)
-
-Future events (9C): `ClearanceTemplateDeprecated`, `ClearanceTemplateWithdrawn`.
+  - `ClearanceTemplateDefined`     (genesis; status=Draft implicit per evolver)
+  - `ClearanceTemplateActivated`   (Draft -> Active; locked starting status per L2)
+  - `ClearanceTemplateVersioned`   (additive within Active; no FSM transition
+                                    per L4; mirrors CalibrationRevisionAppended)
+  - `ClearanceTemplateDeprecated`  (Active -> Deprecated; lifecycle soft-retire)
+  - `ClearanceTemplateWithdrawn`   (any non-terminal -> Withdrawn; lifecycle terminal)
 
 Status is NOT carried in event payloads -- the event type itself encodes the
 state change. The evolver hardcodes the mapping per match arm.
 
 Each event carries the actor (`<verb>_by`) per [[project_fold_symmetry_design]]:
-defined_by on Defined, activated_by on Activated, versioned_by on Versioned.
+defined_by on Defined, activated_by on Activated, versioned_by on Versioned,
+deprecated_by on Deprecated, withdrawn_by on Withdrawn.
 """
 
 from dataclasses import dataclass
@@ -71,8 +72,39 @@ class ClearanceTemplateVersioned:
     versioned_by: UUID
 
 
+@dataclass(frozen=True)
+class ClearanceTemplateDeprecated:
+    """An Active clearance template was deprecated (Active -> Deprecated).
+
+    Existing Clearance bindings unaffected; new register_clearance is blocked
+    against this template per [[project_slice9_design]] L3.
+    """
+
+    template_id: UUID
+    occurred_at: datetime
+    deprecated_by: UUID
+
+
+@dataclass(frozen=True)
+class ClearanceTemplateWithdrawn:
+    """A non-terminal clearance template was withdrawn (any -> Withdrawn).
+
+    Lifecycle terminal: no transition exits Withdrawn. Existing Clearance
+    bindings unaffected; the PARTIAL UNIQUE INDEX on (facility_code, code)
+    `WHERE status != 'Withdrawn'` lets a Withdrawn code be redefined.
+    """
+
+    template_id: UUID
+    occurred_at: datetime
+    withdrawn_by: UUID
+
+
 ClearanceTemplateEvent = (
-    ClearanceTemplateDefined | ClearanceTemplateActivated | ClearanceTemplateVersioned
+    ClearanceTemplateDefined
+    | ClearanceTemplateActivated
+    | ClearanceTemplateVersioned
+    | ClearanceTemplateDeprecated
+    | ClearanceTemplateWithdrawn
 )
 
 
@@ -132,6 +164,26 @@ def to_payload(event: ClearanceTemplateEvent) -> dict[str, Any]:
                 "occurred_at": occurred_at.isoformat(),
                 "versioned_by": str(versioned_by),
             }
+        case ClearanceTemplateDeprecated(
+            template_id=template_id,
+            occurred_at=occurred_at,
+            deprecated_by=deprecated_by,
+        ):
+            return {
+                "template_id": str(template_id),
+                "occurred_at": occurred_at.isoformat(),
+                "deprecated_by": str(deprecated_by),
+            }
+        case ClearanceTemplateWithdrawn(
+            template_id=template_id,
+            occurred_at=occurred_at,
+            withdrawn_by=withdrawn_by,
+        ):
+            return {
+                "template_id": str(template_id),
+                "occurred_at": occurred_at.isoformat(),
+                "withdrawn_by": str(withdrawn_by),
+            }
         case _:  # pragma: no cover  # exhaustiveness guard
             assert_never(event)
 
@@ -177,6 +229,24 @@ def from_stored(stored: StoredEvent) -> ClearanceTemplateEvent:
                     versioned_by=UUID(payload["versioned_by"]),
                 ),
             )
+        case "ClearanceTemplateDeprecated":
+            return deserialize_or_raise(
+                "ClearanceTemplateDeprecated",
+                lambda: ClearanceTemplateDeprecated(
+                    template_id=UUID(payload["template_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    deprecated_by=UUID(payload["deprecated_by"]),
+                ),
+            )
+        case "ClearanceTemplateWithdrawn":
+            return deserialize_or_raise(
+                "ClearanceTemplateWithdrawn",
+                lambda: ClearanceTemplateWithdrawn(
+                    template_id=UUID(payload["template_id"]),
+                    occurred_at=datetime.fromisoformat(payload["occurred_at"]),
+                    withdrawn_by=UUID(payload["withdrawn_by"]),
+                ),
+            )
         case _:
             msg = f"Unknown ClearanceTemplateEvent event_type: {stored.event_type!r}"
             raise ValueError(msg)
@@ -185,8 +255,10 @@ def from_stored(stored: StoredEvent) -> ClearanceTemplateEvent:
 __all__ = [
     "ClearanceTemplateActivated",
     "ClearanceTemplateDefined",
+    "ClearanceTemplateDeprecated",
     "ClearanceTemplateEvent",
     "ClearanceTemplateVersioned",
+    "ClearanceTemplateWithdrawn",
     "event_type_name",
     "from_stored",
     "to_payload",
