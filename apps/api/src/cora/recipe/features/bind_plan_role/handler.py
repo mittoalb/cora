@@ -1,24 +1,44 @@
 """Application handler for the `bind_plan_role` slice.
 
 Custom (non-factory) update-style handler: loads Plan + Method +
-Asset before reaching the pure decider, so the decider stays I/O-
-free. Mirrors the multi-stream-load shape of `add_plan_wire`.
+Asset + (for the 3D role_kind path) RoleLookup +
+FamilyLookup batch before reaching the pure decider, so the
+decider stays I/O-free.
 
 NOT idempotency-wrapped: bind is strict-not-idempotent at the
 decider (`PlanRoleAlreadyBoundError`).
+
+## Edge-loaded RoleLookup + FamilyLookup batch (Layer 3 3D)
+
+When the matching RoleRequirement (looked up by role_name in
+method.required_roles) carries `role_kind` rather than `family_id`,
+the handler additionally:
+  - resolves `role_kind` via `Kernel.role_lookup.lookup` ->
+    role_lookup_result on the context (decider walks
+    required_affordances for the superset check)
+  - loads a `FamilyLookupResult` for each family_id in
+    `asset.family_ids` via `Kernel.family_lookup.lookup` ->
+    `family_lookups` dict on the context (decider walks for the
+    ANY-single-family disjunction per Lock 17)
+
+Slice-1 family_id-only RoleRequirements skip both extra loads:
+the context's optional fields default to None / empty dict and
+the decider takes the existing family_id-equality branch.
 """
 
+import asyncio
 from typing import Protocol
 from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.equipment.aggregates.asset.read import load_asset
+from cora.equipment.aggregates.role import RoleNotFoundError
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny
+from cora.infrastructure.ports import Deny, FamilyLookupResult
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.recipe.aggregates.method import MethodNotFoundError
+from cora.recipe.aggregates.method import MethodNotFoundError, RoleRequirement
 from cora.recipe.aggregates.method.read import load_method
 from cora.recipe.aggregates.plan import (
     PlanEvent,
@@ -115,7 +135,43 @@ def bind(deps: Kernel) -> Handler:
         if asset is None:
             raise AssetNotFoundError(command.asset_id)
 
-        context = BindPlanRoleContext(method=method, asset=asset)
+        # Layer 3 sub-slice 3D: when the matching RoleRequirement
+        # carries role_kind, edge-load the Role + a FamilyLookup
+        # batch over asset.family_ids so the decider has everything
+        # it needs to evaluate the ANY-single-family disjunction.
+        # Skip the extra loads when matching_role is family_id-only
+        # (slice-1 path) or when there is no matching role
+        # (PlanRoleNameNotDeclaredError will surface in the decider).
+        matching_role: RoleRequirement | None = None
+        if method is not None:
+            for role in method.required_roles:
+                if role.role_name == command.role_name:
+                    matching_role = role
+                    break
+
+        role_lookup_result = None
+        family_lookups: dict[UUID, FamilyLookupResult] = {}
+        if matching_role is not None and matching_role.role_kind is not None:
+            role_lookup_result = await deps.role_lookup.lookup(matching_role.role_kind)
+            if role_lookup_result is None:
+                # Mid-flight Role-projection miss: surface
+                # RoleNotFoundError at the handler edge so the
+                # operator sees a 404 with the offending role_kind
+                # rather than a satisfaction-side mis-bind.
+                raise RoleNotFoundError(matching_role.role_kind)
+            # Parallel batch lookup of every family on the Asset.
+            family_ids = list(asset.family_ids)
+            results = await asyncio.gather(*(deps.family_lookup.lookup(fid) for fid in family_ids))
+            family_lookups = {
+                fid: row for fid, row in zip(family_ids, results, strict=True) if row is not None
+            }
+
+        context = BindPlanRoleContext(
+            method=method,
+            asset=asset,
+            role_lookup_result=role_lookup_result,
+            family_lookups=family_lookups,
+        )
 
         domain_events = decide(
             state=state,

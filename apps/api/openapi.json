@@ -11192,13 +11192,20 @@
         "type": "object"
       },
       "RoleRequirementBody": {
-        "description": "Wire format for a `RoleRequirement` value object.",
+        "description": "Wire format for a `RoleRequirement` value object.\n\nLayer 3 sub-slice 3D widens this body with `role_kind` for the\nfederation-portable binding path. Exactly one of `role_kind` /\n`family_id` must be set per the memo Lock 5 XOR invariant; the\n`_xor_role_kind_and_family_id` model_validator catches both-set\n+ neither-set at the wire layer (422) before the domain VO\nraises its sister error (400).",
         "properties": {
           "family_id": {
-            "description": "The Family the bound Asset must satisfy at Plan binding time. Eventual-consistency: existence is not verified at decide time.",
-            "format": "uuid",
-            "title": "Family Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Anatomical-pinning escape hatch (slice-1 path). When set, the bound Asset must carry this Family id at Plan binding time. Eventual-consistency: existence is not verified at decide time. Exactly one of `role_kind` / `family_id` must be set.",
+            "title": "Family Id"
           },
           "optional": {
             "default": false,
@@ -11214,6 +11221,19 @@
             "title": "Required Ports",
             "type": "array"
           },
+          "role_kind": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Global Role contract id this slot targets (Layer 3 sub-slice 3D; federation-portable path). Existence is verified at the handler edge against the Role projection. Exactly one of `role_kind` / `family_id` must be set.",
+            "title": "Role Kind"
+          },
           "role_name": {
             "description": "Method-local positional role label (for example, 'detector', 'sample_monitor', 'axis'). Uniqueness is scoped to the Method; cross-Method consistency is an operator convention, not a kernel invariant.",
             "maxLength": 50,
@@ -11223,8 +11243,7 @@
           }
         },
         "required": [
-          "role_name",
-          "family_id"
+          "role_name"
         ],
         "title": "RoleRequirementBody",
         "type": "object"
@@ -28411,7 +28430,7 @@
                 }
               }
             },
-            "description": "No method exists with the given id."
+            "description": "No Method exists with the given id, OR the supplied role_kind does not resolve to a registered Role (handler-side RoleLookup precondition; Layer 3 3D)."
           },
           "409": {
             "content": {
@@ -30438,7 +30457,7 @@
                 }
               }
             },
-            "description": "No plan, method, or asset exists with the given id."
+            "description": "No plan, method, or asset exists with the given id, OR the matching RoleRequirement's role_kind does not resolve to a registered Role (Layer 3 3D edge-load)."
           },
           "409": {
             "content": {
@@ -30448,7 +30467,7 @@
                 }
               }
             },
-            "description": "Plan cannot bind the role under current conditions: Plan is Versioned/Deprecated, role_name already bound, role_name not declared on the bound Method, asset_id not in Plan.asset_ids, Asset missing the role's required Family, OR Asset missing one or more of the role's required port triples."
+            "description": "Plan cannot bind the role under current conditions: Plan is Versioned/Deprecated, role_name already bound, role_name not declared on the bound Method, asset_id not in Plan.asset_ids, Asset missing the role's required Family (family_id path), OR for the 3D role_kind path: no Family on the Asset advertises the Role with covering affordances (AssetDoesNotPresentRequiredRoleError), or a Family id on the Asset does not resolve via FamilyLookup (PlanRoleFamilyNotResolvableError), OR Asset missing one or more of the role's required port triples."
           },
           "422": {
             "description": "Path parameter or request body failed schema validation."

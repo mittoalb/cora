@@ -49,6 +49,7 @@ from cora.recipe.aggregates.method import (
     InvalidMethodVersionTagError,
     InvalidPortRequirementError,
     InvalidRoleNameError,
+    InvalidRoleRequirementTargetError,
     MethodAlreadyExistsError,
     MethodCannotDeprecateError,
     MethodCannotMutateRequiredRolesError,
@@ -58,8 +59,10 @@ from cora.recipe.aggregates.method import (
     MethodParametersNotSubsetError,
     MethodRoleNameAlreadyDeclaredError,
     MethodRoleNameNotFoundError,
+    RoleRequirementBindingDuplicateError,
 )
 from cora.recipe.aggregates.plan import (
+    AssetDoesNotPresentRequiredRoleError,
     InvalidPlanDefaultParametersError,
     InvalidPlanNameError,
     InvalidPlanVersionTagError,
@@ -81,6 +84,7 @@ from cora.recipe.aggregates.plan import (
     PlanRoleAlreadyBoundError,
     PlanRoleAssetNotBoundError,
     PlanRoleFamilyMismatchError,
+    PlanRoleFamilyNotResolvableError,
     PlanRoleNameNotDeclaredError,
     PlanRoleNotBoundError,
     PlanRolePortCoverageNotSatisfiedError,
@@ -276,6 +280,13 @@ def register_recipe_routes(app: FastAPI) -> None:
         # name or signal_type). Mapped to 400.
         InvalidRoleNameError,
         InvalidPortRequirementError,
+        # Layer 3 sub-slice 3D RoleRequirement XOR invariant
+        # failures: both-set / neither-set surface as 400 at the
+        # domain VO (the wire-layer Pydantic body validator catches
+        # the same case as 422 first; this is the second line of
+        # defense for direct in-process callers).
+        RoleRequirementBindingDuplicateError,
+        InvalidRoleRequirementTargetError,
         InvalidPracticeNameError,
         InvalidPracticeVersionTagError,
         InvalidPlanNameError,
@@ -298,6 +309,12 @@ def register_recipe_routes(app: FastAPI) -> None:
         # declared (strict-not-idempotent symmetry with
         # MethodRoleNameAlreadyDeclaredError).
         MethodRoleNameNotFoundError,
+        # Layer 3 sub-slice 3D: RoleNotFoundError is raised by the
+        # Recipe-BC handlers (add_method_required_role precondition,
+        # bind_plan_role role_kind path) BUT registered globally by
+        # Equipment routes.py per the per-BC-error-scope rule. The
+        # FastAPI exception handler is app-scoped, so the 404
+        # mapping fires regardless of which BC's route raised it.
         PracticeNotFoundError,
         PlanNotFoundError,
         # 6h: removing a Wire that's not currently in the Plan's wire
@@ -376,8 +393,10 @@ def register_recipe_routes(app: FastAPI) -> None:
         PlanRoleAlreadyBoundError,
         PlanRoleAssetNotBoundError,
         PlanRoleFamilyMismatchError,
+        PlanRoleFamilyNotResolvableError,
         PlanRoleNameNotDeclaredError,
         PlanRolePortCoverageNotSatisfiedError,
+        AssetDoesNotPresentRequiredRoleError,
         # Structural closure between role_bindings and wires: a Wire
         # endpoint port matches a role's required_ports but terminates
         # at a different Asset than the one bound to that role.

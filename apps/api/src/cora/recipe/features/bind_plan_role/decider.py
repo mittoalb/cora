@@ -2,8 +2,27 @@
 
 Mirrors the cross-aggregate-read pattern from `add_plan_wire`. The
 context object is constructed by the handler from `load_method` +
-`load_asset`; tests pass it directly to bypass the I/O. Fail-fast
-order is the same as the Invariants list below.
+`load_asset` (plus, for the 3D role_kind path, `RoleLookup.lookup`
+and a `FamilyLookup.lookup` batch over `asset.family_ids`); tests
+pass it directly to bypass the I/O. Fail-fast order is the same as
+the Invariants list below.
+
+## Bifurcation (Layer 3 sub-slice 3D)
+
+`RoleRequirement` carries either `role_kind` (federation-portable;
+Layer 3) OR `family_id` (anatomical escape hatch; slice-1) per the
+XOR invariant enforced by the VO. The satisfaction check splits:
+
+  - family_id path: existing slice-1 check
+    `role.family_id in asset.family_ids` -> PlanRoleFamilyMismatchError
+  - role_kind path: ANY-single-family disjunction per Lock 17. For
+    each family_id in `asset.family_ids` the handler must have
+    loaded a `FamilyLookupResult`; the decider walks the dict and
+    accepts iff AT LEAST ONE Family both (a) declares `role_kind`
+    in its `presents_as` AND (b) has `affordances` superset
+    `Role.required_affordances`. None-on-lookup raises
+    `PlanRoleFamilyNotResolvableError`; no Family satisfies raises
+    `AssetDoesNotPresentRequiredRoleError`.
 
 Invariants:
   - State must not be None -> PlanNotFoundError
@@ -16,16 +35,8 @@ Invariants:
   - role_name must match a RoleRequirement on method.required_roles
     -> PlanRoleNameNotDeclaredError
   - Asset must be loaded -> AssetNotFoundError
-  - Bound Asset's family_ids must include the role's family_id ->
-    PlanRoleFamilyMismatchError
-  - Bound Asset's ports must cover every entry in the role's
-    required_ports (exact triple match on port_name, direction,
-    signal_type) -> PlanRolePortCoverageNotSatisfiedError
-  - No existing wire's endpoint may claim the role's required_port
-    (matched by port_name + direction side) at an Asset other than
-    the candidate bound Asset. Without this scan the wire-then-bind
-    and unbind-rebind orderings silently divergence the role table
-    from the wire graph -> PlanWireRoleEndpointMismatchError
+  - Family-path satisfaction OR role_kind-path satisfaction (see above)
+  - Port coverage + wire-graph consistency (unchanged from slice-2)
 """
 
 from datetime import datetime
@@ -33,6 +44,7 @@ from datetime import datetime
 from cora.equipment.aggregates.asset import AssetNotFoundError, PortDirection
 from cora.recipe.aggregates.method import MethodNotFoundError, RoleRequirement
 from cora.recipe.aggregates.plan import (
+    AssetDoesNotPresentRequiredRoleError,
     Plan,
     PlanCannotMutateRoleBindingsError,
     PlanNotFoundError,
@@ -40,6 +52,7 @@ from cora.recipe.aggregates.plan import (
     PlanRoleAssetNotBoundError,
     PlanRoleBound,
     PlanRoleFamilyMismatchError,
+    PlanRoleFamilyNotResolvableError,
     PlanRoleNameNotDeclaredError,
     PlanRolePortCoverageNotSatisfiedError,
     PlanStatus,
@@ -56,7 +69,33 @@ def decide(
     context: BindPlanRoleContext,
     now: datetime,
 ) -> list[PlanRoleBound]:
-    """Decide the events produced by binding a role to an Asset."""
+    """Decide the events produced by binding a role to an Asset.
+
+    Invariants:
+      - State must not be None -> PlanNotFoundError
+      - Plan status must be Defined -> PlanCannotMutateRoleBindingsError
+      - asset_id must be in state.asset_ids -> PlanRoleAssetNotBoundError
+      - role_name must not already be bound (strict-not-idempotent) ->
+        PlanRoleAlreadyBoundError
+      - Method must be loaded -> MethodNotFoundError
+      - role_name must match a RoleRequirement on method.required_roles
+        -> PlanRoleNameNotDeclaredError
+      - Asset must be loaded -> AssetNotFoundError
+      - Family-path (slice-1): asset.family_ids must include
+        role.family_id -> PlanRoleFamilyMismatchError
+      - Role-kind path (3D): every family_id in asset.family_ids
+        must resolve via FamilyLookup ->
+        PlanRoleFamilyNotResolvableError; at least one of those
+        Families must declare role_kind in presents_as AND have
+        affordances superset role.required_affordances (Lock 17
+        ANY-single-family disjunction) ->
+        AssetDoesNotPresentRequiredRoleError
+      - Asset.ports must cover every role.required_ports triple
+        exactly -> PlanRolePortCoverageNotSatisfiedError
+      - No existing wire's endpoint port may claim a role's
+        required_port at an Asset other than the candidate bound
+        Asset -> PlanWireRoleEndpointMismatchError
+    """
     if state is None:
         raise PlanNotFoundError(command.plan_id)
 
@@ -95,14 +134,58 @@ def decide(
     if asset is None:
         raise AssetNotFoundError(command.asset_id)
 
-    if matching_role.family_id not in asset.family_ids:
-        raise PlanRoleFamilyMismatchError(
-            state.id,
-            command.role_name,
-            command.asset_id,
-            matching_role.family_id,
-            asset.family_ids,
+    # Bifurcated satisfaction check per memo Lock 17.
+    if matching_role.role_kind is not None:
+        # 3D role_kind path: ANY-single-family disjunction. Walk
+        # asset.family_ids, lookup each in context.family_lookups,
+        # accept iff AT LEAST ONE Family advertises role_kind in
+        # presents_as AND has affordances superset
+        # role.required_affordances.
+        role_lookup = context.role_lookup_result
+        if role_lookup is None:
+            # Handler contract: role_lookup_result MUST be populated
+            # when matching_role.role_kind is set. Defensive guard:
+            # surface MethodNotFoundError-shape so the test/wire
+            # mistake fails loud rather than silently mis-binding.
+            raise MethodNotFoundError(matching_role.role_kind)
+        required_affordances = role_lookup.required_affordances
+        satisfied_by: bool = False
+        for family_id in asset.family_ids:
+            family_row = context.family_lookups.get(family_id)
+            if family_row is None:
+                raise PlanRoleFamilyNotResolvableError(
+                    state.id,
+                    command.role_name,
+                    command.asset_id,
+                    family_id,
+                )
+            if matching_role.role_kind in family_row.presents_as and (
+                required_affordances <= family_row.affordances
+            ):
+                satisfied_by = True
+                break
+        if not satisfied_by:
+            raise AssetDoesNotPresentRequiredRoleError(
+                state.id,
+                command.role_name,
+                command.asset_id,
+                matching_role.role_kind,
+                asset.family_ids,
+            )
+    else:
+        # Slice-1 family_id path: anatomical escape hatch unchanged.
+        # XOR invariant guarantees family_id is non-None here.
+        assert matching_role.family_id is not None, (
+            "RoleRequirement.__post_init__ invariant violated: neither role_kind nor family_id set"
         )
+        if matching_role.family_id not in asset.family_ids:
+            raise PlanRoleFamilyMismatchError(
+                state.id,
+                command.role_name,
+                command.asset_id,
+                matching_role.family_id,
+                asset.family_ids,
+            )
 
     # Port coverage: each required (port_name, direction, signal_type)
     # triple must match an existing Asset.port triple exactly.
