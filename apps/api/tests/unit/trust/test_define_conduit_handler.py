@@ -87,7 +87,7 @@ async def test_handler_appends_conduit_defined_event_to_store() -> None:
     assert logbook_opened.event_id == _LOGBOOK_OPENED_EVENT_ID
     assert logbook_opened.payload["conduit_id"] == str(_NEW_ID)
     assert logbook_opened.payload["logbook_id"] == str(_TRAVERSALS_LOGBOOK_ID)
-    assert logbook_opened.payload["kind"] == "verdicts"
+    assert logbook_opened.payload["kind"] == "verdict"
     assert logbook_opened.metadata == {"command": "DefineConduit"}
     assert logbook_opened.correlation_id == _CORRELATION_ID
     assert logbook_opened.causation_id is None

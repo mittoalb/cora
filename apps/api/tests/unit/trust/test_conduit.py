@@ -63,7 +63,7 @@ def test_conduit_name_is_frozen() -> None:
 def test_logbook_kind_traversals_is_a_stable_string_constant() -> None:
     """Stored on disk in event payloads — value must not change without
     an explicit migration story for old events."""
-    assert LOGBOOK_KIND_VERDICT == "verdicts"
+    assert LOGBOOK_KIND_VERDICT == "verdict"
 
 
 @pytest.mark.unit
@@ -73,12 +73,12 @@ def test_conduit_logbook_already_open_error_carries_kind_and_existing_id() -> No
     occupying it."""
     conduit_id = uuid4()
     existing = uuid4()
-    err = ConduitLogbookAlreadyOpenError(conduit_id, "verdicts", existing)
+    err = ConduitLogbookAlreadyOpenError(conduit_id, "verdict", existing)
     assert err.conduit_id == conduit_id
-    assert err.kind == "verdicts"
+    assert err.kind == "verdict"
     assert err.existing_logbook_id == existing
     msg = str(err)
-    assert "verdicts" in msg
+    assert "verdict" in msg
     assert str(existing) in msg
     assert "open" in msg.lower()
 

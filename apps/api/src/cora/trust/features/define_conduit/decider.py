@@ -16,7 +16,7 @@ eventual-consistency rationale.
 
 The decider emits TWO events in one append:
   1. `ConduitDefined` (genesis)
-  2. `ConduitLogbookOpened(kind="verdicts", schema=...)` declaring
+  2. `ConduitLogbookOpened(kind="verdict", schema=...)` declaring
      the per-decision authz audit (verdict) logbook attached to this Conduit.
 
 This realizes the gate-review L1 lock (per-Conduit verdict logbook

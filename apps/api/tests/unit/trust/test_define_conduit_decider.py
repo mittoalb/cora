@@ -1,7 +1,7 @@
 """Unit tests for the `define_conduit` slice's pure decider.
 
 The decider emits two events per call: `ConduitDefined` followed by
-`ConduitLogbookOpened` (kind="verdicts"). Tests assert both events
+`ConduitLogbookOpened` (kind="verdict"). Tests assert both events
 as a unit; the logbook-open carries the declared schema verbatim,
 validated separately in events / evolver unit tests.
 """

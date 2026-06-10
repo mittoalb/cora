@@ -93,7 +93,7 @@ the discriminator.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal
 from uuid import UUID
 
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
@@ -109,7 +109,7 @@ PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
 PROCEDURE_TRUNCATE_REASON_MAX_LENGTH = 500
 
 # per-Procedure step logbook constants.
-LOGBOOK_KIND_ACTIVITY = "activities"
+LOGBOOK_KIND_ACTIVITY: Final = "activity"
 """Discriminator for the Procedure's per-step logbook.
 
 Used as the `kind` value on `ProcedureActivitiesLogbookOpened` events. One

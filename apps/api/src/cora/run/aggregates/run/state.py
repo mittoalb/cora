@@ -100,7 +100,7 @@ carried in event payloads.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Final, Literal
 from uuid import UUID
 
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
@@ -146,7 +146,7 @@ RUN_EXTERNAL_REF_ID_MAX_LENGTH = IDENTIFIER_VALUE_MAX_LENGTH
 # Observation polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
 READING_UNITS_MAX_LENGTH = 64
-LOGBOOK_KIND_OBSERVATION = "observation"
+LOGBOOK_KIND_OBSERVATION: Final = "observation"
 """Discriminator string for the Run's observation logbook.
 
 Used as the `kind` value on `RunObservationLogbookOpened` events. One Run

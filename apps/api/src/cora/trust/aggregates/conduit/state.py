@@ -60,7 +60,7 @@ CONDUIT_NAME_MAX_LENGTH = 200
 # decision authorization audit log). Future kinds (for example,
 # rate-limit-events, schema-violations) follow the same naming
 # convention: snake_case, plural noun, domain-meaningful.
-LOGBOOK_KIND_VERDICT: Final = "verdicts"
+LOGBOOK_KIND_VERDICT: Final = "verdict"
 
 
 class InvalidConduitNameError(ValueError):

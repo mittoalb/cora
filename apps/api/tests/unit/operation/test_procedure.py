@@ -214,7 +214,7 @@ def test_step_kind_values_locked() -> None:
 
 @pytest.mark.unit
 def test_logbook_kind_activity_constant() -> None:
-    assert LOGBOOK_KIND_ACTIVITY == "activities"
+    assert LOGBOOK_KIND_ACTIVITY == "activity"
 
 
 @pytest.mark.unit

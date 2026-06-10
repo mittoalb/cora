@@ -9,7 +9,7 @@ Events:
   - `ConduitDefined` — genesis.
   - `ConduitLogbookOpened` — declares a new observation logbook
     attached to the Conduit. Carries the logbook id, kind
-    discriminator (for example, `"verdicts"`), and the schema declaration
+    discriminator (for example, `"verdict"`), and the schema declaration
     documenting what columns the entry rows will have. Today the
     only logbook kind is `verdicts` (per-decision authz audit (verdict)
     log), opened automatically at conduit-creation.

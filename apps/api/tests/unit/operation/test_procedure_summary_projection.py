@@ -214,7 +214,7 @@ async def test_procedure_steps_logbook_opened_updates_logbook_id() -> None:
         {
             "procedure_id": str(_PROCEDURE_ID),
             "logbook_id": str(logbook_id),
-            "kind": "activities",
+            "kind": "activity",
             "schema": {"fields": {}, "description": ""},
             "occurred_at": _NOW.isoformat(),
         },
