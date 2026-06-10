@@ -44,14 +44,25 @@ from cora.safety.aggregates.clearance import (
     InvalidClearanceTitleError,
     InvalidClearanceValidityWindowError,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateAlreadyExistsError,
+    ClearanceTemplateFacilityNotFoundError,
+    ClearanceTemplateNotFoundError,
+    InvalidClearanceTemplateCodeError,
+    InvalidClearanceTemplateTitleError,
+    InvalidClearanceTemplateVersionError,
+)
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import (
     activate_clearance,
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    define_clearance_template,
     expire_clearance,
     get_clearance,
+    get_clearance_template,
+    list_clearance_templates,
     list_clearances,
     register_clearance,
     reject_clearance,
@@ -129,6 +140,10 @@ def register_safety_routes(app: FastAPI) -> None:
     # 11a-c-2 terminal slices
     app.include_router(expire_clearance.router)
     app.include_router(amend_clearance.router)
+    # Slice 9A ClearanceTemplate slices
+    app.include_router(define_clearance_template.router)
+    app.include_router(get_clearance_template.router)
+    app.include_router(list_clearance_templates.router)
     for validation_cls in (
         InvalidClearanceTitleError,
         InvalidClearanceBindingsError,
@@ -144,11 +159,21 @@ def register_safety_routes(app: FastAPI) -> None:
         InvalidClearanceReviewStepIndexError,
         InvalidClearanceRejectReasonError,
         InvalidClearanceExpireReasonError,
+        InvalidClearanceTemplateCodeError,
+        InvalidClearanceTemplateTitleError,
+        InvalidClearanceTemplateVersionError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
-    for not_found_cls in (ClearanceNotFoundError,):
+    for not_found_cls in (
+        ClearanceNotFoundError,
+        ClearanceTemplateNotFoundError,
+        ClearanceTemplateFacilityNotFoundError,
+    ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (ClearanceAlreadyExistsError,):
+    for already_exists_cls in (
+        ClearanceAlreadyExistsError,
+        ClearanceTemplateAlreadyExistsError,
+    ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for cannot_transition_cls in (
         ClearanceCannotSubmitError,

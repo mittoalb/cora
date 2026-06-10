@@ -3265,6 +3265,165 @@
         "title": "ClearanceSummaryDTO",
         "type": "object"
       },
+      "ClearanceTemplateListResponse": {
+        "description": "Page of clearance templates plus opaque next-page cursor.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClearanceTemplateSummaryDTO"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ClearanceTemplateListResponse",
+        "type": "object"
+      },
+      "ClearanceTemplateResponse": {
+        "description": "Read-side DTO at the API boundary.\n\nCarries primitives, not domain VOs. Decouples the wire format\nfrom the domain model so the two can evolve independently.\n`status` is the StrEnum's string value (Draft / Active /\nDeprecated / Withdrawn). `version` is the monotonic version\nnumber of the most recent `version_clearance_template` call\n(default 1 on genesis). `supersedes_template_id` references\nthe prior version in the chain (null on first definition).\n`external_ref` is the optional facility-minted identifier\n(null until assigned).",
+        "properties": {
+          "code": {
+            "maxLength": 50,
+            "title": "Code",
+            "type": "string"
+          },
+          "defined_at": {
+            "title": "Defined At",
+            "type": "string"
+          },
+          "defined_by": {
+            "title": "Defined By",
+            "type": "string"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "facility_code": {
+            "title": "Facility Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "supersedes_template_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Template Id"
+          },
+          "title": {
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "facility_code",
+          "version",
+          "supersedes_template_id",
+          "status",
+          "defined_at",
+          "defined_by"
+        ],
+        "title": "ClearanceTemplateResponse",
+        "type": "object"
+      },
+      "ClearanceTemplateSummaryDTO": {
+        "description": "One clearance template in a paginated list.",
+        "properties": {
+          "code": {
+            "maxLength": 50,
+            "title": "Code",
+            "type": "string"
+          },
+          "defined_at": {
+            "format": "date-time",
+            "title": "Defined At",
+            "type": "string"
+          },
+          "facility_code": {
+            "title": "Facility Code",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "Draft",
+              "Active",
+              "Deprecated",
+              "Withdrawn"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "template_id",
+          "code",
+          "title",
+          "facility_code",
+          "version",
+          "status",
+          "defined_at"
+        ],
+        "title": "ClearanceTemplateSummaryDTO",
+        "type": "object"
+      },
       "CompleteSealRepublishingBody": {
         "additionalProperties": false,
         "description": "Optional complete-seal-republishing request body.",
@@ -4579,6 +4738,65 @@
           "capability_id"
         ],
         "title": "DefineCapabilityResponse",
+        "type": "object"
+      },
+      "DefineClearanceTemplateRequest": {
+        "description": "Body for `POST /clearance-templates`.",
+        "properties": {
+          "code": {
+            "description": "Machine-readable code for the template (facility-scoped; 1-50 chars after trim, e.g. 'ESAF', 'SAF').",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional external reference (e.g., upstream document identifier).",
+            "title": "External Ref"
+          },
+          "facility_code": {
+            "description": "Facility code (cross-deployment convergent slug) this template belongs to.",
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "title": "Facility Code",
+            "type": "string"
+          },
+          "title": {
+            "description": "Display name for the new ClearanceTemplate.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "title",
+          "facility_code"
+        ],
+        "title": "DefineClearanceTemplateRequest",
+        "type": "object"
+      },
+      "DefineClearanceTemplateResponse": {
+        "description": "Response body for `POST /clearance-templates`.",
+        "properties": {
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "DefineClearanceTemplateResponse",
         "type": "object"
       },
       "DefineConduitRequest": {
@@ -21299,6 +21517,331 @@
         "summary": "Supersede an Active caution (atomic parent:Active->Superseded + child:Active)",
         "tags": [
           "caution"
+        ]
+      }
+    },
+    "/clearance-templates": {
+      "get": {
+        "operationId": "list_clearance_templates_endpoint_clearance_templates_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `next_cursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from a previous page's `next_cursor`.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size; capped at 100.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Page size; capped at 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Optional facility-code filter (exact match, e.g. 'aps', 'maxiv'). Omit to return all facilities.",
+            "in": "query",
+            "name": "facility_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional facility-code filter (exact match, e.g. 'aps', 'maxiv'). Omit to return all facilities.",
+              "title": "Facility Code"
+            }
+          },
+          {
+            "description": "Optional status filter (one of: Draft, Active, Deprecated, Withdrawn). Omit to return all statuses.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Draft",
+                    "Active",
+                    "Deprecated",
+                    "Withdrawn"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional status filter (one of: Draft, Active, Deprecated, Withdrawn). Omit to return all statuses.",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Optional code filter (exact match, e.g. 'ESAF', 'SAF'). Omit to return all codes.",
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional code filter (exact match, e.g. 'ESAF', 'SAF'). Omit to return all codes.",
+              "title": "Code"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearanceTemplateListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the query."
+          },
+          "422": {
+            "description": "Query parameters failed validation OR `cursor` was malformed (corrupt base64, missing separator, bad timestamp / UUID)."
+          }
+        },
+        "summary": "List clearance templates with cursor pagination + filters",
+        "tags": [
+          "safety"
+        ]
+      },
+      "post": {
+        "operationId": "post_clearance_templates_clearance_templates_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the template.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the template.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineClearanceTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefineClearanceTemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (e.g., whitespace-only code or title)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Facility code not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Template (facility_code, code) already exists."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Define a new safety clearance template",
+        "tags": [
+          "safety"
+        ]
+      }
+    },
+    "/clearance-templates/{template_id}": {
+      "get": {
+        "operationId": "get_clearance_template_endpoint_clearance_templates__template_id__get",
+        "parameters": [
+          {
+            "description": "Target clearance template's id.",
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "description": "Target clearance template's id.",
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearanceTemplateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No clearance template exists with the given id."
+          },
+          "422": {
+            "description": "Path parameter failed schema validation."
+          }
+        },
+        "summary": "Get a clearance template by id",
+        "tags": [
+          "safety"
         ]
       }
     },

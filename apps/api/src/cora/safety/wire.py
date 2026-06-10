@@ -47,8 +47,11 @@ from cora.safety.features import (
     amend_clearance,
     append_clearance_review_step,
     approve_clearance,
+    define_clearance_template,
     expire_clearance,
     get_clearance,
+    get_clearance_template,
+    list_clearance_templates,
     list_clearances,
     register_clearance,
     reject_clearance,
@@ -74,6 +77,9 @@ class SafetyHandlers:
     activate_clearance: activate_clearance.Handler
     expire_clearance: expire_clearance.Handler
     amend_clearance: amend_clearance.IdempotentHandler
+    define_clearance_template: define_clearance_template.IdempotentHandler
+    get_clearance_template: get_clearance_template.Handler
+    list_clearance_templates: list_clearance_templates.Handler
 
 
 def wire_safety(deps: Kernel) -> SafetyHandlers:
@@ -149,5 +155,29 @@ def wire_safety(deps: Kernel) -> SafetyHandlers:
             ),
             command_name="AmendClearance",
             bc=_BC,
+        ),
+        define_clearance_template=with_tracing(
+            with_idempotency(
+                define_clearance_template.bind(deps),
+                deps.idempotency_store,
+                command_name="DefineClearanceTemplate",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="DefineClearanceTemplate",
+            bc=_BC,
+        ),
+        get_clearance_template=with_tracing(
+            get_clearance_template.bind(deps),
+            command_name="GetClearanceTemplate",
+            bc=_BC,
+            kind="query",
+        ),
+        list_clearance_templates=with_tracing(
+            list_clearance_templates.bind(deps),
+            command_name="ListClearanceTemplates",
+            bc=_BC,
+            kind="query",
         ),
     )
