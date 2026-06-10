@@ -5,6 +5,10 @@ wired into `Kernel` at startup. Domain and application code imports only
 from `ports/`, never from adapter modules.
 """
 
+from cora.infrastructure.ports.assembly_lookup import (
+    AssemblyLookup,
+    AssemblyLookupResult,
+)
 from cora.infrastructure.ports.asset_lookup import (
     AssetLookup,
     AssetLookupResult,
@@ -126,6 +130,8 @@ __all__ = [
     "AlwaysCoveredClearanceLookup",
     "AlwaysEmptyCapabilityLookup",
     "AlwaysQuietCautionLookup",
+    "AssemblyLookup",
+    "AssemblyLookupResult",
     "AssetLookup",
     "AssetLookupResult",
     "Authorize",

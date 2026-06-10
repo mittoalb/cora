@@ -104,6 +104,7 @@ from cora.equipment import (
     wire_equipment,
 )
 from cora.equipment.adapters import (
+    PostgresAssemblyLookup,
     PostgresAssetLookup,
     PostgresFamilyLookup,
     PostgresRoleLookup,
@@ -410,6 +411,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                 facility_lookup_factory=PostgresFacilityLookup,
                 asset_lookup_factory=PostgresAssetLookup,
                 family_lookup_factory=PostgresFamilyLookup,
+                assembly_lookup_factory=PostgresAssemblyLookup,
                 role_lookup_factory=PostgresRoleLookup,
                 # publish_revision slice deps: in-memory adapters
                 # wired by default until the rule-of-two trigger

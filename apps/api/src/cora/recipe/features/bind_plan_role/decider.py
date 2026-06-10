@@ -15,14 +15,20 @@ XOR invariant enforced by the VO. The satisfaction check splits:
 
   - family_id path: existing slice-1 check
     `role.family_id in asset.family_ids` -> PlanRoleFamilyMismatchError
-  - role_kind path: ANY-single-family disjunction per Lock 17. For
-    each family_id in `asset.family_ids` the handler must have
-    loaded a `FamilyLookupResult`; the decider walks the dict and
-    accepts iff AT LEAST ONE Family both (a) declares `role_kind`
-    in its `presents_as` AND (b) has `affordances` superset
+  - role_kind path: ANY-single-family disjunction per Lock 17, OR-ed
+    with the composed-Assembly branch. For each family_id in
+    `asset.family_ids` the handler must have loaded a
+    `FamilyLookupResult`; the decider walks the dict and accepts
+    iff AT LEAST ONE Family both (a) declares `role_kind` in its
+    `presents_as` AND (b) has `affordances` superset
     `Role.required_affordances`. None-on-lookup raises
-    `PlanRoleFamilyNotResolvableError`; no Family satisfies raises
-    `AssetDoesNotPresentRequiredRoleError`.
+    `PlanRoleFamilyNotResolvableError`. If no Family satisfies but
+    the Asset carries `fixture_id` AND the handler-loaded
+    `AssemblyLookupResult.presents_as` contains `role_kind`, the
+    Assembly satisfaction path accepts the binding (Assembly
+    affordance-superset is enforced at register_fixture time, not
+    at template time per 3C state docstring). If neither path
+    succeeds, `AssetDoesNotPresentRequiredRoleError` fires.
 
 Invariants:
   - State must not be None -> PlanNotFoundError
@@ -88,7 +94,9 @@ def decide(
         PlanRoleFamilyNotResolvableError; at least one of those
         Families must declare role_kind in presents_as AND have
         affordances superset role.required_affordances (Lock 17
-        ANY-single-family disjunction) ->
+        ANY-single-family disjunction), OR (if the Asset is in a
+        Fixture) the loaded Assembly's presents_as must contain
+        role_kind ->
         AssetDoesNotPresentRequiredRoleError
       - Asset.ports must cover every role.required_ports triple
         exactly -> PlanRolePortCoverageNotSatisfiedError
@@ -164,6 +172,18 @@ def decide(
             ):
                 satisfied_by = True
                 break
+        # Assembly satisfaction OR-branch: when no Family satisfied
+        # and the Asset is part of a materialized Assembly (via
+        # fixture_id), accept the binding iff the loaded Assembly's
+        # presents_as contains role_kind. Affordance-superset is NOT
+        # checked here -- Assembly affordances derive from the
+        # constituent Family union at register_fixture time per
+        # the 3C state.py docstring, so the check belongs at the
+        # fixture-registration layer, not the bind-time layer.
+        if not satisfied_by and asset.fixture_id is not None:
+            assembly_row = context.assembly_lookup_result
+            if assembly_row is not None and matching_role.role_kind in assembly_row.presents_as:
+                satisfied_by = True
         if not satisfied_by:
             raise AssetDoesNotPresentRequiredRoleError(
                 state.id,

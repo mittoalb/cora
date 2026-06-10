@@ -58,6 +58,7 @@ from cora.infrastructure.adapters.canonicalization_registry import (
 from cora.infrastructure.adapters.default_canonicalization_adapter import (
     DefaultCanonicalizationAdapter,
 )
+from cora.infrastructure.adapters.in_memory_assembly_lookup import InMemoryAssemblyLookup
 from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLookup
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
@@ -80,6 +81,7 @@ from cora.infrastructure.ports import (
     AlwaysCoveredClearanceLookup,
     AlwaysEmptyCapabilityLookup,
     AlwaysQuietCautionLookup,
+    AssemblyLookup,
     AssetLookup,
     Authorize,
     CapabilityLookup,
@@ -154,6 +156,7 @@ def make_postgres_kernel(
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
     family_lookup: FamilyLookup | None = None,
+    assembly_lookup: AssemblyLookup | None = None,
     role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
@@ -289,6 +292,9 @@ def make_postgres_kernel(
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
         family_lookup=(family_lookup if family_lookup is not None else InMemoryFamilyLookup()),
+        assembly_lookup=(
+            assembly_lookup if assembly_lookup is not None else InMemoryAssemblyLookup()
+        ),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=(profile_store if profile_store is not None else PostgresProfileStore(pool)),
         canonicalization_registry=_build_default_canonicalization_registry(),
@@ -319,6 +325,7 @@ def make_inmemory_kernel(
     facility_lookup: FacilityLookup | None = None,
     asset_lookup: AssetLookup | None = None,
     family_lookup: FamilyLookup | None = None,
+    assembly_lookup: AssemblyLookup | None = None,
     role_lookup: RoleLookup | None = None,
     profile_store: ProfileStore | None = None,
     llm: LLM | None = None,
@@ -440,6 +447,9 @@ def make_inmemory_kernel(
         ),
         asset_lookup=(asset_lookup if asset_lookup is not None else InMemoryAssetLookup()),
         family_lookup=(family_lookup if family_lookup is not None else InMemoryFamilyLookup()),
+        assembly_lookup=(
+            assembly_lookup if assembly_lookup is not None else InMemoryAssemblyLookup()
+        ),
         role_lookup=(role_lookup if role_lookup is not None else InMemoryRoleLookup()),
         profile_store=profile_store if profile_store is not None else InMemoryProfileStore(),
         canonicalization_registry=_build_default_canonicalization_registry(),
@@ -618,6 +628,24 @@ class FamilyLookupFactory(Protocol):
     ) -> FamilyLookup: ...
 
 
+class AssemblyLookupFactory(Protocol):
+    """Builds the production AssemblyLookup port for the Kernel.
+
+    Equipment BC's `cora.equipment.adapters.PostgresAssemblyLookup`
+    is the production factory; `cora.api.main` binds it. Same
+    factory-injection shape as `FamilyLookupFactory`.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryAssemblyLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> AssemblyLookup: ...
+
+
 class RoleLookupFactory(Protocol):
     """Builds the production RoleLookup port for the Kernel.
 
@@ -674,6 +702,7 @@ async def build_kernel(
     facility_lookup_factory: FacilityLookupFactory | None = None,
     asset_lookup_factory: AssetLookupFactory | None = None,
     family_lookup_factory: FamilyLookupFactory | None = None,
+    assembly_lookup_factory: AssemblyLookupFactory | None = None,
     role_lookup_factory: RoleLookupFactory | None = None,
     publish_port_factory: "Callable[[], PublishPort] | None" = None,
     signature_port_factory: "Callable[[], SignaturePort] | None" = None,
@@ -789,6 +818,11 @@ async def build_kernel(
     family_lookup: FamilyLookup = (
         family_lookup_factory(pool) if family_lookup_factory is not None else InMemoryFamilyLookup()
     )
+    assembly_lookup: AssemblyLookup = (
+        assembly_lookup_factory(pool)
+        if assembly_lookup_factory is not None
+        else InMemoryAssemblyLookup()
+    )
     role_lookup: RoleLookup = (
         role_lookup_factory(pool) if role_lookup_factory is not None else InMemoryRoleLookup()
     )
@@ -809,6 +843,7 @@ async def build_kernel(
         facility_lookup=facility_lookup,
         asset_lookup=asset_lookup,
         family_lookup=family_lookup,
+        assembly_lookup=assembly_lookup,
         role_lookup=role_lookup,
         llm=llm,
         token_verifier=token_verifier,
@@ -881,6 +916,7 @@ def _compose_teardowns(teardowns: list[Teardown]) -> Teardown:
 
 
 __all__ = [
+    "AssemblyLookupFactory",
     "AssetLookupFactory",
     "AuthorizeFactory",
     "CapabilityLookupFactory",

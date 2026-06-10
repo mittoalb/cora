@@ -20,8 +20,15 @@ the handler additionally:
     `asset.family_ids` via `Kernel.family_lookup.lookup` ->
     `family_lookups` dict on the context (decider walks for the
     ANY-single-family disjunction per Lock 17)
+  - if the candidate Asset carries `fixture_id`, loads the
+    Fixture (via `load_fixture`) and then the referenced Assembly
+    via `Kernel.assembly_lookup.lookup` ->
+    `assembly_lookup_result` on the context (decider ORs-in
+    `role_kind in assembly.presents_as` on the Family disjunction
+    so a composed Assembly like MCTOptics can satisfy the Role
+    when no individual Family declares it)
 
-Slice-1 family_id-only RoleRequirements skip both extra loads:
+Slice-1 family_id-only RoleRequirements skip all extra loads:
 the context's optional fields default to None / empty dict and
 the decider takes the existing family_id-equality branch.
 """
@@ -32,11 +39,12 @@ from uuid import UUID
 
 from cora.equipment.aggregates.asset import AssetNotFoundError
 from cora.equipment.aggregates.asset.read import load_asset
+from cora.equipment.aggregates.fixture.read import load_fixture
 from cora.equipment.aggregates.role import RoleNotFoundError
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny, FamilyLookupResult
+from cora.infrastructure.ports import AssemblyLookupResult, Deny, FamilyLookupResult
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.recipe.aggregates.method import MethodNotFoundError, RoleRequirement
 from cora.recipe.aggregates.method.read import load_method
@@ -151,6 +159,7 @@ def bind(deps: Kernel) -> Handler:
 
         role_lookup_result = None
         family_lookups: dict[UUID, FamilyLookupResult] = {}
+        assembly_lookup_result: AssemblyLookupResult | None = None
         if matching_role is not None and matching_role.role_kind is not None:
             role_lookup_result = await deps.role_lookup.lookup(matching_role.role_kind)
             if role_lookup_result is None:
@@ -165,12 +174,26 @@ def bind(deps: Kernel) -> Handler:
             family_lookups = {
                 fid: row for fid, row in zip(family_ids, results, strict=True) if row is not None
             }
+            # Assembly satisfaction branch: when the Asset carries a
+            # fixture_id, load the Fixture (one event-store hop) and
+            # then the referenced Assembly's projection row. The
+            # decider ORs-in role_kind membership in
+            # assembly.presents_as on top of the Family disjunction.
+            # Missed Fixture / Assembly silently fall through to the
+            # Family-only path; the decider raises
+            # AssetDoesNotPresentRequiredRoleError if no path
+            # satisfies.
+            if asset.fixture_id is not None:
+                fixture = await load_fixture(deps.event_store, asset.fixture_id)
+                if fixture is not None:
+                    assembly_lookup_result = await deps.assembly_lookup.lookup(fixture.assembly_id)
 
         context = BindPlanRoleContext(
             method=method,
             asset=asset,
             role_lookup_result=role_lookup_result,
             family_lookups=family_lookups,
+            assembly_lookup_result=assembly_lookup_result,
         )
 
         domain_events = decide(

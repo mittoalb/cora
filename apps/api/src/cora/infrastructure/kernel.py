@@ -40,6 +40,7 @@ from cora.infrastructure.adapters.signing_registry import SigningRegistry
 from cora.infrastructure.config import Settings
 from cora.infrastructure.ports import (
     LLM,
+    AssemblyLookup,
     AssetLookup,
     Authorize,
     CapabilityLookup,
@@ -185,6 +186,17 @@ class Kernel:
     Test environments default to `InMemoryFamilyLookup`; 3D consumer
     tests seed Families via the adapter's `register(...)` helper.
 
+    `assembly_lookup`: cross-aggregate port consumed by 3D's
+    `bind_plan_role` handler for the Assembly satisfaction branch.
+    When the candidate Asset carries `fixture_id`, the handler
+    loads the Fixture, then `AssemblyLookup.lookup(fixture.assembly_id)`,
+    and the decider ORs-in `role_kind in assembly.presents_as` on
+    top of the Family disjunction (closes the MCTOptics-Assembly
+    worked example from the design memo). Equipment BC ships
+    `PostgresAssemblyLookup` as the production adapter (reads
+    `proj_equipment_assembly_summary` with the 3C presents_as
+    column). Test environments default to `InMemoryAssemblyLookup`.
+
     `role_lookup`: cross-aggregate port consumed by Layer-3 sub-slices
     of [[project-role-aggregate-design]]. 3B `add_family_presents_as`
     decider validates role_id resolves AND that the Family's
@@ -258,6 +270,7 @@ class Kernel:
     facility_lookup: FacilityLookup
     asset_lookup: AssetLookup
     family_lookup: FamilyLookup
+    assembly_lookup: AssemblyLookup
     role_lookup: RoleLookup
     profile_store: ProfileStore
     canonicalization_registry: CanonicalizationRegistry
