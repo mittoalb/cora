@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from cora.data.features import (
+    add_dataset_to_edition,
     demote_dataset,
     discard_dataset,
     get_dataset,
@@ -35,6 +36,8 @@ from cora.data.features import (
     promote_dataset,
     register_dataset,
     register_distribution,
+    register_edition,
+    remove_dataset_from_edition,
 )
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
@@ -54,6 +57,9 @@ class DataHandlers:
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
     register_distribution: register_distribution.IdempotentHandler
+    register_edition: register_edition.IdempotentHandler
+    add_dataset_to_edition: add_dataset_to_edition.Handler
+    remove_dataset_from_edition: remove_dataset_from_edition.Handler
 
 
 def wire_data(deps: Kernel) -> DataHandlers:
@@ -110,6 +116,28 @@ def wire_data(deps: Kernel) -> DataHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RegisterDistribution",
+            bc=_BC,
+        ),
+        register_edition=with_tracing(
+            with_idempotency(
+                register_edition.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterEdition",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterEdition",
+            bc=_BC,
+        ),
+        add_dataset_to_edition=with_tracing(
+            add_dataset_to_edition.bind(deps),
+            command_name="AddDatasetToEdition",
+            bc=_BC,
+        ),
+        remove_dataset_from_edition=with_tracing(
+            remove_dataset_from_edition.bind(deps),
+            command_name="RemoveDatasetFromEdition",
             bc=_BC,
         ),
     )

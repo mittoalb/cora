@@ -82,8 +82,37 @@ from cora.data.aggregates.distribution import (
     InvalidDistributionUriError,
     UnmappedDistributionUriSchemeError,
 )
+from cora.data.aggregates.edition import (
+    DoiMinterTombstoneError,
+    EditionAlreadyExistsError,
+    EditionCannotBeEmptyError,
+    EditionCannotBindToDiscardedDatasetError,
+    EditionCannotPublishError,
+    EditionCannotSealError,
+    EditionCannotSealOnDiscardedDatasetError,
+    EditionCannotWithdrawError,
+    EditionDatasetAlreadyMemberError,
+    EditionDatasetDistributionNotFoundError,
+    EditionDatasetNotMemberError,
+    EditionDatasetsNotAllProductionError,
+    EditionLicenseRequiredForKindError,
+    EditionNotFoundError,
+    EditionNotInRegisteredStateError,
+    EditionPublishedWithoutContentHashError,
+    EditionPublisherNotFoundError,
+    EditionRequiresAtLeastOneDatasetError,
+    EditionSerializerError,
+    EmptyDatasetIdsAtRegistrationError,
+    InvalidCreatorsError,
+    InvalidEditionKindError,
+    InvalidEditionTitleError,
+    InvalidEditionWithdrawalReasonError,
+    InvalidPublicationYearError,
+    InvalidSpdxIdentifierError,
+)
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
+    add_dataset_to_edition,
     demote_dataset,
     discard_dataset,
     get_dataset,
@@ -91,6 +120,8 @@ from cora.data.features import (
     promote_dataset,
     register_dataset,
     register_distribution,
+    register_edition,
+    remove_dataset_from_edition,
 )
 
 
@@ -168,6 +199,24 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_upstream_port_failure(request: Request, exc: Exception) -> JSONResponse:
+    """502 handler for upstream-port failure (serializer, DoiMinter tombstone)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_invariant_violation(request: Request, exc: Exception) -> JSONResponse:
+    """500 handler for defensive invariant violations (impossible-by-state)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
 def register_data_routes(app: FastAPI) -> None:
     """Attach Data slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_dataset.router)
@@ -177,6 +226,9 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
     app.include_router(register_distribution.router)
+    app.include_router(register_edition.router)
+    app.include_router(add_dataset_to_edition.router)
+    app.include_router(remove_dataset_from_edition.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,
@@ -203,10 +255,28 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidAccessProtocolError,
         UnmappedDistributionUriSchemeError,
         DefaultStorageSupplyBootstrapError,
+        # Edition VO validation: title, kind, license, year, withdrawal
+        # reason, creators (cardinality + duplicate detection +
+        # affiliation length), empty-dataset-ids-at-registration. All
+        # produce 400 `{"detail": str(exc)}`.
+        InvalidEditionTitleError,
+        InvalidEditionKindError,
+        InvalidPublicationYearError,
+        InvalidSpdxIdentifierError,
+        InvalidEditionWithdrawalReasonError,
+        InvalidCreatorsError,
+        EmptyDatasetIdsAtRegistrationError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
         DatasetNotFoundError,
+        # Edition NotFoundError family: stream-empty + publisher Facility
+        # lookup miss + member Dataset not in set + member Dataset has no
+        # canonical Distribution. All produce 404 `{"detail": str(exc)}`.
+        EditionNotFoundError,
+        EditionPublisherNotFoundError,
+        EditionDatasetNotMemberError,
+        EditionDatasetDistributionNotFoundError,
         # Per the locked <X>NotFoundError -> 404 taxonomy (cluster 4 of
         # the 2026-05-22 audit), the renamed cross-aggregate not-found
         # family now routes through _handle_not_found instead of the
@@ -221,6 +291,8 @@ def register_data_routes(app: FastAPI) -> None:
     for already_exists_cls in (
         DatasetAlreadyExistsError,
         DistributionAlreadyExistsError,
+        # Edition defensive 409: same-stream-id race at register decider.
+        EditionAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for lineage_state_cls in (DerivedFromDatasetsDiscardedError,):
@@ -246,6 +318,39 @@ def register_data_routes(app: FastAPI) -> None:
         DistributionCannotRegisterOnDiscardedDatasetError,
         DistributionChecksumMismatchError,
         DistributionByteSizeMismatchError,
+        # Edition mutation / transition guards. All 409 with
+        # `{"detail": str(exc)}`. Covers add / remove state guards,
+        # state-FSM transition guards, license-required-for-kind,
+        # all-Production-or-reject, member-Discarded, member-missing-
+        # Distribution, last-dataset-remove, and the bind-to-Discarded
+        # Dataset rejection shared with register / add slices.
+        EditionNotInRegisteredStateError,
+        EditionDatasetAlreadyMemberError,
+        EditionCannotBeEmptyError,
+        EditionCannotBindToDiscardedDatasetError,
+        EditionCannotSealError,
+        EditionRequiresAtLeastOneDatasetError,
+        EditionDatasetsNotAllProductionError,
+        EditionCannotSealOnDiscardedDatasetError,
+        EditionLicenseRequiredForKindError,
+        EditionCannotPublishError,
+        EditionCannotWithdrawError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for upstream_port_cls in (
+        # Serializer adapter failure at seal / publish time, and
+        # DoiMinter.tombstone failure at withdraw time. Both 502 because
+        # the upstream port (serializer / DataCite) is the failure source,
+        # not a domain-state conflict.
+        EditionSerializerError,
+        DoiMinterTombstoneError,
+    ):
+        app.add_exception_handler(upstream_port_cls, _handle_upstream_port_failure)
+    for invariant_cls in (
+        # Defensive invariant: Sealed Edition has no content_hash.
+        # Impossible-by-state under happy-path; 500 because this signals
+        # a contract-breaking adapter swap or malformed stream.
+        EditionPublishedWithoutContentHashError,
+    ):
+        app.add_exception_handler(invariant_cls, _handle_invariant_violation)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

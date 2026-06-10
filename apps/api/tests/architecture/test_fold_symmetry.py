@@ -109,6 +109,10 @@ _INTRINSIC_ALLOWLIST: dict[str, str] = {
         "provenance-source identity-ref (vendor datasheet operator); "
         "contrast with fact-act-authority `CalibrationRevision.established_by`"
     ),
+    "data.Edition.Creator.actor_id": (
+        "publication-author identity-ref (credited creator on the citable Edition); "
+        "ordered tuple semantics, NOT a fact-act fold"
+    ),
 }
 
 # Fold-NEITHER allowlist: BCs / aggregates that fold neither half of a
