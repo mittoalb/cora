@@ -186,6 +186,25 @@ class Settings(BaseSettings):
     # federating, so production sets this without exception.
     self_facility_code: str = "cora"
 
+    # Data BC — Distribution backfill (Session 6 Slice 2)
+    # `self_facility_default_storage_supply_code` names the
+    # storage-kind Supply that the lifespan-time Distribution
+    # backfill binds every legacy `Dataset.uri` row to per
+    # [[project_data_distribution_design]] L23 + L24. Read at
+    # lifespan startup by `bootstrap_default_storage_supply`; resolved
+    # against `proj_supply_summary` (must exist, must have
+    # `kind == "Storage"`, must have `status == "Available"`). Default
+    # `None` lets clean-install deployments boot without setting the
+    # env var; when set the value is operator-supplied via the
+    # `SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE` env var.
+    #
+    # Fail-loud surface (4 lifespan error classes per L23a):
+    #   - unset + legacy Datasets exist -> DefaultStorageSupplyCodeUnsetError
+    #   - set + Supply missing            -> DefaultStorageSupplyNotFoundError
+    #   - resolved Supply kind != Storage -> DefaultStorageSupplyKindMismatchError
+    #   - resolved Supply not Available   -> DefaultStorageSupplyNotAvailableError
+    self_facility_default_storage_supply_code: str | None = None
+
     # Equipment BC — PIDINST integration (slice E.1)
     # `facility_publisher` is the institutional `publisher` field emitted
     # on every PIDINST record produced by `GET /assets/{asset_id}/pidinst`
