@@ -102,6 +102,7 @@ from cora.data.aggregates.edition import (
     EditionPublisherNotFoundError,
     EditionRequiresAtLeastOneDatasetError,
     EditionSerializerError,
+    EditionWithdrawnWithoutPersistentIdError,
     EmptyDatasetIdsAtRegistrationError,
     InvalidCreatorsError,
     InvalidEditionKindError,
@@ -118,11 +119,15 @@ from cora.data.features import (
     get_dataset,
     list_datasets,
     promote_dataset,
+    publish_edition,
     register_dataset,
     register_distribution,
     register_edition,
     remove_dataset_from_edition,
+    seal_edition,
+    withdraw_edition,
 )
+from cora.shared.ports.doi_minter import PersistentIdentifierMintError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -229,6 +234,9 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(register_edition.router)
     app.include_router(add_dataset_to_edition.router)
     app.include_router(remove_dataset_from_edition.router)
+    app.include_router(seal_edition.router)
+    app.include_router(publish_edition.router)
+    app.include_router(withdraw_edition.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,
@@ -344,13 +352,18 @@ def register_data_routes(app: FastAPI) -> None:
         # not a domain-state conflict.
         EditionSerializerError,
         DoiMinterTombstoneError,
+        # DoiMinter.mint failure at publish time. 502: the DataCite
+        # authority (the upstream port) is the failure source.
+        PersistentIdentifierMintError,
     ):
         app.add_exception_handler(upstream_port_cls, _handle_upstream_port_failure)
     for invariant_cls in (
-        # Defensive invariant: Sealed Edition has no content_hash.
-        # Impossible-by-state under happy-path; 500 because this signals
-        # a contract-breaking adapter swap or malformed stream.
+        # Defensive invariants: impossible-by-state under happy-path; 500
+        # because each signals a contract-breaking adapter swap or
+        # malformed stream. Sealed-without-content_hash (publish);
+        # Published-without-external_pid (withdraw).
         EditionPublishedWithoutContentHashError,
+        EditionWithdrawnWithoutPersistentIdError,
     ):
         app.add_exception_handler(invariant_cls, _handle_invariant_violation)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

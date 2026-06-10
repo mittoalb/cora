@@ -48,5 +48,13 @@ class StubDoiMinter:
         )
         return PersistentIdentifier(scheme=scheme, value=f"{prefix}/{local}")
 
+    async def tombstone(
+        self,
+        pid: PersistentIdentifier,
+        reason: str,
+    ) -> None:
+        """No-op tombstone arm: stub adapter never reaches DataCite."""
+        _ = (pid, reason)
+
 
 __all__ = ["StubDoiMinter"]

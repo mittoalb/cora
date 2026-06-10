@@ -42,13 +42,13 @@ from cora.equipment.aggregates.asset import (
     AssetPersistentIdAssignmentForbiddenError,
 )
 from cora.equipment.errors import UnauthorizedError
-from cora.equipment.ports.doi_minter import (
-    DoiMinter,
-    PersistentIdentifierMintError,
-)
 from cora.equipment.routes import register_equipment_routes
 from cora.equipment.tools import register_equipment_tools
 from cora.equipment.wire import EquipmentHandlers, wire_equipment
+from cora.shared.ports.doi_minter import (
+    DoiMinter,
+    PersistentIdentifierMintError,
+)
 
 __all__ = [
     "AssetPersistentIdAlreadyAssignedError",

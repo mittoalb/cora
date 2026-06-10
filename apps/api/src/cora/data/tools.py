@@ -17,12 +17,15 @@ from cora.data.features.discard_dataset import tool as discard_dataset_tool
 from cora.data.features.get_dataset import tool as get_dataset_tool
 from cora.data.features.list_datasets import tool as list_datasets_tool
 from cora.data.features.promote_dataset import tool as promote_dataset_tool
+from cora.data.features.publish_edition import tool as publish_edition_tool
 from cora.data.features.register_dataset import tool as register_dataset_tool
 from cora.data.features.register_distribution import tool as register_distribution_tool
 from cora.data.features.register_edition import tool as register_edition_tool
 from cora.data.features.remove_dataset_from_edition import (
     tool as remove_dataset_from_edition_tool,
 )
+from cora.data.features.seal_edition import tool as seal_edition_tool
+from cora.data.features.withdraw_edition import tool as withdraw_edition_tool
 from cora.data.wire import DataHandlers
 
 
@@ -71,4 +74,16 @@ def register_data_tools(
     remove_dataset_from_edition_tool.register(
         mcp,
         get_handler=lambda: get_handlers().remove_dataset_from_edition,
+    )
+    seal_edition_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().seal_edition,
+    )
+    publish_edition_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().publish_edition,
+    )
+    withdraw_edition_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().withdraw_edition,
     )

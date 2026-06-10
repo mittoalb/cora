@@ -126,7 +126,7 @@ def test_register_edition_happy_path_emits_one_event(
     assert isinstance(event, EditionRegistered)
     assert event.edition_id == new_id
     assert event.kind == kind.value
-    assert event.title == title
+    assert event.title == title.strip()
     assert event.dataset_ids == (dataset_id,)
     assert event.occurred_at == now
     assert event.registered_by == ActorId(registered_by)

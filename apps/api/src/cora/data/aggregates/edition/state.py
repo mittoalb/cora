@@ -507,6 +507,23 @@ class EditionCannotWithdrawError(Exception):
         self.current_status = current_status
 
 
+class EditionWithdrawnWithoutPersistentIdError(Exception):
+    """Defensive invariant: Published Edition has no external_pid.
+
+    Impossible-by-state under happy-path (the Published transition
+    always sets external_pid); defensive for malformed streams or
+    contract-breaking adapter swaps. Mirrors
+    `EditionPublishedWithoutContentHashError`.
+    """
+
+    def __init__(self, edition_id: UUID) -> None:
+        super().__init__(
+            f"Edition {edition_id} is Published but has no external_pid "
+            "(defensive invariant; should be unreachable)"
+        )
+        self.edition_id = edition_id
+
+
 class DoiMinterTombstoneError(Exception):
     """DoiMinter.tombstone raised at withdraw time.
 
@@ -734,6 +751,7 @@ __all__ = [
     "EditionSerializerError",
     "EditionStatus",
     "EditionTitle",
+    "EditionWithdrawnWithoutPersistentIdError",
     "EmptyDatasetIdsAtRegistrationError",
     "InvalidCreatorsError",
     "InvalidEditionKindError",

@@ -39,7 +39,6 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from cora.api.main import create_app
-from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.aggregates.assembly import SlotCardinality, SlotName, TemplateSlot
 from cora.equipment.aggregates.asset import (
     AssetLevel,
@@ -73,6 +72,7 @@ from cora.equipment.features.define_model import DefineModel
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_fixture import RegisterFixture
 from cora.equipment.wire import wire_equipment
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from tests.integration._equipment_helpers import (
