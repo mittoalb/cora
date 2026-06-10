@@ -764,16 +764,16 @@ def test_campaign_id_survives_lifecycle_transitions() -> None:
 
 
 @pytest.mark.unit
-def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
-    """Pre-6i-c Runs have no campaign_id on RunStarted (default None).
-    They MUST fold cleanly without membership — additive backward-
+def test_legacy_run_stream_without_campaign_id_folds_to_none() -> None:
+    """Legacy Runs have no campaign_id on RunStarted (default None).
+    They MUST fold cleanly without membership; the additive backward-
     compat contract mirrors the observation_logbook_id pattern."""
     run_id = uuid4()
     state = fold(
         [
             RunStarted(
                 run_id=run_id,
-                name="Pre-6i-c Run",
+                name="Legacy Run without campaign",
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
@@ -790,7 +790,7 @@ def test_legacy_pre_6i_c_stream_folds_with_none_campaign_id() -> None:
 
 @pytest.mark.unit
 def test_run_started_defaults_last_adjusted_and_count() -> None:
-    """6j: genesis state defaults last_adjusted_at=None, adjustment_count=0."""
+    """Genesis state defaults last_adjusted_at=None, adjustment_count=0."""
     state = evolve(None, _run_started())
     assert state.last_adjusted_at is None
     assert state.adjustment_count == 0
@@ -798,7 +798,7 @@ def test_run_started_defaults_last_adjusted_and_count() -> None:
 
 @pytest.mark.unit
 def test_run_adjusted_mutates_effective_and_stamps_denorm() -> None:
-    """6j: RunAdjusted replaces effective_parameters with the event's
+    """RunAdjusted replaces effective_parameters with the event's
     post-merge snapshot; sets last_adjusted_at; increments count."""
     from cora.run.aggregates.run.events import RunAdjusted
 
@@ -974,16 +974,16 @@ def test_each_terminal_preserves_adjustment_denorm(
 
 
 @pytest.mark.unit
-def test_legacy_pre_6j_stream_folds_with_default_adjustment_fields() -> None:
-    """Pre-6j Runs have no RunAdjusted event in the stream. They MUST
+def test_legacy_run_stream_without_run_adjusted_folds_to_zero_count() -> None:
+    """Legacy Runs have no RunAdjusted event in the stream. They MUST
     fold cleanly with last_adjusted_at=None + last_adjusted_by=None +
-    adjustment_count=0 — additive backward-compat contract."""
+    adjustment_count=0; additive backward-compat contract."""
     run_id = uuid4()
     state = fold(
         [
             RunStarted(
                 run_id=run_id,
-                name="Pre-6j Run",
+                name="Legacy Run without adjustments",
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,
@@ -1024,15 +1024,15 @@ def test_run_started_genesis_populates_pinned_calibration_ids_as_frozenset() -> 
 
 
 @pytest.mark.unit
-def test_legacy_pre_12b_run_folds_with_empty_pinned_calibration_ids() -> None:
-    """Pre-12b Runs have no pinned_calibration_ids on RunStarted. They MUST
-    fold to an empty frozenset — additive backward-compat contract."""
+def test_legacy_run_without_pinned_calibration_ids_folds_to_empty_frozenset() -> None:
+    """Legacy Runs have no pinned_calibration_ids on RunStarted. They
+    MUST fold to an empty frozenset; additive backward-compat contract."""
     run_id = uuid4()
     state = fold(
         [
             RunStarted(
                 run_id=run_id,
-                name="Pre-12b Run",
+                name="Legacy Run without pinned calibrations",
                 plan_id=uuid4(),
                 subject_id=None,
                 occurred_at=_NOW,

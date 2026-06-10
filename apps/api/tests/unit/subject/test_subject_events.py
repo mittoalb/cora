@@ -166,7 +166,7 @@ def test_from_stored_rebuilds_subject_mounted() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_subject_mounted_with_empty_reason_for_pre_4f_events() -> None:
+def test_from_stored_rebuilds_subject_mounted_with_empty_reason_for_legacy_events() -> None:
     """Additive evolution: legacy stored events without the
     reason key fold to reason="" via payload.get fallback."""
     subject_id = uuid4()

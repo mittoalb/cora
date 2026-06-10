@@ -52,8 +52,8 @@ ORDER BY version
 # cast to text in the SELECT and parse to Python int in `_row_to_event`.
 # (Empirically verified by `tests/integration/test_event_store_xid8_postgres.py`.)
 # On the INPUT side asyncpg accepts a Python int for an `$1::xid8`
-# parameter — the projection-bookmark UPDATE (when 8e-1 lands) will
-# pass int directly without the text round-trip.
+# parameter, so the projection-bookmark UPDATE passes int directly
+# without the text round-trip.
 
 _APPEND_SQL = """
 INSERT INTO events (

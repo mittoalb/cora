@@ -150,7 +150,7 @@ def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id_key() -> None:
+def test_from_stored_rebuilds_legacy_procedure_registered_without_capability_id_key() -> None:
     """Additive backwards-compat pin: legacy streams omit
     the `capability_id` key from `ProcedureRegistered` payloads
     entirely. `from_stored` MUST use `payload.get("capability_id")`

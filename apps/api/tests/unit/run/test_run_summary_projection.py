@@ -311,15 +311,14 @@ async def test_unknown_event_type_falls_through() -> None:
 
 
 @pytest.mark.unit
-async def test_run_started_pre_12b_payload_falls_back_to_empty_pinned_calibration_ids() -> None:
-    """Pre-12b RunStarted events lack the `pinned_calibration_ids` key
+async def test_run_started_without_pinned_calibration_ids_key_falls_back_to_empty_list() -> None:
+    """Legacy RunStarted events lack the `pinned_calibration_ids` key
     in the payload entirely. The projection's `payload.get(
     "pinned_calibration_ids", [])` fallback MUST land an empty UUID list
     on the column so legacy rows backfill cleanly (matches the
     in-memory frozenset default + the from_stored forward-compat
     fold). Mirror of Data BC's
-    test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibration_ids
-    that 12c-3 added."""
+    test_dataset_registered_without_used_calibration_ids_key_falls_back_to_empty_list."""
     proj = RunSummaryProjection()
     conn = AsyncMock()
     event = _stored(
