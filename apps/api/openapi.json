@@ -12996,6 +12996,25 @@
         "title": "UpdateAssetSettingsRequest",
         "type": "object"
       },
+      "UpdateCapabilitySuggestedRolesRequest": {
+        "description": "Body for `POST /capabilities/{capability_id}/suggested-roles`.",
+        "properties": {
+          "suggested_roles": {
+            "description": "FULL replacement set of global Role contract ids the operator suggests this Capability is naturally satisfied by (Layer 3 sub-slice 3E; documentation-only per memo Lock 10). Each role_id is verified to resolve via the Role projection at the handler edge. Empty list clears the set. Deduplicated server-side.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Suggested Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggested_roles"
+        ],
+        "title": "UpdateCapabilitySuggestedRolesRequest",
+        "type": "object"
+      },
       "UpdateFamilySettingsSchemaRequest": {
         "description": "Body for `POST /families/{family_id}/settings-schema`.",
         "properties": {
@@ -20703,6 +20722,96 @@
           }
         },
         "summary": "Deprecate an existing Capability",
+        "tags": [
+          "recipe"
+        ]
+      }
+    },
+    "/capabilities/{capability_id}/suggested-roles": {
+      "post": {
+        "operationId": "post_capabilities_suggested_roles_capabilities__capability_id__suggested_roles_post",
+        "parameters": [
+          {
+            "description": "Target Capability's id.",
+            "in": "path",
+            "name": "capability_id",
+            "required": true,
+            "schema": {
+              "description": "Target Capability's id.",
+              "format": "uuid",
+              "title": "Capability Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCapabilitySuggestedRolesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize policy denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Capability exists with the given id, OR one or more supplied role_ids do not resolve to a registered Role (handler-side RoleLookup precondition)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Capability is Deprecated; suggested_roles updates require Defined or Versioned status."
+          },
+          "422": {
+            "description": "Path parameter or request body failed schema validation."
+          }
+        },
+        "summary": "Author the editorial suggested_roles set on a Capability",
         "tags": [
           "recipe"
         ]

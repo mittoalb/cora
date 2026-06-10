@@ -33,6 +33,7 @@ from fastapi.responses import JSONResponse
 from cora.recipe.aggregates.capability import (
     CapabilityAlreadyExistsError,
     CapabilityCannotDeprecateError,
+    CapabilityCannotUpdateSuggestedRolesError,
     CapabilityCannotVersionError,
     CapabilityNotFoundError,
     InvalidCapabilityCodeError,
@@ -147,6 +148,7 @@ from cora.recipe.features import (
     remove_method_required_role,
     remove_plan_wire,
     unbind_plan_role,
+    update_capability_suggested_roles,
     update_method_parameters_schema,
     update_plan_default_parameters,
     version_capability,
@@ -258,6 +260,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     app.include_router(define_capability.router)
     app.include_router(version_capability.router)
     app.include_router(deprecate_capability.router)
+    app.include_router(update_capability_suggested_roles.router)
     app.include_router(get_capability.router)
     app.include_router(define_recipe.router)
     app.include_router(version_recipe.router)
@@ -342,6 +345,7 @@ def register_recipe_routes(app: FastAPI) -> None:
     for cannot_transition_cls in (
         CapabilityCannotVersionError,
         CapabilityCannotDeprecateError,
+        CapabilityCannotUpdateSuggestedRolesError,
         # cross-BC guard: Method binds to Capability whose
         # executor_shapes does not include Method.
         MethodCapabilityExecutorMismatchError,
