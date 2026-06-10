@@ -22502,7 +22502,7 @@
             "description": "Query parameters failed validation OR `cursor` was malformed."
           }
         },
-        "summary": "List clearances with cursor pagination + kind / status / risk_band / facility_asset_id / binds_to_*_id filters. ExternalRefBinding refs not filterable; review_steps chain not surfaced (fetch get_clearance for both).",
+        "summary": "List clearances with cursor pagination + template_id / template_code / status / risk_band / facility_code / binds_to_*_id filters. ExternalRefBinding refs not filterable; review_steps chain not surfaced (fetch get_clearance for both).",
         "tags": [
           "safety"
         ]
