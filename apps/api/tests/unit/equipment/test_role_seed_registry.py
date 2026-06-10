@@ -42,11 +42,16 @@ def test_seed_role_names_are_pinned() -> None:
 
 @pytest.mark.unit
 def test_seed_role_ids_are_pinned_uuid5() -> None:
-    """Federation-portable: every deployment computes the same RoleId."""
-    assert UUID("156bdf22-ccdc-5dda-ad55-67c84d798b5e") == SEED_ROLE_IMAGER_ID
-    assert UUID("0122b7e1-2724-5d5b-a62c-318c4c97a4e1") == SEED_ROLE_POSITIONER_ID
-    assert UUID("3fee7782-7e89-50ba-a8e0-e9692348d2c2") == SEED_ROLE_CONTROLLER_ID
-    assert UUID("7ae3449f-72b1-5182-8cc5-ff7d8adf2f9e") == SEED_ROLE_DETECTOR_ID
+    """Federation-portable: every deployment computes the same RoleId.
+
+    Namespace = uuid5(NAMESPACE_DNS, 'cora.role'); per-Role key =
+    name.value.lower() (matches the projection UNIQUE INDEX on
+    LOWER(name)).
+    """
+    assert UUID("9aabbecf-e4d4-5851-affc-ee2f2929ce30") == SEED_ROLE_IMAGER_ID
+    assert UUID("ed3cde7c-af58-5320-b323-c62e0af0834a") == SEED_ROLE_POSITIONER_ID
+    assert UUID("8fe49028-04a4-5a23-9fb3-b2b79eb9c620") == SEED_ROLE_CONTROLLER_ID
+    assert UUID("dd5378c9-31af-50a3-86b8-16aa3df23e42") == SEED_ROLE_DETECTOR_ID
 
 
 @pytest.mark.unit

@@ -18,6 +18,7 @@ from cora.equipment.aggregates.role._role_registry import (
     SEED_ROLE_IMAGER_ID,
     SEED_ROLE_POSITIONER_ID,
     SEED_ROLES,
+    role_stream_id,
 )
 from cora.equipment.aggregates.role._signal_type import (
     SIGNAL_TYPE_MAX_LENGTH,
@@ -81,5 +82,6 @@ __all__ = [
     "from_stored",
     "load_role",
     "normalize_signal_type",
+    "role_stream_id",
     "to_payload",
 ]

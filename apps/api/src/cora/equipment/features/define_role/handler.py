@@ -10,7 +10,7 @@ wrapper is applied at the BC wire layer
 from typing import Protocol
 from uuid import UUID
 
-from cora.equipment.aggregates.role import event_type_name, to_payload
+from cora.equipment.aggregates.role import RoleName, event_type_name, role_stream_id, to_payload
 from cora.equipment.errors import UnauthorizedError
 from cora.equipment.features.define_role.command import DefineRole
 from cora.equipment.features.define_role.decider import decide
@@ -96,7 +96,7 @@ def bind(deps: Kernel) -> Handler:
             )
             raise UnauthorizedError(decision.reason)
 
-        new_id = deps.id_generator.new_id()
+        new_id = role_stream_id(RoleName(command.name))
         now = deps.clock.now()
 
         domain_events = decide(

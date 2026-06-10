@@ -97,6 +97,7 @@ from cora.decision import (
 )
 from cora.equipment import (
     EquipmentHandlers,
+    bootstrap_equipment,
     register_equipment_projections,
     register_equipment_routes,
     register_equipment_tools,
@@ -461,6 +462,18 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             # SELF_FACILITY_CODE fails the lifespan fast via
             # InvalidFacilityCodeError raised in FacilityCode(...).
             await bootstrap_federation(deps)
+
+            # Equipment BC seed Roles per project-role-aggregate-design
+            # 3A lifespan-seeding decision (2026-06-10). Idempotent
+            # (ConcurrencyError-as-already-seeded). LOAD-BEARING ORDER:
+            # MUST run BEFORE any handler that resolves a Role via
+            # RoleLookup (bind_plan_role role_kind path,
+            # update_capability_suggested_roles, future Method authoring
+            # gates). The 4 SEED_ROLES (Imager, Positioner, Controller,
+            # Detector) ship at deterministic uuid5 ids so a Method
+            # authored at APS 2-BM that binds role_kind=Imager resolves
+            # to the same id when shipped to MAX IV or DLS.
+            await bootstrap_equipment(deps)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`

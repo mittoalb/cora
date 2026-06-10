@@ -10,8 +10,12 @@ from cora.api.main import create_app
 
 
 def _body(**overrides: object) -> dict[str, Any]:
+    # Default name avoids the 4 SEED_ROLES (Imager, Positioner, Controller,
+    # Detector) that bootstrap_equipment seeds at lifespan. POSTing a seed
+    # name returns 409 by design (handler derives stream_id from name);
+    # see test_post_roles_with_seed_role_name_returns_409.
     base: dict[str, Any] = {
-        "name": "Imager",
+        "name": "Diagnostician",
         "docstring": "Acquires 2D image frames on exposure or trigger.",
         "required_affordances": ["Imageable"],
         "optional_affordances": ["Binnable"],
@@ -113,8 +117,8 @@ def test_post_roles_idempotency_key_reuse_returns_cached_response() -> None:
     """Same body + same key -> cached role_id; not re-created."""
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "role-it-key-1"}
-        first = client.post("/roles", json=_body(name="Imager"), headers=headers)
-        second = client.post("/roles", json=_body(name="Imager"), headers=headers)
+        first = client.post("/roles", json=_body(name="Diagnostician"), headers=headers)
+        second = client.post("/roles", json=_body(name="Diagnostician"), headers=headers)
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["role_id"] == second.json()["role_id"]
@@ -125,7 +129,34 @@ def test_post_roles_idempotency_key_with_different_body_returns_422() -> None:
     """Same key + different body -> conflict (422)."""
     with TestClient(create_app()) as client:
         headers = {"Idempotency-Key": "role-it-key-2"}
-        first = client.post("/roles", json=_body(name="Imager"), headers=headers)
-        second = client.post("/roles", json=_body(name="Positioner"), headers=headers)
+        first = client.post("/roles", json=_body(name="Diagnostician"), headers=headers)
+        second = client.post("/roles", json=_body(name="Cartographer"), headers=headers)
     assert first.status_code == 201
     assert second.status_code == 422
+
+
+@pytest.mark.contract
+def test_post_roles_with_seed_role_name_returns_409() -> None:
+    """Seed Roles are auto-defined at lifespan via uuid5-derived stream_ids.
+
+    POSTing one of {Imager, Positioner, Controller, Detector} races the
+    seed for the same stream, surfacing as 409 (the event-store's
+    expected_version=0 violation). Operators wanting a Role with the
+    same SEMANTIC slot pick a different name; the contract content is
+    already captured by the seed.
+    """
+    with TestClient(create_app()) as client:
+        response = client.post("/roles", json=_body(name="Imager"))
+    assert response.status_code == 409, response.text
+
+
+@pytest.mark.contract
+def test_post_roles_with_same_name_twice_returns_409() -> None:
+    """Handler-derived stream_id from name means a second POST of the
+    same name (case-insensitive) is a 409, not a fresh row. Prevents
+    the projection-writer UNIQUE INDEX (LOWER(name)) race."""
+    with TestClient(create_app()) as client:
+        first = client.post("/roles", json=_body(name="Cartographer"))
+        second = client.post("/roles", json=_body(name="cartographer"))
+    assert first.status_code == 201, first.text
+    assert second.status_code == 409, second.text

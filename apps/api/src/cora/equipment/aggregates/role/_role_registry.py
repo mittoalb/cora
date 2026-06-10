@@ -22,9 +22,18 @@ Role gets the same id across deployments. Federation-portability
 authored at APS 2-BM that binds `role_kind=Imager` must resolve to
 the same Imager UUID when shipped to MAX IV or DLS for execution.
 
-The namespace UUID was chosen by `uuid5(NAMESPACE_DNS, 'cora.role')`
-once at lock-time and is hardcoded so re-derivation produces stable
-results without re-running the seed.
+The namespace UUID is derived from `uuid5(NAMESPACE_DNS, 'cora.role')`
+once at lock-time and hardcoded so re-derivation is deterministic
+without re-running the seed. Operators verifying the derivation can
+recompute it from the same string seed.
+
+The per-Role stream_id derivation `role_stream_id(name)` lower-cases
+`name.value` before uuid5 so the deterministic id matches the
+projection's `UNIQUE INDEX (LOWER(name))` constraint. A
+`define_role` call with `name="imager"` and the SEED constant
+`SEED_ROLE_IMAGER_ID` (derived from `Imager`) collide on the same
+stream, surfacing as `ConcurrencyError` at the event store before
+the projection writer.
 
 ## Contract content
 
@@ -36,8 +45,7 @@ and requires the Family's `affordances` superset the Role's
 vocabularies (informative at 3A; gating arrives at Layer-4 wire
 guidance).
 
-Docstrings are kept terse and operator-readable; longer-form prose
-lives in `docs/catalog/roles.md` (created in this slice).
+Docstrings are kept terse and operator-readable.
 """
 
 from typing import Final
@@ -49,23 +57,29 @@ from cora.equipment.aggregates.role._signal_type import SignalType
 from cora.equipment.aggregates.role.state import Role, RoleName
 
 # Fixed UUID5 namespace for Role ids. Generated once at lock-time
-# (2026-06-10 Layer-3 sub-slice 3A) via
+# (2026-06-10 Layer-3 sub-slice 3A) as
 # `uuid5(NAMESPACE_DNS, 'cora.role')`. Hardcoded so re-derivation is
 # deterministic without requiring the uuid library at runtime in the
 # seed path (operator-facing tooling can recompute it from the same
 # string seed to verify).
-_ROLE_NAMESPACE: Final[UUID] = UUID("c6c14a9f-3f30-5a92-9d33-b2adfa6da81b")
+_ROLE_NAMESPACE: Final[UUID] = UUID("d22027f6-9667-5f9f-bab9-5775f0aa70c4")
 
 
-def _seed_id(slug: str) -> RoleId:
-    """Derive a deterministic RoleId from a stable slug."""
-    return RoleId(uuid5(_ROLE_NAMESPACE, slug))
+def role_stream_id(name: RoleName) -> RoleId:
+    """Derive the deterministic stream_id for a Role from its name.
+
+    Lower-cases `name.value` so the derivation matches the projection's
+    `UNIQUE INDEX (LOWER(name))` rule: a `define_role` race on the
+    same case-insensitive name collides on `expected_version=0` at the
+    event store before the projection writer can crash.
+    """
+    return RoleId(uuid5(_ROLE_NAMESPACE, name.value.lower()))
 
 
-SEED_ROLE_IMAGER_ID: Final[RoleId] = _seed_id("Imager")
-SEED_ROLE_POSITIONER_ID: Final[RoleId] = _seed_id("Positioner")
-SEED_ROLE_CONTROLLER_ID: Final[RoleId] = _seed_id("Controller")
-SEED_ROLE_DETECTOR_ID: Final[RoleId] = _seed_id("Detector")
+SEED_ROLE_IMAGER_ID: Final[RoleId] = role_stream_id(RoleName("Imager"))
+SEED_ROLE_POSITIONER_ID: Final[RoleId] = role_stream_id(RoleName("Positioner"))
+SEED_ROLE_CONTROLLER_ID: Final[RoleId] = role_stream_id(RoleName("Controller"))
+SEED_ROLE_DETECTOR_ID: Final[RoleId] = role_stream_id(RoleName("Detector"))
 
 
 IMAGER: Final[Role] = Role(
@@ -163,4 +177,5 @@ __all__ = [
     "SEED_ROLE_DETECTOR_ID",
     "SEED_ROLE_IMAGER_ID",
     "SEED_ROLE_POSITIONER_ID",
+    "role_stream_id",
 ]

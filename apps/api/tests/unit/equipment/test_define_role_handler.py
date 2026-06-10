@@ -7,7 +7,10 @@ import pytest
 
 from cora.equipment import EquipmentHandlers, UnauthorizedError, wire_equipment
 from cora.equipment.aggregates.family import Affordance
-from cora.equipment.aggregates.role import InvalidRoleNameError
+from cora.equipment.aggregates.role import (
+    SEED_ROLE_IMAGER_ID,
+    InvalidRoleNameError,
+)
 from cora.equipment.features import define_role
 from cora.equipment.features.define_role import DefineRole
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
@@ -15,7 +18,10 @@ from cora.infrastructure.kernel import Kernel
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 _NOW = datetime(2026, 6, 10, 12, 0, 0, tzinfo=UTC)
-_NEW_ID = UUID("01900000-0000-7000-8000-000000007ab1")
+# Per role_stream_id(RoleName("Imager")) = uuid5(_ROLE_NAMESPACE, "imager")
+# = SEED_ROLE_IMAGER_ID. The handler derives the stream_id deterministically,
+# so a "Imager" command and the SEED constant collide on the same stream.
+_NEW_ID = SEED_ROLE_IMAGER_ID
 _EVENT_ID = UUID("01900000-0000-7000-8000-000000007be1")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
@@ -27,7 +33,9 @@ def _build_deps(
     deny: bool = False,
 ) -> Kernel:
     return _build_deps_shared(
-        ids=[_NEW_ID, _EVENT_ID],
+        # Handler no longer pulls a stream id from IdGenerator; only the
+        # event_id is allocated from deps.id_generator.new_id().
+        ids=[_EVENT_ID],
         now=_NOW,
         event_store=event_store,
         deny=deny,

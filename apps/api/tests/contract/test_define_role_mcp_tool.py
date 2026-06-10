@@ -10,8 +10,11 @@ from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _args(**overrides: object) -> dict[str, object]:
+    # Default name avoids the 4 SEED_ROLES auto-defined at lifespan
+    # (Imager/Positioner/Controller/Detector); see the REST endpoint
+    # test test_post_roles_with_seed_role_name_returns_409.
     base: dict[str, object] = {
-        "name": "Imager",
+        "name": "Diagnostician",
         "docstring": "Acquires 2D image frames on exposure or trigger.",
         "required_affordances": ["Imageable"],
         "optional_affordances": ["Binnable"],
