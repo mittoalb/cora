@@ -241,5 +241,6 @@ class SingleSupplyLookup:
         return {}
 
     async def lookup(self, supply_id: UUID) -> SupplyReference | None:
-        _ = supply_id
-        return self._reference
+        if supply_id == self._reference.supply_id:
+            return self._reference
+        return None

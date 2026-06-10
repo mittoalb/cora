@@ -68,10 +68,7 @@ from cora.data.aggregates.dataset import (
     ProducingRunNotFoundError,
 )
 from cora.data.aggregates.distribution import (
-    DefaultStorageSupplyCodeUnsetError,
-    DefaultStorageSupplyKindMismatchError,
-    DefaultStorageSupplyNotAvailableError,
-    DefaultStorageSupplyNotFoundError,
+    DefaultStorageSupplyBootstrapError,
     DistributionAlreadyExistsError,
     DistributionByteSizeMismatchError,
     DistributionCannotRegisterOnDiscardedDatasetError,
@@ -205,10 +202,7 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDistributionEncodingError,
         InvalidAccessProtocolError,
         UnmappedDistributionUriSchemeError,
-        DefaultStorageSupplyCodeUnsetError,
-        DefaultStorageSupplyNotFoundError,
-        DefaultStorageSupplyKindMismatchError,
-        DefaultStorageSupplyNotAvailableError,
+        DefaultStorageSupplyBootstrapError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (

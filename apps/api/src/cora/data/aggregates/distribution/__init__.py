@@ -18,10 +18,8 @@ denormalization today.
 """
 
 from cora.data.aggregates.distribution._backfill_errors import (
-    DefaultStorageSupplyCodeUnsetError,
-    DefaultStorageSupplyKindMismatchError,
-    DefaultStorageSupplyNotAvailableError,
-    DefaultStorageSupplyNotFoundError,
+    DefaultStorageSupplyBootstrapError,
+    DefaultStorageSupplyBootstrapFailure,
 )
 from cora.data.aggregates.distribution.events import (
     DistributionEvent,
@@ -62,10 +60,8 @@ __all__ = [
     "STORAGE_SUPPLY_KIND",
     "URI_SCHEME_TO_ACCESS_PROTOCOL",
     "AccessProtocol",
-    "DefaultStorageSupplyCodeUnsetError",
-    "DefaultStorageSupplyKindMismatchError",
-    "DefaultStorageSupplyNotAvailableError",
-    "DefaultStorageSupplyNotFoundError",
+    "DefaultStorageSupplyBootstrapError",
+    "DefaultStorageSupplyBootstrapFailure",
     "Distribution",
     "DistributionAlreadyExistsError",
     "DistributionByteSizeMismatchError",

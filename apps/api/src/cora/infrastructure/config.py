@@ -198,11 +198,12 @@ class Settings(BaseSettings):
     # env var; when set the value is operator-supplied via the
     # `SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE` env var.
     #
-    # Fail-loud surface (4 lifespan error classes per L23a):
-    #   - unset + legacy Datasets exist -> DefaultStorageSupplyCodeUnsetError
-    #   - set + Supply missing            -> DefaultStorageSupplyNotFoundError
-    #   - resolved Supply kind != Storage -> DefaultStorageSupplyKindMismatchError
-    #   - resolved Supply not Available   -> DefaultStorageSupplyNotAvailableError
+    # Fail-loud surface (one lifespan error class per L23a with a
+    # DefaultStorageSupplyBootstrapFailure discriminator):
+    #   - unset + legacy Datasets exist -> CODE_UNSET
+    #   - set + Supply missing (or wrong kind / wrong facility / ambiguous)
+    #                                   -> NOT_FOUND
+    #   - resolved Supply not Available -> NOT_AVAILABLE
     self_facility_default_storage_supply_code: str | None = None
 
     # Equipment BC — PIDINST integration (slice E.1)

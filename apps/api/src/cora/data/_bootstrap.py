@@ -5,15 +5,18 @@ Slice 2 (L23 + L23a + L24 + L24a + L24b):
 
   1. `bootstrap_default_storage_supply(kernel)`: resolves
      `Settings.self_facility_default_storage_supply_code` against
-     `proj_supply_summary`. Fail-loud on env-var-unset-with-legacy-
-     Datasets, missing Supply, wrong kind, or non-Available status
-     (4 L23a error classes). Returns the resolved `supply_id` or
-     `None` when env var is unset AND no legacy Datasets need
-     backfill.
+     `proj_supply_summary`, scoped to the current
+     `Settings.self_facility_code` and to `kind = 'Storage'`. Fail-loud
+     on env-var-unset-with-legacy-Datasets, missing Supply, or
+     non-Available status via a single
+     `DefaultStorageSupplyBootstrapError` carrying a
+     `DefaultStorageSupplyBootstrapFailure` discriminator. Returns the
+     resolved `supply_id` or `None` when env var is unset AND no legacy
+     Datasets need backfill.
 
   2. `bootstrap_distribution_backfill(kernel, supply_id)`: under a
      Postgres advisory lock, INSERTs one `proj_data_distribution_summary`
-     row per legacy Dataset that lacks a backfilled Distribution.
+     row per legacy Dataset that lacks a Distribution.
      Returns the row count. No-op when `supply_id is None`.
 
 Both run at lifespan startup AFTER `bootstrap_federation` and BEFORE
@@ -37,12 +40,11 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 from uuid import UUID, uuid5
 
-from cora.data.aggregates.dataset import load_dataset
+from cora.data.aggregates.dataset.events import from_stored as dataset_from_stored
+from cora.data.aggregates.dataset.evolver import fold as dataset_fold
 from cora.data.aggregates.distribution import (
-    DefaultStorageSupplyCodeUnsetError,
-    DefaultStorageSupplyKindMismatchError,
-    DefaultStorageSupplyNotAvailableError,
-    DefaultStorageSupplyNotFoundError,
+    DefaultStorageSupplyBootstrapError,
+    DefaultStorageSupplyBootstrapFailure,
     UnmappedDistributionUriSchemeError,
 )
 from cora.data.aggregates.distribution._namespaces import (
@@ -79,16 +81,21 @@ async def bootstrap_default_storage_supply(kernel: Kernel) -> UUID | None:
 
     Reads `Settings.self_facility_default_storage_supply_code`; resolves
     against `proj_supply_summary` by `name` column (Supply BC's
-    operator-readable identifier; there is no separate `code` column).
+    operator-readable identifier; there is no separate `code` column),
+    scoped to the current `Settings.self_facility_code` and to
+    `kind = 'Storage'` so a peer-facility's same-named non-Storage
+    Supply in a federated deployment never wins nondeterministically.
 
     Returns the resolved `supply_id` (UUID), or `None` when the env var
     is unset AND no legacy Datasets exist (clean install no-op).
 
-    Fail-loud branches per L23a:
-      - env unset + legacy Datasets exist -> DefaultStorageSupplyCodeUnsetError
-      - env set + Supply missing          -> DefaultStorageSupplyNotFoundError
-      - resolved kind != "Storage"        -> DefaultStorageSupplyKindMismatchError
-      - resolved status != "Available"    -> DefaultStorageSupplyNotAvailableError
+    Fail-loud branches per L23a (all raise
+    :class:`DefaultStorageSupplyBootstrapError` with a discriminator):
+
+      - env unset + legacy Datasets exist -> CODE_UNSET
+      - env set + Supply missing          -> NOT_FOUND
+      - env set + multiple rows matched   -> NOT_FOUND (with multi-match note)
+      - resolved status != "Available"    -> NOT_AVAILABLE
 
     Pool-less / in-memory deployments short-circuit cleanly (`kernel.pool
     is None`) and return `None`; the backfill step that follows is also
@@ -100,32 +107,84 @@ async def bootstrap_default_storage_supply(kernel: Kernel) -> UUID | None:
         return None
 
     supply_code = kernel.settings.self_facility_default_storage_supply_code
+    facility_code = kernel.settings.self_facility_code
 
     async with pool.acquire() as conn:
         legacy_count: int = await conn.fetchval("SELECT COUNT(*) FROM proj_data_dataset_summary")
 
         if supply_code is None:
             if legacy_count > 0:
-                raise DefaultStorageSupplyCodeUnsetError(legacy_count)
+                raise DefaultStorageSupplyBootstrapError(
+                    DefaultStorageSupplyBootstrapFailure.CODE_UNSET,
+                    message=(
+                        f"Cannot bootstrap default storage Supply: "
+                        f"SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE env var is unset "
+                        f"but {legacy_count} legacy Dataset row(s) exist that "
+                        f"need backfill. Set the env var to an existing storage-kind "
+                        f"Available Supply code, then restart."
+                    ),
+                    legacy_dataset_count=legacy_count,
+                )
             _log.info("default_storage_supply.no_default_storage_supply_required")
             return None
 
-        row = await conn.fetchrow(
-            "SELECT supply_id, kind, status FROM proj_supply_summary WHERE name = $1 LIMIT 1",
+        rows = await conn.fetch(
+            "SELECT supply_id, status FROM proj_supply_summary "
+            "WHERE name = $1 AND facility_code = $2 AND kind = $3",
             supply_code,
+            facility_code,
+            STORAGE_SUPPLY_KIND,
         )
 
-    if row is None:
-        raise DefaultStorageSupplyNotFoundError(supply_code)
+    if len(rows) == 0:
+        raise DefaultStorageSupplyBootstrapError(
+            DefaultStorageSupplyBootstrapFailure.NOT_FOUND,
+            message=(
+                f"Cannot bootstrap default storage Supply: "
+                f"SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE={supply_code!r} "
+                f"does not resolve in proj_supply_summary "
+                f"(facility_code={facility_code!r}, kind={STORAGE_SUPPLY_KIND!r}). "
+                f"Register the Supply first or fix the env var, then restart."
+            ),
+            supply_code=supply_code,
+        )
+    if len(rows) > 1:
+        _log.warning(
+            "default_storage_supply.multi_match",
+            supply_code=supply_code,
+            facility_code=facility_code,
+            match_count=len(rows),
+        )
+        raise DefaultStorageSupplyBootstrapError(
+            DefaultStorageSupplyBootstrapFailure.NOT_FOUND,
+            message=(
+                f"Cannot bootstrap default storage Supply: "
+                f"SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE={supply_code!r} "
+                f"matched {len(rows)} rows in proj_supply_summary "
+                f"(facility_code={facility_code!r}, kind={STORAGE_SUPPLY_KIND!r}); "
+                f"ambiguous default storage Supply. Remove duplicate Supply "
+                f"rows or rename the conflicting Supply, then restart."
+            ),
+            supply_code=supply_code,
+        )
 
-    actual_kind: str = row["kind"]
+    row = rows[0]
     actual_status: str = row["status"]
     supply_id: UUID = row["supply_id"]
 
-    if actual_kind != STORAGE_SUPPLY_KIND:
-        raise DefaultStorageSupplyKindMismatchError(supply_code, actual_kind)
     if actual_status != "Available":
-        raise DefaultStorageSupplyNotAvailableError(supply_code, actual_status)
+        raise DefaultStorageSupplyBootstrapError(
+            DefaultStorageSupplyBootstrapFailure.NOT_AVAILABLE,
+            message=(
+                f"Cannot bootstrap default storage Supply: "
+                f"SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE={supply_code!r} "
+                f"resolved to a Supply with status={actual_status!r} "
+                f"(expected 'Available'). Mark the Supply available or point "
+                f"env var at a different Available Supply, restart."
+            ),
+            supply_code=supply_code,
+            actual_status=actual_status,
+        )
 
     _log.info(
         "default_storage_supply.resolved",
@@ -141,13 +200,13 @@ async def bootstrap_distribution_backfill(kernel: Kernel, supply_id: UUID | None
     No-op when `supply_id is None` (clean install or pool-less env).
 
     For every Dataset in `proj_data_dataset_summary` that lacks a
-    backfilled Distribution row, loads the Dataset's event stream to
-    recover the byte-identical-copy fields (checksum, byte_size,
-    encoding) and the genesis attribution (registered_by): these
-    fields live on the genesis event payload, not the Dataset
-    summary projection. Then maps the URI scheme to an `AccessProtocol`
-    via the closed `URI_SCHEME_TO_ACCESS_PROTOCOL` lookup. Unmapped
-    schemes abort the entire backfill via `UnmappedDistributionUriSchemeError`.
+    Distribution row (regardless of `backfilled` flag), loads the
+    Dataset's event stream once, folds it for the byte-identical-copy
+    fields (checksum, byte_size, encoding), and extracts the genesis
+    attribution (registered_by) from the `DatasetRegistered` event
+    payload. Then maps the URI scheme to an `AccessProtocol` via the
+    closed `URI_SCHEME_TO_ACCESS_PROTOCOL` lookup. Unmapped schemes
+    abort the entire backfill via `UnmappedDistributionUriSchemeError`.
 
     The deterministic `distribution_id = uuid5(_DATA_DISTRIBUTION_BACKFILL_NAMESPACE,
     str(dataset_id))` derivation per L24a means re-running the backfill
@@ -171,12 +230,14 @@ async def bootstrap_distribution_backfill(kernel: Kernel, supply_id: UUID | None
     async with pool.acquire() as conn:
         await conn.execute("SELECT pg_advisory_lock($1)", _BACKFILL_ADVISORY_LOCK_ID)
         try:
+            # Backfill skips any Dataset that has at least one Distribution
+            # row, regardless of backfilled flag, to avoid double-registration
+            # when a natively registered Distribution already exists.
             pending_rows = await conn.fetch(
                 "SELECT dataset_id, uri, created_at "
                 "FROM proj_data_dataset_summary "
                 "WHERE dataset_id NOT IN ("
-                "    SELECT dataset_id FROM proj_data_distribution_summary "
-                "    WHERE backfilled = TRUE"
+                "    SELECT dataset_id FROM proj_data_distribution_summary"
                 ") "
                 "ORDER BY dataset_id"
             )
@@ -191,11 +252,11 @@ async def bootstrap_distribution_backfill(kernel: Kernel, supply_id: UUID | None
                 if access_protocol is None:
                     raise UnmappedDistributionUriSchemeError(uri, scheme)
 
-                # Load the Dataset event stream once: the folded Dataset
-                # carries the byte-identical-copy fields (checksum, byte_size,
-                # encoding) the backfill needs; the genesis event payload
-                # carries the `registered_by` actor id (not denormalized on
-                # the Dataset state per fold-NEITHER convention).
+                # ONE event-store round trip per Dataset: load the stream
+                # once, fold for byte-identical-copy fields, scan for the
+                # `DatasetRegistered` genesis event to recover `registered_by`
+                # (not denormalized on Dataset state per fold-NEITHER
+                # convention).
                 stored_events, _version = await kernel.event_store.load("Dataset", dataset_id)
                 if not stored_events:
                     # Projection row exists but event stream is missing:
@@ -205,14 +266,25 @@ async def bootstrap_distribution_backfill(kernel: Kernel, supply_id: UUID | None
                         dataset_id=str(dataset_id),
                     )
                     continue
-                dataset = await load_dataset(kernel.event_store, dataset_id)
+                events = [dataset_from_stored(e) for e in stored_events]
+                dataset = dataset_fold(events)
                 if dataset is None:
                     _log.warning(
                         "distribution_backfill.dataset_fold_returned_none",
                         dataset_id=str(dataset_id),
                     )
                     continue
-                registered_by = UUID(stored_events[0].payload["registered_by"])
+                genesis_event = next(
+                    (e for e in stored_events if e.event_type == "DatasetRegistered"),
+                    None,
+                )
+                if genesis_event is None:
+                    msg = (
+                        f"Distribution backfill: Dataset {dataset_id} has no "
+                        f"DatasetRegistered genesis event"
+                    )
+                    raise RuntimeError(msg)
+                registered_by = UUID(genesis_event.payload["registered_by"])
 
                 distribution_id = uuid5(_DATA_DISTRIBUTION_BACKFILL_NAMESPACE, str(dataset_id))
 

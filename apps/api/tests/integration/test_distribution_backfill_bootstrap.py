@@ -6,7 +6,8 @@ storage-kind Supply by synthesizing one `proj_data_distribution_summary`
 row per Dataset, with deterministic ids derived from
 `uuid5(_DATA_DISTRIBUTION_BACKFILL_NAMESPACE, str(dataset_id))`.
 
-The 4 fail-loud error classes from `_backfill_errors.py` close the
+The fail-loud `DefaultStorageSupplyBootstrapError` class (with a
+`DefaultStorageSupplyBootstrapFailure` discriminator) closes the
 remediable misconfiguration branches; an unmapped URI scheme raises
 `UnmappedDistributionUriSchemeError` and aborts the backfill mid-loop.
 """
@@ -26,10 +27,8 @@ from cora.data._bootstrap import (
 )
 from cora.data.aggregates.dataset import DATASET_CHECKSUM_SHA256_HEX_LENGTH
 from cora.data.aggregates.distribution import (
-    DefaultStorageSupplyCodeUnsetError,
-    DefaultStorageSupplyKindMismatchError,
-    DefaultStorageSupplyNotAvailableError,
-    DefaultStorageSupplyNotFoundError,
+    DefaultStorageSupplyBootstrapError,
+    DefaultStorageSupplyBootstrapFailure,
     UnmappedDistributionUriSchemeError,
 )
 from cora.data.aggregates.distribution._namespaces import (
@@ -172,8 +171,9 @@ async def test_env_var_unset_with_legacy_datasets_raises_unset_error(
     deps = build_postgres_deps(db_pool, now=_NOW)
     deps = _with_settings_supply_code(deps, None)
 
-    with pytest.raises(DefaultStorageSupplyCodeUnsetError) as exc_info:
+    with pytest.raises(DefaultStorageSupplyBootstrapError) as exc_info:
         await bootstrap_default_storage_supply(deps)
+    assert exc_info.value.kind is DefaultStorageSupplyBootstrapFailure.CODE_UNSET
     assert exc_info.value.legacy_dataset_count == 1
 
 
@@ -184,15 +184,23 @@ async def test_env_var_set_but_supply_missing_raises_not_found(
     deps = build_postgres_deps(db_pool, now=_NOW)
     deps = _with_settings_supply_code(deps, "NONEXISTENT")
 
-    with pytest.raises(DefaultStorageSupplyNotFoundError) as exc_info:
+    with pytest.raises(DefaultStorageSupplyBootstrapError) as exc_info:
         await bootstrap_default_storage_supply(deps)
+    assert exc_info.value.kind is DefaultStorageSupplyBootstrapFailure.NOT_FOUND
     assert exc_info.value.supply_code == "NONEXISTENT"
 
 
 @pytest.mark.integration
-async def test_env_var_set_supply_wrong_kind_raises_kind_mismatch(
+async def test_env_var_set_supply_wrong_kind_raises_not_found(
     db_pool: asyncpg.Pool,
 ) -> None:
+    """Wrong-kind Supply does not match the facility+kind=Storage query.
+
+    Per the C2 fix, the lookup query filters by `kind='Storage'` in
+    SQL; a Consumable-kind Supply with the same name simply does not
+    match, surfacing as NOT_FOUND. The previous separate
+    `KIND_MISMATCH` discriminator is now redundant.
+    """
     supply_id = uuid4()
     await _register_storage_supply(db_pool, supply_id, name="wrong-kind-store", kind="Consumable")
     await _mark_supply_available(db_pool, supply_id)
@@ -200,10 +208,10 @@ async def test_env_var_set_supply_wrong_kind_raises_kind_mismatch(
     deps = build_postgres_deps(db_pool, now=_NOW)
     deps = _with_settings_supply_code(deps, "wrong-kind-store")
 
-    with pytest.raises(DefaultStorageSupplyKindMismatchError) as exc_info:
+    with pytest.raises(DefaultStorageSupplyBootstrapError) as exc_info:
         await bootstrap_default_storage_supply(deps)
+    assert exc_info.value.kind is DefaultStorageSupplyBootstrapFailure.NOT_FOUND
     assert exc_info.value.supply_code == "wrong-kind-store"
-    assert exc_info.value.actual_kind == "Consumable"
 
 
 @pytest.mark.integration
@@ -217,8 +225,9 @@ async def test_env_var_set_supply_not_available_raises_not_available(
     deps = build_postgres_deps(db_pool, now=_NOW)
     deps = _with_settings_supply_code(deps, "unknown-store")
 
-    with pytest.raises(DefaultStorageSupplyNotAvailableError) as exc_info:
+    with pytest.raises(DefaultStorageSupplyBootstrapError) as exc_info:
         await bootstrap_default_storage_supply(deps)
+    assert exc_info.value.kind is DefaultStorageSupplyBootstrapFailure.NOT_AVAILABLE
     assert exc_info.value.supply_code == "unknown-store"
     assert exc_info.value.actual_status == "Unknown"
 
@@ -353,8 +362,12 @@ async def test_decommissioned_supply_fails_status_check(
 
     # Either NotFound (row removed) or NotAvailable (status flipped) is
     # acceptable; the bootstrap fails-loud either way.
-    with pytest.raises((DefaultStorageSupplyNotFoundError, DefaultStorageSupplyNotAvailableError)):
+    with pytest.raises(DefaultStorageSupplyBootstrapError) as exc_info:
         await bootstrap_default_storage_supply(deps)
+    assert exc_info.value.kind in {
+        DefaultStorageSupplyBootstrapFailure.NOT_FOUND,
+        DefaultStorageSupplyBootstrapFailure.NOT_AVAILABLE,
+    }
 
 
 def test_settings_default_storage_supply_code_defaults_to_none() -> None:

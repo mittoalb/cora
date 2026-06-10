@@ -71,13 +71,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from urllib.parse import urlparse
 from uuid import UUID
 
 from cora.data.aggregates.dataset.state import (
-    DATASET_URI_BLOCKED_SCHEMES,
     DatasetChecksum,
     DatasetEncoding,
+    _validate_storage_uri,  # pyright: ignore[reportPrivateUsage]
 )
 from cora.shared.identity import ActorId
 
@@ -160,6 +159,8 @@ URI_SCHEME_TO_ACCESS_PROTOCOL: Mapping[str, AccessProtocol] = {
     "s3": AccessProtocol.S3,
     "file": AccessProtocol.POSIX,
     "nfs": AccessProtocol.NFS,
+    "oai-pmh": AccessProtocol.OAI_PMH,
+    "oaipmh": AccessProtocol.OAI_PMH,
 }
 
 
@@ -398,21 +399,11 @@ class DistributionUri:
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed:
-            raise InvalidDistributionUriError(self.value, "empty or whitespace-only")
-        if len(trimmed) > DISTRIBUTION_URI_MAX_LENGTH:
-            raise InvalidDistributionUriError(
-                self.value, f"exceeds {DISTRIBUTION_URI_MAX_LENGTH} chars"
-            )
-        parsed = urlparse(trimmed)
-        if not parsed.scheme:
-            raise InvalidDistributionUriError(self.value, "missing URI scheme")
-        if parsed.scheme.lower() in DATASET_URI_BLOCKED_SCHEMES:
-            raise InvalidDistributionUriError(
-                self.value,
-                f"URI scheme {parsed.scheme!r} is blocked (XSS risk)",
-            )
+        trimmed = _validate_storage_uri(
+            self.value,
+            max_length=DISTRIBUTION_URI_MAX_LENGTH,
+            error_factory=InvalidDistributionUriError,
+        )
         object.__setattr__(self, "value", trimmed)
 
 
