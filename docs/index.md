@@ -6,7 +6,7 @@ template: home.html
 
 Autonomous facilities make thousands of decisions a day. Some by humans, some by agents, most reasoned from prior runs. Without a place that records what was intended, what was decided, and what happened, the science cannot be trusted, reproduced, or handed off.
 
-CORA is that place. It does not move motors, does not run scans, does not host datasets. It records the work, end to end, in one append-only event log that survives every change of staff, vendor, and tool below it.
+CORA is that place. It owns no servo loop, runs no reconstruction, and stores no dataset bytes. It records the work, end to end, in one append-only event log that survives every change of staff, vendor, and tool below it.
 
 ## What CORA records
 
@@ -113,7 +113,7 @@ The recipe chain is the spine. Around it, CORA models the rest of what a single 
 
 ## Pilot
 
-Built for micro-CT at **APS beamline 2-BM** (Argonne). CORA schedules, audits, and governs the existing open-source stack (TomoScan, TomoPy, mctOptics, Noise2Inverse360) without reimplementing it. The scenario corpus that grounds CORA's domain model runs against real 2-BM operations.
+Built for micro-CT at **APS beamline 2-BM** (Argonne). CORA schedules, governs, and records 2-BM operations, and is moving to drive the scan loop itself, directly over EPICS through its Conductor and ControlPort layer, in place of TomoScan. Reconstruction (TomoPy, Noise2Inverse360) stays external, wrapped rather than reimplemented. The scenario corpus that grounds CORA's domain model runs against real 2-BM operations.
 
 [See the 2-BM pilot →](deployments/2-bm/index.md)
 
