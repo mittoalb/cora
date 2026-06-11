@@ -44,6 +44,15 @@ other BC.
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.data.aggregates.acquisition import (
+    AcquisitionAlreadyExistsError,
+    AcquisitionAssetNotFoundError,
+    AcquisitionCannotRecordWithoutCapturingError,
+    AcquisitionRunNotFoundError,
+    InvalidAcquisitionCapturedAtError,
+    InvalidAcquisitionEvidenceError,
+    InvalidAcquisitionSettingsError,
+)
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
     DatasetAlreadyPromotedError,
@@ -74,6 +83,7 @@ from cora.data.features import (
     get_dataset,
     list_datasets,
     promote_dataset,
+    record_acquisition,
     register_dataset,
 )
 
@@ -160,6 +170,7 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(demote_dataset.router)
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
+    app.include_router(record_acquisition.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,
@@ -174,6 +185,10 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidDemotionReasonError,
         # 12c validation guard: cardinality cap on AsShot citation set.
         InvalidUsedCalibrationsError,
+        # Acquisition shape-only guards (settings / evidence / captured_at).
+        InvalidAcquisitionSettingsError,
+        InvalidAcquisitionEvidenceError,
+        InvalidAcquisitionCapturedAtError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -185,10 +200,15 @@ def register_data_routes(app: FastAPI) -> None:
         ProducingRunNotFoundError,
         LinkedSubjectNotFoundError,
         DerivedFromDatasetsNotFoundError,
+        # Acquisition cross-aggregate not-found (producing Asset / Run).
+        AcquisitionAssetNotFoundError,
+        AcquisitionRunNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
-    for already_exists_cls in (DatasetAlreadyExistsError,):
+    for already_exists_cls in (DatasetAlreadyExistsError, AcquisitionAlreadyExistsError):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
+    for cannot_record_cls in (AcquisitionCannotRecordWithoutCapturingError,):
+        app.add_exception_handler(cannot_record_cls, _handle_cannot_transition)
     for lineage_state_cls in (DerivedFromDatasetsDiscardedError,):
         app.add_exception_handler(lineage_state_cls, _handle_lineage_state_conflict)
     for cannot_transition_cls in (

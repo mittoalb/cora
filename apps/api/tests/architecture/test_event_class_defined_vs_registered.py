@@ -89,6 +89,14 @@ _GENESIS_VERB_DEVIATIONS: dict[tuple[str, str], str] = {
         "event stream; the verb encodes chain-initialization rather than "
         "the instance-registration framing covered by the convention."
     ),
+    ("data", "acquisition"): (
+        "AcquisitionRecorded reflects recorded-fact-chain semantics: an "
+        "Acquisition is the birth-certificate fact that a producing Asset "
+        "captured bytes into a Dataset, terminal at genesis (one event "
+        "ever per stream). The `record` verb encodes a stated fact at a "
+        "moment, not an instance template or a runtime binding; renaming "
+        "to AcquisitionRegistered would mislabel a fact as an instance."
+    ),
 }
 
 

@@ -56,6 +56,7 @@ def _asset_lookup_result(
         name=name,
         level=level,
         lifecycle=lifecycle,
+        family_affordances=frozenset[str](),
     )
 
 
