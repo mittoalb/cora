@@ -12,7 +12,7 @@ The name is also the diagnosis: **Continuously Overpromised, Rarely Automated**.
 
 ## Status
 
-**Active development; pre-1.0.** Foundation infrastructure (event store, ports, BC scaffolding) and several bounded-context keystones are in place. APIs, schema, and BC topology are still subject to change. Not yet production-ready.
+**Active development; pre-1.0.** Seventeen bounded contexts are in place on an event-sourced core (event store, ports, projections), most at stable internal maturity. APIs, schema, and BC topology are still subject to change. Not yet production-ready.
 
 ## Documentation map
 
@@ -24,7 +24,7 @@ The full docs render as a static site at **[xmap.github.io/cora](https://xmap.gi
 | Architecture | Bounded contexts, aggregates, slices, event sourcing, API surfaces, standards lenses | [docs/architecture/](docs/architecture/index.md) |
 | Stack | Concrete picks (backend, data, auth, frontend, observability, operations) and what is deliberately deferred | [docs/stack/](docs/stack/index.md) |
 | Reference | Rules for writing CORA code: layout, modeling, patterns, runtime, workflow | [docs/reference/](docs/reference/index.md) |
-| Glossary | Terminology used across architecture, code, commits, and prose | [docs/glossary/](docs/glossary/index.md) |
+| Glossary | Terminology used across architecture, code, commits, and prose | [docs/reference/glossary.md](docs/reference/glossary.md) |
 | Deployments | Pilots driving the model. Today: 2-BM micro-CT at APS | [docs/deployments/](docs/deployments/index.md) |
 | Contributing | What kinds of collaboration are wanted | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
@@ -79,7 +79,7 @@ curl -X POST http://localhost:8000/actors \
 # -> 201 {"actor_id": "01900000-..."}
 ```
 
-**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. Point an MCP-aware client (Claude Code, etc.) at `http://localhost:8000/mcp` and tools across every scaffolded BC (`access`, `campaign`, `caution`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`) appear in the client.
+**MCP** (Model Context Protocol, the agent surface). Streamable HTTP transport mounted at `/mcp`. Point an MCP-aware client (Claude Code, etc.) at `http://localhost:8000/mcp` and tools across every scaffolded BC (`access`, `agent`, `calibration`, `campaign`, `caution`, `data`, `decision`, `enclosure`, `equipment`, `federation`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`) appear in the client.
 
 Wire-level: JSON-RPC over POSTs, handshake is `initialize` (protocol version `2025-11-25`) → `notifications/initialized` → `tools/*`, with `mcp-session-id` propagated from the initialize response headers. Example listing tools by hand:
 
@@ -119,7 +119,7 @@ cora/
 ├── infra/
 │   ├── atlas/                     # migrations
 │   └── docker-compose.yml
-├── docs/                          # architecture, stack, reference, glossary, projects
+├── docs/                          # architecture, stack, reference, deployments, catalog, projects
 ├── scripts/                       # dev and CI helpers
 ├── mkdocs.yml                     # docs site config
 ├── CONTRIBUTING.md
@@ -127,7 +127,7 @@ cora/
 └── README.md
 ```
 
-- **`<bc>/`** is one of 13 bounded contexts scaffolded today: `access`, `campaign`, `caution`, `data`, `decision`, `equipment`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
+- **`<bc>/`** is one of 17 bounded contexts scaffolded today: `access`, `agent`, `calibration`, `campaign`, `caution`, `data`, `decision`, `enclosure`, `equipment`, `federation`, `operation`, `recipe`, `run`, `safety`, `subject`, `supply`, `trust`. Each follows the same `aggregates/` + `features/` shape (see [docs/reference/](docs/reference/index.md)).
 - **`tests/`** mirrors `src/` and splits by category: `unit/` (pure), `integration/` (real Postgres), `contract/` (REST and MCP schema), `architecture/` (fitness checks), `e2e/` (full surface-to-store flows).
 - **Planned but not yet on disk:** `apps/web` (frontend), `apps/workers` (background processors and agents), `packages/` (shared libs).
 
