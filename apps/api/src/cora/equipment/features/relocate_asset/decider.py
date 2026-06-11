@@ -7,10 +7,9 @@ state and emits an `AssetRelocated` event carrying both.
 ## Disqualifying conditions (collapsed into one error class)
 
   - state is None                                  -> AssetNotFoundError
-  - asset is `Enterprise` level                    -> AssetCannotRelocateError("...")
-    (Enterprise is the root; cannot have a parent at all per the
-    Hierarchy rule. Allowing relocate would force the invariant
-    to break.)
+  - asset is a root (parent_id=None)                -> AssetCannotRelocateError("...")
+    (a root is facility-anchored; it has no parent to move from.
+    Allowing relocate would break the root-anchoring invariant.)
   - asset is `Decommissioned`                      -> AssetCannotRelocateError("...")
     (retired from service; no further hierarchy changes.)
   - target_parent_id == asset_id                   -> AssetCannotRelocateError("...")
@@ -60,7 +59,6 @@ from datetime import datetime
 from cora.equipment.aggregates.asset import (
     Asset,
     AssetCannotRelocateError,
-    AssetLevel,
     AssetLifecycle,
     AssetNotFoundError,
     AssetRelocated,
@@ -78,7 +76,7 @@ def decide(
 
     Invariants:
       - State must not be None -> AssetNotFoundError
-      - Asset must not be Enterprise-level
+      - Asset must not be a root (parent_id=None, facility-anchored)
         -> AssetCannotRelocateError
       - Asset must not be Decommissioned
         -> AssetCannotRelocateError
@@ -90,12 +88,12 @@ def decide(
     if state is None:
         raise AssetNotFoundError(command.asset_id)
 
-    if state.level is AssetLevel.ENTERPRISE:
+    if state.parent_id is None:
         raise AssetCannotRelocateError(
             state.id,
             reason=(
-                "Enterprise-level assets are roots and cannot be "
-                "relocated (would violate the Enterprise-null-parent invariant)"
+                "Root Assets (parent_id=None) are facility-anchored and cannot "
+                "be relocated (would violate the root-anchoring invariant)"
             ),
         )
 
@@ -120,8 +118,8 @@ def decide(
             reason=f"target parent {command.to_parent_id} is already the current parent (no-op)",
         )
 
-    # state.parent_id is non-null per registration invariant + Enterprise
-    # guard above; assert narrows the type for pyright.
+    # state.parent_id is non-null per registration invariant + the
+    # root guard above; assert narrows the type for pyright.
     assert state.parent_id is not None
     return [
         AssetRelocated(

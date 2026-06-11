@@ -66,7 +66,7 @@ def _seeded_asset_lookup(
     lookup.register(
         asset_id=_ASSET_ID,
         name="Oryx Detector",
-        level="Device",
+        tier="Device",
         lifecycle="Active",
         family_affordances=affordances,
     )

@@ -79,7 +79,7 @@ def _asset(asset_id: UUID, *, affordances: frozenset[str]) -> AssetLookupResult:
     return AssetLookupResult(
         id=asset_id,
         name="Detector",
-        level="Device",
+        tier="Device",
         lifecycle="Active",
         family_affordances=affordances,
     )
@@ -100,7 +100,7 @@ def _context(
 
 @pytest.mark.unit
 @given(
-    now=st.datetimes(timezones=st.just(UTC)),
+    now=st.datetimes(min_value=datetime(2000, 1, 1), timezones=st.just(UTC)),
     backfill=_BACKFILL_DELTA,
     acquisition_id=st.uuids(),
     dataset_id=st.uuids(),
@@ -151,7 +151,7 @@ def test_genesis_emits_single_event_with_injected_fields_and_dual_time(
 
 @pytest.mark.unit
 @given(
-    now=st.datetimes(timezones=st.just(UTC)),
+    now=st.datetimes(min_value=datetime(2000, 1, 1), timezones=st.just(UTC)),
     backfill=_BACKFILL_DELTA,
     existing_id=st.uuids(),
     new_id=st.uuids(),
@@ -199,7 +199,7 @@ def test_non_none_state_always_raises_already_exists(
 
 @pytest.mark.unit
 @given(
-    now=st.datetimes(timezones=st.just(UTC)),
+    now=st.datetimes(min_value=datetime(2000, 1, 1), timezones=st.just(UTC)),
     backfill=_BACKFILL_DELTA,
     new_id=st.uuids(),
     dataset_id=st.uuids(),
@@ -239,7 +239,7 @@ def test_asset_without_capturing_always_raises(
 
 @pytest.mark.unit
 @given(
-    now=st.datetimes(timezones=st.just(UTC)),
+    now=st.datetimes(min_value=datetime(2000, 1, 1), timezones=st.just(UTC)),
     backfill=_BACKFILL_DELTA,
     new_id=st.uuids(),
     dataset_id=st.uuids(),

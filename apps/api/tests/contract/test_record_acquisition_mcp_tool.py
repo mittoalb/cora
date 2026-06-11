@@ -43,7 +43,7 @@ def _seed_capturing_asset(client: TestClient) -> str:
     lookup.register(
         asset_id=asset_id,
         name="Oryx Detector",
-        level="Device",
+        tier="Device",
         lifecycle="Active",
         family_affordances=frozenset({"Capturing"}),
     )
@@ -128,7 +128,7 @@ def test_mcp_record_acquisition_tool_returns_iserror_on_missing_capturing_afford
         lookup.register(
             asset_id=asset_id,
             name="Non-capturing device",
-            level="Device",
+            tier="Device",
             lifecycle="Active",
             family_affordances=frozenset({"Imageable"}),
         )

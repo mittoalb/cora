@@ -74,7 +74,7 @@ def _fake_asset(*, affordances: frozenset[str] = frozenset({"Capturing"})) -> As
     return AssetLookupResult(
         id=_ASSET_ID,
         name="Oryx Detector",
-        level="Device",
+        tier="Device",
         lifecycle="Active",
         family_affordances=affordances,
     )

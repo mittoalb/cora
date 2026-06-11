@@ -35,7 +35,7 @@ from cora.data.features import record_acquisition, register_dataset
 from cora.data.features.record_acquisition import RecordAcquisition
 from cora.data.features.register_dataset import RegisterDataset
 from cora.equipment.adapters import PostgresAssetLookup
-from cora.equipment.aggregates.asset import AssetLevel
+from cora.equipment.aggregates.asset import AssetTier
 from cora.equipment.aggregates.family import Affordance
 from cora.equipment.features import add_asset_family, define_family, register_asset
 from cora.equipment.features.add_asset_family import AddAssetFamily
@@ -81,7 +81,9 @@ async def _seed_capturing_asset(deps: Kernel, *, family_affordances: frozenset[A
         correlation_id=_CORRELATION_ID,
     )
     asset_id = await register_asset.bind(deps)(
-        RegisterAsset(name="OryxDetector", level=AssetLevel.ENTERPRISE, parent_id=None),
+        RegisterAsset(
+            name="OryxDetector", tier=AssetTier.UNIT, parent_id=None, facility_code="cora"
+        ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
