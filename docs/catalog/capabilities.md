@@ -34,5 +34,5 @@
 ## Related
 
 - [Methods](methods.md) — the Method catalog, with each Method's Capability binding in the second column.
-- [Affordances](../reference/affordances.md) — the closed 28-item primitive set Capabilities declare as `required_affordances`.
+- [Affordances](../reference/affordances.md) — the closed 29-item primitive set Capabilities declare as `required_affordances`.
 - [Glossary](../reference/glossary.md) — Capability vs Family vs Affordance vs Method distinctions.

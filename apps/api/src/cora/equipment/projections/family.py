@@ -21,6 +21,13 @@ TRUE iff the latest FamilySettingsSchemaUpdated payload's
 `settings_schema` was non-NULL; the schema content itself lives in
 the event stream (loaded on demand, not projected to keep the
 summary table small).
+
+`affordances` (TEXT[] of closed-enum Affordance value strings) lands
+on the Defined INSERT and is REPLACED on Versioned (the versioned
+affordance set is the new declaration). Deprecated leaves it
+untouched (the last-declared set stays visible for audit). Cross-BC
+consumers read this column via the AssetLookup port's PG adapter
+JOIN to gate on a Family declaring a given affordance.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -39,8 +46,8 @@ def _id(payload: dict[str, object]) -> UUID:
 _INSERT_FAMILY_SQL = """
 INSERT INTO proj_equipment_family_summary
     (family_id, name, status, version_tag, created_at,
-     settings_schema_present)
-VALUES ($1, $2, 'Defined', NULL, $3, FALSE)
+     settings_schema_present, affordances)
+VALUES ($1, $2, 'Defined', NULL, $3, FALSE, $4::text[])
 ON CONFLICT (family_id) DO NOTHING
 """
 
@@ -49,6 +56,7 @@ UPDATE proj_equipment_family_summary
 SET status = 'Versioned',
     version_tag = $2,
     versioned_at = $3,
+    affordances = $4::text[],
     updated_at = now()
 WHERE family_id = $1
 """
@@ -93,6 +101,7 @@ class FamilySummaryProjection:
                     _id(event.payload),
                     event.payload["name"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    list(event.payload.get("affordances", [])),
                 )
             case "FamilyVersioned":
                 await conn.execute(
@@ -100,6 +109,7 @@ class FamilySummaryProjection:
                     _id(event.payload),
                     event.payload["version_tag"],
                     datetime.fromisoformat(event.payload["occurred_at"]),
+                    list(event.payload.get("affordances", [])),
                 )
             case "FamilyDeprecated":
                 await conn.execute(
