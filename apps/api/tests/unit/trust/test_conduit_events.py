@@ -140,7 +140,7 @@ def test_event_type_name_for_conduit_logbook_opened() -> None:
     event = ConduitLogbookOpened(
         conduit_id=uuid4(),
         logbook_id=uuid4(),
-        kind="traversals",
+        kind="verdict",
         schema=_sample_schema(),
         occurred_at=_NOW,
     )
@@ -155,7 +155,7 @@ def test_to_payload_serializes_logbook_opened_with_schema_dict() -> None:
     event = ConduitLogbookOpened(
         conduit_id=conduit_id,
         logbook_id=logbook_id,
-        kind="traversals",
+        kind="verdict",
         schema=schema,
         occurred_at=_NOW,
     )
@@ -163,7 +163,7 @@ def test_to_payload_serializes_logbook_opened_with_schema_dict() -> None:
     assert payload == {
         "conduit_id": str(conduit_id),
         "logbook_id": str(logbook_id),
-        "kind": "traversals",
+        "kind": "verdict",
         "schema": schema.to_dict(),
         "occurred_at": _NOW.isoformat(),
     }
@@ -179,7 +179,7 @@ def test_from_stored_rebuilds_conduit_logbook_opened() -> None:
         {
             "conduit_id": str(conduit_id),
             "logbook_id": str(logbook_id),
-            "kind": "traversals",
+            "kind": "verdict",
             "schema": schema.to_dict(),
             "occurred_at": _NOW.isoformat(),
         },
@@ -188,7 +188,7 @@ def test_from_stored_rebuilds_conduit_logbook_opened() -> None:
     assert rebuilt == ConduitLogbookOpened(
         conduit_id=conduit_id,
         logbook_id=logbook_id,
-        kind="traversals",
+        kind="verdict",
         schema=schema,
         occurred_at=_NOW,
     )
@@ -199,7 +199,7 @@ def test_conduit_logbook_opened_round_trips() -> None:
     original = ConduitLogbookOpened(
         conduit_id=uuid4(),
         logbook_id=uuid4(),
-        kind="traversals",
+        kind="verdict",
         schema=_sample_schema(),
         occurred_at=_NOW,
     )

@@ -34,9 +34,9 @@ from cora.safety._clearance_dtos import (
 from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
-    ClearanceKind,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.safety.features.amend_clearance.command import AmendClearance
 from cora.safety.features.amend_clearance.handler import IdempotentHandler
 
@@ -48,15 +48,21 @@ class AmendClearanceRequest(BaseModel):
     `parent_id` comes from the URL path, not the body.
     """
 
-    kind: ClearanceKind = Field(
-        ...,
-        description="Form-type for the child clearance (may differ from parent's).",
-    )
-    facility_asset_id: UUID = Field(
+    template_id: UUID = Field(
         ...,
         description=(
-            "Reference to the Asset.Level.Site for the facility issuing the "
-            "child clearance. Typically matches the parent's facility."
+            "ClearanceTemplate id for the child clearance (may differ from "
+            "parent's). Only Active templates accept bindings."
+        ),
+    )
+    facility_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        pattern=r"^[a-z0-9-]{1,32}$",
+        description=(
+            "Cross-deployment convergent slug for the Federation Facility "
+            "issuing the child clearance. Typically matches the parent's facility."
         ),
     )
     title: str = Field(
@@ -96,8 +102,8 @@ def _command_from_request(
 ) -> AmendClearance:
     return AmendClearance(
         parent_id=parent_id,
-        kind=body.kind,
-        facility_asset_id=body.facility_asset_id,
+        template_id=ClearanceTemplateId(body.template_id),
+        facility_code=body.facility_code,
         title=body.title,
         bindings=frozenset(binding_from_dto(b) for b in body.bindings),
         declarations=frozenset(declaration_from_dto(d) for d in body.declarations),

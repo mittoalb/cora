@@ -7,7 +7,7 @@ the publish-pull relationship through a discriminated `terms` field
 aggregate root is a query-convenience discriminator that mirrors
 `type(state.terms)` for read-side filters and projection indexing.
 
-Polymorphism precedent: `RunReading` carries a tagged-union payload
+Polymorphism precedent: `Observation` carries a tagged-union payload
 discriminated by SOSA `sampling_procedure`. Permit follows the same
 shape: identity and lifecycle fields live on the root, direction-
 specific contractual fields ride on the `terms` arm.

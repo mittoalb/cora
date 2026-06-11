@@ -36,7 +36,7 @@ fundamental issues surface first:
    ids. **NOTE**: Method's needed_family_ids comes via Plan; we
    load Plan but NOT Method here — instead, the handler resolved
    Plan → Method at load time and passes the needs as part of...
-   wait, re-reading: actually we don't have Method directly in
+   wait, re-observation: actually we don't have Method directly in
    RunStartContext. Plan's bind-time snapshot in PlanDefined event
    carries `method_needed_family_ids_snapshot`, but we need
    CURRENT Method state for re-validation. The handler must load

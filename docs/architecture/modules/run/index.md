@@ -9,7 +9,7 @@ A Run carries five roles:
 - **Identity** for one execution. The Run id is the stable handle that all downstream artifacts (datasets, reports, decisions, calibration citations) reference.
 - **A finite lifecycle** with a closed state machine: a Run runs, may be held and resumed, and ends in exactly one of four terminal states (Completed / Aborted / Stopped / Truncated).
 - **Parameter resolution.** A Run starts with parameters resolved from the Plan's defaults plus operator-supplied overrides, validated against the Method's parameter schema. The resolved snapshot is recorded on `RunStarted` and remains queryable for the life of the Run.
-- **A reading logbook.** Sensor and motor readings during the Run land on a polymorphic per-Run logbook (`entries_run_readings`) keyed by a SOSA-aligned `sampling_procedure` discriminator. The logbook opens lazily on the first reading and closes implicitly when the Run reaches a terminal state.
+- **A reading logbook.** Sensor and motor readings during the Run land on a polymorphic per-Run logbook (`entries_run_observations`) keyed by a SOSA-aligned `sampling_procedure` discriminator. The logbook opens lazily on the first reading and closes implicitly when the Run reaches a terminal state.
 - **Cross-module anchors.** A Run pins the Calibration revisions that were active at start time (AsShot semantics, immutable for the life of the Run); references the Safety clearances that authorize it; can join a Campaign for coordinated multi-Run studies; and may cite the Decision that justified a mid-flight parameter adjustment.
 
 <div class="cora-aside cora-aside--deferred" markdown>
@@ -26,8 +26,8 @@ Out of scope
 
 | Name | Identity | State summary | FSM |
 |---|---|---|---|
-| `Run` | `id: UUID` | `name`, `plan_id`, `subject_id?`, `raid?`, `status`, `override_parameters`, `effective_parameters`, `trigger_source?`, `reading_logbook_id?`, `external_refs`, `campaign_id?`, `last_adjusted_at?`, `adjustment_count`, `pinned_calibration_ids` | yes |
-| `RunReading` (sub-aggregate VO on `Run`) | `event_id: UUID` (per row) | `channel_name`, `value`, `units?`, `sampling_procedure`, `sampled_at`, `occurred_at`, `recorded_at` | no |
+| `Run` | `id: UUID` | `name`, `plan_id`, `subject_id?`, `raid?`, `status`, `override_parameters`, `effective_parameters`, `trigger_source?`, `observation_logbook_id?`, `external_refs`, `campaign_id?`, `last_adjusted_at?`, `adjustment_count`, `pinned_calibration_ids` | yes |
+| `Observation` (sub-aggregate VO on `Run`) | `event_id: UUID` (per row) | `channel_name`, `value`, `units?`, `sampling_procedure`, `sampled_at`, `occurred_at`, `recorded_at` | no |
 
 `Run.subject_id` is optional because some execution shapes have no Subject: dark-field acquisition, flat-field acquisition, energy calibration with a standard reference. These share the full Run lifecycle with sample Runs; only the Subject binding differs.
 
@@ -41,7 +41,7 @@ Out of scope
 | `RunAbortReason` | trimmed string, 1–500 chars | `RunAborted.reason` (decider-input VO) |
 | `RunStopReason` | trimmed string, 1–500 chars | `RunStopped.reason` (decider-input VO) |
 | `RunTruncateReason` | trimmed string, 1–500 chars | `RunTruncated.reason` (decider-input VO) |
-| `ChannelName` | trimmed string, 1–255 chars | `RunReading.channel_name` |
+| `ChannelName` | trimmed string, 1–255 chars | `Observation.channel_name` |
 | `Identifier` | `(scheme: str, value: str)` shared cross-BC VO at `cora.infrastructure.identifier` | `Run.external_refs` (anti-corruption refs to upstream concepts like proposal / btr / lab_visit / session) |
 
 The wire representation of each reason is a plain `str` (post-trim); the VO exists at decider-input time to centralize validation. Reason fields are free-form today; a structured taxonomy is a future-additive change behind the same triggers across all four reason fields.
@@ -106,12 +106,12 @@ stateDiagram-v2
 | `RunStopped` | `run_id`, `reason`, `occurred_at` | `stop_run` succeeds |
 | `RunTruncated` | `run_id`, `reason`, `interrupted_at?`, `occurred_at` | `truncate_run` succeeds |
 | `RunAdjusted` | `run_id`, `parameter_patch`, `effective_parameters`, `reason`, `decided_by_decision_id?`, `occurred_at` | `adjust_run` succeeds; carries both the RFC 7396 patch and the post-merge snapshot |
-| `RunReadingLogbookOpened` | `run_id`, `logbook_id`, `schema`, `occurred_at` | `append_run_readings` first write per Run (lazy open) |
+| `RunObservationLogbookOpened` | `run_id`, `logbook_id`, `schema`, `occurred_at` | `append_observations` first write per Run (lazy open) |
 | `RunAddedToCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership write (see Campaign module) |
 | `RunRemovedFromCampaign` | `run_id`, `campaign_id`, `occurred_at` | post-hoc Campaign membership removal |
 | `DecisionDebriefRequested` | `run_id`, `debriefer_agent_id`, `terminal_event_id`, `occurred_at` | appended by an Agent BC subscriber (RunDebriefer / CautionDrafter) BEFORE invoking its LLM as a per-(run, terminal-event, agent) lease marker; first writer wins via the existing `UNIQUE(stream_type, stream_id, version)` constraint; audit-only with a no-op evolver fold |
 
-Individual reading rows do not emit per-row events on the Run stream; they are written directly to `entries_run_readings` via the `ReadingStore` port. The row's `event_id`, `correlation_id`, and `causation_id` constitute the audit trail without bloating the main event log.
+Individual reading rows do not emit per-row events on the Run stream; they are written directly to `entries_run_observations` via the `ObservationStore` port. The row's `event_id`, `correlation_id`, and `causation_id` constitute the audit trail without bloating the main event log.
 
 ## Slices
 
@@ -125,7 +125,7 @@ Individual reading rows do not emit per-row events on the Run stream; they are w
 | `StopRun` | MODIFIED | `POST /runs/{run_id}/stop` | `stop_run` | none |
 | `TruncateRun` | MODIFIED | `POST /runs/{run_id}/truncate` | `truncate_run` | none |
 | `AdjustRun` | MODIFIED | `POST /runs/{run_id}/adjust` | `adjust_run` | required |
-| `AppendRunReadings` | MODIFIED | `POST /runs/{run_id}/readings` | `append_run_readings` | none |
+| `AppendObservations` | MODIFIED | `POST /runs/{run_id}/readings` | `append_observations` | none |
 | `GetRun` | QUERY | `GET /runs/{run_id}` | `get_run` | none |
 | `ListRuns` | QUERY | `GET /runs` | `list_runs` | none |
 
@@ -146,8 +146,8 @@ Individual reading rows do not emit per-row events on the Run stream; they are w
 `AdjustRun`
 : `RunNotFound`, `RunCannotAdjust`, `InvalidRunAdjustPatch`, `InvalidRunAdjustSchema`, `InvalidRunAdjustReason`, `Unauthorized`
 
-`AppendRunReadings`
-: `RunNotFound`, `RunReadingLogbookClosed`, `InvalidChannelName`, `InvalidReadingValue`, `InvalidSamplingProcedure`, `Unauthorized`
+`AppendObservations`
+: `RunNotFound`, `RunObservationLogbookClosed`, `InvalidChannelName`, `InvalidReadingValue`, `InvalidSamplingProcedure`, `Unauthorized`
 
 `GetRun`
 : `RunNotFound`
@@ -183,10 +183,10 @@ CREATE TABLE proj_run_summary (
 
 The `CHECK` constraint encodes the closed `RunStatus` enum at the row level. `GET /runs/{id}` reads from this projection (with fold-on-read fallback for fields not yet projected); `GET /runs` reads exclusively from this projection with keyset pagination over `(created_at, run_id)` and additive filters.
 
-**`entries_run_readings`** is the polymorphic per-Run reading logbook. One row per reading; the `sampling_procedure` column carries the SOSA-aligned discriminator (`baseline` for snapshots at Run boundaries; `monitor` for sub-Hz time-series during a Run). Defense-in-depth: NaN and Infinity are rejected at three layers (Pydantic at the API boundary, the in-decider `InvalidReadingValueError`, and a Postgres `CHECK` constraint on `value`).
+**`entries_run_observations`** is the polymorphic per-Run reading logbook. One row per reading; the `sampling_procedure` column carries the SOSA-aligned discriminator (`baseline` for snapshots at Run boundaries; `monitor` for sub-Hz time-series during a Run). Defense-in-depth: NaN and Infinity are rejected at three layers (Pydantic at the API boundary, the in-decider `InvalidObservationValueError`, and a Postgres `CHECK` constraint on `value`).
 
-```sql title="entries_run_readings"
-CREATE TABLE entries_run_readings (
+```sql title="entries_run_observations"
+CREATE TABLE entries_run_observations (
     event_id            UUID              PRIMARY KEY,
     run_id              UUID              NOT NULL,
     logbook_id          UUID              NOT NULL,
@@ -349,7 +349,7 @@ The response carries the post-merge `effective_parameters` so the caller can con
 
     ```python
     mcp.call_tool(
-        "append_run_readings",
+        "append_observations",
         {
             "run_id": "9f6a3b1c-8e2d-4f5a-9b8c-1d2e3f4a5b6c",
             "channel_name": "ring_current",
@@ -361,7 +361,7 @@ The response carries the post-merge `effective_parameters` so the caller can con
     )
     ```
 
-The first reading per Run lazily opens the reading logbook (one `RunReadingLogbookOpened` event on the Run stream); subsequent readings write directly to `entries_run_readings` with no per-row event.
+The first reading per Run lazily opens the reading logbook (one `RunObservationLogbookOpened` event on the Run stream); subsequent readings write directly to `entries_run_observations` with no per-row event.
 
 ### Terminate the Run
 

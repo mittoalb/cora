@@ -47,11 +47,11 @@ from cora.operation.adapters.in_memory_control_port import InMemoryControlPort
 from cora.operation.adapters.in_memory_recipe_expansion_port import (
     InMemoryRecipeExpansionPort,
 )
-from cora.operation.aggregates.procedure import InMemoryStepStore
+from cora.operation.aggregates.procedure import InMemoryActivityStore
 from cora.operation.conductor import Conductor, InMemoryActionRegistry, SetpointStep
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_steps,
+    append_activities,
     complete_procedure,
     conduct_procedure,
     register_procedure,
@@ -141,7 +141,7 @@ def _build_conduct_handler(
     """Compose conduct_procedure with the same wiring as `wire_operation`
     plus a populated `InMemoryRecipeExpansionPort` so the PseudoAxis
     address resolves against the supplied constituent map."""
-    append_step = append_procedure_steps.bind(deps, step_store=InMemoryStepStore())
+    append_step = append_activities.bind(deps, step_store=InMemoryActivityStore())
     start_handler = start_procedure.bind(deps)
     complete_handler = complete_procedure.bind(deps)
     abort_handler = abort_procedure.bind(deps)

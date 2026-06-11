@@ -8,7 +8,7 @@ Subscribed events:
 
 Decision is immutable per the BC's design: one event = one decision,
 no transitions, no terminal. Subsequent enrichments live on a
-separate reasoning-entries stream (DecisionLogbookOpened/Closed are
+separate inferences stream (DecisionLogbookOpened/Closed are
 internal logbook bookkeeping; not subscribed here).
 
 `confidence_band` is denormalized at INSERT via the same

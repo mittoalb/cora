@@ -1,17 +1,17 @@
-"""RunReading entry: per-Run sensor / motor reading row.
+"""Observation entry: per-Run sensor / motor observation row.
 
-Third concrete entry kind in CORA after `ConduitTraversal` (6f-5a)
-and `DecisionReasoning` (8c-b). Mirrors the same per-category writer
+Third concrete entry kind in CORA after `Verdict` (6f-5a)
+and `Inference` (8c-b). Mirrors the same per-category writer
 pattern: a typed dataclass + per-category Postgres adapter alongside
-the owning aggregate, with a category-local `ReadingStore` Protocol
+the owning aggregate, with a category-local `ObservationStore` Protocol
 (NOT a shared cross-BC port).
 
 ## Polymorphic-with-discriminator
 
-Unlike ConduitTraversal (typed `decision: Allow|Deny + reason`) and
-DecisionReasoning (typed 27+ OTel columns), RunReading is
+Unlike Verdict (typed `decision: Allow|Deny + reason`) and
+Inference (typed 27+ OTel columns), Observation is
 **polymorphic across kinds** via the `sampling_procedure` field. All
-RunReading rows share the SAME `(channel_name, value, units?,
+Observation rows share the SAME `(channel_name, value, units?,
 sampled_at, ...)` shape regardless of whether they are baseline
 snapshots, monitor time-series, or future kinds. This applies the
 OGC O&M criterion (typed when value-shape diverges, polymorphic when
@@ -36,8 +36,8 @@ documented at [[project_logbook_entry_storage]] §three-timestamp.
 
 ## Why writes batch from day one
 
-`append(rows: list[RunReading])` always takes a list, even for the
-realistic "one reading at a time" case (single-element list).
+`append(rows: list[Observation])` always takes a list, even for the
+realistic "one observation at a time" case (single-element list).
 Anticipates future DAQ-adapter integration (10a-d) which will batch
 naturally. Empty lists are a no-op. Same posture as the prior two
 stores.
@@ -64,8 +64,8 @@ import asyncpg
 
 
 @dataclass(frozen=True)
-class RunReading:
-    """One row in the per-Run reading logbook.
+class Observation:
+    """One row in the per-Run observation logbook.
 
     Polymorphic by `sampling_procedure` (SOSA discriminator); all
     kinds (baseline, monitor, ...) share this row shape. `event_id`
@@ -92,25 +92,25 @@ class RunReading:
     causation_id: UUID | None
 
 
-class ReadingStore(Protocol):
-    """Per-category port for RunReading entry writes.
+class ObservationStore(Protocol):
+    """Per-category port for Observation entry writes.
 
-    The `append_run_readings` handler (and any future Run-side reading
+    The `append_observations` handler (and any future Run-side observation
     writer, for example a future DAQ adapter) takes a
-    `ReadingStore` and calls `append(...)` per batch.
+    `ObservationStore` and calls `append(...)` per batch.
 
-    Two implementations: `PostgresReadingStore` (production) and
-    `InMemoryReadingStore` (tests / `app_env=test`). Both honor the
+    Two implementations: `PostgresObservationStore` (production) and
+    `InMemoryObservationStore` (tests / `app_env=test`). Both honor the
     same at-least-once contract: callers may retry the same
     `event_id`, the store dedups via the table's PK constraint
     (Postgres) or the in-memory dict (InMemory).
     """
 
-    async def append(self, rows: list[RunReading]) -> None: ...
+    async def append(self, rows: list[Observation]) -> None: ...
 
 
 _APPEND_SQL = """
-INSERT INTO entries_run_readings (
+INSERT INTO entries_run_observations (
     event_id, run_id, logbook_id, actor_id, command_name,
     channel_name, value, units, sampling_procedure,
     sampled_at, occurred_at, correlation_id, causation_id
@@ -119,20 +119,20 @@ ON CONFLICT (event_id) DO NOTHING
 """
 
 
-class PostgresReadingStore:
-    """asyncpg-backed `ReadingStore` implementation.
+class PostgresObservationStore:
+    """asyncpg-backed `ObservationStore` implementation.
 
     Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
     a producer that re-issues the same `event_id` (after a transient
     network failure on the previous attempt) is a no-op rather than
     a constraint violation. Matches the precedent set by
-    `PostgresTraversalStore` and `PostgresReasoningStore`.
+    `PostgresVerdictStore` and `PostgresInferenceStore`.
     """
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
-    async def append(self, rows: list[RunReading]) -> None:
+    async def append(self, rows: list[Observation]) -> None:
         if not rows:
             return
         async with self._pool.acquire() as conn:
@@ -159,8 +159,8 @@ class PostgresReadingStore:
             )
 
 
-class InMemoryReadingStore:
-    """Test / `app_env=test` adapter for `ReadingStore`.
+class InMemoryObservationStore:
+    """Test / `app_env=test` adapter for `ObservationStore`.
 
     Dict keyed by `event_id` for trivial dedup. Exposes `all()` so
     contract / unit tests can assert what was emitted without going
@@ -168,21 +168,21 @@ class InMemoryReadingStore:
     """
 
     def __init__(self) -> None:
-        self._rows: dict[UUID, RunReading] = {}
+        self._rows: dict[UUID, Observation] = {}
 
-    async def append(self, rows: list[RunReading]) -> None:
+    async def append(self, rows: list[Observation]) -> None:
         for row in rows:
             # ON CONFLICT DO NOTHING semantics: existing wins (matches
             # the Postgres adapter's behavior under retry).
             self._rows.setdefault(row.event_id, row)
 
-    def all(self) -> list[RunReading]:
+    def all(self) -> list[Observation]:
         return list(self._rows.values())
 
 
 __all__ = [
-    "InMemoryReadingStore",
-    "PostgresReadingStore",
-    "ReadingStore",
-    "RunReading",
+    "InMemoryObservationStore",
+    "Observation",
+    "ObservationStore",
+    "PostgresObservationStore",
 ]

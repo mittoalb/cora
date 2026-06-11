@@ -55,8 +55,8 @@ from cora.operation.ports.control_port import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Mapping
 
-    from cora.operation.features.append_procedure_steps.command import (
-        AppendProcedureSteps,
+    from cora.operation.features.append_activities.command import (
+        AppendProcedureActivities,
     )
 
 _FIXED_NOW = datetime(2026, 5, 31, 12, 0, 0, tzinfo=UTC)
@@ -351,7 +351,7 @@ async def test_continuous_reverse_sweep_writes_decreasing_axis_values() -> None:
 
 @dataclass
 class _AppendCall:
-    command: AppendProcedureSteps
+    command: AppendProcedureActivities
     principal_id: UUID
     correlation_id: UUID
     causation_id: UUID | None
@@ -364,7 +364,7 @@ class _FakeAppendStep:
 
     async def __call__(
         self,
-        command: AppendProcedureSteps,
+        command: AppendProcedureActivities,
         *,
         principal_id: UUID,
         correlation_id: UUID,

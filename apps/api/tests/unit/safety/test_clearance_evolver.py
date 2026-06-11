@@ -8,7 +8,6 @@ import pytest
 from cora.safety.aggregates.clearance import (
     ClearanceActivated,
     ClearanceApproved,
-    ClearanceKind,
     ClearanceRegistered,
     ClearanceRejected,
     ClearanceReviewStarted,
@@ -20,18 +19,24 @@ from cora.safety.aggregates.clearance import (
     fold,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000011002")
+_TEMPLATE_ID = clearance_template_stream_id("cora", "ESAF")
 
 
 def _genesis_event(*, with_optional: bool = False) -> ClearanceRegistered:
     sid = uuid4()
     return ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
-        kind="ESAF",
-        facility_asset_id=uuid4(),
+        template_id=_TEMPLATE_ID,
+        template_code="ESAF",
+        facility_code="aps",
         title="Pilot",
         bindings=({"kind": "Subject", "id": str(sid)},),
         declarations=(
@@ -61,7 +66,7 @@ def test_fold_genesis_only_lands_in_defined() -> None:
     state = fold([_genesis_event()])
     assert state is not None
     assert state.id == _CLEARANCE_ID
-    assert state.kind == ClearanceKind.ESAF
+    assert state.template_id == ClearanceTemplateId(_TEMPLATE_ID)
     assert state.status == ClearanceStatus.DEFINED
 
 

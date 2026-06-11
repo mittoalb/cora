@@ -44,7 +44,7 @@ A `Zone` is a trust-requirement-homogeneous grouping of principals and assets, d
 | `SurfaceKind` | closed StrEnum: `http` \| `mcp_stdio` \| `mcp_streamable_http` | `Surface.kind` |
 | `SurfaceStatus` | closed StrEnum: `Defined` \| `Versioned` \| `Deprecated` | `Surface.status` |
 | `PolicyName` | trimmed string, 1-200 chars | `Policy.name` |
-| `LogbookKind` | snake_case string discriminator; today only `"traversals"` | keys of `Conduit.logbooks` |
+| `LogbookKind` | snake_case string discriminator; today only `"verdicts"` | keys of `Conduit.logbooks` |
 | `AuthzResult` | tagged union `Allow()` \| `Deny(reason: str)` | return shape of `evaluate(policy, ...)` |
 
 `SurfaceKind` is a closed enum on purpose: adding a new arrival kind (gRPC, websocket, agent-to-agent, batch) requires a code release. The kept-narrow operational vocabulary is the same discipline applied to executor shapes in Recipe and affordances in Equipment.
@@ -190,8 +190,8 @@ CREATE INDEX proj_trust_policy_summary_conduit_idx
     ON proj_trust_policy_summary (conduit_id);
 ```
 
-```sql title="entries_conduit_traversals"
-CREATE TABLE entries_conduit_traversals (
+```sql title="entries_conduit_verdicts"
+CREATE TABLE entries_conduit_verdicts (
     event_id        UUID         PRIMARY KEY,
     conduit_id      UUID         NOT NULL,
     logbook_id      UUID         NOT NULL,
@@ -205,17 +205,17 @@ CREATE TABLE entries_conduit_traversals (
     recorded_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX entries_conduit_traversals_conduit_time_idx
-    ON entries_conduit_traversals (conduit_id, occurred_at DESC);
+CREATE INDEX entries_conduit_verdicts_conduit_time_idx
+    ON entries_conduit_verdicts (conduit_id, occurred_at DESC);
 
-CREATE INDEX entries_conduit_traversals_logbook_idx
-    ON entries_conduit_traversals (logbook_id);
+CREATE INDEX entries_conduit_verdicts_logbook_idx
+    ON entries_conduit_verdicts (logbook_id);
 
-CREATE INDEX entries_conduit_traversals_recorded_at_brin_idx
-    ON entries_conduit_traversals USING BRIN (recorded_at);
+CREATE INDEX entries_conduit_verdicts_recorded_at_brin_idx
+    ON entries_conduit_verdicts USING BRIN (recorded_at);
 ```
 
-`entries_conduit_traversals` is the first concrete entries-table observation logbook in CORA. Per-decision authorization records are high-cardinality (one row per Authorize port call across every command in production) and must not fold into Conduit state or bloat the main events table. The `event_id` primary key doubles as the idempotency and dedup key. The `(conduit_id, occurred_at DESC)` btree supports the primary read pattern of paging the latest decisions for a Conduit. The `logbook_id` btree supports per-logbook session reads. The `recorded_at` BRIN index supports retention sweeps and time-range analytics at a fraction of a btree's storage cost.
+`entries_conduit_verdicts` is the first concrete entries-table observation logbook in CORA. Per-decision authorization records are high-cardinality (one row per Authorize port call across every command in production) and must not fold into Conduit state or bloat the main events table. The `event_id` primary key doubles as the idempotency and dedup key. The `(conduit_id, occurred_at DESC)` btree supports the primary read pattern of paging the latest decisions for a Conduit. The `logbook_id` btree supports per-logbook session reads. The `recorded_at` BRIN index supports retention sweeps and time-range analytics at a fraction of a btree's storage cost.
 
 `ConduitLogbookOpened` and `ConduitLogbookClosed` events are intentionally not subscribed by `proj_trust_conduit_summary`: they are internal logbook bookkeeping that does not mutate the summary's columns. The same precedent holds in Decision's summary projection.
 
@@ -282,7 +282,7 @@ The five examples below cover the canonical Trust authoring and evaluation flow:
     }
     ```
 
-    Returns `201 Created` with `conduit_id`. The `traversals` logbook opens automatically in the same transaction, so the very first authorization decision routed through this Conduit lands a row in `entries_conduit_traversals` without a separate setup step.
+    Returns `201 Created` with `conduit_id`. The `traversals` logbook opens automatically in the same transaction, so the very first authorization decision routed through this Conduit lands a row in `entries_conduit_verdicts` without a separate setup step.
 
 === "MCP"
 

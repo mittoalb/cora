@@ -28,6 +28,7 @@ Layout:
     tools.py                   -- register_safety_tools(mcp, get_handlers=...)
 """
 
+from cora.safety._clearance_template_seed import seed_clearance_templates
 from cora.safety._projections import register_safety_projections
 from cora.safety.errors import UnauthorizedError
 from cora.safety.routes import register_safety_routes
@@ -40,5 +41,6 @@ __all__ = [
     "register_safety_projections",
     "register_safety_routes",
     "register_safety_tools",
+    "seed_clearance_templates",
     "wire_safety",
 ]

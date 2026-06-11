@@ -32,7 +32,7 @@ principle, gate-review 6f-3 L9 lock).
 
 **Critical invariant**: every transition arm MUST carry `id`,
 `name`, `plan_id`, `subject_id`, `raid`, `override_parameters`,
-`effective_parameters`, `trigger_source`, `reading_logbook_id`,
+`effective_parameters`, `trigger_source`, `observation_logbook_id`,
 `external_refs`, `campaign_id`, `last_adjusted_at`,
 `last_adjusted_by`, AND `adjustment_count` through from prior state.
 Constructing `Run(id=..., name=..., plan_id=..., subject_id=...,
@@ -40,10 +40,10 @@ status=...)` without explicitly passing the additive fields would
 silently WIPE them to defaults (empty dict / None / empty frozenset
 / 0). Pinned by the per-transition preserve-fields tests.
 
-`reading_logbook_id` is set by the
-`RunReadingLogbookOpened` arm (lazy open-on-first-write triggered
-by `append_run_readings`); all other arms preserve whatever prior
-state held. Pre-6f-5b streams fold with `reading_logbook_id=None`.
+`observation_logbook_id` is set by the
+`RunObservationLogbookOpened` arm (lazy open-on-first-write triggered
+by `append_observations`); all other arms preserve whatever prior
+state held. Pre-6f-5b streams fold with `observation_logbook_id=None`.
 
 `campaign_id` is set at genesis from `RunStarted.
 campaign_id` (None when StartRun.campaign_id was not provided), set
@@ -90,7 +90,7 @@ from cora.run.aggregates.run.events import (
     RunCompleted,
     RunEvent,
     RunHeld,
-    RunReadingLogbookOpened,
+    RunObservationLogbookOpened,
     RunRemovedFromCampaign,
     RunResumed,
     RunStarted,
@@ -130,7 +130,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=dict(override_parameters),
                 effective_parameters=dict(effective_parameters),
                 trigger_source=trigger_source,
-                reading_logbook_id=None,
+                observation_logbook_id=None,
                 external_refs=frozenset(
                     Identifier(scheme=ref["scheme"], value=ref["value"]) for ref in external_refs
                 ),
@@ -155,7 +155,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -176,7 +176,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -197,7 +197,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -218,7 +218,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -239,7 +239,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -260,7 +260,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -292,7 +292,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=dict(effective_parameters),
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=adjusted_at,
@@ -304,11 +304,11 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 # change what calibration the Run was acquired against).
                 pinned_calibration_ids=prior.pinned_calibration_ids,
             )
-        case RunReadingLogbookOpened(logbook_id=logbook_id):
+        case RunObservationLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write: preserve all
-            # prior state, set reading_logbook_id. Status NOT touched
+            # prior state, set observation_logbook_id. Status NOT touched
             # — the logbook is orthogonal to lifecycle.
-            prior = require_state(state, "RunReadingLogbookOpened")
+            prior = require_state(state, "RunObservationLogbookOpened")
             return Run(
                 id=prior.id,
                 name=prior.name,
@@ -319,7 +319,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=logbook_id,
+                observation_logbook_id=logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=prior.campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -345,7 +345,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=campaign_id,
                 last_adjusted_at=prior.last_adjusted_at,
@@ -371,7 +371,7 @@ def evolve(state: Run | None, event: RunEvent) -> Run:
                 override_parameters=prior.override_parameters,
                 effective_parameters=prior.effective_parameters,
                 trigger_source=prior.trigger_source,
-                reading_logbook_id=prior.reading_logbook_id,
+                observation_logbook_id=prior.observation_logbook_id,
                 external_refs=prior.external_refs,
                 campaign_id=None,
                 last_adjusted_at=prior.last_adjusted_at,

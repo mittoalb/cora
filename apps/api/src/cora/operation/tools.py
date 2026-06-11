@@ -12,7 +12,7 @@ from collections.abc import Callable
 from mcp.server.fastmcp import FastMCP
 
 from cora.operation.features.abort_procedure import tool as abort_procedure_tool
-from cora.operation.features.append_procedure_steps import tool as append_procedure_steps_tool
+from cora.operation.features.append_activities import tool as append_activities_tool
 from cora.operation.features.complete_procedure import tool as complete_procedure_tool
 from cora.operation.features.conduct_procedure import tool as conduct_procedure_tool
 from cora.operation.features.get_procedure import tool as get_procedure_tool
@@ -56,9 +56,9 @@ def register_operation_tools(
         mcp,
         get_handler=lambda: get_handlers().truncate_procedure,
     )
-    append_procedure_steps_tool.register(
+    append_activities_tool.register(
         mcp,
-        get_handler=lambda: get_handlers().append_procedure_steps,
+        get_handler=lambda: get_handlers().append_activities,
     )
     get_procedure_tool.register(
         mcp,

@@ -24,7 +24,7 @@ FSM closes via four terminal transitions (`complete` / `abort` /
 strict-not-idempotent (the guard rejects double-application and
 ConcurrencyError catches the persistence-layer double-submit case).
 
-`append_run_readings` writes the polymorphic sensor / motor reading
+`append_observations` writes the polymorphic sensor / motor observation
 logbook (SOSA `sampling_procedure` discriminator; lazy open-on-first-
 write). Not idempotency-wrapped: natural idempotence via the
 at-most-one-open-logbook invariant + entry-store PK.
@@ -37,12 +37,12 @@ handler is longhand (not the update-handler factory) because it
 cross-loads Plan → Practice → Method to surface the Method's
 `parameters_schema` for merged-result validation.
 
-## BC-internal ReadingStore wiring
+## BC-internal ObservationStore wiring
 
-`append_run_readings` needs a `ReadingStore` adapter. Per the
-per-category-writer pattern (mirrors Decision BC's ReasoningStore
-and Conduit's TraversalStore), the store is built LOCALLY here from
-`deps.pool` (Postgres in production) or as `InMemoryReadingStore`
+`append_observations` needs a `ObservationStore` adapter. Per the
+per-category-writer pattern (mirrors Decision BC's InferenceStore
+and Conduit's VerdictStore), the store is built LOCALLY here from
+`deps.pool` (Postgres in production) or as `InMemoryObservationStore`
 in `app_env=test`. NOT promoted to Kernel fields.
 """
 
@@ -57,14 +57,14 @@ from cora.infrastructure.idempotency import (
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
 from cora.run.aggregates.run import (
-    InMemoryReadingStore,
-    PostgresReadingStore,
-    ReadingStore,
+    InMemoryObservationStore,
+    ObservationStore,
+    PostgresObservationStore,
 )
 from cora.run.features import (
     abort_run,
     adjust_run,
-    append_run_readings,
+    append_observations,
     complete_run,
     get_run,
     hold_run,
@@ -90,15 +90,15 @@ class RunHandlers:
     stop_run: stop_run.Handler
     truncate_run: truncate_run.Handler
     adjust_run: adjust_run.IdempotentHandler
-    append_run_readings: append_run_readings.Handler
+    append_observations: append_observations.Handler
     get_run: get_run.Handler
     list_runs: list_runs.Handler
 
 
 def wire_run(deps: Kernel) -> RunHandlers:
     """Build the Run BC handlers from shared dependencies."""
-    reading_store: ReadingStore = (
-        PostgresReadingStore(deps.pool) if deps.pool is not None else InMemoryReadingStore()
+    observation_store: ObservationStore = (
+        PostgresObservationStore(deps.pool) if deps.pool is not None else InMemoryObservationStore()
     )
     return RunHandlers(
         start_run=with_tracing(
@@ -161,9 +161,9 @@ def wire_run(deps: Kernel) -> RunHandlers:
             command_name="AdjustRun",
             bc=_BC,
         ),
-        append_run_readings=with_tracing(
-            append_run_readings.bind(deps, reading_store=reading_store),
-            command_name="AppendRunReadings",
+        append_observations=with_tracing(
+            append_observations.bind(deps, observation_store=observation_store),
+            command_name="AppendObservations",
             bc=_BC,
         ),
         get_run=with_tracing(

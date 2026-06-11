@@ -10,7 +10,7 @@ Not durable across process restarts and not safe for production
 production option, reading `proj_federation_facility_summary`).
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from threading import Lock
 from uuid import UUID
 
@@ -70,6 +70,10 @@ class InMemoryFacilityLookup:
             if facility_id is None:
                 return None
             return self._records.get(facility_id)
+
+    async def list_active(self) -> Sequence[FacilityLookupResult]:
+        with self._lock:
+            return tuple(record for record in self._records.values() if record.status == "Active")
 
 
 __all__ = ["InMemoryFacilityLookup"]

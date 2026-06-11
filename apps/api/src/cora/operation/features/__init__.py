@@ -13,11 +13,11 @@ FSM-closure transitions:
   - `abort_procedure` (Running -> Aborted; emergency exit with reason)
 
 Per-step logbook slice:
-  - `append_procedure_steps` (entry-shape slice; writes one
+  - `append_activities` (entry-shape slice; writes one
     Setpoint/Action/Check entry per step to the
-    entries_operation_procedure_steps logbook table; mirrors
-    append_run_readings from the Run BC, with lazy-open envelope event
-    `ProcedureStepsLogbookOpened` on first append)
+    entries_operation_procedure_activities logbook table; mirrors
+    append_observations from the Run BC, with lazy-open envelope event
+    `ProcedureActivitiesLogbookOpened` on first append)
 
 Partial-data terminal (triggers the `make_procedure_update_handler`
 factory hoist at rule-of-three since
@@ -34,7 +34,7 @@ Read side:
 
 from cora.operation.features import (
     abort_procedure,
-    append_procedure_steps,
+    append_activities,
     complete_procedure,
     get_procedure,
     list_procedures,
@@ -45,7 +45,7 @@ from cora.operation.features import (
 
 __all__ = [
     "abort_procedure",
-    "append_procedure_steps",
+    "append_activities",
     "complete_procedure",
     "get_procedure",
     "list_procedures",

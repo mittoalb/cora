@@ -219,7 +219,7 @@ def bind(deps: Kernel) -> Handler:
         # expansion, controller-scoped warnings stay invisible to
         # Plans that target only the stage. Expand once here so both
         # downstream lookups see the same Run scope. Already-loaded
-        # Assets are in `assets`; reading `controller_id` is free.
+        # Assets are in `assets`; observation `controller_id` is free.
         # Only `controller_id` is expanded today; `parent_id` and
         # `fixture_id` traversals are left as separate design calls.
         #

@@ -42,6 +42,7 @@ from cora.safety.errors import UnauthorizedError
 from cora.safety.features.amend_clearance.command import AmendClearance
 from cora.safety.features.amend_clearance.context import ClearanceAmendmentContext
 from cora.safety.features.amend_clearance.decider import decide
+from cora.shared.facility_code import FacilityCode
 
 _STREAM_TYPE = "Clearance"
 _COMMAND_NAME = "AmendClearance"
@@ -128,6 +129,13 @@ def bind(deps: Kernel) -> Handler:
 
         context = ClearanceAmendmentContext(parent=parent, parent_version=parent_version)
 
+        facility_lookup_result = await deps.facility_lookup.lookup_by_code(
+            FacilityCode(command.facility_code)
+        )
+        template_lookup_result = await deps.clearance_template_lookup.lookup_by_id(
+            command.template_id
+        )
+
         new_id = deps.id_generator.new_id()
         now = deps.clock.now()
 
@@ -137,6 +145,8 @@ def bind(deps: Kernel) -> Handler:
             context=context,
             now=now,
             new_id=new_id,
+            facility_lookup_result=facility_lookup_result,
+            template_lookup_result=template_lookup_result,
         )
 
         parent_new_events = [

@@ -1,4 +1,4 @@
-"""Contract tests for `POST /decisions/{id}/reasoning-entries`."""
+"""Contract tests for `POST /decisions/{id}/inferences`."""
 
 from typing import Any
 from uuid import uuid4
@@ -37,7 +37,7 @@ def test_post_reasoning_entries_returns_200_for_single_entry() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry()]},
         )
     assert response.status_code == 200
@@ -49,7 +49,7 @@ def test_post_reasoning_entries_returns_200_for_batch() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry(), _good_entry(), _good_entry()]},
         )
     assert response.status_code == 200
@@ -64,11 +64,11 @@ def test_post_reasoning_entries_handles_dedup_silently_on_retry() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         first = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry(event_id=shared_id)]},
         )
         second = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry(event_id=shared_id)]},
         )
     assert first.status_code == 200
@@ -81,7 +81,7 @@ def test_post_reasoning_entries_accepts_full_otel_field_set() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={
                 "entries": [
                     _good_entry(
@@ -120,11 +120,11 @@ def test_post_reasoning_entries_appends_across_multiple_calls() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         first = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry()]},
         )
         second = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry(), _good_entry()]},
         )
     assert first.status_code == 200
@@ -139,7 +139,7 @@ def test_post_reasoning_entries_appends_across_multiple_calls() -> None:
 def test_post_reasoning_entries_returns_404_for_unknown_decision() -> None:
     with TestClient(create_app()) as client:
         response = client.post(
-            f"/decisions/{uuid4()}/reasoning-entries",
+            f"/decisions/{uuid4()}/inferences",
             json={"entries": [_good_entry()]},
         )
     assert response.status_code == 404
@@ -153,7 +153,7 @@ def test_post_reasoning_entries_rejects_empty_batch_with_422() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": []},
         )
     assert response.status_code == 422
@@ -165,7 +165,7 @@ def test_post_reasoning_entries_rejects_oversize_batch_with_422() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [_good_entry() for _ in range(101)]},
         )
     assert response.status_code == 422
@@ -179,7 +179,7 @@ def test_post_reasoning_entries_rejects_missing_required_field_with_422() -> Non
         bad = _good_entry()
         del bad["provider_name"]
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [bad]},
         )
     assert response.status_code == 422
@@ -191,7 +191,7 @@ def test_post_reasoning_entries_rejects_extra_fields_with_422() -> None:
     with TestClient(create_app()) as client:
         decision_id = _seed_decision(client)
         response = client.post(
-            f"/decisions/{decision_id}/reasoning-entries",
+            f"/decisions/{decision_id}/inferences",
             json={"entries": [{**_good_entry(), "rogue_field": "boom"}]},
         )
     assert response.status_code == 422

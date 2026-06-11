@@ -1,19 +1,26 @@
 """Application-handler tests for `get_clearance` query slice."""
 
+import dataclasses
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
 
+from cora.infrastructure.adapters.in_memory_clearance_template_lookup import (
+    InMemoryClearanceTemplateLookup,
+)
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     ClearanceStatus,
     RunBinding,
     event_type_name,
     to_payload,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import get_clearance
@@ -37,13 +44,20 @@ def _build_deps(
     *,
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
+    clearance_template_lookup: InMemoryClearanceTemplateLookup | None = None,
 ) -> Kernel:
-    return _build_deps_shared(
+    deps = _build_deps_shared(
         ids=[_NEW_ID, _EVENT_ID],
         now=_NOW,
         event_store=event_store,
         deny=deny,
     )
+    if clearance_template_lookup is not None:
+        deps = dataclasses.replace(
+            deps,
+            clearance_template_lookup=clearance_template_lookup,
+        )
+    return deps
 
 
 @pytest.mark.unit
@@ -51,13 +65,25 @@ async def test_get_handler_returns_state_when_clearance_exists() -> None:
     """Seed the store with a registered clearance via the register handler,
     then fetch it back via get_clearance."""
     store = InMemoryEventStore()
-    deps = _build_deps(event_store=store)
+    template_id = clearance_template_stream_id("cora", "ESAF")
+    template_lookup = InMemoryClearanceTemplateLookup()
+    template_lookup.register(
+        template_id=template_id,
+        facility_code="cora",
+        code="ESAF",
+        status="Active",
+        version=1,
+    )
+    deps = _build_deps(
+        event_store=store,
+        clearance_template_lookup=template_lookup,
+    )
     register_handler = register_clearance_bind(deps)
     rid = uuid4()
     clearance_id = await register_handler(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=ClearanceTemplateId(template_id),
+            facility_code="cora",
             title="Pilot",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -73,7 +99,7 @@ async def test_get_handler_returns_state_when_clearance_exists() -> None:
     )
     assert result is not None
     assert result.id == clearance_id
-    assert result.kind == ClearanceKind.ESAF
+    assert result.template_id == ClearanceTemplateId(template_id)
     assert result.status == ClearanceStatus.DEFINED
     assert RunBinding(run_id=rid) in result.bindings
 
@@ -131,10 +157,12 @@ async def test_get_handler_loads_state_from_directly_seeded_event_stream() -> No
     rid = uuid4()
     from cora.safety.aggregates.clearance import ClearanceRegistered
 
+    template_id = clearance_template_stream_id("cora", "SAF")
     event = ClearanceRegistered(
         clearance_id=cid,
-        kind="SAF",
-        facility_asset_id=uuid4(),
+        template_id=template_id,
+        template_code="SAF",
+        facility_code="cora",
         title="Hand-crafted",
         bindings=({"kind": "Run", "id": str(rid)},),
         declarations=(),
@@ -170,4 +198,4 @@ async def test_get_handler_loads_state_from_directly_seeded_event_stream() -> No
     )
     assert result is not None
     assert result.id == cid
-    assert result.kind == ClearanceKind.SAF
+    assert result.template_id == ClearanceTemplateId(template_id)

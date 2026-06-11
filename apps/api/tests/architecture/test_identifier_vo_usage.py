@@ -65,14 +65,6 @@ _DEVIATION_ALLOWLIST: frozenset[str] = frozenset(
         "AlternateIdentifier",
         "PersistentIdentifier",
         "DatasetChecksum",
-        "AssetOwner",
-        "Manufacturer",
-        "Drawing",
-        "ScopeRef",
-        "ModelRef",
-        "MeasuredSource",
-        "ComputedSource",
-        "AssertedSource",
     }
 )
 
@@ -274,4 +266,33 @@ def test_allowlist_members_carry_deviation_docstring(class_name: str) -> None:
         "(explaining what load-bearing constraint forces the bespoke shape) "
         "or remove the class from the allowlist if the deviation is no "
         "longer load-bearing."
+    )
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("class_name", sorted(_DEVIATION_ALLOWLIST))
+def test_allowlist_members_match_identifier_structural_predicate(class_name: str) -> None:
+    """Every allowlisted class MUST actually match the Identifier
+    structural predicate (frozen dataclass with EXACTLY two annotated
+    fields, one from the scheme allowlist, one from the value allowlist).
+
+    Defensive allowlist entries for classes that no longer match the
+    predicate (3+ fields, single-field UUID wrappers, etc.) exempt
+    nothing: the primary test would not flag them. This drift catcher
+    forces the allowlist to shrink as classes evolve away from the
+    Identifier shape.
+    """
+    located = _resolve_allowlist_classes()
+    assert class_name in located, (
+        f"Deviation allowlist member {class_name!r} was not found in any "
+        "tracked source file; remove the stale entry."
+    )
+    path, cls = located[class_name]
+    assert _matches_identifier_shape(cls), (
+        f"{_qualified(path)}::{class_name} is in the Identifier-VO deviation "
+        "allowlist but no longer matches the structural predicate "
+        "(frozen dataclass with EXACTLY two annotated fields, one named "
+        f"from scheme={sorted(_SCHEME_FIELD_NAMES)}, one from "
+        f"value={sorted(_VALUE_FIELD_NAMES)}). The primary test would not "
+        "flag this class today; remove the entry from the allowlist."
     )

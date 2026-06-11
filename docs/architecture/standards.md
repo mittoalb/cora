@@ -16,7 +16,7 @@ Borrowed names and structure, not wire formats. A reader fluent in any of these 
 | ISA-99 / IEC 62443 | trust topology (Zones, Conduits, Surfaces, Policies) | `trust` |
 | ISO/IEC 42001 + NIST AI RMF | AI governance frameworks | `decision`, `agent`, `strategy` (planned) |
 | W3C PROV-O | provenance vocabulary (Activity, Entity, Agent, used, wasGeneratedBy) | outbound API payloads |
-| W3C SOSA / SSN | observation vocabulary (sampling procedure, observed property) | `run` (RunReading) |
+| W3C SOSA / SSN | observation vocabulary (sampling procedure, observed property) | `run` (Observation) |
 | ANSI Z535.6 + EEMUA 191 | severity tiers and quotas for operator warnings | `caution` |
 | RAiD (ISO 23527) | research activity identifier | `RunStarted` (forward-compat field) |
 

@@ -11,7 +11,7 @@ The aggregate is intentionally slim per
 [[project_fold_cost_principles]]: identity + name + kind + target
 Asset refs + status + optional parent_run_id. Per-step records
 (Setpoint/Action/Check rows) live in a Logbook + Entry table parallel
-to 6f-5b RunReading (CORA's concrete realisation of the substream
+to 6f-5b Observation (CORA's concrete realisation of the substream
 concept; see [[project_logbook_entry_storage]] §Terminology); step
 bodies do NOT fold into Procedure state.
 
@@ -93,7 +93,7 @@ the discriminator.
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal
 from uuid import UUID
 
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
@@ -109,15 +109,15 @@ PROCEDURE_ABORT_REASON_MAX_LENGTH = 500
 PROCEDURE_TRUNCATE_REASON_MAX_LENGTH = 500
 
 # per-Procedure step logbook constants.
-LOGBOOK_KIND_STEPS = "steps"
+LOGBOOK_KIND_ACTIVITY: Final = "activity"
 """Discriminator for the Procedure's per-step logbook.
 
-Used as the `kind` value on `ProcedureStepsLogbookOpened` events. One
+Used as the `kind` value on `ProcedureActivitiesLogbookOpened` events. One
 Procedure has at most one steps logbook (lazy open-on-first-write);
 future distinct Procedure-side logbook kinds (operator-action audit,
 hazard observations) would land as separate constants and separate
 state fields, not as additional values for the same kind. Mirrors
-LOGBOOK_KIND_READING from Run BC."""
+LOGBOOK_KIND_OBSERVATION from Run BC."""
 
 # Closed enum for the `step_kind` discriminator on per-step rows.
 # The three values are CORA's rename of ISA-106's canonical
@@ -171,8 +171,8 @@ STEPS_LOGBOOK_SCHEMA = LogbookSchema(
     description=(
         "Per-Procedure step entries, polymorphic by step_kind "
         "(setpoint | action | check | future). One row per step; "
-        "rows write directly to entries_operation_procedure_steps "
-        "via the StepStore port (no per-row event on the Procedure "
+        "rows write directly to entries_operation_procedure_activities "
+        "via the ActivityStore port (no per-row event on the Procedure "
         "stream). See [[project_operation_design]]."
     ),
 )
@@ -190,7 +190,7 @@ class ProcedureStatus(StrEnum):
                           review (future Decision BC integration).
                           Cannot accept step events yet.
       - `Running`     -- post-start_procedure. Step events accepted
-                          via append_procedure_steps.
+                          via append_activities.
       - `Completed`   -- happy path via complete_procedure.
                           Strict-not-idempotent.
       - `Aborted`     -- emergency exit via abort_procedure.
@@ -782,9 +782,9 @@ class ProcedureStepsLogbookClosedError(Exception):
     Per [[project_operation_design]] the Procedure FSM's terminals
     (Completed | Aborted | Truncated) implicitly close the steps
     logbook; no explicit `ProcedureStepsLogbookClosed` event is
-    emitted. The `append_procedure_steps` handler raises this when
+    emitted. The `append_activities` handler raises this when
     a writer attempts to append after the Procedure has terminated.
-    Mirrors `RunReadingLogbookClosedError` from Run BC. Mapped to
+    Mirrors `RunObservationLogbookClosedError` from Run BC. Mapped to
     HTTP 409.
 
     Note: appending to a `Defined` (pre-start) Procedure also raises
@@ -913,7 +913,7 @@ class Procedure:
     Unknown`).
 
     Future additive facets (per Watch items in
-    [[project_operation_design]]): `steps_logbook_id` (lazy-opened
+    [[project_operation_design]]): `activity_logbook_id` (lazy-opened
     when first step lands), expected-step-count for
     progress projections, etc. All land with safe defaults via the
     additive-state pattern.
@@ -947,12 +947,12 @@ class Procedure:
     target_asset_ids: frozenset[UUID] = field(default_factory=frozenset[UUID])
     status: ProcedureStatus = ProcedureStatus.DEFINED
     parent_run_id: UUID | None = None
-    steps_logbook_id: UUID | None = None
-    """Lazy-opened on first `append_procedure_steps`.
+    activity_logbook_id: UUID | None = None
+    """Lazy-opened on first `append_activities`.
 
     None until the first step is appended; populated by the
-    `ProcedureStepsLogbookOpened` envelope event the handler emits
-    on the Procedure stream. Mirrors `Run.reading_logbook_id`.
+    `ProcedureActivitiesLogbookOpened` envelope event the handler emits
+    on the Procedure stream. Mirrors `Run.observation_logbook_id`.
     Per the lazy-open pattern: no eager open at start_procedure,
     no Closed event (terminal Procedure.status implicitly closes
     via `ProcedureStepsLogbookClosedError`).
