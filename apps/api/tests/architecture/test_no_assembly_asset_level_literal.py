@@ -55,12 +55,17 @@ _ALLOW_RELATIVE_PATHS: frozenset[str] = frozenset(
         "apps/api/src/cora/equipment/features/define_assembly/handler.py",
         "apps/api/src/cora/equipment/features/deprecate_assembly/handler.py",
         "apps/api/src/cora/equipment/features/version_assembly/handler.py",
+        "apps/api/src/cora/equipment/features/add_assembly_presents_as/handler.py",
+        "apps/api/src/cora/equipment/features/remove_assembly_presents_as/handler.py",
         "apps/api/tests/integration/test_define_assembly_handler_postgres.py",
         "apps/api/tests/integration/test_deprecate_assembly_handler_postgres.py",
         "apps/api/tests/integration/test_register_fixture_handler_postgres.py",
         "apps/api/tests/integration/test_version_assembly_handler_postgres.py",
+        "apps/api/tests/integration/test_add_assembly_presents_as_handler_postgres.py",
         "apps/api/tests/unit/equipment/test_assembly_events.py",
         "apps/api/tests/unit/equipment/test_assembly_summary_projection.py",
+        "apps/api/tests/unit/equipment/test_add_assembly_presents_as_handler.py",
+        "apps/api/tests/unit/equipment/test_remove_assembly_presents_as_handler.py",
     }
 )
 

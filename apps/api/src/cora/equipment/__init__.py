@@ -35,6 +35,7 @@ Layout:
     routes.py                 -- register_equipment_routes(app)
 """
 
+from cora.equipment._bootstrap import bootstrap_equipment
 from cora.equipment._projections import register_equipment_projections
 from cora.equipment.aggregates.asset import (
     AssetPersistentIdAlreadyAssignedError,
@@ -58,6 +59,7 @@ __all__ = [
     "EquipmentHandlers",
     "PersistentIdentifierMintError",
     "UnauthorizedError",
+    "bootstrap_equipment",
     "register_equipment_projections",
     "register_equipment_routes",
     "register_equipment_tools",
