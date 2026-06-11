@@ -113,7 +113,7 @@ The recipe chain is the spine. Around it, CORA models the rest of what a single 
 
 ## Pilot
 
-Built for micro-CT at **APS beamline 2-BM** (Argonne). CORA schedules, governs, and records 2-BM operations, and is moving to drive the scan loop itself, directly over EPICS through its Conductor and ControlPort layer, in place of TomoScan. Reconstruction (TomoPy, Noise2Inverse360) stays external, wrapped rather than reimplemented. The scenario corpus that grounds CORA's domain model runs against real 2-BM operations.
+Built for micro-CT at **APS beamline 2-BM** (Argonne). CORA schedules, governs, and records 2-BM operations; the facility's own acquisition and reconstruction tools stay where they are. CORA also offers an optional execution edge (its Conductor and ControlPort layer) for driving operations directly over EPICS where a facility chooses to; at 2-BM that edge is exploratory. The scenario corpus that grounds CORA's domain model runs against real 2-BM operations.
 
 [See the 2-BM pilot →](deployments/2-bm/index.md)
 

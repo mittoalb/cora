@@ -29,7 +29,7 @@
 ## Pending in code
 
 - `cora.capability.energy_scan` — Method-binding for `energy_change` style scans (currently `energy_change` binds to `tomography`).
-- `cora.capability.steering` — Method-binding for closed-loop autonomous-CT `adjust_run` flows.
+- `cora.capability.steering` — Method-binding for mid-flight `adjust_run` steering flows.
 
 ## Related
 
