@@ -94,18 +94,54 @@ from cora.data.aggregates.distribution import (
     InvalidDistributionUriError,
     UnmappedDistributionUriSchemeError,
 )
+from cora.data.aggregates.edition import (
+    DoiMinterTombstoneError,
+    EditionAlreadyExistsError,
+    EditionCannotBeEmptyError,
+    EditionCannotBindToDiscardedDatasetError,
+    EditionCannotPublishError,
+    EditionCannotSealError,
+    EditionCannotSealOnDiscardedDatasetError,
+    EditionCannotWithdrawError,
+    EditionDatasetAlreadyMemberError,
+    EditionDatasetDistributionNotFoundError,
+    EditionDatasetNotMemberError,
+    EditionDatasetsNotAllProductionError,
+    EditionLicenseRequiredForKindError,
+    EditionNotFoundError,
+    EditionNotInRegisteredStateError,
+    EditionPublishedWithoutContentHashError,
+    EditionPublisherNotFoundError,
+    EditionRequiresAtLeastOneDatasetError,
+    EditionSerializerError,
+    EditionWithdrawnWithoutPersistentIdError,
+    EmptyDatasetIdsAtRegistrationError,
+    InvalidCreatorsError,
+    InvalidEditionKindError,
+    InvalidEditionTitleError,
+    InvalidEditionWithdrawalReasonError,
+    InvalidPublicationYearError,
+    InvalidSpdxIdentifierError,
+)
 from cora.data.errors import UnauthorizedError
 from cora.data.features import (
+    add_dataset_to_edition,
     demote_dataset,
     discard_dataset,
     get_dataset,
     list_datasets,
     promote_dataset,
+    publish_edition,
     record_attestation,
     register_dataset,
     register_distribution,
+    register_edition,
+    remove_dataset_from_edition,
+    seal_edition,
+    withdraw_edition,
 )
 from cora.data.ports.checksum_verifier import ChecksumVerifierUnsupportedSchemeError
+from cora.shared.ports.doi_minter import PersistentIdentifierMintError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -182,6 +218,24 @@ async def _handle_cannot_transition(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def _handle_upstream_port_failure(request: Request, exc: Exception) -> JSONResponse:
+    """502 handler for upstream-port failure (serializer, DoiMinter tombstone)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={"detail": str(exc)},
+    )
+
+
+async def _handle_invariant_violation(request: Request, exc: Exception) -> JSONResponse:
+    """500 handler for defensive invariant violations (impossible-by-state)."""
+    _ = request
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": str(exc)},
+    )
+
+
 def register_data_routes(app: FastAPI) -> None:
     """Attach Data slice routers and exception handlers to the FastAPI app."""
     app.include_router(register_dataset.router)
@@ -191,6 +245,12 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
     app.include_router(register_distribution.router)
+    app.include_router(register_edition.router)
+    app.include_router(add_dataset_to_edition.router)
+    app.include_router(remove_dataset_from_edition.router)
+    app.include_router(seal_edition.router)
+    app.include_router(publish_edition.router)
+    app.include_router(withdraw_edition.router)
     app.include_router(record_attestation.router)
     for validation_cls in (
         InvalidDatasetNameError,
@@ -218,6 +278,17 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidAccessProtocolError,
         UnmappedDistributionUriSchemeError,
         DefaultStorageSupplyBootstrapError,
+        # Edition VO validation: title, kind, license, year, withdrawal
+        # reason, creators (cardinality + duplicate detection +
+        # affiliation length), empty-dataset-ids-at-registration. All
+        # produce 400 `{"detail": str(exc)}`.
+        InvalidEditionTitleError,
+        InvalidEditionKindError,
+        InvalidPublicationYearError,
+        InvalidSpdxIdentifierError,
+        InvalidEditionWithdrawalReasonError,
+        InvalidCreatorsError,
+        EmptyDatasetIdsAtRegistrationError,
         # Attestation record-slice 400 family: closed-enum re-checks,
         # evidence VO shape, kind-not-yet-supported (handler-tier),
         # and the verifier-port unsupported-scheme dispatch error.
@@ -230,6 +301,13 @@ def register_data_routes(app: FastAPI) -> None:
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
         DatasetNotFoundError,
+        # Edition NotFoundError family: stream-empty + publisher Facility
+        # lookup miss + member Dataset not in set + member Dataset has no
+        # canonical Distribution. All produce 404 `{"detail": str(exc)}`.
+        EditionNotFoundError,
+        EditionPublisherNotFoundError,
+        EditionDatasetNotMemberError,
+        EditionDatasetDistributionNotFoundError,
         # Per the locked <X>NotFoundError -> 404 taxonomy (cluster 4 of
         # the 2026-05-22 audit), the renamed cross-aggregate not-found
         # family now routes through _handle_not_found instead of the
@@ -249,6 +327,8 @@ def register_data_routes(app: FastAPI) -> None:
     for already_exists_cls in (
         DatasetAlreadyExistsError,
         DistributionAlreadyExistsError,
+        # Edition defensive 409: same-stream-id race at register decider.
+        EditionAlreadyExistsError,
         AttestationAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
@@ -275,6 +355,23 @@ def register_data_routes(app: FastAPI) -> None:
         DistributionCannotRegisterOnDiscardedDatasetError,
         DistributionChecksumMismatchError,
         DistributionByteSizeMismatchError,
+        # Edition mutation / transition guards. All 409 with
+        # `{"detail": str(exc)}`. Covers add / remove state guards,
+        # state-FSM transition guards, license-required-for-kind,
+        # all-Production-or-reject, member-Discarded, member-missing-
+        # Distribution, last-dataset-remove, and the bind-to-Discarded
+        # Dataset rejection shared with register / add slices.
+        EditionNotInRegisteredStateError,
+        EditionDatasetAlreadyMemberError,
+        EditionCannotBeEmptyError,
+        EditionCannotBindToDiscardedDatasetError,
+        EditionCannotSealError,
+        EditionRequiresAtLeastOneDatasetError,
+        EditionDatasetsNotAllProductionError,
+        EditionCannotSealOnDiscardedDatasetError,
+        EditionLicenseRequiredForKindError,
+        EditionCannotPublishError,
+        EditionCannotWithdrawError,
         # Attestation record-slice 409 family: kind/distribution_id
         # dual-binding violations, Distribution.dataset_id mismatch,
         # belt-and-braces checksum mismatch against the loaded
@@ -285,4 +382,25 @@ def register_data_routes(app: FastAPI) -> None:
         AttestationChecksumEvidenceMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
+    for upstream_port_cls in (
+        # Serializer adapter failure at seal / publish time, and
+        # DoiMinter.tombstone failure at withdraw time. Both 502 because
+        # the upstream port (serializer / DataCite) is the failure source,
+        # not a domain-state conflict.
+        EditionSerializerError,
+        DoiMinterTombstoneError,
+        # DoiMinter.mint failure at publish time. 502: the DataCite
+        # authority (the upstream port) is the failure source.
+        PersistentIdentifierMintError,
+    ):
+        app.add_exception_handler(upstream_port_cls, _handle_upstream_port_failure)
+    for invariant_cls in (
+        # Defensive invariants: impossible-by-state under happy-path; 500
+        # because each signals a contract-breaking adapter swap or
+        # malformed stream. Sealed-without-content_hash (publish);
+        # Published-without-external_pid (withdraw).
+        EditionPublishedWithoutContentHashError,
+        EditionWithdrawnWithoutPersistentIdError,
+    ):
+        app.add_exception_handler(invariant_cls, _handle_invariant_violation)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

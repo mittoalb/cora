@@ -33,7 +33,6 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from cora.equipment._bootstrap import check_pidinst_landing_page_template
-from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.features import (
     activate_asset,
     add_asset_alternate_identifier,
@@ -91,10 +90,11 @@ from cora.equipment.features import (
     version_family,
     version_model,
 )
-from cora.equipment.ports.doi_minter import DoiMinter
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
+from cora.shared.ports.doi_minter import DoiMinter
 
 _BC = "equipment"
 

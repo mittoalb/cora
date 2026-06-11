@@ -57,7 +57,7 @@ from cora.infrastructure.update_handler import make_update_handler
 from cora.shared.identifier import PersistentIdentifier
 
 if TYPE_CHECKING:
-    from cora.equipment.ports.doi_minter import DoiMinter
+    from cora.shared.ports.doi_minter import DoiMinter
 
 
 class Handler(Protocol):
