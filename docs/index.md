@@ -15,10 +15,21 @@ CORA is that place. It does not move motors, does not run scans, does not host d
 Two intertwined streams, one event log
 {: .cora-kicker }
 
-- **The recipe chain.** Method → Practice → Plan → Run. How a class of measurement works, how this facility does it, what was scheduled, what actually happened.
+- **The recipe chain.** How a class of measurement works, how this facility does it, what was scheduled, what actually happened.
 - **The decisions around it.** Every choice that shaped a recipe, plan, or run, by a human or an agent, with the reason and the evidence captured at the moment of choice.
 
 </div>
+
+The recipe chain is the mechanism that keeps the same model portable across facilities:
+
+```mermaid
+flowchart LR
+    M[Method<br/>portable] --> P[Practice<br/>per facility] --> PL[Plan<br/>scheduled] --> R[Run<br/>executed]
+```
+
+A *method* names how a class of measurement works. A *practice* binds it to one facility's instruments. A *plan* schedules it. A *run* executes it, captured as events. For 2-BM micro-CT this reads: **Method** tomography, **Practice** 2-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
+
+A decision can attach at any stage: to propose a method, choose a practice, schedule a plan, or steer a run mid-flight. Each one carries who decided, what they chose, why, and the evidence they saw. Humans and agents register decisions the same way.
 
 ## Three commitments
 
@@ -33,20 +44,72 @@ How CORA earns the claim
 
 </div>
 
-## Recipe chain and decisions
+## What CORA governs
 
-The mechanism that keeps the same model portable across facilities:
+The recipe chain is the spine. Around it, CORA models the rest of what a single facility decision actually depends on: the instruments, the resources they draw on, the people and agents who act, the rules that gate them, and what gets produced. Seventeen bounded contexts, one event log.
 
-```mermaid
-flowchart LR
-    M[Method<br/>portable] --> P[Practice<br/>per facility] --> PL[Plan<br/>scheduled] --> R[Run<br/>executed]
-```
+<div class="grid cards" markdown>
 
-A *method* names how a class of measurement works. A *practice* binds it to one facility's instruments. A *plan* schedules it. A *run* executes it, captured as events.
+-   :material-clipboard-flow-outline:{ .lg .middle } __Plan and run the work__
 
-For 2-BM micro-CT this reads: **Method** tomography, **Practice** 2-BM tomography, **Plan** scan #2351, **Run** today's measurement events.
+    ---
 
-A decision can attach at any stage: to propose a method, choose a practice, schedule a plan, or steer a run mid-flight. Each one carries who decided, what they chose, why, and the evidence they saw. Humans and agents register decisions the same way.
+    Define a measurement once, bind it to a facility, schedule it, and execute it as events; group runs into studies and bracket them with operational procedures.
+
+    [Recipe](architecture/modules/recipe/index.md) ·
+    [Run](architecture/modules/run/index.md) ·
+    [Campaign](architecture/modules/campaign/index.md) ·
+    [Operation](architecture/modules/operation/index.md)
+
+-   :material-wrench-outline:{ .lg .middle } __Equipment and resources__
+
+    ---
+
+    The instruments themselves, the continuously-available resources they draw on, the permit-gated spaces that contain them, and the empirical values that keep them honest.
+
+    [Equipment](architecture/modules/equipment/index.md) ·
+    [Supply](architecture/modules/supply/index.md) ·
+    [Enclosure](architecture/modules/enclosure/index.md) ·
+    [Calibration](architecture/modules/calibration/index.md)
+
+-   :material-account-group-outline:{ .lg .middle } __People and agents__
+
+    ---
+
+    One identity model for human operators and AI agents alike, with authorization that gates every write in the system.
+
+    [Access](architecture/modules/access/index.md) ·
+    [Agent](architecture/modules/agent/index.md) ·
+    [Trust](architecture/modules/trust/index.md)
+
+-   :material-shield-check-outline:{ .lg .middle } __Safety and cautions__
+
+    ---
+
+    Formal regulatory clearances that gate work, and lightweight operator tribal-knowledge that warns without blocking.
+
+    [Safety](architecture/modules/safety/index.md) ·
+    [Caution](architecture/modules/caution/index.md)
+
+-   :material-database-outline:{ .lg .middle } __Subjects, data, and decisions__
+
+    ---
+
+    What gets measured, the datasets it produces and the distributions, attestations, and citable editions built on them, and every reasoned choice recorded with its evidence.
+
+    [Subject](architecture/modules/subject/index.md) ·
+    [Data](architecture/modules/data/index.md) ·
+    [Decision](architecture/modules/decision/index.md)
+
+-   :material-transit-connection-variant:{ .lg .middle } __Across facilities__
+
+    ---
+
+    Cross-facility identity and the authorized seams that let data and trust flow between deployments.
+
+    [Federation](architecture/modules/federation/index.md)
+
+</div>
 
 ## Pilot
 
