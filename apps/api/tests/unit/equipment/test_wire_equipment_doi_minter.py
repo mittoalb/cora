@@ -12,8 +12,8 @@ mint-failure path. P1-7 covers the test-file naming convention.
 
 import pytest
 
-from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.wire import wire_equipment
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from tests.unit._helpers import build_deps as _build_deps_shared
 
 pytestmark = pytest.mark.timeout(60, method="thread")

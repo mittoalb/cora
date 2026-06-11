@@ -92,6 +92,77 @@ async def test_capability_defined_inserts_with_defined_status_and_null_version()
 
 
 @pytest.mark.unit
+async def test_family_defined_inserts_affordances_array() -> None:
+    """FamilyDefined lands the declared affordance set on the
+    projection so the AssetLookup PG adapter can JOIN and gate on it
+    without folding the Family stream."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "FamilyDefined",
+        {
+            "family_id": str(_CAPABILITY_ID),
+            "name": "Tomography Detector",
+            "occurred_at": _NOW.isoformat(),
+            "affordances": ["Capturing", "Imageable"],
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert "affordances" in args.args[0]
+    assert args.args[4] == ["Capturing", "Imageable"]
+
+
+@pytest.mark.unit
+async def test_family_defined_missing_affordances_key_defaults_empty() -> None:
+    """Legacy FamilyDefined payloads without the affordances key fold
+    to an empty array (additive-state pattern)."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "FamilyDefined",
+        {
+            "family_id": str(_CAPABILITY_ID),
+            "name": "Legacy Family",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert args.args[4] == []
+
+
+@pytest.mark.unit
+async def test_family_versioned_replaces_affordances_array() -> None:
+    """FamilyVersioned replaces the affordance set (the versioned set
+    is the new declaration)."""
+    proj = FamilySummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "FamilyVersioned",
+        {
+            "family_id": str(_CAPABILITY_ID),
+            "version_tag": "v2.0.0",
+            "occurred_at": _NOW.isoformat(),
+            "affordances": ["Capturing"],
+        },
+    )
+
+    await proj.apply(event, conn)
+
+    args = conn.execute.await_args
+    assert args is not None
+    assert "affordances = $4" in args.args[0]
+    assert args.args[4] == ["Capturing"]
+
+
+@pytest.mark.unit
 async def test_capability_versioned_updates_status_and_version_tag() -> None:
     """FamilyVersioned writes both status=Versioned AND the new
     version_tag from the payload (the only event that touches the

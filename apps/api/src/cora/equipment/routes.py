@@ -249,12 +249,12 @@ from cora.equipment.features import (
     version_family,
     version_model,
 )
-from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
 from cora.shared.identifier import (
     InvalidAlternateIdentifierValueError,
     InvalidPersistentIdentifierValueError,
     MalformedPersistentIdentifierError,
 )
+from cora.shared.ports.doi_minter import PersistentIdentifierMintError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:

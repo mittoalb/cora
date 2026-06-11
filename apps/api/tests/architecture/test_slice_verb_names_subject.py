@@ -38,10 +38,12 @@ from tests.architecture.conftest import BCS, CORA_ROOT
 
 _AGGREGATE_NAMES: frozenset[str] = frozenset(
     {
+        "acquisition",
         "actor",
         "agent",
         "assembly",
         "asset",
+        "attestation",
         "calibration",
         "campaign",
         "capability",
@@ -51,6 +53,8 @@ _AGGREGATE_NAMES: frozenset[str] = frozenset(
         "credential",
         "dataset",
         "decision",
+        "distribution",
+        "edition",
         "enclosure",
         "facility",
         "family",

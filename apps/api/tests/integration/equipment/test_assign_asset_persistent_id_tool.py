@@ -25,7 +25,6 @@ import asyncpg
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.aggregates.asset import (
     AssetLevel,
     AssetNotFoundError,
@@ -41,12 +40,13 @@ from cora.equipment.features.assign_asset_persistent_id import AssignAssetPersis
 from cora.equipment.features.assign_asset_persistent_id.handler import Handler
 from cora.equipment.features.decommission_asset import DecommissionAsset
 from cora.equipment.features.register_asset import RegisterAsset
-from cora.equipment.ports.doi_minter import PersistentIdentifierMintError
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from cora.infrastructure.kernel import Kernel
 from cora.shared.identifier import (
     PersistentIdentifier,
     PersistentIdentifierScheme,
 )
+from cora.shared.ports.doi_minter import PersistentIdentifierMintError
 from tests.integration._helpers import build_postgres_deps
 from tests.integration.equipment.conftest import RaisingDoiMinter
 

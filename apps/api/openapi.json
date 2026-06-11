@@ -113,6 +113,19 @@
         "title": "AbortVisitRequest",
         "type": "object"
       },
+      "AccessProtocol": {
+        "description": "The Distribution's transport family.\n\nThe URI scheme implies the transport (s3://, https://, globus://,\nfile://, nfs://, oai-pmh://), but the operator-asserted enum is\nthe source of truth because not every URI string is parseable\ninto a clean scheme (custom file:// URIs sometimes carry POSIX\nsemantics implicitly). Closed StrEnum; widening is additive when\na new transport family's first adapter ships.\n\nMember name SCREAMING_SNAKE; string value PascalCase (or canonical\nform like ``OAI_PMH`` for OAI-PMH which is conventionally\nunderscore-bracketed).",
+        "enum": [
+          "HTTPS",
+          "Globus",
+          "S3",
+          "POSIX",
+          "NFS",
+          "OAI_PMH"
+        ],
+        "title": "AccessProtocol",
+        "type": "string"
+      },
       "ActorListResponse": {
         "description": "Page of actors plus opaque next-page cursor.\n\n`next_cursor` is None when no more pages. Pass it back as\n`?cursor=...` to fetch the next page.",
         "properties": {
@@ -491,7 +504,7 @@
         "type": "object"
       },
       "Affordance": {
-        "description": "Device-level operational primitive. Closed v1 enum (28 items, 2 patterns).\n\nValues are PascalCase strings so they serialize naturally as JSON\ndiscriminators without translation.\n\nPattern A, Operational affordances (`-able` / `-ible` / `-ing`):\n    \"device supports doing X\" (action) or \"device performs X\"\n    (role/flow). Set-membership claim. 27 items.\n\nPattern C, Lifecycle affordances (noun):\n    \"device has lifecycle property X\". 1 item.",
+        "description": "Device-level operational primitive. Closed v1 enum (29 items, 2 patterns).\n\nValues are PascalCase strings so they serialize naturally as JSON\ndiscriminators without translation.\n\nPattern A, Operational affordances (`-able` / `-ible` / `-ing`):\n    \"device supports doing X\" (action) or \"device performs X\"\n    (role/flow). Set-membership claim. 28 items.\n\nPattern C, Lifecycle affordances (noun):\n    \"device has lifecycle property X\". 1 item.",
         "enum": [
           "Rotatable",
           "Translatable",
@@ -504,6 +517,7 @@
           "Leading",
           "Imageable",
           "Binnable",
+          "Capturing",
           "Triggerable",
           "Gateable",
           "Synchronizable",
@@ -1617,6 +1631,27 @@
         ],
         "title": "AttachAssetToFixtureRequest",
         "type": "object"
+      },
+      "AttestationKind": {
+        "description": "What property of a Dataset / Distribution was attested.\n\nClosed StrEnum with all 4 values day-one to lock the wire shape\nand avoid additive-enum migration. Only ``ChecksumVerified`` is\nreachable today; the other three trigger\n``AttestationKindNotYetSupportedError`` at the handler tier.\n\nMember name SCREAMING_SNAKE; string value PascalCase.",
+        "enum": [
+          "ChecksumVerified",
+          "FormatValidated",
+          "ConformsToValidated",
+          "BitRotChecked"
+        ],
+        "title": "AttestationKind",
+        "type": "string"
+      },
+      "AttestationOutcome": {
+        "description": "The outcome of a verifier run.\n\nClosed StrEnum with all 3 values day-one. Other outcomes (Pending,\nPartial, Error) are exception-shaped failures, not recorded\noutcomes.\n\n  - ``Match``: verifier completed AND observed value byte-equals\n    the canonical value.\n  - ``Mismatch``: verifier completed AND observed value disagrees\n    with the canonical value.\n  - ``Unreachable``: verifier could not complete (transport\n    timeout, 5xx, missing credentials). Distinct from\n    ``Mismatch`` because bytes' integrity is unknown, not\n    refuted.",
+        "enum": [
+          "Match",
+          "Mismatch",
+          "Unreachable"
+        ],
+        "title": "AttestationOutcome",
+        "type": "string"
       },
       "BindAssetToFacilityRequest": {
         "description": "Body for `POST /assets/{asset_id}/bind-to-facility`.",
@@ -2960,6 +2995,76 @@
         "title": "ChecksumResponse",
         "type": "object"
       },
+      "ChecksumVerifiedEvidenceRequest": {
+        "additionalProperties": false,
+        "description": "Nested evidence body for kind=ChecksumVerified.",
+        "properties": {
+          "algorithm": {
+            "const": "sha256",
+            "description": "Checksum algorithm name. Only 'sha256' is accepted today; future algorithms add additional literal members.",
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "computed_checksum": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 64,
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Checksum the verifier computed. Required for outcome=Match or outcome=Mismatch; null only for outcome=Unreachable.",
+            "title": "Computed Checksum"
+          },
+          "error_detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable failure summary. Required for outcome=Unreachable; null otherwise.",
+            "title": "Error Detail"
+          },
+          "expected_checksum": {
+            "description": "Canonical 64-char lowercase sha256 hex (the Distribution's expected value).",
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Checksum",
+            "type": "string"
+          },
+          "verifier_kind": {
+            "description": "Short adapter name (e.g. 'HttpRangeChecksum'). Forensic provenance.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Verifier Kind",
+            "type": "string"
+          },
+          "verifier_supply_id": {
+            "description": "Identifies the Supply (or other adapter-resident endpoint) the verifier walked. Forensic provenance.",
+            "format": "uuid",
+            "title": "Verifier Supply Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "expected_checksum",
+          "verifier_supply_id",
+          "verifier_kind"
+        ],
+        "title": "ChecksumVerifiedEvidenceRequest",
+        "type": "object"
+      },
       "ClearanceListResponse": {
         "description": "Page of clearances plus opaque next-page cursor.",
         "properties": {
@@ -3660,6 +3765,35 @@
           "created_at"
         ],
         "title": "ConduitSummaryDTO",
+        "type": "object"
+      },
+      "CreatorRequest": {
+        "description": "One credited creator on the Edition.",
+        "properties": {
+          "actor_id": {
+            "description": "Identifier of the credited Actor (internal-opaque).",
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "affiliation": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-text affiliation string (institution / lab name). Optional.",
+            "title": "Affiliation"
+          }
+        },
+        "required": [
+          "actor_id"
+        ],
+        "title": "CreatorRequest",
         "type": "object"
       },
       "CredentialListResponse": {
@@ -5781,6 +5915,57 @@
         "title": "DismountSubjectRequest",
         "type": "object"
       },
+      "DistributionChecksumRequest": {
+        "description": "Bulk-content integrity hash on the registration request body.",
+        "properties": {
+          "algorithm": {
+            "description": "Checksum algorithm name. Only 'sha256' is accepted today; the field is structured for forward-compatible algorithm addition (BLAKE3, SHA3, etc.).",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "value": {
+            "description": "Canonical checksum value. For sha256: exactly 64 lowercase hex chars.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "value"
+        ],
+        "title": "DistributionChecksumRequest",
+        "type": "object"
+      },
+      "DistributionEncodingRequest": {
+        "description": "Structured encoding descriptor on the registration request body.",
+        "properties": {
+          "conforms_to": {
+            "description": "Profile URIs the Distribution claims to conform to (NeXus, OME-Zarr, CIF, etc.). Empty when no profile is claimed.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Conforms To",
+            "type": "array"
+          },
+          "media_type": {
+            "description": "Loose MIME-type-ish string describing the wire encoding (for example 'application/x-hdf5', 'application/x-zarr').",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_type"
+        ],
+        "title": "DistributionEncodingRequest",
+        "type": "object"
+      },
       "DrawingBody": {
         "description": "Wire format for a `Drawing` value object.",
         "properties": {
@@ -5824,6 +6009,19 @@
           "DOI"
         ],
         "title": "DrawingSystem",
+        "type": "string"
+      },
+      "EditionKind": {
+        "description": "The Edition's serialization-target kind.\n\nAll six values ship day-one even though only ``ROCrate`` is\nreachable today (only `RoCrate12Adapter` lands at the seal slice).\nClosed-StrEnum + day-one full-value-set avoids the additive-enum\nmigration trap on future adapter slices.\n\nPython member name SCREAMING_SNAKE per PEP 8. String value\nPascalCase per CORA's BC-status-vocabulary convention; OAIS_AIP\nand OAIS_DIP keep underscores because the OAIS standard uses\nALL_CAPS abbreviations. Serializer adapters MAY translate to\nspec-required forms at the wire boundary (DataCite\n``<resourceType>`` uses \"OAIS-AIP\" with a hyphen).",
+        "enum": [
+          "ROCrate",
+          "DataCite",
+          "Croissant",
+          "OAIS_AIP",
+          "OAIS_DIP",
+          "NeXus"
+        ],
+        "title": "EditionKind",
         "type": "string"
       },
       "EncodingRequest": {
@@ -9466,6 +9664,137 @@
         "title": "RecipeResponse",
         "type": "object"
       },
+      "RecordAcquisitionRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /acquisitions`.",
+        "properties": {
+          "captured_at": {
+            "description": "Instrument wall-clock moment the bytes were physically produced (caller-asserted provenance). May precede the CORA-side recording time by any amount (backfills are legitimate); a captured_at in the future beyond the clock-skew tolerance is rejected with 400.",
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "dataset_id": {
+            "description": "Id of the logical Dataset this capture produced.",
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "description": "Capture-specific evidence (freeform placeholder today; shape-only validated). Per-Family evidence schemas are a future slice.",
+            "title": "Evidence",
+            "type": "object"
+          },
+          "producing_asset_id": {
+            "description": "Id of the capturing Asset. Its Family must declare the Capturing affordance or the request is rejected with 409.",
+            "format": "uuid",
+            "title": "Producing Asset Id",
+            "type": "string"
+          },
+          "producing_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional id of the Run context. None for calibration / dark-field / autonomous-agent standalone captures with no Run context.",
+            "title": "Producing Run Id"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "description": "Operator / system settings active at capture. Shape-only validated today (primitive leaves); per-Family schema validation is a future slice.",
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "producing_asset_id",
+          "captured_at"
+        ],
+        "title": "RecordAcquisitionRequest",
+        "type": "object"
+      },
+      "RecordAcquisitionResponse": {
+        "description": "Response body for `POST /acquisitions`.",
+        "properties": {
+          "acquisition_id": {
+            "format": "uuid",
+            "title": "Acquisition Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "acquisition_id"
+        ],
+        "title": "RecordAcquisitionResponse",
+        "type": "object"
+      },
+      "RecordAttestationRequest": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /attestations``.",
+        "properties": {
+          "dataset_id": {
+            "description": "Identifier of the Dataset the Attestation is about (always required).",
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "distribution_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identifier of the bound Distribution byte-copy. Required for byte-level kinds (ChecksumVerified, FormatValidated, BitRotChecked); null only for ConformsToValidated.",
+            "title": "Distribution Id"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/ChecksumVerifiedEvidenceRequest",
+            "description": "Per-kind evidence object. Today only the ChecksumVerified shape is concrete (the other three kinds are not yet supported)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttestationKind",
+            "description": "What property was attested. Closed enum; today only 'ChecksumVerified' is implemented."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AttestationOutcome",
+            "description": "The outcome of the verifier run. Closed enum: Match, Mismatch, Unreachable."
+          }
+        },
+        "required": [
+          "dataset_id",
+          "kind",
+          "outcome",
+          "evidence"
+        ],
+        "title": "RecordAttestationRequest",
+        "type": "object"
+      },
+      "RecordAttestationResponse": {
+        "description": "Response body for ``POST /attestations``.",
+        "properties": {
+          "attestation_id": {
+            "format": "uuid",
+            "title": "Attestation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attestation_id"
+        ],
+        "title": "RecordAttestationResponse",
+        "type": "object"
+      },
       "ReferenceSurface": {
         "description": "The physical feature of a part that a Placement is measured FROM.\n\nClosed enum; CORA precedent is the Affordance StrEnum. Widening\nrules and GD&T-term-collision rationale live in the module docstring.",
         "enum": [
@@ -10374,6 +10703,172 @@
           "decision_id"
         ],
         "title": "RegisterDecisionResponse",
+        "type": "object"
+      },
+      "RegisterDistributionRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /distributions`.",
+        "properties": {
+          "access_protocol": {
+            "$ref": "#/components/schemas/AccessProtocol",
+            "description": "Transport family of the URI. Closed enum: HTTPS, Globus, S3, POSIX, NFS, OAI_PMH. Widening is additive when a new transport adapter ships."
+          },
+          "byte_size": {
+            "description": "Bulk content size in bytes. Zero is valid (empty Distribution of an empty Dataset). Must match the parent Dataset's byte_size.",
+            "minimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "checksum": {
+            "$ref": "#/components/schemas/DistributionChecksumRequest",
+            "description": "Bulk-content integrity hash (algorithm + value)."
+          },
+          "dataset_id": {
+            "description": "Identifier of the parent logical Dataset. Must resolve to a non-Discarded Dataset whose checksum + byte_size match the command's values (byte-identical-copy invariant).",
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "encoding": {
+            "$ref": "#/components/schemas/DistributionEncodingRequest",
+            "description": "Structured encoding descriptor (media_type + conforms_to profile URIs)."
+          },
+          "supply_id": {
+            "description": "Identifier of the storage-kind Supply hosting the bytes. Must resolve to a Supply with kind='Storage'; lifecycle status is not gated (Decommissioned Supplies accept new Distributions for archival completeness).",
+            "format": "uuid",
+            "title": "Supply Id",
+            "type": "string"
+          },
+          "uri": {
+            "description": "Opaque URI string pointing at the bulk content (s3://, file://, https://, globus://, etc.).",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "supply_id",
+          "uri",
+          "checksum",
+          "byte_size",
+          "encoding",
+          "access_protocol"
+        ],
+        "title": "RegisterDistributionRequest",
+        "type": "object"
+      },
+      "RegisterDistributionResponse": {
+        "description": "Response body for `POST /distributions`.",
+        "properties": {
+          "distribution_id": {
+            "format": "uuid",
+            "title": "Distribution Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "distribution_id"
+        ],
+        "title": "RegisterDistributionResponse",
+        "type": "object"
+      },
+      "RegisterEditionRequest": {
+        "additionalProperties": false,
+        "description": "Body for `POST /editions`.",
+        "properties": {
+          "creators": {
+            "description": "Ordered list of credited creators. Order is publication-significant (first-author convention); NEVER sorted.",
+            "items": {
+              "$ref": "#/components/schemas/CreatorRequest"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Creators",
+            "type": "array"
+          },
+          "dataset_ids": {
+            "description": "Initial member Dataset ids. Each must resolve to a non-Discarded Dataset. Order is irrelevant; the payload sorts on the wire.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Dataset Ids",
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EditionKind",
+            "description": "Serialization-target kind. Closed enum: ROCrate, DataCite, Croissant, OAIS_AIP, OAIS_DIP, NeXus."
+          },
+          "license": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional SPDX identifier. Required at seal-time for kind in {DataCite, Croissant}.",
+            "title": "License"
+          },
+          "publication_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional explicit publication year (1900..current_year+5). Auto-derived at seal-time if not supplied.",
+            "title": "Publication Year"
+          },
+          "publisher_facility_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional publisher Facility code (cross-deployment slug). Required and FacilityLookup-validated at seal-time.",
+            "title": "Publisher Facility Code"
+          },
+          "title": {
+            "description": "Display title for the Edition.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "dataset_ids",
+          "creators"
+        ],
+        "title": "RegisterEditionRequest",
+        "type": "object"
+      },
+      "RegisterEditionResponse": {
+        "description": "Response body for `POST /editions`.",
+        "properties": {
+          "edition_id": {
+            "format": "uuid",
+            "title": "Edition Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edition_id"
+        ],
+        "title": "RegisterEditionResponse",
         "type": "object"
       },
       "RegisterEnclosureRequest": {
@@ -11892,6 +12387,51 @@
           "code"
         ],
         "title": "SchemeDTO",
+        "type": "object"
+      },
+      "SealEditionRequest": {
+        "additionalProperties": false,
+        "description": "Optional overrides for `POST /editions/{edition_id}/seal`.",
+        "properties": {
+          "license_override": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override the Edition's SPDX license identifier. Required for kind in {DataCite, Croissant} when no license was supplied at register-time.",
+            "title": "License Override"
+          },
+          "publication_year_override": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override the Edition's publication year. When omitted, the value set at register-time is used; when neither is set the sealing-clock UTC year is used.",
+            "title": "Publication Year Override"
+          },
+          "publisher_facility_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override the Edition's publisher Facility code (resolved via FacilityLookup). When omitted, the value set at register-time is used; when neither is set the seal is rejected with 404.",
+            "title": "Publisher Facility Code"
+          }
+        },
+        "title": "SealEditionRequest",
         "type": "object"
       },
       "SealListResponse": {
@@ -13863,6 +14403,23 @@
         "title": "WiredAssetItem",
         "type": "object"
       },
+      "WithdrawEditionRequest": {
+        "description": "Request body for `POST /editions/{edition_id}/withdraw`.",
+        "properties": {
+          "withdrawal_reason": {
+            "description": "Why the Edition is being withdrawn. Recorded forever on the DataCite tombstone; mandatory.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Withdrawal Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "withdrawal_reason"
+        ],
+        "title": "WithdrawEditionRequest",
+        "type": "object"
+      },
       "ZoneListResponse": {
         "description": "Page of zones plus opaque next-page cursor.",
         "properties": {
@@ -14425,6 +14982,119 @@
         "summary": "RFC 9728 Protected Resource Metadata",
         "tags": [
           "edge-auth"
+        ]
+      }
+    },
+    "/acquisitions": {
+      "post": {
+        "operationId": "post_acquisitions_acquisitions_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Acquisition.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Acquisition.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordAcquisitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordAcquisitionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed settings / evidence shape, or a captured_at in the future beyond the clock-skew tolerance."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-aggregate reference does not exist: dataset_id, producing_asset_id, or producing_run_id."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Business-invariant violation: the producing Asset's Family does not declare the Capturing affordance, or the minted Acquisition stream already exists."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Record a new Acquisition",
+        "tags": [
+          "data"
         ]
       }
     },
@@ -19256,6 +19926,119 @@
         "summary": "Update an existing asset's settings dict (RFC 7396 merge semantics)",
         "tags": [
           "equipment"
+        ]
+      }
+    },
+    "/attestations": {
+      "post": {
+        "operationId": "post_attestations_attestations_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Attestation.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Attestation.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordAttestationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordAttestationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed evidence VO, unsupported algorithm, kind not yet implemented in this release."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-aggregate reference does not exist: dataset_id or distribution_id (when provided)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dual-binding violation (kind requires/forbids distribution_id; Distribution's parent Dataset does not match; verifier evidence contradicts Distribution canonical checksum) or strict-not-idempotent same-id re-issue."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Record a new Attestation fact",
+        "tags": [
+          "data"
         ]
       }
     },
@@ -25293,6 +26076,763 @@
         "summary": "Rate a Decision (operator acceptance-signal capture)",
         "tags": [
           "decision"
+        ]
+      }
+    },
+    "/distributions": {
+      "post": {
+        "operationId": "post_distributions_distributions_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Distribution.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-creating the Distribution.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDistributionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterDistributionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed URI, non-sha256 or malformed checksum, negative byte_size, invalid encoding media_type, or invalid conforms_to entry."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-aggregate reference does not exist: dataset_id (same-BC) or supply_id (cross-BC via SupplyLookup)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Registration-time conflict: Dataset is Discarded, Supply kind is not 'Storage', or checksum / byte_size do not match the parent Dataset (byte-identical-copy invariant)."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Register a new Distribution",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/editions": {
+      "post": {
+        "operationId": "post_editions_editions_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterEditionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterEditionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed title, kind, license, publication_year, withdrawal reason, or creators tuple."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A member dataset_id does not resolve."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Registration-time conflict: a member Dataset is Discarded."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          }
+        },
+        "summary": "Register a new Edition",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/editions/{edition_id}/datasets/{dataset_id}": {
+      "delete": {
+        "operationId": "delete_edition_dataset_editions__edition_id__datasets__dataset_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "edition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Edition Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not found OR Dataset is not a member of this Edition."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not in Registered state OR removing this Dataset would leave the Edition with zero members."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove a Dataset from a Registered Edition",
+        "tags": [
+          "data"
+        ]
+      },
+      "post": {
+        "operationId": "post_edition_datasets_editions__edition_id__datasets__dataset_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "edition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Edition Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition or Dataset not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not in Registered state, member Dataset is Discarded, or Dataset is already a member."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add a Dataset to a Registered Edition",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/editions/{edition_id}/publish": {
+      "post": {
+        "operationId": "post_editions_publish_editions__edition_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "edition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Edition Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not in Sealed state."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Defensive invariant violated (Sealed Edition has no content_hash)."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "DoiMinter.mint or EditionSerializerPort.serialize failed."
+          }
+        },
+        "summary": "Publish a Sealed Edition",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/editions/{edition_id}/seal": {
+      "post": {
+        "operationId": "post_editions_seal_editions__edition_id__seal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "edition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Edition Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealEditionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated (e.g., malformed license)."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not found, publisher Facility not found, member Dataset has no canonical Distribution, or a member Dataset is missing."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain conflict: status not Registered, license required for kind, member Dataset Discarded, or member Dataset not Production intent."
+          },
+          "422": {
+            "description": "Request body failed schema validation."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "EditionSerializerPort failed."
+          }
+        },
+        "summary": "Seal a Registered Edition",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/editions/{edition_id}/withdraw": {
+      "post": {
+        "operationId": "post_editions_withdraw_editions__edition_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "edition_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Edition Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawEditionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid withdrawal reason."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Edition not in Published state."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "DoiMinter.tombstone failed."
+          }
+        },
+        "summary": "Withdraw a Published Edition",
+        "tags": [
+          "data"
         ]
       }
     },

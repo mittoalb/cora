@@ -22,15 +22,27 @@ the `proj_equipment_family_summary` read model that backs
         (3B; idempotent at the DB tier via the decider's strict-
         not-idempotent guard)
 
-All branches idempotent at the projection layer. `version_tag` lands
-in the projection ONLY on Versioned events; the Defined INSERT leaves
-it NULL and the Deprecated UPDATE doesn't touch it.
-`settings_schema_present` is TRUE iff the latest
-FamilySettingsSchemaUpdated payload's `settings_schema` was non-NULL.
+All branches idempotent. `version_tag` lands in the projection ONLY
+on Versioned events; the Defined INSERT leaves it NULL and the
+Deprecated UPDATE doesn't touch it. `settings_schema_present` is
+TRUE iff the latest FamilySettingsSchemaUpdated payload's
+`settings_schema` was non-NULL; the schema content itself lives in
+the event stream (loaded on demand, not projected to keep the
+summary table small).
 
-`affordances` and `presents_as` columns back the `FamilyLookup`
-cross-BC port (3D's `bind_plan_role` consumes both for the
-satisfaction superset check per memo Lock 17).
+`affordances` (TEXT[] of closed-enum Affordance value strings) lands
+on the Defined INSERT and is REPLACED on Versioned (the versioned
+affordance set is the new declaration). Deprecated leaves it
+untouched (the last-declared set stays visible for audit). Cross-BC
+consumers read this column via the AssetLookup port's PG adapter
+JOIN to gate on a Family declaring a given affordance, and via the
+FamilyLookup port for the bind_plan_role role_kind satisfaction
+superset check (memo Lock 17).
+
+`presents_as` (UUID[] of global Role contract ids) is seeded empty
+on the Defined INSERT, appended on FamilyPresentsAsAdded, and removed
+on FamilyPresentsAsRemoved; the FamilyLookup port reads it alongside
+`affordances` for the role_kind satisfaction check.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -50,7 +62,7 @@ _INSERT_FAMILY_SQL = """
 INSERT INTO proj_equipment_family_summary
     (family_id, name, status, version_tag, created_at,
      settings_schema_present, affordances, presents_as)
-VALUES ($1, $2, 'Defined', NULL, $3, FALSE, $4, ARRAY[]::UUID[])
+VALUES ($1, $2, 'Defined', NULL, $3, FALSE, $4::text[], ARRAY[]::UUID[])
 ON CONFLICT (family_id) DO NOTHING
 """
 
@@ -59,7 +71,7 @@ UPDATE proj_equipment_family_summary
 SET status = 'Versioned',
     version_tag = $2,
     versioned_at = $3,
-    affordances = $4,
+    affordances = $4::text[],
     updated_at = now()
 WHERE family_id = $1
 """
