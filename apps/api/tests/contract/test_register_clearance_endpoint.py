@@ -1,12 +1,12 @@
 """Contract tests for `POST /clearances`.
 
 Covers create-style basics (request schema, response shape, status
-codes), the StrEnum kind validation at the API boundary (-> 422),
-the discriminated-union binding shapes (Subject / Asset / Run /
-Procedure / External), the discriminated-union HazardClassification
-shapes (NFPA704 / RiskBand / GHS / Scheme), the domain-VO validation
-when whitespace-only slips past Pydantic (-> 400), and the
-AlreadyExists defensive guard (-> 409 via dependency_overrides).
+codes), the template_id resolution at the API boundary (-> 404 on
+unknown template), the discriminated-union binding shapes (Subject /
+Asset / Run / Procedure / External), the discriminated-union
+HazardClassification shapes (NFPA704 / RiskBand / GHS / Scheme), the
+domain-VO validation when whitespace-only slips past Pydantic (-> 400),
+and the AlreadyExists defensive guard (-> 409 via dependency_overrides).
 """
 
 from uuid import UUID, uuid4
@@ -19,16 +19,25 @@ from cora.safety.aggregates.clearance import (
     CLEARANCE_TITLE_MAX_LENGTH,
     ClearanceAlreadyExistsError,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateNotBindableError,
+    ClearanceTemplateStatus,
+    clearance_template_stream_id,
+)
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features.register_clearance.route import (
     _get_handler as _get_register_clearance_handler,  # pyright: ignore[reportPrivateUsage]
 )
 
 
+def _template_id_for(code: str, facility_code: str = "cora") -> str:
+    return str(clearance_template_stream_id(facility_code, code))
+
+
 def _minimal_body() -> dict[str, object]:
     return {
-        "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "template_id": _template_id_for("ESAF"),
+        "facility_code": "cora",
         "title": "Pilot ESAF for 2-BM",
         "bindings": [{"kind": "Run", "id": str(uuid4())}],
     }
@@ -46,7 +55,7 @@ def test_post_clearances_returns_201_with_clearance_id() -> None:
 
 @pytest.mark.contract
 @pytest.mark.parametrize(
-    "kind",
+    "template_code",
     [
         "ESAF",
         "SAF",
@@ -60,9 +69,9 @@ def test_post_clearances_returns_201_with_clearance_id() -> None:
         "Form9",
     ],
 )
-def test_post_clearances_accepts_each_clearance_kind(kind: str) -> None:
+def test_post_clearances_accepts_each_seeded_template_code(template_code: str) -> None:
     body = _minimal_body()
-    body["kind"] = kind
+    body["template_id"] = _template_id_for(template_code)
     with TestClient(create_app()) as client:
         response = client.post("/clearances", json=body)
     assert response.status_code == 201, response.json()
@@ -96,8 +105,8 @@ def test_post_clearances_accepts_optional_risk_band_and_external_id() -> None:
 def test_post_clearances_accepts_declarations_with_classifications() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
-        "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "template_id": _template_id_for("ESAF"),
+        "facility_code": "cora",
         "title": "With hazards",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -128,17 +137,19 @@ def test_post_clearances_accepts_declarations_with_classifications() -> None:
 @pytest.mark.contract
 def test_post_clearances_rejects_missing_required_fields_with_422() -> None:
     with TestClient(create_app()) as client:
-        response = client.post("/clearances", json={"kind": "ESAF"})
+        response = client.post("/clearances", json={"template_id": _template_id_for("ESAF")})
     assert response.status_code == 422
 
 
 @pytest.mark.contract
-def test_post_clearances_rejects_unknown_kind_with_422() -> None:
+def test_post_clearances_returns_404_when_template_id_unseeded() -> None:
+    """An unknown template_id triggers ClearanceTemplateNotFoundError -> 404
+    at the handler boundary. Replaces the pre-9E enum-422 path."""
     body = _minimal_body()
-    body["kind"] = "Unknown"
+    body["template_id"] = str(uuid4())
     with TestClient(create_app()) as client:
         response = client.post("/clearances", json=body)
-    assert response.status_code == 422
+    assert response.status_code == 404
 
 
 @pytest.mark.contract
@@ -183,8 +194,8 @@ def test_post_clearances_rejects_unknown_binding_kind_with_422() -> None:
 def test_post_clearances_rejects_nfpa704_quadrant_above_4_with_422() -> None:
     sid = str(uuid4())
     body: dict[str, object] = {
-        "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "template_id": _template_id_for("ESAF"),
+        "facility_code": "cora",
         "title": "Bad NFPA",
         "bindings": [{"kind": "Subject", "id": sid}],
         "declarations": [
@@ -216,6 +227,25 @@ async def test_post_clearances_returns_409_when_handler_raises_already_exists() 
         response = client.post("/clearances", json=_minimal_body())
     assert response.status_code == 409
     assert "already exists" in response.json()["detail"].lower()
+
+
+@pytest.mark.contract
+async def test_post_clearances_returns_409_when_template_not_bindable() -> None:
+    """A template that resolves but is not Active (Draft / Deprecated /
+    Withdrawn) maps to 409 via the cannot_transition handler, distinct
+    from the unknown-template 404."""
+    app = create_app()
+    template_id = uuid4()
+
+    async def fake_handler(*args: object, **kwargs: object) -> UUID:
+        _ = (args, kwargs)
+        raise ClearanceTemplateNotBindableError(template_id, ClearanceTemplateStatus.DEPRECATED)
+
+    app.dependency_overrides[_get_register_clearance_handler] = lambda: fake_handler
+    with TestClient(app) as client:
+        response = client.post("/clearances", json=_minimal_body())
+    assert response.status_code == 409
+    assert "cannot be bound" in response.json()["detail"].lower()
 
 
 @pytest.mark.contract
@@ -283,8 +313,8 @@ def test_post_clearances_rejects_declaration_target_not_in_bindings_with_400() -
     sid_in_set = str(uuid4())
     sid_out_of_set = str(uuid4())
     body: dict[str, object] = {
-        "kind": "ESAF",
-        "facility_asset_id": str(uuid4()),
+        "template_id": _template_id_for("ESAF"),
+        "facility_code": "cora",
         "title": "Target out of scope",
         "bindings": [{"kind": "Subject", "id": sid_in_set}],
         "declarations": [
@@ -300,3 +330,33 @@ def test_post_clearances_rejects_declaration_target_not_in_bindings_with_400() -
         response = client.post("/clearances", json=body)
     assert response.status_code == 400
     assert "not present in the Clearance's bindings" in response.json()["detail"]
+
+
+@pytest.mark.contract
+def test_post_clearances_returns_404_when_facility_code_unseeded() -> None:
+    """An unseeded facility_code triggers ClearanceFacilityNotFoundError ->
+    404 at the handler boundary. Mirrors the bind_asset / register_supply /
+    define_clearance_template 404 contract.
+    """
+    body = _minimal_body()
+    body["facility_code"] = "ghost-facility"
+    with TestClient(create_app()) as client:
+        response = client.post("/clearances", json=body)
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert "ghost-facility" in detail
+
+
+@pytest.mark.contract
+@pytest.mark.parametrize(
+    "bad_code",
+    ["INVALID UPPER", "with space", "_underscore", "slash/value", "a" * 33],
+)
+def test_post_clearances_rejects_malformed_facility_code_with_422(bad_code: str) -> None:
+    """Pydantic anchored regex ^[a-z0-9-]{1,32}$ rejects uppercase, whitespace,
+    underscore, and over-length facility codes at the API boundary."""
+    body = _minimal_body()
+    body["facility_code"] = bad_code
+    with TestClient(create_app()) as client:
+        response = client.post("/clearances", json=body)
+    assert response.status_code == 422

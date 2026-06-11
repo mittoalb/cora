@@ -38,70 +38,29 @@ from tests.architecture.conftest import (
 _SYMBOLIC_REFERENCE = "AssetLevel.ASSEMBLY"
 
 # Files allowed to contain the bare "Assembly" / 'Assembly' literal.
-# Today the only legitimate carrier is this fitness file itself (the
-# docstring and the patterns variable both reference the literal).
-# When Sub-Stage B ships the Assembly aggregate, that aggregate's
-# state.py / events.py / projector / slices each become candidates
-# for this allow-list. Add them one at a time at gate review.
+# This fitness file itself names the renamed token in its docstring;
+# the Assembly aggregate's `__init__.py` (re-exports), `read.py`
+# (event-type discriminators), `handler.py` files (event_type strings
+# passed to load_stream), plus a handful of integration tests and the
+# projection unit test that assert against the discriminator string
+# each legitimately carry the literal. Entries here MUST contain at
+# least one match for `"Assembly"` / `'Assembly'`; the meta-test
+# `test_allow_list_entries_actually_contain_assembly_literal` catches
+# stale entries.
 _ALLOW_RELATIVE_PATHS: frozenset[str] = frozenset(
     {
         "apps/api/tests/architecture/test_no_assembly_asset_level_literal.py",
-        # The Assembly aggregate legitimately carries the "Assembly"
-        # token in event_type discriminators (`case "AssemblyDefined":`),
-        # docstrings, and class names. Added at v1 ship of the
-        # aggregate; widen the list as new sites land at gate review.
-        "apps/api/src/cora/equipment/_template_slot_body.py",
-        "apps/api/src/cora/equipment/_template_wire_body.py",
-        "apps/api/src/cora/equipment/aggregates/assembly/_content_hash.py",
         "apps/api/src/cora/equipment/aggregates/assembly/__init__.py",
-        "apps/api/src/cora/equipment/aggregates/assembly/events.py",
-        "apps/api/src/cora/equipment/aggregates/assembly/evolver.py",
         "apps/api/src/cora/equipment/aggregates/assembly/read.py",
-        "apps/api/src/cora/equipment/aggregates/assembly/state.py",
-        "apps/api/src/cora/equipment/features/define_assembly/__init__.py",
-        "apps/api/src/cora/equipment/features/define_assembly/command.py",
-        "apps/api/src/cora/equipment/features/define_assembly/context.py",
-        "apps/api/src/cora/equipment/features/define_assembly/decider.py",
         "apps/api/src/cora/equipment/features/define_assembly/handler.py",
-        "apps/api/src/cora/equipment/features/define_assembly/route.py",
-        "apps/api/src/cora/equipment/features/define_assembly/tool.py",
-        "apps/api/src/cora/equipment/features/deprecate_assembly/__init__.py",
-        "apps/api/src/cora/equipment/features/deprecate_assembly/command.py",
-        "apps/api/src/cora/equipment/features/deprecate_assembly/decider.py",
         "apps/api/src/cora/equipment/features/deprecate_assembly/handler.py",
-        "apps/api/src/cora/equipment/features/deprecate_assembly/route.py",
-        "apps/api/src/cora/equipment/features/deprecate_assembly/tool.py",
-        "apps/api/src/cora/equipment/features/version_assembly/__init__.py",
-        "apps/api/src/cora/equipment/features/version_assembly/command.py",
-        "apps/api/src/cora/equipment/features/version_assembly/context.py",
-        "apps/api/src/cora/equipment/features/version_assembly/decider.py",
         "apps/api/src/cora/equipment/features/version_assembly/handler.py",
-        "apps/api/src/cora/equipment/features/version_assembly/route.py",
-        "apps/api/src/cora/equipment/features/version_assembly/tool.py",
-        "apps/api/src/cora/equipment/projections/assembly_summary.py",
-        "apps/api/tests/contract/test_assemblies_endpoint.py",
-        "apps/api/tests/contract/test_assembly_deprecate_endpoint.py",
-        "apps/api/tests/contract/test_assembly_versions_endpoint.py",
-        "apps/api/tests/contract/test_define_assembly_mcp_tool.py",
-        "apps/api/tests/contract/test_deprecate_assembly_mcp_tool.py",
-        "apps/api/tests/contract/test_version_assembly_mcp_tool.py",
         "apps/api/tests/integration/test_define_assembly_handler_postgres.py",
         "apps/api/tests/integration/test_deprecate_assembly_handler_postgres.py",
         "apps/api/tests/integration/test_register_fixture_handler_postgres.py",
         "apps/api/tests/integration/test_version_assembly_handler_postgres.py",
-        "apps/api/tests/unit/equipment/test_define_assembly_decider_properties.py",
-        "apps/api/tests/unit/equipment/test_deprecate_assembly_decider.py",
-        "apps/api/tests/unit/equipment/test_deprecate_assembly_decider_properties.py",
-        "apps/api/tests/unit/equipment/test_version_assembly_decider.py",
-        "apps/api/tests/unit/equipment/test_version_assembly_decider_properties.py",
-        "apps/api/tests/unit/equipment/test_assembly_content_hash.py",
         "apps/api/tests/unit/equipment/test_assembly_events.py",
-        "apps/api/tests/unit/equipment/test_assembly_evolver.py",
-        "apps/api/tests/unit/equipment/test_assembly_state.py",
         "apps/api/tests/unit/equipment/test_assembly_summary_projection.py",
-        "apps/api/tests/unit/equipment/test_assembly_template_slot.py",
-        "apps/api/tests/unit/equipment/test_assembly_template_wire.py",
-        "apps/api/tests/unit/equipment/test_define_assembly_decider.py",
     }
 )
 
@@ -204,4 +163,29 @@ def test_no_assembly_string_literal_in_tracked_python() -> None:
         f"Found {len(hits)} bare 'Assembly' literal(s) outside the "
         f"allow-list; rename to 'Component' or widen the allow-list at "
         f"gate review.\n" + "\n".join(f"  {p}:{n}: {line}" for p, n, line in hits)
+    )
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize("relative", sorted(_ALLOW_RELATIVE_PATHS))
+def test_allow_list_entries_actually_contain_assembly_literal(relative: str) -> None:
+    """Every allow-list entry MUST carry at least one `"Assembly"` /
+    `'Assembly'` literal hit. Catches preemptive or speculative entries
+    whose file no longer (or never did) carry the literal, keeping the
+    allow-list a ratchet over real exemptions rather than a graveyard.
+
+    This fitness file is the only intentional exception: its module
+    docstring names the renamed token, but the bare literal patterns
+    only appear inside `_LITERAL_PATTERNS` via string concatenation,
+    so they never match the literal substring detector.
+    """
+    if relative == "apps/api/tests/architecture/test_no_assembly_asset_level_literal.py":
+        return  # self-referencing fitness file; docstring names the token
+    repo_root = Path(__file__).resolve().parents[4]
+    path = repo_root / relative
+    assert path.is_file(), f"{relative} no longer exists; prune from _ALLOW_RELATIVE_PATHS"
+    text = path.read_text(encoding="utf-8")
+    assert any(pattern in text for pattern in _LITERAL_PATTERNS), (
+        f"{relative} is on _ALLOW_RELATIVE_PATHS but contains no "
+        f"`\"Assembly\"` / `'Assembly'` literal; prune the stale entry."
     )

@@ -100,7 +100,7 @@ carried in event payloads.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Final, Literal
 from uuid import UUID
 
 from cora.shared.bounded_text import bounded_name, validate_bounded_text
@@ -143,20 +143,20 @@ RUN_PINNED_CALIBRATIONS_MAX_ENTRIES = 64
 RUN_EXTERNAL_REF_SCHEME_MAX_LENGTH = IDENTIFIER_SCHEME_MAX_LENGTH
 RUN_EXTERNAL_REF_ID_MAX_LENGTH = IDENTIFIER_VALUE_MAX_LENGTH
 
-# RunReading polymorphic logbook constants.
+# Observation polymorphic logbook constants.
 READING_CHANNEL_NAME_MAX_LENGTH = 255
 READING_UNITS_MAX_LENGTH = 64
-LOGBOOK_KIND_READING = "reading"
-"""Discriminator string for the Run's reading logbook.
+LOGBOOK_KIND_OBSERVATION: Final = "observation"
+"""Discriminator string for the Run's observation logbook.
 
-Used as the `kind` value on `RunReadingLogbookOpened` events. One Run
-has at most one reading logbook (lazy open-on-first-write); future
+Used as the `kind` value on `RunObservationLogbookOpened` events. One Run
+has at most one observation logbook (lazy open-on-first-write); future
 distinct logbook kinds (for example: hazard events, operator-action
 audit) would land as separate constants and separate state fields,
 not as additional values for the same kind."""
 
 # Closed enum for the SOSA-aligned `sampling_procedure` discriminator
-# field on RunReading rows. Values are Bluesky-aligned operator vocabulary;
+# field on Observation rows. Values are Bluesky-aligned operator vocabulary;
 # additions land as code edits, not migrations (table column is plain
 # TEXT, not a CHECK-constrained enum, per [[project_run_reading_design]]).
 # 6f-5b shipped "baseline" (snapshot at run boundary). 6f-5c adds
@@ -165,12 +165,12 @@ not as additional values for the same kind."""
 SamplingProcedure = Literal["baseline", "monitor"]
 SAMPLING_PROCEDURE_VALUES: frozenset[str] = frozenset({"baseline", "monitor"})
 
-# Schema declaration for the reading logbook. Documentation-grade per
+# Schema declaration for the observation logbook. Documentation-grade per
 # [[project_logbook_entry_storage]]: declares the entry-row column
 # shape so projections can read entry shape uniformly without per-BC
 # adapters. Lives here (not in a slice module) because the schema is
 # attached to the Run aggregate, not to one specific writer.
-READING_LOGBOOK_SCHEMA = LogbookSchema(
+OBSERVATION_LOGBOOK_SCHEMA = LogbookSchema(
     fields={
         "channel_name": LogbookFieldSpec(
             type="string",
@@ -178,7 +178,7 @@ READING_LOGBOOK_SCHEMA = LogbookSchema(
         ),
         "value": LogbookFieldSpec(
             type="float",
-            description="Scalar reading value. NaN and Infinity rejected at write time.",
+            description="Scalar observation value. NaN and Infinity rejected at write time.",
         ),
         "units": LogbookFieldSpec(
             type="string",
@@ -206,9 +206,9 @@ READING_LOGBOOK_SCHEMA = LogbookSchema(
         ),
     },
     description=(
-        "Per-Run sensor and motor reading entries, polymorphic by sampling_procedure "
-        "(baseline | monitor | future). One row per reading; rows write directly to "
-        "entries_run_readings via the ReadingStore port (no per-row event on the "
+        "Per-Run sensor and motor observation entries, polymorphic by sampling_procedure "
+        "(baseline | monitor | future). One row per observation; rows write directly to "
+        "entries_run_observations via the ObservationStore port (no per-row event on the "
         "Run stream). See [[project_run_reading_design]]."
     ),
 )
@@ -941,7 +941,7 @@ class RunTruncateReason:
 
 
 class InvalidChannelNameError(ValueError):
-    """The supplied reading channel_name is empty, whitespace-only, or too long.
+    """The supplied observation channel_name is empty, whitespace-only, or too long.
 
     Validated at the API boundary via Pydantic min_length / max_length,
     AND defensively at the handler via the `ChannelName` VO so direct
@@ -959,8 +959,8 @@ class InvalidChannelNameError(ValueError):
         self.value = value
 
 
-class InvalidReadingValueError(ValueError):
-    """The supplied reading value is NaN or Infinity.
+class InvalidObservationValueError(ValueError):
+    """The supplied observation value is NaN or Infinity.
 
     Pydantic catches this at the API boundary via `allow_inf_nan=False`;
     this error class exists for direct in-process callers (sagas, tests)
@@ -997,12 +997,12 @@ class InvalidSamplingProcedureError(ValueError):
         self.allowed = allowed
 
 
-class RunReadingLogbookClosedError(Exception):
-    """Attempted to append a reading to a Run in a terminal state.
+class RunObservationLogbookClosedError(Exception):
+    """Attempted to append an observation to a Run in a terminal state.
 
     The Run's terminal status (Completed | Aborted | Stopped | Truncated)
-    implicitly closes the reading logbook: post-terminal readings are
-    rejected. There is no separate `RunReadingLogbookClosed` event today;
+    implicitly closes the observation logbook: post-terminal observations are
+    rejected. There is no separate `RunObservationLogbookClosed` event today;
     Run.status is the close signal (see [[project_run_reading_design]]
     §Decision for the lazy-open + status-as-close-signal rationale).
 
@@ -1011,8 +1011,8 @@ class RunReadingLogbookClosedError(Exception):
 
     def __init__(self, run_id: UUID, current_status: "RunStatus") -> None:
         super().__init__(
-            f"Run {run_id} reading logbook is closed: Run is in terminal "
-            f"status {current_status.value}; readings can only be appended "
+            f"Run {run_id} observation logbook is closed: Run is in terminal "
+            f"status {current_status.value}; observations can only be appended "
             f"while Run is in {RunStatus.RUNNING.value} or {RunStatus.HELD.value}"
         )
         self.run_id = run_id
@@ -1025,7 +1025,7 @@ class RunReadingLogbookClosedError(Exception):
 )
 @dataclass(frozen=True)
 class ChannelName:
-    """Sensor or motor identifier on a RunReading entry. Trimmed; 1-255 chars.
+    """Sensor or motor identifier on a Observation entry. Trimmed; 1-255 chars.
 
     Operator-meaningful free-form string (for example `T_sample`,
     `motor_x`, `ring_current`). No regex or vocabulary constraint
@@ -1088,7 +1088,7 @@ class Run:
     `trigger_source` is operator-supplied free text
     capturing what initiated this Run (operator-manual, scheduler,
     prior-run, automation). Optional. Future Decision-BC integration
-    may populate this from `DecisionReasoning.entries` references.
+    may populate this from `Inference.entries` references.
     """
 
     id: UUID
@@ -1100,12 +1100,12 @@ class Run:
     override_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     effective_parameters: dict[str, Any] = field(default_factory=dict[str, Any])
     trigger_source: str | None = None
-    # lazily populated when first reading is appended
-    # (RunReadingLogbookOpened event sets this field). None on Runs
-    # that never recorded readings; legacy streams without the field fold
+    # lazily populated when first observation is appended
+    # (RunObservationLogbookOpened event sets this field). None on Runs
+    # that never recorded observations; legacy streams without the field fold
     # cleanly with this default. See [[project_run_reading_design]]
     # for the lazy-open rationale.
-    reading_logbook_id: UUID | None = None
+    observation_logbook_id: UUID | None = None
     # anti-corruption refs to upstream-deferred concepts
     # CORA does NOT model as aggregates (proposal / btr / lab_visit /
     # session). Mirrors Safety BC's ExternalBinding shape. Populated at
@@ -1133,7 +1133,7 @@ class Run:
     # `adjustment_count` is the cumulative count of accepted adjust
     # operations. Defaults to None / None / 0 so legacy streams without
     # the fields fold cleanly (forward-compat additive-state pattern,
-    # mirrors reading_logbook_id / campaign_id precedent). Per-
+    # mirrors observation_logbook_id / campaign_id precedent). Per-
     # adjustment audit history lives on the event log; aggregate state
     # stays slim.
     last_adjusted_at: datetime | None = None
@@ -1146,7 +1146,7 @@ class Run:
     # transition arm in the evolver (RunHeld / RunResumed /
     # RunCompleted / RunAborted / RunStopped / RunTruncated /
     # RunAdjusted / RunAddedToCampaign / RunRemovedFromCampaign /
-    # RunReadingLogbookOpened) preserves `prior.pinned_calibration_ids`
+    # RunObservationLogbookOpened) preserves `prior.pinned_calibration_ids`
     # verbatim. The AsShot anchor lets downstream consumers (Dataset
     # reconstruction in the Data BC, RunDebriefer AI advisories) answer "what
     # calibration was this scan acquired against?" deterministically

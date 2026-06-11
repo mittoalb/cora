@@ -135,6 +135,7 @@ from cora.infrastructure.idempotency_pruner import idempotency_pruner_lifespan
 from cora.infrastructure.observability import configure_tracing, instrument_app
 from cora.infrastructure.projection import (
     ProjectionRegistry,
+    drain_projections,
     projection_worker_lifespan,
 )
 from cora.operation import (
@@ -164,9 +165,10 @@ from cora.safety import (
     register_safety_projections,
     register_safety_routes,
     register_safety_tools,
+    seed_clearance_templates,
     wire_safety,
 )
-from cora.safety.adapters import PostgresClearanceLookup
+from cora.safety.adapters import PostgresClearanceLookup, PostgresClearanceTemplateLookup
 from cora.subject import (
     SubjectHandlers,
     register_subject_projections,
@@ -415,6 +417,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             deps, teardown = await build_kernel(
                 authorize_factory=build_authorize,
                 clearance_lookup_factory=PostgresClearanceLookup,
+                clearance_template_lookup_factory=PostgresClearanceTemplateLookup,
                 caution_lookup_factory=PostgresCautionLookup,
                 capability_lookup_factory=PostgresCapabilityLookup,
                 supply_lookup_factory=PostgresSupplyLookup,
@@ -525,6 +528,33 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             await seed_run_debriefer_agent(deps)
             # same shape for CautionDrafter.
             await seed_caution_drafter_agent(deps)
+
+            # Drain Federation-owned projections so the Postgres-backed
+            # FacilityLookup.list_active() resolves the self-Facility row
+            # written by bootstrap_federation above. The projection worker
+            # has not started yet (the async-with on
+            # projection_worker_lifespan is below); without this synchronous
+            # drain, seed_clearance_templates would see an empty active
+            # facility list on first Postgres boot and silently seed zero
+            # templates. The in-memory adapter does not need the drain
+            # (bootstrap_federation seeds it inline) but the call is a
+            # cheap no-op there.
+            federation_only_registry = ProjectionRegistry()
+            register_federation_projections(federation_only_registry, deps)
+            if deps.pool is not None:
+                await drain_projections(deps.pool, federation_only_registry, deadline_seconds=5.0)
+
+            # Safety BC auto-seed: one ClearanceTemplate per
+            # (Active facility, form-type) so register_clearance can
+            # bind to a Draft -> Active template without operator
+            # ceremony at pilot start. Reads FacilityLookup.list_active
+            # for the set of facilities to seed; the Federation BC's
+            # bootstrap above wrote the self-Facility row and the
+            # drain_projections call above ensures the Postgres
+            # projection is current. Idempotent via stream-derivation
+            # per (facility, template-code) + ConcurrencyError swallow.
+            # Safe to re-run forever.
+            await seed_clearance_templates(deps)
 
             try:
                 async with (

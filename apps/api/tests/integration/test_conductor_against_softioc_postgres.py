@@ -6,14 +6,14 @@ Postgres. Constructs the Conductor with:
   - `EpicsCaControlPort` against the shared softIOC subprocess
     fixture (per [[project_control_port_test_isolation_research]])
   - real `start_procedure` / `complete_procedure` / `abort_procedure` /
-    `append_procedure_steps` handlers bound against a real
-    `PostgresEventStore` + `PostgresStepStore` (per-test database
+    `append_activities` handlers bound against a real
+    `PostgresEventStore` + `PostgresActivityStore` (per-test database
     cloned from the migrated template)
 
 Walks a procedure with mixed setpoint + verify-readback + check
 steps; verifies `ConductorResult` shape + Procedure FSM transition
-to Completed + ProcedureStep entries landed in
-`entries_operation_procedure_steps` with the expected payload shape.
+to Completed + Activity entries landed in
+`entries_operation_procedure_activities` with the expected payload shape.
 
 Skipped under HTTP / MCP today (those are exercised at the contract
 tier against the in-process InMemoryControlPort wire-up). End-to-end
@@ -32,7 +32,7 @@ import pytest
 from cora.infrastructure.event_envelope import to_new_event
 from cora.operation.adapters.epics_ca_control_port import EpicsCaControlPort
 from cora.operation.aggregates.procedure import (
-    PostgresStepStore,
+    PostgresActivityStore,
     ProcedureRegistered,
     event_type_name,
     to_payload,
@@ -45,7 +45,7 @@ from cora.operation.conductor import (
     WithinToleranceCriterion,
 )
 from cora.operation.features.abort_procedure import bind as bind_abort
-from cora.operation.features.append_procedure_steps import bind as bind_append
+from cora.operation.features.append_activities import bind as bind_append
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.start_procedure import bind as bind_start
 from tests.integration._helpers import build_postgres_deps
@@ -97,7 +97,7 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
 
     Pins the whole stack: the EpicsCaControlPort talks CA to the
     softIOC subprocess; the Conductor records each step via the real
-    PostgresStepStore; the FSM transitions Defined -> Running ->
+    PostgresActivityStore; the FSM transitions Defined -> Running ->
     Completed via the real handlers + real PostgresEventStore.
     """
     procedure_id = UUID("01900000-0000-7000-8000-0000020c0100")
@@ -121,7 +121,7 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     start_handler = bind_start(deps)
     complete_handler = bind_complete(deps)
     abort_handler = bind_abort(deps)
@@ -161,7 +161,7 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
         rows = await conn.fetch(
             """
             SELECT step_kind, payload
-            FROM entries_operation_procedure_steps
+            FROM entries_operation_procedure_activities
             WHERE procedure_id = $1
             ORDER BY sampled_at, event_id
             """,
@@ -219,7 +219,7 @@ async def test_conductor_aborts_procedure_when_setpoint_fails_against_softioc(
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     control_port = EpicsCaControlPort(default_timeout_s=0.3)
     conductor = Conductor(
         control_port=control_port,
@@ -288,7 +288,7 @@ async def test_conductor_completes_procedure_with_equals_check_against_softioc(
         ],
     )
     await _seed_defined_procedure(deps.event_store, procedure_id)
-    step_store = PostgresStepStore(db_pool)
+    step_store = PostgresActivityStore(db_pool)
     control_port = EpicsCaControlPort()
     conductor = Conductor(
         control_port=control_port,

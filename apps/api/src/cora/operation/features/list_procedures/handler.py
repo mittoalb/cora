@@ -8,7 +8,7 @@ column (singular `target_asset_id` query field matched against the
 plural array). Cursor pagination on `(registered_at, procedure_id)`.
 
 `last_status_changed_at` / `last_status_reason` / `interrupted_at` /
-`steps_logbook_id` flow through to the result row: nullable until the
+`activity_logbook_id` flow through to the result row: nullable until the
 respective transition / lazy-open lands.
 
 BOLA: command-name gating only. Per-row scoping deferred until ReBAC.
@@ -42,7 +42,7 @@ class ProcedureSummaryItem:
     target_asset_ids: list[UUID]
     parent_run_id: UUID | None
     status: str
-    steps_logbook_id: UUID | None
+    activity_logbook_id: UUID | None
     registered_at: datetime
     last_status_changed_at: datetime | None
     last_status_reason: str | None
@@ -72,7 +72,7 @@ class Handler(Protocol):
 
 _SELECT_COLUMNS = (
     "procedure_id, name, kind, target_asset_ids, parent_run_id, status, "
-    "steps_logbook_id, registered_at, "
+    "activity_logbook_id, registered_at, "
     "last_status_changed_at, last_status_reason, interrupted_at"
 )
 
@@ -85,7 +85,7 @@ def _row_to_item(row: Any) -> ProcedureSummaryItem:
         target_asset_ids=list(row["target_asset_ids"]),
         parent_run_id=row["parent_run_id"],
         status=str(row["status"]),
-        steps_logbook_id=row["steps_logbook_id"],
+        activity_logbook_id=row["activity_logbook_id"],
         registered_at=row["registered_at"],
         last_status_changed_at=row["last_status_changed_at"],
         last_status_reason=(

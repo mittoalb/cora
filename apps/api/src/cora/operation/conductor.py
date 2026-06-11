@@ -8,7 +8,7 @@ CheckStep`), dispatches each through the right primitive
 `ActionRegistry` for actions, `ControlPort.read` followed by
 criterion evaluation for checks), and records every outcome as a
 step entry in the Procedure's steps logbook via the existing
-`append_procedure_steps` handler.
+`append_activities` handler.
 
 The Conductor is a single-process asyncio walker; per-call state
 lives on the returned `ConductorResult`. Substrate-agnostic on the
@@ -78,10 +78,10 @@ The executor arc continues; the following land in subsequent iters:
 
 ## Why call the handler not the store directly
 
-`append_procedure_steps` is the slice handler that owns lazy-open of
+`append_activities` is the slice handler that owns lazy-open of
 the steps logbook + status guard (Procedure must be `Running`) +
 authorization. The Conductor calls the handler, not the underlying
-`StepStore`, so those concerns stay caged inside the existing slice
+`ActivityStore`, so those concerns stay caged inside the existing slice
 and the Conductor stays a thin orchestrator. The dependency is the
 handler's `Handler` Protocol, not a concrete binding, so tests inject
 a fake without standing up the full handler machinery.
@@ -106,12 +106,12 @@ from cora.operation.aggregates.procedure import (
 from cora.operation.errors import CheckFailedError, UnauthorizedError, UnknownActionError
 from cora.operation.features.abort_procedure.command import AbortProcedure
 from cora.operation.features.abort_procedure.handler import Handler as AbortProcedureHandler
-from cora.operation.features.append_procedure_steps.command import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities.command import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps.handler import (
-    Handler as AppendProcedureStepsHandler,
+from cora.operation.features.append_activities.handler import (
+    Handler as AppendProcedureActivitiesHandler,
 )
 from cora.operation.features.complete_procedure.command import CompleteProcedure
 from cora.operation.features.complete_procedure.handler import (
@@ -185,7 +185,7 @@ _SOURCE_KIND_LIFECYCLE = "lifecycle"
 came from the surrounding lifecycle handlers (start_procedure /
 complete_procedure / abort_procedure) rather than a step in the
 caller-supplied sequence. Lifecycle failures do not record a
-ProcedureStep entry; the failure surfaces only on the result."""
+Activity entry; the failure surfaces only on the result."""
 
 _LIFECYCLE_TARGET_START = "start"
 _LIFECYCLE_TARGET_COMPLETE = "complete"
@@ -417,8 +417,8 @@ class Conductor:
     `execute` per Procedure execution. Per-call state lives on the
     returned `ConductorResult`.
 
-    The Conductor calls the `append_procedure_steps` handler (not the
-    underlying `StepStore`) so lazy-open + status guard + authorization
+    The Conductor calls the `append_activities` handler (not the
+    underlying `ActivityStore`) so lazy-open + status guard + authorization
     stay inside that slice. See module docstring for failure mode +
     out-of-scope.
     """
@@ -427,7 +427,7 @@ class Conductor:
         self,
         *,
         control_port: ControlPort,
-        append_step: AppendProcedureStepsHandler,
+        append_step: AppendProcedureActivitiesHandler,
         clock: Clock,
         id_generator: IdGenerator,
         action_registry: ActionRegistry | None = None,
@@ -844,7 +844,7 @@ class Conductor:
         if message is not None:
             payload["message"] = message
         sampled_at = self._clock.now()
-        entry = ProcedureStepInput(
+        entry = ActivityInput(
             event_id=self._id_generator.new_id(),
             step_kind=step_kind,
             payload=payload,
@@ -852,7 +852,7 @@ class Conductor:
             occurred_at=sampled_at,
         )
         await self._append_step(
-            AppendProcedureSteps(procedure_id=envelope.procedure_id, entries=(entry,)),
+            AppendProcedureActivities(procedure_id=envelope.procedure_id, entries=(entry,)),
             principal_id=envelope.principal_id,
             correlation_id=envelope.correlation_id,
             causation_id=envelope.causation_id,

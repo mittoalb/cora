@@ -182,7 +182,7 @@ _OPERATIONS_COMMANDS: frozenset[str] = frozenset(
         "RegisterProcedure",
         "StartProcedure",
         "CompleteProcedure",
-        "AppendProcedureSteps",
+        "AppendProcedureActivities",
         "StartRun",
         "StopRun",
         "AbortRun",
@@ -201,7 +201,7 @@ _AGENT_COMMANDS: frozenset[str] = frozenset(
     {
         "RegisterDecision",
         "RateDecision",
-        "AppendReasoningEntries",
+        "AppendInferences",
     }
 )
 
@@ -323,11 +323,11 @@ def facility_id_prefix(
     # Trust shape (fixture-owned canonical UUIDs).
     # define_conduit consumes FOUR slots from the id queue:
     #   1. conduit aggregate id
-    #   2. traversals_logbook_id (auto-opened logbook id; see
+    #   2. verdict_logbook_id (auto-opened logbook id; see
     #      conduit/handler.py line 96 — distinct from the event id)
     #   3. ConduitDefined event id
     #   4. LogbookOpened event id
-    # See conduit/state.py docstring for why the traversals logbook
+    # See conduit/state.py docstring for why the verdicts logbook
     # auto-opens at conduit-creation.
     ids.extend(
         [

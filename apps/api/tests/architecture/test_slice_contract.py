@@ -34,7 +34,7 @@ _QUERY_SLICE_FILES: frozenset[str] = frozenset(
 # Entry-append shape, hoisted from WIP_SLICES at n=3. Identical to
 # command-slice file-set minus `decider.py`:
 # the handler writes to a typed entries store via a per-category
-# port (ReasoningStore / ReadingStore / StepStore) rather than
+# port (InferenceStore / ObservationStore / ActivityStore) rather than
 # folding events through a pure decider. New entry-append slices
 # must be added to `_ENTRY_APPEND_SLICES` below.
 _ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
@@ -42,9 +42,9 @@ _ENTRY_APPEND_SLICE_FILES: frozenset[str] = frozenset(
 )
 _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
     {
-        "cora.decision.features.append_reasoning_entries",
-        "cora.run.features.append_run_readings",
-        "cora.operation.features.append_procedure_steps",
+        "cora.decision.features.append_inferences",
+        "cora.run.features.append_observations",
+        "cora.operation.features.append_activities",
     }
 )
 # Orchestration slices: command-shaped but no decider; the handler
@@ -52,7 +52,7 @@ _ENTRY_APPEND_SLICES: frozenset[str] = frozenset(
 # slices. Same file set as entry-append (no decider.py).
 _ORCHESTRATION_SLICES: frozenset[str] = frozenset(
     {
-        # Conductor entry: delegates start_procedure / append_procedure_steps /
+        # Conductor entry: delegates start_procedure / append_activities /
         # complete_procedure / abort_procedure handlers; no direct event
         # emission. See [[project_edge_runtime_design]].
         "cora.operation.features.conduct_procedure",

@@ -78,8 +78,9 @@ def _ref(status: str) -> ClearanceReference:
     return ClearanceReference(
         clearance_id=uuid4(),
         status=status,
-        kind="ESAF",
-        facility_asset_id=uuid4(),
+        template_id=uuid4(),
+        template_code="ESAF",
+        facility_code="aps",
     )
 
 

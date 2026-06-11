@@ -233,7 +233,7 @@ def test_from_stored_raises_on_unknown_event_type() -> None:
 
 
 @pytest.mark.unit
-def test_to_payload_includes_phase_7e_fields_when_set() -> None:
+def test_to_payload_includes_producing_run_end_state_and_intent_when_set() -> None:
     """When Run is captured at registration, payload carries the
     end_state and intent."""
     event = DatasetRegistered(
@@ -259,12 +259,14 @@ def test_to_payload_includes_phase_7e_fields_when_set() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
+def test_from_stored_legacy_dataset_registered_folds_with_run_end_state_and_intent_defaults() -> (
+    None
+):
     """Backward compat: legacy DatasetRegistered events (without
     producing_run_end_state or intent in the payload) fold cleanly
     via payload.get defaults: end_state=None, intent='Trial'."""
     dataset_id = uuid4()
-    pre_7e_payload: dict[str, object] = {
+    legacy_payload_without_run_end_state: dict[str, object] = {
         "dataset_id": str(dataset_id),
         "name": "D",
         "uri": "s3://b/k",
@@ -286,7 +288,7 @@ def test_from_stored_pre_7e_dataset_registered_folds_with_defaults() -> None:
         version=1,
         event_type="DatasetRegistered",
         schema_version=1,
-        payload=pre_7e_payload,
+        payload=legacy_payload_without_run_end_state,
         correlation_id=uuid4(),
         causation_id=None,
         occurred_at=_NOW,
@@ -504,13 +506,13 @@ def test_to_payload_serializes_empty_used_calibration_ids_as_empty_list() -> Non
 
 
 @pytest.mark.unit
-def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibration_ids() -> None:
+def test_from_stored_legacy_dataset_registered_folds_with_empty_used_calibration_ids() -> None:
     """Backward compat: legacy DatasetRegistered events (without
     used_calibration_ids in the payload) fold cleanly via
     `payload.get("used_calibration_ids", [])` returning an empty list
     that becomes an empty tuple on the event dataclass."""
     dataset_id = uuid4()
-    pre_12c_payload: dict[str, object] = {
+    legacy_payload_without_used_calibration_ids: dict[str, object] = {
         "dataset_id": str(dataset_id),
         "name": "D",
         "uri": "s3://b/k",
@@ -526,7 +528,7 @@ def test_from_stored_pre_12c_dataset_registered_folds_with_empty_used_calibratio
         "intent": "Trial",
         # NOTE: used_calibration_ids deliberately ABSENT
     }
-    stored = _stored("DatasetRegistered", pre_12c_payload)
+    stored = _stored("DatasetRegistered", legacy_payload_without_used_calibration_ids)
     event = from_stored(stored)
     assert isinstance(event, DatasetRegistered)
     assert event.used_calibration_ids == ()

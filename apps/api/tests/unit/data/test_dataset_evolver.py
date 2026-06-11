@@ -455,10 +455,10 @@ def test_register_genesis_populates_used_calibration_ids_as_frozenset() -> None:
 
 
 @pytest.mark.unit
-def test_legacy_pre_12c_register_folds_with_empty_used_calibration_ids() -> None:
-    """Pre-12c DatasetRegistered events have no used_calibration_ids
+def test_legacy_dataset_registered_without_used_calibration_ids_folds_to_empty_frozenset() -> None:
+    """Legacy DatasetRegistered events have no used_calibration_ids
     field (defaults to empty tuple via the additive-state pattern).
-    They MUST fold to an empty frozenset — additive backward-compat
+    They MUST fold to an empty frozenset; additive backward-compat
     contract mirrors derived_from / producing_run_end_state / intent
     precedent."""
     event = DatasetRegistered(

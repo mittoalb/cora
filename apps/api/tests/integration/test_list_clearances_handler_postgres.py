@@ -5,7 +5,7 @@ projection worker via the integration helper, then queries
 list_clearances and verifies:
   - all 3 surface in the projection
   - status filter narrows correctly
-  - facility_asset_id filter narrows correctly
+  - facility_code filter narrows correctly
   - subject-binding filter narrows correctly via UUID[] GIN
   - cursor pagination produces disjoint pages whose union is complete
 """
@@ -19,10 +19,13 @@ import pytest
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.safety._projections import register_safety_projections
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     SubjectBinding,
 )
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import (
     list_clearances,
     register_clearance,
@@ -47,21 +50,44 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 @pytest.mark.integration
 async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool) -> None:
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(40)])
-    fid_aps = uuid4()
-    fid_als = uuid4()
+    fc_aps = "aps"
+    fc_als = "als"
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc_aps, kind="Site", status="Active"
+    )
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc_als, kind="Site", status="Active"
+    )
+    # Templates: APS-ESAF, ALS-ESAF, APS-SAF. Seed via the in-memory
+    # ClearanceTemplateLookup since build_postgres_deps doesn't trigger
+    # the lifespan auto-seed.
+    esaf_aps_tid = ClearanceTemplateId(clearance_template_stream_id(fc_aps, "ESAF"))
+    esaf_als_tid = ClearanceTemplateId(clearance_template_stream_id(fc_als, "ESAF"))
+    saf_aps_tid = ClearanceTemplateId(clearance_template_stream_id(fc_aps, "SAF"))
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=esaf_aps_tid, facility_code=fc_aps, code="ESAF", status="Active", version=1
+    )
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=esaf_als_tid, facility_code=fc_als, code="ESAF", status="Active", version=1
+    )
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=saf_aps_tid, facility_code=fc_aps, code="SAF", status="Active", version=1
+    )
     sid_target = uuid4()  # Subject we'll filter on
 
     # Seed 3 Clearances:
-    #   c1: kind=ESAF, facility=APS, status=Defined, risk_band=None, binds Subject sid_target
-    #   c2: kind=ESAF, facility=ALS, status=Submitted (after submit), risk_band=Yellow,
+    #   c1: template=ESAF/APS, status=Defined, risk_band=None,
+    #         binds Subject sid_target
+    #   c2: template=ESAF/ALS, status=Submitted (after submit), risk_band=Yellow,
     #         binds Subject sid_target + a different Subject
-    #   c3: kind=SAF,  facility=APS, status=Defined, risk_band=Green, binds different Subject only
+    #   c3: template=SAF/APS, status=Defined, risk_band=Green,
+    #         binds different Subject only
     sid_other = uuid4()
 
     c1_id = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=fid_aps,
+            template_id=esaf_aps_tid,
+            facility_code=fc_aps,
             title="C1",
             bindings=frozenset({SubjectBinding(subject_id=sid_target)}),
         ),
@@ -71,8 +97,8 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
 
     c2_id = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=fid_als,
+            template_id=esaf_als_tid,
+            facility_code=fc_als,
             title="C2",
             bindings=frozenset(
                 {
@@ -94,8 +120,8 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
 
     c3_id = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.SAF,
-            facility_asset_id=fid_aps,
+            template_id=saf_aps_tid,
+            facility_code=fc_aps,
             title="C3",
             bindings=frozenset({SubjectBinding(subject_id=sid_other)}),
             risk_band=RiskBand.GREEN,
@@ -129,9 +155,9 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     assert c1_id not in submitted_ids
     assert c3_id not in submitted_ids
 
-    # facility_asset_id filter narrows to APS-issued (c1 + c3)
+    # facility_code filter narrows to APS-issued (c1 + c3)
     page = await handler(
-        ListClearances(facility_asset_id=fid_aps),
+        ListClearances(facility_code=fc_aps),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -151,9 +177,9 @@ async def test_list_clearances_full_filter_matrix_postgres(db_pool: asyncpg.Pool
     assert c2_id in matched
     assert c3_id not in matched
 
-    # kind=SAF narrows to c3 only
+    # template_code="SAF" narrows to c3 only
     page = await handler(
-        ListClearances(kind="SAF"),
+        ListClearances(template_code="SAF"),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -200,13 +226,20 @@ async def test_approved_with_validity_window_overrides_updates_projection(
     )
 
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code="aps", kind="Site", status="Active"
+    )
+    esaf_tid = ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF"))
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=esaf_tid, facility_code="aps", code="ESAF", status="Active", version=1
+    )
     valid_from = datetime(2026, 6, 1, tzinfo=UTC)
     valid_until = datetime(2026, 9, 1, tzinfo=UTC)
 
     cid = await register_clearance.bind(deps)(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=esaf_tid,
+            facility_code="aps",
             title="Approve-window override",
             bindings=frozenset({SubjectBinding(subject_id=uuid4())}),
         ),
@@ -265,15 +298,22 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
     """Pagination invariants: page size, non-null cursor mid-page, disjoint pages,
     union covers all 3 created."""
     deps = build_postgres_deps(db_pool, now=_NOW, ids=[uuid4() for _ in range(20)])
-    unique_kind = "DOOR"  # Use DOOR to scope to just this test's seeds
-    fid = uuid4()
+    unique_code = "DOOR"  # Use DOOR to scope to just this test's seeds
+    fc = "aps"
+    deps.facility_lookup.register(  # type: ignore[attr-defined]
+        facility_id=uuid4(), code=fc, kind="Site", status="Active"
+    )
+    door_tid = ClearanceTemplateId(clearance_template_stream_id(fc, unique_code))
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=door_tid, facility_code=fc, code=unique_code, status="Active", version=1
+    )
 
     seeded_ids: list[UUID] = []
     for i in range(3):
         cid = await register_clearance.bind(deps)(
             RegisterClearance(
-                kind=ClearanceKind(unique_kind),
-                facility_asset_id=fid,
+                template_id=door_tid,
+                facility_code=fc,
                 title=f"PaginationTest-{i}",
                 bindings=frozenset({SubjectBinding(subject_id=uuid4())}),
             ),
@@ -285,9 +325,9 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
     await _drain(db_pool)
 
     handler = list_clearances.bind(deps)
-    # Page 1: limit=2 with kind=DOOR + facility_asset_id=fid scopes tightly
+    # Page 1: limit=2 with template_code=DOOR + facility_code=fc scopes tightly
     page1 = await handler(
-        ListClearances(limit=2, kind=unique_kind, facility_asset_id=fid),
+        ListClearances(limit=2, template_code=unique_code, facility_code=fc),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,
     )
@@ -300,8 +340,8 @@ async def test_list_clearances_cursor_pagination_postgres(db_pool: asyncpg.Pool)
         ListClearances(
             cursor=page1.next_cursor,
             limit=2,
-            kind=unique_kind,
-            facility_asset_id=fid,
+            template_code=unique_code,
+            facility_code=fc,
         ),
         principal_id=_PRINCIPAL_ID,
         correlation_id=_CORRELATION_ID,

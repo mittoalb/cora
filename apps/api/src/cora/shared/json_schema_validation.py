@@ -82,11 +82,10 @@ def validate_schema_declaration(
          invalid `pattern` regex)
 
     Returns None on success. Caller persists the schema as-is; runtime
-    validation of values against it (5g-c / 6g-b / 6g-c) reuses
-    `validate_values_against_schema` below.
+    validation of values against it reuses `validate_values_against_schema`
+    below.
 
-    Used by 5g-a (Family.settings_schema) and 6g-a
-    (Method.parameters_schema).
+    Used by Family.settings_schema and Method.parameters_schema.
     """
     declared = schema.get("$schema")
     if declared != DRAFT_2020_12_URI:

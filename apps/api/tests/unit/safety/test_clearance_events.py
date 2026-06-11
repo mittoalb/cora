@@ -40,11 +40,14 @@ from cora.safety.aggregates.clearance.hazard_classification import (
     RiskBand,
     SchemeCode,
 )
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from cora.shared.identifier import Identifier
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _CLEARANCE_ID = UUID("01900000-0000-7000-8000-000000011001")
+_ESAF_TEMPLATE_ID = clearance_template_stream_id("aps", "ESAF")
+_DOOR_TEMPLATE_ID = clearance_template_stream_id("aps", "DOOR")
 
 
 def _stored(event_type: str, payload: dict[str, object]) -> StoredEvent:
@@ -240,8 +243,9 @@ def test_serialize_declaration_round_trip() -> None:
 def test_clearance_registered_event_type_name() -> None:
     event = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
-        kind="ESAF",
-        facility_asset_id=uuid4(),
+        template_id=_ESAF_TEMPLATE_ID,
+        template_code="ESAF",
+        facility_code="aps",
         title="t",
         bindings=({"kind": "Run", "id": str(uuid4())},),
         declarations=(),
@@ -261,8 +265,9 @@ def test_clearance_registered_to_payload_round_trip() -> None:
     sid = uuid4()
     original = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
-        kind="ESAF",
-        facility_asset_id=uuid4(),
+        template_id=_ESAF_TEMPLATE_ID,
+        template_code="ESAF",
+        facility_code="aps",
         title="Pilot ESAF for 2-BM",
         bindings=(
             {"kind": "Run", "id": str(rid)},
@@ -303,8 +308,9 @@ def test_clearance_registered_round_trip_handles_optional_datetimes() -> None:
     parent = uuid4()
     original = ClearanceRegistered(
         clearance_id=_CLEARANCE_ID,
-        kind="DOOR",
-        facility_asset_id=uuid4(),
+        template_id=_DOOR_TEMPLATE_ID,
+        template_code="DOOR",
+        facility_code="aps",
         title="t",
         bindings=({"kind": "External", "scheme": "btr", "value": "BTR-1"},),
         declarations=(),

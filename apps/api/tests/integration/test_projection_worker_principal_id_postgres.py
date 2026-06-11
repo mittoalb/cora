@@ -1,29 +1,28 @@
 """End-to-end: the projection worker delivers `principal_id` to
 subscribers.
 
-The principal-id infra commit (3839c1f) wired `principal_id` through
-the events table + ports + adapters + envelope helper, but the
-projection worker has its own `_ADVANCE_SQL` SELECT that mirrors
-(rather than imports from) the postgres event-store adapter. The
-worker's SELECT was missed in the original commit, which would
-silently deliver `principal_id=None` to every subscriber even when
-the underlying row had a real value, defeating the whole purpose
-of the day-1 hook.
+The principal-id infra wired `principal_id` through the events table
++ ports + adapters + envelope helper, but the projection worker has
+its own `_ADVANCE_SQL` SELECT that mirrors (rather than imports from)
+the postgres event-store adapter. If the worker's SELECT drifts from
+the adapter's it would silently deliver `principal_id=None` to every
+subscriber even when the underlying row had a real value, defeating
+the whole purpose of the day-1 hook.
 
 This test pins the end-to-end round trip:
 
-  1. Append an event directly to the events table with a
-     non-NULL principal_id (bypassing handlers, which don't yet
-     thread the kwarg until 9b-b).
+  1. Append an event directly to the events table with a non-NULL
+     principal_id (bypassing handlers that may not yet thread the
+     kwarg).
   2. Drain a custom test-only Projection subscribed to the event
      type. The projection captures the StoredEvent it receives.
   3. Assert the captured event's principal_id matches what was
      written.
 
 Without the worker SELECT fix, the assertion would fail with
-`captured.principal_id is None`. Catches future regression of
-the same shape (worker SELECT drifting from event-store adapter
-SELECT when a new envelope field is added).
+`captured.principal_id is None`. Catches future regression of the
+same shape: worker SELECT drifting from event-store adapter SELECT
+when a new envelope field is added.
 """
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
@@ -43,14 +42,14 @@ from cora.infrastructure.projection.handler import ConnectionLike
 class _CapturingProjection:
     """Test-only projection that captures every StoredEvent it receives.
 
-    Subscribes to the synthetic `Phase9bAEvent` event type so it
+    Subscribes to the synthetic `PrincipalIdProbeEvent` event type so it
     only sees the events this test writes. apply() is no-op-
     idempotent (just appends to a list) so the worker's at-least-
     once guarantee doesn't matter for the assertion.
     """
 
-    name = "proj_test_phase_9b_a_capture"
-    subscribed_event_types = frozenset({"Phase9bAEvent"})
+    name = "proj_test_principal_id_capture"
+    subscribed_event_types = frozenset({"PrincipalIdProbeEvent"})
 
     def __init__(self) -> None:
         self.captured: list[StoredEvent] = []
@@ -100,7 +99,7 @@ async def test_worker_delivers_non_null_principal_id_to_subscriber(
         [
             NewEvent(
                 event_id=uuid4(),
-                event_type="Phase9bAEvent",
+                event_type="PrincipalIdProbeEvent",
                 schema_version=1,
                 payload={"k": "v"},
                 occurred_at=datetime.now(tz=UTC),
@@ -146,7 +145,7 @@ async def test_worker_delivers_null_principal_id_to_subscriber(
         [
             NewEvent(
                 event_id=uuid4(),
-                event_type="Phase9bAEvent",
+                event_type="PrincipalIdProbeEvent",
                 schema_version=1,
                 payload={"k": "v"},
                 occurred_at=datetime.now(tz=UTC),

@@ -8,7 +8,6 @@ import pytest
 from cora.safety.aggregates.clearance import (
     Clearance,
     ClearanceCannotAppendReviewStepError,
-    ClearanceKind,
     ClearanceNotFoundError,
     ClearanceReviewStepAppended,
     ClearanceStatus,
@@ -23,12 +22,18 @@ from cora.safety.aggregates.clearance import (
 from cora.safety.aggregates.clearance.state import (
     CLEARANCE_REVIEWER_NOTES_MAX_LENGTH,
 )
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
+)
 from cora.safety.features import append_clearance_review_step
 from cora.safety.features.append_clearance_review_step import AppendClearanceReviewStep
+from cora.shared.facility_code import FacilityCode
 from cora.shared.identity import ActorId
 
 _NOW = datetime(2026, 5, 15, 12, 0, 0, tzinfo=UTC)
 _DECIDED = datetime(2026, 5, 15, 11, 0, 0, tzinfo=UTC)
+_TEMPLATE_ID = ClearanceTemplateId(clearance_template_stream_id("aps", "ESAF"))
 
 
 def _clearance(
@@ -38,8 +43,8 @@ def _clearance(
 ) -> Clearance:
     return Clearance(
         id=uuid4(),
-        kind=ClearanceKind.ESAF,
-        facility_asset_id=uuid4(),
+        template_id=_TEMPLATE_ID,
+        facility_code=FacilityCode("aps"),
         title=ClearanceTitle("Pilot"),
         bindings=frozenset({RunBinding(run_id=uuid4())}),
         review_steps=review_steps,

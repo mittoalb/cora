@@ -1,18 +1,22 @@
-/* CORA deep teal palette. Primary drives the top banner; accent drives links. */
+/* CORA deep amber palette. Primary drives the top banner; accent drives links.
+   Light-mode values are darker (readable on white); dark mode mirrors with
+   brighter saffron values for contrast on slate. */
 :root {
-  --md-primary-fg-color: #0A7E8C;
-  --md-primary-fg-color--light: #2BA0AE;
-  --md-primary-fg-color--dark: #075964;
-  --md-accent-fg-color: #14B8A6;
-  --md-accent-fg-color--transparent: rgba(20, 184, 166, 0.1);
+  --md-primary-fg-color: #8B6914;
+  --md-primary-fg-color--light: #A88826;
+  --md-primary-fg-color--dark: #5E4709;
+  --md-accent-fg-color: #9C7416;
+  --md-accent-fg-color--transparent: rgba(156, 116, 22, 0.1);
 }
 
+/* Dark mode brightens the amber: light-mode values would crush against slate.
+   Same hue family, inverted lightness for contrast on dark backgrounds. */
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #0A7E8C;
-  --md-primary-fg-color--light: #2BA0AE;
-  --md-primary-fg-color--dark: #075964;
-  --md-accent-fg-color: #2DD4BF;
-  --md-accent-fg-color--transparent: rgba(45, 212, 191, 0.1);
+  --md-primary-fg-color: #D4A557;
+  --md-primary-fg-color--light: #E8C175;
+  --md-primary-fg-color--dark: #A07D38;
+  --md-accent-fg-color: #F4B83B;
+  --md-accent-fg-color--transparent: rgba(244, 184, 59, 0.1);
 }
 
 /* Magazine-style homepage hero. Playfair Display masthead, Inter for kickers. */
@@ -36,11 +40,12 @@
 
 /* Single fixed backdrop spanning header + tabs. Both bars are transparent
    and sit on top of this one surface, so they share an identical backdrop
-   and fade as one visual unit. Without this, each bar paints its own teal
-   over a different slice of the hero image and the chrome inside the header
-   (search field bg) makes the header read as a different surface than the
-   tabs strip even at identical alpha. hero-fade.js drives the overlay var
-   0->1; on non-hero pages the var is unset and defaults to 1 (solid teal). */
+   and fade as one visual unit. Without this, each bar paints its own dark
+   wash over a different slice of the hero image and the chrome inside the
+   header (search field bg) makes the header read as a different surface
+   than the tabs strip even at identical alpha. hero-fade.js drives the
+   overlay var 0->1; on non-hero pages the var is unset and defaults to 1
+   (solid dark wash). */
 body::before {
   content: "";
   position: fixed;
@@ -48,7 +53,7 @@ body::before {
   left: 0;
   right: 0;
   height: 4.8rem;
-  background-color: rgba(10, 126, 140, var(--cora-header-overlay, 1));
+  background-color: rgba(14, 8, 10, var(--cora-header-overlay, 1));
   z-index: 2;
   pointer-events: none;
 }
@@ -88,6 +93,24 @@ body::before {
   bottom: 0;
   height: 96px;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0), var(--md-default-bg-color));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Left-edge wine-black wash so the masthead reads on any hero image.
+   Independent of the photo's composition: legibility is guaranteed even if
+   the subject drifts left in a future regen. */
+.cora-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(8, 4, 6, 0.96) 0%,
+    rgba(8, 4, 6, 0.88) 45%,
+    rgba(8, 4, 6, 0.45) 60%,
+    rgba(8, 4, 6, 0) 80%
+  );
   pointer-events: none;
   z-index: 1;
 }
@@ -445,7 +468,7 @@ body::before {
 }
 
 /* ---- Labelled aside ----
-   Left teal rule + small uppercase kicker, ported from the talks deck
+   Left amber rule + small uppercase kicker, ported from the talks deck
    (border-l-2 / pl-5 / tracking-[0.22em]). Lighter than a Material
    admonition; meant for short labelled lists where a heading anchor is
    not wanted. Pair the wrapper with .cora-aside and the label paragraph
@@ -483,7 +506,7 @@ body::before {
 }
 
 /* Bolded lead in a list item reads as the "name" of the item; bump it
-   to the brand teal so the eye lands on the term before the description. */
+   to the brand amber so the eye lands on the term before the description. */
 .md-typeset .cora-aside li > strong:first-child {
   color: var(--md-primary-fg-color);
   font-weight: 600;
@@ -503,7 +526,7 @@ body::before {
 }
 
 /* ---- Right-rail TOC active accent ----
-   Tailwind's on-this-page pattern: a 2px brand-teal bar + weight bump on
+   Tailwind's on-this-page pattern: a 2px brand-amber bar + weight bump on
    the currently-scrolled section. toc-active.js sets .cora-toc-active on
    the matching <a>; the bar is a left-positioned pseudo-element so the
    text doesn't shift when the class flips on. */
@@ -537,7 +560,7 @@ body::before {
 }
 
 /* ---- Aside variants beyond --soft ----
-   Same teal monochrome family. Each variant prepends a small uppercase
+   Same amber monochrome family. Each variant prepends a small uppercase
    tag to the .cora-kicker via ::before, so the wrapper only needs a
    class swap. Pair every variant with a .cora-kicker label, otherwise
    the tag has nowhere to render. */
@@ -574,7 +597,7 @@ body::before {
   border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 30%, transparent);
 }
 
-/* In the deferred variant, mute the teal on bolded list leads so the
+/* In the deferred variant, mute the amber on bolded list leads so the
    muted rule is consistent end-to-end. */
 .md-typeset .cora-aside--deferred li > strong:first-child {
   color: var(--md-default-fg-color);

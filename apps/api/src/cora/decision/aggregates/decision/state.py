@@ -104,7 +104,7 @@ orthogonal additive annotation.
 
 ## Thirteenth bounded-name VO
 
-`DecisionChoice` and `DecisionReasoning` use the shared
+`DecisionChoice` and the `Decision.reasoning` field use the shared
 `validate_bounded_text` helper hoisted at the rule-of-three trigger, with a higher max-length
 cap (reasoning text is naturally longer than display names).
 `DecisionContext` is intentionally an open string with documented
@@ -148,9 +148,9 @@ CONFIDENCE_BAND_CERTAIN_MIN = 0.95
 # this kind on the Decision aggregate and appends per-trace
 # entries (one per LLM call / tool invocation / agent span)
 # carrying OpenTelemetry GenAI semantic-convention attributes
-# (gen_ai.*). Mirrors `LOGBOOK_KIND_TRAVERSALS` in Conduit BC
+# (gen_ai.*). Mirrors `LOGBOOK_KIND_VERDICT` in Conduit BC
 # (6f-5a precedent).
-LOGBOOK_KIND_REASONING: Final = "reasoning"
+LOGBOOK_KIND_INFERENCE: Final = "inference"
 
 # Well-known context discriminators per BC map. Open-ended: new
 # contexts arrive without schema migration. Validated at
@@ -951,7 +951,7 @@ class Decision:
     inputs: dict[str, Any] | None = None
     reasoning_signature: str | None = None
     # 8c: logbooks attached to this Decision, keyed by kind. Today
-    # the only kind is `LOGBOOK_KIND_REASONING` (AI-decider trace
+    # the only kind is `LOGBOOK_KIND_INFERENCE` (AI-decider trace
     # entries with OTel gen_ai.* attrs). Future kinds (evidence
     # chains, evaluator votes, etc.) follow the same shape.
     # At-most-one-open-per-kind enforced by the evolver.

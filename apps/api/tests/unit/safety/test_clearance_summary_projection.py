@@ -140,15 +140,16 @@ async def test_apply_clearance_registered_emits_insert() -> None:
     proj = ClearanceSummaryProjection()
     conn = _RecordingConn()
     cid = uuid4()
-    fid = uuid4()
     sid = uuid4()
+    tid = uuid4()
     await proj.apply(
         _stored(
             "ClearanceRegistered",
             {
                 "clearance_id": str(cid),
-                "kind": "ESAF",
-                "facility_asset_id": str(fid),
+                "template_id": str(tid),
+                "template_code": "ESAF",
+                "facility_code": "aps",
                 "title": "Pilot",
                 "external_id": None,
                 "risk_band": None,
@@ -166,9 +167,10 @@ async def test_apply_clearance_registered_emits_insert() -> None:
     sql, args = conn.calls[0]
     assert "INSERT INTO proj_safety_clearance_summary" in sql
     assert args[0] == cid
-    assert args[1] == "ESAF"
-    assert args[2] == fid
-    assert args[6] == [sid]  # subject_binding_ids
+    assert args[1] == tid
+    assert args[2] == "ESAF"
+    assert args[3] == "aps"
+    assert args[7] == [sid]  # subject_binding_ids
 
 
 @pytest.mark.unit

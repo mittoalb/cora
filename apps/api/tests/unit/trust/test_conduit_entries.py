@@ -1,7 +1,7 @@
-"""Unit tests for the ConduitTraversal observation dataclass + adapters.
+"""Unit tests for the Verdict observation dataclass + adapters.
 
 The Postgres adapter's SQL is exercised by the integration test
-(`test_trust_authorize_traversals_postgres.py`). This file covers
+(`test_trust_authorize_verdicts_postgres.py`). This file covers
 the InMemory adapter's contract behaviors:
   - append accepts an empty list (no-op)
   - append stores rows by event_id
@@ -16,15 +16,15 @@ from uuid import uuid4
 import pytest
 
 from cora.trust.aggregates.conduit.entries import (
-    ConduitTraversal,
-    InMemoryTraversalStore,
+    InMemoryVerdictStore,
+    Verdict,
 )
 
 _NOW = datetime(2026, 5, 11, 12, 0, 0, tzinfo=UTC)
 
 
-def _traversal(*, event_id: object | None = None) -> ConduitTraversal:
-    return ConduitTraversal(
+def _traversal(*, event_id: object | None = None) -> Verdict:
+    return Verdict(
         event_id=event_id or uuid4(),  # type: ignore[arg-type]
         conduit_id=uuid4(),
         logbook_id=uuid4(),
@@ -40,14 +40,14 @@ def _traversal(*, event_id: object | None = None) -> ConduitTraversal:
 
 @pytest.mark.unit
 async def test_in_memory_append_empty_list_is_noop() -> None:
-    store = InMemoryTraversalStore()
+    store = InMemoryVerdictStore()
     await store.append([])
     assert store.all() == []
 
 
 @pytest.mark.unit
 async def test_in_memory_append_persists_rows_by_event_id() -> None:
-    store = InMemoryTraversalStore()
+    store = InMemoryVerdictStore()
     row_a = _traversal()
     row_b = _traversal()
     await store.append([row_a, row_b])
@@ -64,9 +64,9 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
     semantics. The first write wins; later writes with the same
     event_id are silently dropped.
     """
-    store = InMemoryTraversalStore()
+    store = InMemoryVerdictStore()
     event_id = uuid4()
-    first = ConduitTraversal(
+    first = Verdict(
         event_id=event_id,
         conduit_id=uuid4(),
         logbook_id=uuid4(),
@@ -79,7 +79,7 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
         occurred_at=_NOW,
     )
     # Different content but same event_id.
-    second = ConduitTraversal(
+    second = Verdict(
         event_id=event_id,
         conduit_id=uuid4(),
         logbook_id=uuid4(),
@@ -104,7 +104,7 @@ async def test_in_memory_append_with_duplicate_event_id_is_noop() -> None:
 @pytest.mark.unit
 async def test_in_memory_append_supports_batched_writes() -> None:
     """G4 lock: the API takes a list, batched writes work in one call."""
-    store = InMemoryTraversalStore()
+    store = InMemoryVerdictStore()
     rows = [_traversal() for _ in range(5)]
     await store.append(rows)
     assert len(store.all()) == 5

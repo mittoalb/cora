@@ -59,6 +59,9 @@ from cora.infrastructure.adapters.default_canonicalization_adapter import (
     DefaultCanonicalizationAdapter,
 )
 from cora.infrastructure.adapters.in_memory_asset_lookup import InMemoryAssetLookup
+from cora.infrastructure.adapters.in_memory_clearance_template_lookup import (
+    InMemoryClearanceTemplateLookup,
+)
 from cora.infrastructure.adapters.in_memory_credential_lookup import InMemoryCredentialLookup
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.adapters.in_memory_facility_lookup import InMemoryFacilityLookup
@@ -84,6 +87,7 @@ from cora.infrastructure.ports import (
     CapabilityLookup,
     CautionLookup,
     ClearanceLookup,
+    ClearanceTemplateLookup,
     Clock,
     CredentialLookup,
     EnclosureLookup,
@@ -145,6 +149,7 @@ def make_postgres_kernel(
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
+    clearance_template_lookup: ClearanceTemplateLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
@@ -254,6 +259,11 @@ def make_postgres_kernel(
         clearance_lookup=(
             clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
         ),
+        clearance_template_lookup=(
+            clearance_template_lookup
+            if clearance_template_lookup is not None
+            else InMemoryClearanceTemplateLookup()
+        ),
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
         ),
@@ -293,6 +303,7 @@ def make_inmemory_kernel(
     event_store: EventStore | None = None,
     idempotency_store: IdempotencyStore | None = None,
     clearance_lookup: ClearanceLookup | None = None,
+    clearance_template_lookup: ClearanceTemplateLookup | None = None,
     caution_lookup: CautionLookup | None = None,
     capability_lookup: CapabilityLookup | None = None,
     supply_lookup: SupplyLookup | None = None,
@@ -391,6 +402,11 @@ def make_inmemory_kernel(
         ),
         clearance_lookup=(
             clearance_lookup if clearance_lookup is not None else AlwaysCoveredClearanceLookup()
+        ),
+        clearance_template_lookup=(
+            clearance_template_lookup
+            if clearance_template_lookup is not None
+            else InMemoryClearanceTemplateLookup()
         ),
         caution_lookup=(
             caution_lookup if caution_lookup is not None else AlwaysQuietCautionLookup()
@@ -567,6 +583,25 @@ class AssetLookupFactory(Protocol):
     ) -> AssetLookup: ...
 
 
+class ClearanceTemplateLookupFactory(Protocol):
+    """Builds the production ClearanceTemplateLookup port for the Kernel.
+
+    Safety BC's `cora.safety.adapters.PostgresClearanceTemplateLookup`
+    is the production factory; `cora.api.main` binds it. Same factory-
+    injection shape as `AssetLookupFactory` so
+    `cora.infrastructure.deps` doesn't import from any BC.
+
+    `pool` is `None` only when `app_env=test`; the production factory
+    requires a real pool. Test mode falls back to a fresh
+    `InMemoryClearanceTemplateLookup` automatically.
+    """
+
+    def __call__(
+        self,
+        pool: asyncpg.Pool,
+    ) -> ClearanceTemplateLookup: ...
+
+
 class EnclosureLookupFactory(Protocol):
     """Builds the production EnclosureLookup port for the Kernel.
 
@@ -616,6 +651,7 @@ async def build_kernel(
     *,
     authorize_factory: AuthorizeFactory,
     clearance_lookup_factory: ClearanceLookupFactory | None = None,
+    clearance_template_lookup_factory: ClearanceTemplateLookupFactory | None = None,
     caution_lookup_factory: CautionLookupFactory | None = None,
     capability_lookup_factory: CapabilityLookupFactory | None = None,
     supply_lookup_factory: SupplyLookupFactory | None = None,
@@ -734,6 +770,11 @@ async def build_kernel(
     asset_lookup: AssetLookup = (
         asset_lookup_factory(pool) if asset_lookup_factory is not None else InMemoryAssetLookup()
     )
+    clearance_template_lookup: ClearanceTemplateLookup = (
+        clearance_template_lookup_factory(pool)
+        if clearance_template_lookup_factory is not None
+        else InMemoryClearanceTemplateLookup()
+    )
     enclosure_lookup: EnclosureLookup = (
         enclosure_lookup_factory(pool)
         if enclosure_lookup_factory is not None
@@ -749,6 +790,7 @@ async def build_kernel(
         event_store=pg_event_store,
         idempotency_store=pg_idempotency_store,
         clearance_lookup=clearance_lookup,
+        clearance_template_lookup=clearance_template_lookup,
         caution_lookup=caution_lookup,
         capability_lookup=capability_lookup,
         supply_lookup=supply_lookup,
@@ -832,6 +874,7 @@ __all__ = [
     "CapabilityLookupFactory",
     "CautionLookupFactory",
     "ClearanceLookupFactory",
+    "ClearanceTemplateLookupFactory",
     "CredentialLookupFactory",
     "EnclosureLookupFactory",
     "FacilityLookupFactory",

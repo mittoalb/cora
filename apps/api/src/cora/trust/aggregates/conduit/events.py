@@ -9,12 +9,12 @@ Events:
   - `ConduitDefined` — genesis.
   - `ConduitLogbookOpened` — declares a new observation logbook
     attached to the Conduit. Carries the logbook id, kind
-    discriminator (for example, `"traversals"`), and the schema declaration
+    discriminator (for example, `"verdict"`), and the schema declaration
     documenting what columns the entry rows will have. Today the
-    only logbook kind is `traversals` (per-decision authz audit
+    only logbook kind is `verdicts` (per-decision authz audit (verdict)
     log), opened automatically at conduit-creation.
   - `ConduitLogbookClosed` — terminates a logbook. Future-additive;
-    no current path emits it (the traversals logbook never closes
+    no current path emits it (the verdict logbook never closes
     until conduit-archive ships, which is itself deferred).
 
 Logbook events DO live on the Conduit's main event stream — they
@@ -52,7 +52,7 @@ class ConduitLogbookOpened:
 
     `logbook_id` is a fresh UUIDv7 from the IdGenerator; uniquely
     identifies this logbook session and tags every entry row written
-    to it. `kind` is the discriminator (today: `traversals`).
+    to it. `kind` is the discriminator (today: `verdicts`).
     `schema` declares the per-entry column shape — carried in
     the event payload so the lifecycle audit captures the schema as
     of this opening (G8 lock; supports per-logbook schema evolution

@@ -85,17 +85,19 @@ _CREATE_VERBS: frozenset[str] = frozenset({"define", "register", "add"})
 
 EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
     {
-        # Safety clearance lifecycle: covered by URL-only FSM-walk tests
-        # in `test_clearance_fsm_walk_endpoints.py`, which walks the full
-        # FSM via HTTP calls (no slice-name imports or string mentions).
-        "cora.safety.features.activate_clearance",
-        "cora.safety.features.amend_clearance",
-        "cora.safety.features.append_clearance_review_step",
-        "cora.safety.features.approve_clearance",
+        # Safety clearance lifecycle slices with no own-name or
+        # sibling-substring endpoint coverage. Covered by URL-only
+        # FSM-walk tests in `test_clearance_fsm_walk_endpoints.py`,
+        # which walks the full FSM via HTTP calls (no slice-name
+        # imports or string mentions). The other clearance slices
+        # (amend / append_review_step / approve / reject / start_review
+        # / submit) substring-match sibling contract tests, so the
+        # rule passes without an exemption.
+        # `activate_clearance` was here historically; the
+        # `test_activate_clearance_template_endpoint.py` shipped with
+        # the ClearanceTemplate slices now substring-matches it, so the
+        # entry was removed.
         "cora.safety.features.expire_clearance",
-        "cora.safety.features.reject_clearance",
-        "cora.safety.features.start_clearance_review",
-        "cora.safety.features.submit_clearance",
         # Supply monitor trigger (Port B): in-process-only slice per
         # [[project_supply_monitor_trigger_design]] design lock. No REST
         # endpoint by design ("operators have buttons; machines have ports").
@@ -115,12 +117,11 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
         "cora.equipment.features.update_frame_placement",
-        # Mount slices: same deferral. The 5 Mount slices ship with
-        # decider tests but no REST/MCP contract suite; backfill
-        # together with Frame's once the integration scenario lands.
+        # Mount slices (excluding register_mount, substring-covered by
+        # helper-name matches in subject contract tests): decider tests
+        # pin behavior; backfill REST contract suite together with Frame.
         "cora.equipment.features.decommission_mount",
         "cora.equipment.features.install_asset",
-        "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
         "cora.equipment.features.update_mount_placement",
         # register_facility (Session 5 Slice 5 Sub-Slice B): REST contract
@@ -149,13 +150,6 @@ EXEMPT_FROM_ENDPOINT_CONTRACT: frozenset[str] = frozenset(
 
 EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
     {
-        # Agent lifecycle: all 5 slices covered by the bundled
-        # `test_iter2_mcp_tools.py`.
-        "cora.agent.features.grant_tool_to_agent",
-        "cora.agent.features.resume_agent",
-        "cora.agent.features.revise_agent_budget",
-        "cora.agent.features.revoke_tool_from_agent",
-        "cora.agent.features.suspend_agent",
         # Supply monitor trigger (Port B): in-process-only per
         # [[project_supply_monitor_trigger_design]]; no MCP tool by design.
         "cora.supply.features.observe_supply_status",
@@ -167,11 +161,17 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         # contract test exercises the tool schema or call surface. Each
         # of these should grow a `test_<slice>_mcp_tool.py` so the MCP
         # wire shape is locked. Remove from this allowlist when added.
+        # (Agent lifecycle slices are no longer listed: the bundled
+        # `test_iter2_mcp_tools.py` covers them via substring match,
+        # so the rule passes without an exemption.)
         "cora.recipe.features.list_methods",
         "cora.recipe.features.list_plans",
         "cora.recipe.features.list_practices",
         "cora.recipe.features.update_plan_default_parameters",
-        "cora.safety.features.activate_clearance",
+        # `activate_clearance` was here historically; the
+        # `test_activate_clearance_template_mcp_tool.py` shipped with
+        # the ClearanceTemplate slices now substring-matches it, so
+        # the entry was removed.
         "cora.safety.features.expire_clearance",
         # Frame slices: MCP contract tests deferred to a follow-up
         # commit so REST + MCP suite can be authored together. Remove
@@ -179,10 +179,10 @@ EXEMPT_FROM_MCP_CONTRACT: frozenset[str] = frozenset(
         "cora.equipment.features.decommission_frame",
         "cora.equipment.features.register_frame",
         "cora.equipment.features.update_frame_placement",
-        # Mount slices: same deferral.
+        # Mount slices (excluding register_mount, substring-covered by
+        # helper-name matches): same deferral as Frame.
         "cora.equipment.features.decommission_mount",
         "cora.equipment.features.install_asset",
-        "cora.equipment.features.register_mount",
         "cora.equipment.features.uninstall_asset",
         "cora.equipment.features.update_mount_placement",
         # register_facility (Session 5 Slice 5 Sub-Slice B): MCP contract
@@ -224,41 +224,17 @@ EXEMPT_FROM_HANDLER_UNIT: frozenset[str] = frozenset(
 
 EXEMPT_FROM_INTEGRATION: frozenset[str] = frozenset(
     {
-        # register_frame: integration test deferred to a follow-up
-        # commit. Decider + event round-trip cover the genesis path;
-        # the integration tier locks event-store version sequencing +
-        # idempotency-store wrap + projection apply. Remove from this
-        # allowlist when the integration suite lands.
-        "cora.equipment.features.register_frame",
-        # register_mount: same deferral.
-        "cora.equipment.features.register_mount",
-        # register_facility (Session 5 Slice 5 Sub-Slice B): integration
-        # test deferred to a follow-up commit. Decider + handler unit
-        # tests + projection apply tests + OpenAPI snapshot cover the
-        # behavior surface; the integration tier locks event-store
-        # version sequencing + projection apply against real Postgres.
-        # Backfill alongside Sub-Slice C's decommission_facility or
-        # after Sub-Slice D lands the bootstrap.
-        "cora.federation.features.register_facility",
-        # decommission_facility (Session 5 Slice 5 Sub-Slice C): same
-        # deferral. Decider + handler unit tests + projection apply
-        # cover the behavior surface.
-        "cora.federation.features.decommission_facility",
         # add_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
         # integration tier deferred alongside Facility-family integration
         # suite. Decider + PBT + handler + projection apply cover behavior.
         "cora.federation.features.add_facility_trust_anchor_credential",
-        # remove_facility_trust_anchor_credential (Slice 6 Sub-Slice B):
-        # same deferral as the add sibling.
-        "cora.federation.features.remove_facility_trust_anchor_credential",
-        # observe_enclosure_status: Monitor-trigger inbound slice with no
-        # HTTP/MCP surface by design (L-D3 / D6.L2 per
-        # project_enclosure_stage1_design). Mirrors Supply
-        # observe_supply_status precedent. Postgres-backed integration
-        # arrives with the EnclosureObserver substrate adapters per the
-        # 2-BM Audit C deferral; current AlwaysPermittedEnclosureObserver
-        # stub exercises the port shape unit-tier.
-        "cora.enclosure.features.observe_enclosure_status",
+        # The integration-tier rule only fires for create-style verbs
+        # (`define_*` / `register_*` / `add_*`), so state-transition
+        # slices like `decommission_*`, `remove_*`, and `observe_*` do
+        # not need exemptions and are not listed here. Substring-covered
+        # create-style slices (`register_frame` / `register_mount`
+        # / `register_facility`, all matched by sibling
+        # `*_handler_postgres.py` tests) are likewise omitted.
     }
 )
 
@@ -473,3 +449,69 @@ def test_exempt_entries_actually_exist(allowlist_name: str) -> None:
         assert parts[0] == "cora", f"{qualified}: must start with 'cora.'"
         path = CORA_ROOT.joinpath(*parts[1:])
         assert path.is_dir(), f"{allowlist_name} entry {qualified} no longer exists; remove it"
+
+
+_ALLOWLIST_TO_TIER_SUFFIX: dict[str, tuple[str, str]] = {
+    "EXEMPT_FROM_ENDPOINT_CONTRACT": ("contract", "endpoint"),
+    "EXEMPT_FROM_MCP_CONTRACT": ("contract", "mcp_tool"),
+    "EXEMPT_FROM_HANDLER_UNIT": ("unit", "handler"),
+    "EXEMPT_FROM_INTEGRATION": ("integration", "handler_postgres"),
+}
+
+# Slices whose exemption is a design lock (the slice has no REST / MCP
+# surface by design, not a deferred test). These STAY exempt even when
+# substring-covered, because the exemption documents the design decision
+# rather than a missing test. Entries here are NOT subject to the
+# inverse-coverage check below.
+_DESIGN_LOCKED_EXEMPTIONS: frozenset[str] = frozenset(
+    {
+        "cora.supply.features.observe_supply_status",
+        "cora.enclosure.features.observe_enclosure_status",
+    }
+)
+
+
+@pytest.mark.architecture
+@pytest.mark.parametrize(
+    ("allowlist_name", "qualified"),
+    sorted(
+        (name, q)
+        for name in _ALLOWLIST_TO_TIER_SUFFIX
+        for q in globals()[name]
+        if q not in _DESIGN_LOCKED_EXEMPTIONS
+    ),
+)
+def test_exempt_entry_is_not_already_substring_covered(allowlist_name: str, qualified: str) -> None:
+    """Every exemption entry MUST actually be needed -- removing it
+    should make the corresponding rule fail. Catches inert exemptions
+    where a sibling test file substring-matches the slice name and
+    silently covers it.
+
+    Design-locked exemptions (Monitor-trigger Port B slices with no
+    HTTP/MCP surface by design) are excluded via _DESIGN_LOCKED_EXEMPTIONS
+    because their rationale is the design decision, not a deferred test.
+
+    For integration tier, the rule only fires for create-style verbs
+    (`define_*` / `register_*` / `add_*`); a non-create-style entry
+    in EXEMPT_FROM_INTEGRATION is always inert and fails this check.
+    """
+    tier, suffix = _ALLOWLIST_TO_TIER_SUFFIX[allowlist_name]
+    parts = qualified.split(".")
+    slice_dir = CORA_ROOT.joinpath(*parts[1:])
+    if not slice_dir.is_dir():
+        return  # existence check handled separately
+    if tier == "integration":
+        assert slice_dir.name.split("_", 1)[0] in _CREATE_VERBS, (
+            f"{qualified} is in EXEMPT_FROM_INTEGRATION but its verb is "
+            f"not create-style ({sorted(_CREATE_VERBS)}); the integration "
+            "rule never fires for this slice, so the exemption exempts "
+            "nothing. Remove it."
+        )
+    covered = _is_covered(tier=tier, bc=_bc(slice_dir), slice_name=slice_dir.name, suffix=suffix)
+    assert not covered, (
+        f"{qualified} is in {allowlist_name} but a sibling test file in "
+        f"tests/{tier}/ already substring-matches the slice name "
+        f"({slice_dir.name!r}). The rule would pass without the exemption "
+        "today; remove the entry, or tighten the substring-match rule "
+        "if the coverage is incidental rather than intentional."
+    )

@@ -62,7 +62,7 @@ resume" stays readable after the resume lands.
 `run_count` is denormalized from the Campaign aggregate's
 `run_ids: frozenset[UUID]` (full set lives on the aggregate stream;
 `get_campaign` returns the full set from aggregate state). Maintained
-by 6i-c arms:
+by two projection arms:
 
   - CampaignRunAdded   -> run_count = run_count + 1
   - CampaignRunRemoved -> run_count = run_count - 1
