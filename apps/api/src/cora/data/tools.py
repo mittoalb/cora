@@ -17,6 +17,7 @@ from cora.data.features.get_dataset import tool as get_dataset_tool
 from cora.data.features.list_datasets import tool as list_datasets_tool
 from cora.data.features.promote_dataset import tool as promote_dataset_tool
 from cora.data.features.register_dataset import tool as register_dataset_tool
+from cora.data.features.register_distribution import tool as register_distribution_tool
 from cora.data.wire import DataHandlers
 
 
@@ -49,4 +50,8 @@ def register_data_tools(
     list_datasets_tool.register(
         mcp,
         get_handler=lambda: get_handlers().list_datasets,
+    )
+    register_distribution_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().register_distribution,
     )

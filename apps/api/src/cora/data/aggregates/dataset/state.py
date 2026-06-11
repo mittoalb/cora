@@ -117,6 +117,7 @@ Policy / Subject / Family / Asset / Method / Practice / Plan /
 Run).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from urllib.parse import urlparse
@@ -669,6 +670,44 @@ class DatasetName:
     value: str
 
 
+def _validate_storage_uri(
+    value: str,
+    *,
+    max_length: int,
+    error_factory: Callable[[str, str], Exception],
+) -> str:
+    """Validate a storage URI string per the shared Dataset/Distribution rules.
+
+    Returns the trimmed value or raises the caller's error class. The
+    rules are:
+
+      - non-empty after `.strip()`
+      - length <= ``max_length``
+      - `urllib.parse.urlparse(trimmed).scheme` non-empty
+      - scheme (lower-cased) not in :data:`DATASET_URI_BLOCKED_SCHEMES`
+        (defensive XSS blocklist; the same threat surface applies to a
+        Distribution URI as to a Dataset URI)
+
+    Bytes resolution / existence check is out of scope at the BC layer
+    (gate-review Q4 lock A: trust at registration; periodic re-checksum
+    / verification is its own future workflow).
+    """
+    trimmed = value.strip()
+    if not trimmed:
+        raise error_factory(value, "empty or whitespace-only")
+    if len(trimmed) > max_length:
+        raise error_factory(value, f"exceeds {max_length} chars")
+    parsed = urlparse(trimmed)
+    if not parsed.scheme:
+        raise error_factory(value, "missing URI scheme")
+    if parsed.scheme.lower() in DATASET_URI_BLOCKED_SCHEMES:
+        raise error_factory(
+            value,
+            f"URI scheme {parsed.scheme!r} is blocked (XSS risk)",
+        )
+    return trimmed
+
+
 @dataclass(frozen=True)
 class DatasetUri:
     """Opaque URI string pointing at the bulk content. Trimmed; 1-2048 chars.
@@ -676,30 +715,19 @@ class DatasetUri:
     Loose validation: `urllib.parse.urlparse` must return a non-empty
     scheme. Bytes resolution / existence check is out of scope at the
     BC layer (gate-review Q4 lock A: trust at registration; periodic
-    re-checksum / verification is its own future workflow).
+    re-checksum / verification is its own future workflow). Shares the
+    XSS-blocklist + trim + length rules with `DistributionUri` via the
+    `_validate_storage_uri` helper.
     """
 
     value: str
 
     def __post_init__(self) -> None:
-        trimmed = self.value.strip()
-        if not trimmed:
-            raise InvalidDatasetUriError(self.value, "empty or whitespace-only")
-        if len(trimmed) > DATASET_URI_MAX_LENGTH:
-            raise InvalidDatasetUriError(self.value, f"exceeds {DATASET_URI_MAX_LENGTH} chars")
-        parsed = urlparse(trimmed)
-        if not parsed.scheme:
-            raise InvalidDatasetUriError(self.value, "missing URI scheme")
-        # Defensive blocklist for known-XSS URI schemes (javascript,
-        # data, vbscript, about, view-source). Pure blocklist so we
-        # don't constrain real storage schemes (s3, https, file,
-        # globus, posix, ipfs, sftp, etc.). Comparison is lower-cased
-        # because `JavaScript:` is the same threat as `javascript:`.
-        if parsed.scheme.lower() in DATASET_URI_BLOCKED_SCHEMES:
-            raise InvalidDatasetUriError(
-                self.value,
-                f"URI scheme {parsed.scheme!r} is blocked (XSS risk)",
-            )
+        trimmed = _validate_storage_uri(
+            self.value,
+            max_length=DATASET_URI_MAX_LENGTH,
+            error_factory=InvalidDatasetUriError,
+        )
         object.__setattr__(self, "value", trimmed)
 
 
