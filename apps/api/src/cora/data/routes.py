@@ -44,6 +44,18 @@ other BC.
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from cora.data.aggregates.attestation import (
+    AttestationAlreadyExistsError,
+    AttestationChecksumEvidenceMismatchError,
+    AttestationDistributionDatasetMismatchError,
+    AttestationDistributionNotFoundError,
+    AttestationKindNotYetSupportedError,
+    AttestationKindRejectsDistributionError,
+    AttestationKindRequiresDistributionError,
+    InvalidAttestationEvidenceError,
+    InvalidAttestationKindError,
+    InvalidAttestationOutcomeError,
+)
 from cora.data.aggregates.dataset import (
     DatasetAlreadyExistsError,
     DatasetAlreadyPromotedError,
@@ -89,9 +101,11 @@ from cora.data.features import (
     get_dataset,
     list_datasets,
     promote_dataset,
+    record_attestation,
     register_dataset,
     register_distribution,
 )
+from cora.data.ports.checksum_verifier import ChecksumVerifierUnsupportedSchemeError
 
 
 async def _handle_validation_error(request: Request, exc: Exception) -> JSONResponse:
@@ -177,6 +191,7 @@ def register_data_routes(app: FastAPI) -> None:
     app.include_router(get_dataset.router)
     app.include_router(list_datasets.router)
     app.include_router(register_distribution.router)
+    app.include_router(record_attestation.router)
     for validation_cls in (
         InvalidDatasetNameError,
         InvalidDatasetUriError,
@@ -203,6 +218,14 @@ def register_data_routes(app: FastAPI) -> None:
         InvalidAccessProtocolError,
         UnmappedDistributionUriSchemeError,
         DefaultStorageSupplyBootstrapError,
+        # Attestation record-slice 400 family: closed-enum re-checks,
+        # evidence VO shape, kind-not-yet-supported (handler-tier),
+        # and the verifier-port unsupported-scheme dispatch error.
+        InvalidAttestationKindError,
+        InvalidAttestationOutcomeError,
+        InvalidAttestationEvidenceError,
+        AttestationKindNotYetSupportedError,
+        ChecksumVerifierUnsupportedSchemeError,
     ):
         app.add_exception_handler(validation_cls, _handle_validation_error)
     for not_found_cls in (
@@ -216,11 +239,17 @@ def register_data_routes(app: FastAPI) -> None:
         DerivedFromDatasetsNotFoundError,
         # Distribution cross-BC not-found family.
         DistributionSupplyNotFoundError,
+        # Attestation Distribution-binding not-found family. The Dataset
+        # not-found pathway reuses DatasetNotFoundError (already
+        # registered above); only the new Distribution-specific class
+        # needs registration.
+        AttestationDistributionNotFoundError,
     ):
         app.add_exception_handler(not_found_cls, _handle_not_found)
     for already_exists_cls in (
         DatasetAlreadyExistsError,
         DistributionAlreadyExistsError,
+        AttestationAlreadyExistsError,
     ):
         app.add_exception_handler(already_exists_cls, _handle_already_exists)
     for lineage_state_cls in (DerivedFromDatasetsDiscardedError,):
@@ -246,6 +275,14 @@ def register_data_routes(app: FastAPI) -> None:
         DistributionCannotRegisterOnDiscardedDatasetError,
         DistributionChecksumMismatchError,
         DistributionByteSizeMismatchError,
+        # Attestation record-slice 409 family: kind/distribution_id
+        # dual-binding violations, Distribution.dataset_id mismatch,
+        # belt-and-braces checksum mismatch against the loaded
+        # Distribution row.
+        AttestationKindRequiresDistributionError,
+        AttestationKindRejectsDistributionError,
+        AttestationDistributionDatasetMismatchError,
+        AttestationChecksumEvidenceMismatchError,
     ):
         app.add_exception_handler(cannot_transition_cls, _handle_cannot_transition)
     app.add_exception_handler(UnauthorizedError, _handle_unauthorized)

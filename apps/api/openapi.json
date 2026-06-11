@@ -1599,6 +1599,27 @@
         "title": "AttachAssetToFixtureRequest",
         "type": "object"
       },
+      "AttestationKind": {
+        "description": "What property of a Dataset / Distribution was attested.\n\nClosed StrEnum with all 4 values day-one to lock the wire shape\nand avoid additive-enum migration. Only ``ChecksumVerified`` is\nreachable today; the other three trigger\n``AttestationKindNotYetSupportedError`` at the handler tier.\n\nMember name SCREAMING_SNAKE; string value PascalCase.",
+        "enum": [
+          "ChecksumVerified",
+          "FormatValidated",
+          "ConformsToValidated",
+          "BitRotChecked"
+        ],
+        "title": "AttestationKind",
+        "type": "string"
+      },
+      "AttestationOutcome": {
+        "description": "The outcome of a verifier run.\n\nClosed StrEnum with all 3 values day-one. Other outcomes (Pending,\nPartial, Error) are exception-shaped failures, not recorded\noutcomes.\n\n  - ``Match``: verifier completed AND observed value byte-equals\n    the canonical value.\n  - ``Mismatch``: verifier completed AND observed value disagrees\n    with the canonical value.\n  - ``Unreachable``: verifier could not complete (transport\n    timeout, 5xx, missing credentials). Distinct from\n    ``Mismatch`` because bytes' integrity is unknown, not\n    refuted.",
+        "enum": [
+          "Match",
+          "Mismatch",
+          "Unreachable"
+        ],
+        "title": "AttestationOutcome",
+        "type": "string"
+      },
       "BindAssetToFacilityRequest": {
         "description": "Body for `POST /assets/{asset_id}/bind-to-facility`.",
         "properties": {
@@ -2939,6 +2960,76 @@
           "value"
         ],
         "title": "ChecksumResponse",
+        "type": "object"
+      },
+      "ChecksumVerifiedEvidenceRequest": {
+        "additionalProperties": false,
+        "description": "Nested evidence body for kind=ChecksumVerified.",
+        "properties": {
+          "algorithm": {
+            "const": "sha256",
+            "description": "Checksum algorithm name. Only 'sha256' is accepted today; future algorithms add additional literal members.",
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "computed_checksum": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 64,
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Checksum the verifier computed. Required for outcome=Match or outcome=Mismatch; null only for outcome=Unreachable.",
+            "title": "Computed Checksum"
+          },
+          "error_detail": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable failure summary. Required for outcome=Unreachable; null otherwise.",
+            "title": "Error Detail"
+          },
+          "expected_checksum": {
+            "description": "Canonical 64-char lowercase sha256 hex (the Distribution's expected value).",
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Checksum",
+            "type": "string"
+          },
+          "verifier_kind": {
+            "description": "Short adapter name (e.g. 'HttpRangeChecksum'). Forensic provenance.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Verifier Kind",
+            "type": "string"
+          },
+          "verifier_supply_id": {
+            "description": "Identifies the Supply (or other adapter-resident endpoint) the verifier walked. Forensic provenance.",
+            "format": "uuid",
+            "title": "Verifier Supply Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "expected_checksum",
+          "verifier_supply_id",
+          "verifier_kind"
+        ],
+        "title": "ChecksumVerifiedEvidenceRequest",
         "type": "object"
       },
       "ClearanceListResponse": {
@@ -9420,6 +9511,66 @@
           "replaced_by_recipe_id"
         ],
         "title": "RecipeResponse",
+        "type": "object"
+      },
+      "RecordAttestationRequest": {
+        "additionalProperties": false,
+        "description": "Body for ``POST /attestations``.",
+        "properties": {
+          "dataset_id": {
+            "description": "Identifier of the Dataset the Attestation is about (always required).",
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "distribution_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identifier of the bound Distribution byte-copy. Required for byte-level kinds (ChecksumVerified, FormatValidated, BitRotChecked); null only for ConformsToValidated.",
+            "title": "Distribution Id"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/ChecksumVerifiedEvidenceRequest",
+            "description": "Per-kind evidence object. Today only the ChecksumVerified shape is concrete (the other three kinds are not yet supported)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttestationKind",
+            "description": "What property was attested. Closed enum; today only 'ChecksumVerified' is implemented."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AttestationOutcome",
+            "description": "The outcome of the verifier run. Closed enum: Match, Mismatch, Unreachable."
+          }
+        },
+        "required": [
+          "dataset_id",
+          "kind",
+          "outcome",
+          "evidence"
+        ],
+        "title": "RecordAttestationRequest",
+        "type": "object"
+      },
+      "RecordAttestationResponse": {
+        "description": "Response body for ``POST /attestations``.",
+        "properties": {
+          "attestation_id": {
+            "format": "uuid",
+            "title": "Attestation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attestation_id"
+        ],
+        "title": "RecordAttestationResponse",
         "type": "object"
       },
       "ReferenceSurface": {
@@ -19031,6 +19182,119 @@
         "summary": "Update an existing asset's settings dict (RFC 7396 merge semantics)",
         "tags": [
           "equipment"
+        ]
+      }
+    },
+    "/attestations": {
+      "post": {
+        "operationId": "post_attestations_attestations_post",
+        "parameters": [
+          {
+            "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Attestation.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional client-supplied unique key per logical request. Retries with the same key + same body return the cached response instead of re-recording the Attestation.",
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+            "in": "header",
+            "name": "X-Principal-Id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Legacy principal-id header (trust-the-proxy shape). When IDENTITY_PROVIDERS is configured (bearer-auth mode), this header is IGNORED and the verified bearer token from `BearerAuthMiddleware` (Authorization: Bearer) sets the principal. When no IdPs are configured (legacy mode), the application TRUSTS this header (no cryptographic verification) -- production deployments in legacy mode MUST front the API with an auth proxy that strips any client-supplied X-Principal-Id and sets it to the verified principal UUID. Behavior when absent: see Settings.require_authenticated_principal.",
+              "title": "X-Principal-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordAttestationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordAttestationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Domain invariant violated: malformed evidence VO, unsupported algorithm, kind not yet implemented in this release."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authorize port denied the command."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-aggregate reference does not exist: dataset_id or distribution_id (when provided)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dual-binding violation (kind requires/forbids distribution_id; Distribution's parent Dataset does not match; verifier evidence contradicts Distribution canonical checksum) or strict-not-idempotent same-id re-issue."
+          },
+          "422": {
+            "description": "Request body failed schema validation OR Idempotency-Key was reused with a different request body."
+          }
+        },
+        "summary": "Record a new Attestation fact",
+        "tags": [
+          "data"
         ]
       }
     },

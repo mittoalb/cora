@@ -42,6 +42,7 @@ _AGGREGATE_NAMES: frozenset[str] = frozenset(
         "agent",
         "assembly",
         "asset",
+        "attestation",
         "calibration",
         "campaign",
         "capability",
