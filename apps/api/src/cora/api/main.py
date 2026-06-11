@@ -88,6 +88,10 @@ from cora.data import (
     register_data_tools,
     wire_data,
 )
+from cora.data._bootstrap import (
+    bootstrap_default_storage_supply,
+    bootstrap_distribution_backfill,
+)
 from cora.decision import (
     DecisionHandlers,
     register_decision_projections,
@@ -473,6 +477,19 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             # SELF_FACILITY_CODE fails the lifespan fast via
             # InvalidFacilityCodeError raised in FacilityCode(...).
             await bootstrap_federation(deps)
+
+            # Data BC Distribution backfill per
+            # project_data_distribution_design Slice 2 (L23 + L24). Two
+            # lifespan steps: (a) resolve the default storage Supply
+            # from SELF_FACILITY_DEFAULT_STORAGE_SUPPLY_CODE (fail-loud
+            # on misconfiguration); (b) under a Postgres advisory lock,
+            # synthesize one proj_data_distribution_summary row per
+            # legacy Dataset that lacks a backfilled Distribution. Both
+            # MUST run BEFORE projection workers register (so a
+            # concurrent live DistributionRegistered event cannot race
+            # the backfill at INSERT time) and BEFORE REST yield.
+            _default_storage_supply_id = await bootstrap_default_storage_supply(deps)
+            await bootstrap_distribution_backfill(deps, _default_storage_supply_id)
 
             # Phase-8e-1a: projection worker. Each BC that owns
             # projections exports a `register_<bc>_projections`

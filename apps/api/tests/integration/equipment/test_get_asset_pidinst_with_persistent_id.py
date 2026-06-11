@@ -22,7 +22,6 @@ from uuid import UUID, uuid4
 import asyncpg
 import pytest
 
-from cora.equipment.adapters.stub_doi_minter import StubDoiMinter
 from cora.equipment.aggregates.asset import (
     AssetLevel,
     AssetOwner,
@@ -53,6 +52,7 @@ from cora.equipment.features.define_family import DefineFamily
 from cora.equipment.features.define_model import DefineModel
 from cora.equipment.features.get_asset_pidinst import GetAssetPidinst
 from cora.equipment.features.register_asset import RegisterAsset
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from cora.infrastructure.config import Settings
 from cora.infrastructure.kernel import Kernel
 from cora.shared.identifier import (

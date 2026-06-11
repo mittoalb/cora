@@ -25,20 +25,41 @@ primitive and does no peer loads (no cross-BC cascade per
 """
 
 from dataclasses import dataclass
+from types import SimpleNamespace
 from uuid import UUID
 
+from cora.data.adapters.in_memory_distribution_lookup import (
+    InMemoryDistributionLookup,
+)
+from cora.data.adapters.postgres_distribution_lookup import (
+    PostgresDistributionLookup,
+)
+from cora.data.adapters.rocrate12_serializer import RoCrate12Adapter
+from cora.data.aggregates.edition import EditionKind
 from cora.data.features import (
+    add_dataset_to_edition,
     demote_dataset,
     discard_dataset,
     get_dataset,
     list_datasets,
     promote_dataset,
+    publish_edition,
     record_acquisition,
+    record_attestation,
     register_dataset,
+    register_distribution,
+    register_edition,
+    remove_dataset_from_edition,
+    seal_edition,
+    withdraw_edition,
 )
+from cora.data.ports.distribution_lookup import DistributionLookup
+from cora.data.ports.edition_serializer import EditionSerializerPort
+from cora.infrastructure.adapters.stub_doi_minter import StubDoiMinter
 from cora.infrastructure.idempotency import with_idempotency
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.observability import with_tracing
+from cora.shared.ports.doi_minter import DoiMinter
 
 _BC = "data"
 
@@ -54,10 +75,49 @@ class DataHandlers:
     get_dataset: get_dataset.Handler
     list_datasets: list_datasets.Handler
     record_acquisition: record_acquisition.IdempotentHandler
+    register_distribution: register_distribution.IdempotentHandler
+    register_edition: register_edition.IdempotentHandler
+    add_dataset_to_edition: add_dataset_to_edition.Handler
+    remove_dataset_from_edition: remove_dataset_from_edition.Handler
+    seal_edition: seal_edition.Handler
+    publish_edition: publish_edition.Handler
+    withdraw_edition: withdraw_edition.Handler
+    record_attestation: record_attestation.IdempotentHandler
+
+
+def _build_distribution_lookup(deps: Kernel) -> DistributionLookup:
+    """Pick `PostgresDistributionLookup` when a pool is wired; else in-memory."""
+    if deps.pool is not None:
+        return PostgresDistributionLookup(deps.pool)
+    return InMemoryDistributionLookup()
+
+
+def _build_edition_serializers() -> dict[EditionKind, EditionSerializerPort]:
+    """Per-kind serializer adapter map. Only `ROCRATE` is wired today."""
+    return {EditionKind.ROCRATE: RoCrate12Adapter()}
+
+
+def _build_doi_minter() -> DoiMinter:
+    """Wire the stub DoiMinter; production DataCite adapter swap is deferred."""
+    return StubDoiMinter()
 
 
 def wire_data(deps: Kernel) -> DataHandlers:
     """Build the Data BC handlers from shared dependencies."""
+    # Attach BC-local adapters BEFORE binding handlers that read them.
+    # Per the Equipment precedent, the BC-local namespace lives at
+    # `deps.data` and is set via `object.__setattr__` since `Kernel`
+    # is frozen.
+    if not hasattr(deps, "data"):
+        object.__setattr__(
+            deps,
+            "data",
+            SimpleNamespace(
+                distribution_lookup=_build_distribution_lookup(deps),
+                edition_serializers=_build_edition_serializers(),
+                doi_minter=_build_doi_minter(),
+            ),
+        )
     return DataHandlers(
         register_dataset=with_tracing(
             with_idempotency(
@@ -110,6 +170,67 @@ def wire_data(deps: Kernel) -> DataHandlers:
                 lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
             ),
             command_name="RecordAcquisition",
+            bc=_BC,
+        ),
+        register_distribution=with_tracing(
+            with_idempotency(
+                register_distribution.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterDistribution",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterDistribution",
+            bc=_BC,
+        ),
+        register_edition=with_tracing(
+            with_idempotency(
+                register_edition.bind(deps),
+                deps.idempotency_store,
+                command_name="RegisterEdition",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RegisterEdition",
+            bc=_BC,
+        ),
+        add_dataset_to_edition=with_tracing(
+            add_dataset_to_edition.bind(deps),
+            command_name="AddDatasetToEdition",
+            bc=_BC,
+        ),
+        remove_dataset_from_edition=with_tracing(
+            remove_dataset_from_edition.bind(deps),
+            command_name="RemoveDatasetFromEdition",
+            bc=_BC,
+        ),
+        seal_edition=with_tracing(
+            seal_edition.bind(deps),
+            command_name="SealEdition",
+            bc=_BC,
+        ),
+        publish_edition=with_tracing(
+            publish_edition.bind(deps),
+            command_name="PublishEdition",
+            bc=_BC,
+        ),
+        withdraw_edition=with_tracing(
+            withdraw_edition.bind(deps),
+            command_name="WithdrawEdition",
+            bc=_BC,
+        ),
+        record_attestation=with_tracing(
+            with_idempotency(
+                record_attestation.bind(deps),
+                deps.idempotency_store,
+                command_name="RecordAttestation",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RecordAttestation",
             bc=_BC,
         ),
     )

@@ -106,6 +106,10 @@ _INTRINSIC_ALLOWLIST: dict[str, str] = {
         "CORA-side recording act folds as the proper `recorded_at` / "
         "`recorded_by` pair on the same dataclass"
     ),
+    "data.Edition.Creator.actor_id": (
+        "publication-author identity-ref (credited creator on the citable Edition); "
+        "ordered tuple semantics, NOT a fact-act fold"
+    ),
 }
 
 # Aggregates whose events MUST carry the attribution half even though

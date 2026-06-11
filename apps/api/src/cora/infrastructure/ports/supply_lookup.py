@@ -36,16 +36,29 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class SupplyReference:
-    """Summary row from `proj_supply_summary` for the pre-flight gate.
+    """Summary row from `proj_supply_summary` for cross-BC consumers.
 
-    Carries the minimal columns the start-time decider needs to
-    decide pass/fail and to produce a diagnostic. Loaded by the
-    handler via `SupplyLookup.find_supplies_by_kind` and handed to
-    the decider as values in `needed_supplies_satisfaction`.
+    Carries the minimal columns the cross-BC consumers (Run / Operation
+    pre-flight gate; Data BC register_distribution; future Trust BC
+    credential rotation) need to make their decisions and produce
+    diagnostics. Loaded by the handler via
+    `SupplyLookup.find_supplies_by_kind` (grouped query) or
+    `SupplyLookup.lookup` (single-id query) and handed to the
+    consumer's decider.
 
     `status` is the StrEnum value as a plain string (matches the
-    projection's `TEXT` column); the decider treats it opaquely and
-    partitions on `"Available"`.
+    projection's `TEXT` column); consumers treat it opaquely and
+    partition on `"Available"` (pre-flight gate) or pass it through
+    (register_distribution status-agnostic bind).
+
+    `kind` is the bare-str Supply.kind value (today; future closed-StrEnum
+    move per Supply BC's own roadmap). Distribution's register decider
+    gates on `kind == "Storage"`.
+
+    `facility_code` carries the resolved Facility code of the Supply's
+    owning Facility (added for the Data BC register_distribution
+    consumer + future federation use cases). Bare str on the wire per
+    [[project-facility-aggregate-design]] convention.
 
     `supply_id` is typed `UUID` for cross-port symmetry with
     `ClearanceReference.clearance_id` and `CautionReference.caution_id`.
@@ -55,10 +68,11 @@ class SupplyReference:
     kind: str
     name: str
     status: str
+    facility_code: str
 
 
 class SupplyLookup(Protocol):
-    """Cross-BC port: query Supply's status projection from Run + Operation BCs."""
+    """Cross-BC port: query Supply's status projection from Run + Operation + Data BCs."""
 
     async def find_supplies_by_kind(
         self,
@@ -85,6 +99,28 @@ class SupplyLookup(Protocol):
         """
         ...
 
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        """Return the projection row for `supply_id`, or `None` if not found.
+
+        Consumers needing to validate a specific supply (the Data BC
+        register_distribution handler being the first such consumer)
+        use this single-id query in preference to the grouped
+        find_supplies_by_kind interface.
+
+        Supplies in EVERY status are returned (Available, Degraded,
+        Unavailable, Recovering, Decommissioned); the consumer
+        decider partitions on `status` if it needs to distinguish
+        "no Supply at all" from "Supply exists but in non-Available
+        state". register_distribution intentionally accepts every
+        status because a Distribution can legitimately be registered
+        against a Decommissioned Supply for archival completeness;
+        only `kind` is gated.
+
+        Mirrors `AssetLookup.lookup` shape one-for-one for cross-port
+        symmetry.
+        """
+        ...
+
 
 class AllSatisfiedSupplyLookup:
     """Test-default stub: returns ONE synthetic Available Supply per requested kind.
@@ -101,6 +137,11 @@ class AllSatisfiedSupplyLookup:
     gate. Tests that need to assert the missing-kind or no-Available
     rejection paths MUST use the real `PostgresSupplyLookup`
     adapter, not this stub.
+
+    `lookup(supply_id)` returns `None` by default; tests that exercise
+    Distribution's register flow against this stub will see the
+    `DistributionSupplyNotFoundError` rejection path, which is the
+    correct conservative default for a not-explicitly-seeded stub.
     """
 
     async def find_supplies_by_kind(
@@ -117,10 +158,15 @@ class AllSatisfiedSupplyLookup:
                     kind=kind,
                     name=f"<test stub: {kind}>",
                     status="Available",
+                    facility_code="<test stub facility>",
                 )
             ]
             for kind in kinds
         }
+
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        _ = supply_id
+        return None
 
 
 class NoSuppliesRegisteredLookup:
@@ -131,6 +177,9 @@ class NoSuppliesRegisteredLookup:
     `RunRequiresAvailableSupplyError` or
     `ProcedureRequiresAvailableSupplyError` for every kind in
     `Method.needed_supplies`).
+
+    `lookup(supply_id)` returns `None` (no Supplies registered at all
+    means every per-id lookup is a miss).
     """
 
     async def find_supplies_by_kind(
@@ -140,3 +189,58 @@ class NoSuppliesRegisteredLookup:
     ) -> Mapping[str, list[SupplyReference]]:
         _ = kinds
         return {}
+
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        _ = supply_id
+        return None
+
+
+class UnknownSupplyLookup:
+    """Test stub: `lookup(supply_id)` always returns `None`.
+
+    Mirrors `AllSatisfiedSupplyLookup` / `NoSuppliesRegisteredLookup`
+    shape but specifically supports the Distribution register flow's
+    "Supply lookup returned None" branch. The grouped
+    `find_supplies_by_kind` interface returns an empty mapping
+    (tests using this stub do not exercise the pre-flight gate; if
+    they do, see `AllSatisfiedSupplyLookup`).
+    """
+
+    async def find_supplies_by_kind(
+        self,
+        *,
+        kinds: frozenset[str],
+    ) -> Mapping[str, list[SupplyReference]]:
+        _ = kinds
+        return {}
+
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        _ = supply_id
+        return None
+
+
+class SingleSupplyLookup:
+    """Test stub: `lookup(supply_id)` returns ONE configured Supply.
+
+    Use when a Distribution-register test needs to exercise the
+    happy path (or specific kind/status branches) without spinning
+    up the real `PostgresSupplyLookup` adapter. Construct with a
+    fixed `SupplyReference`; every `lookup` call returns the same
+    reference. `find_supplies_by_kind` returns empty (out of scope).
+    """
+
+    def __init__(self, reference: SupplyReference) -> None:
+        self._reference = reference
+
+    async def find_supplies_by_kind(
+        self,
+        *,
+        kinds: frozenset[str],
+    ) -> Mapping[str, list[SupplyReference]]:
+        _ = kinds
+        return {}
+
+    async def lookup(self, supply_id: UUID) -> SupplyReference | None:
+        if supply_id == self._reference.supply_id:
+            return self._reference
+        return None
