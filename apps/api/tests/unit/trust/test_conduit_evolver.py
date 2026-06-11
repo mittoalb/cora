@@ -102,7 +102,7 @@ def test_decider_and_evolver_round_trip() -> None:
     """The events the decider produces must rebuild the expected state.
 
     The decider emits ConduitDefined + ConduitLogbookOpened, and the
-    evolver folds both into a Conduit with the traversals logbook id
+    evolver folds both into a Conduit with the verdict logbook id
     present in `logbooks`.
     """
     new_id = uuid4()
@@ -120,7 +120,7 @@ def test_decider_and_evolver_round_trip() -> None:
         command=command,
         now=_NOW,
         new_id=new_id,
-        traversals_logbook_id=logbook_id,
+        verdict_logbook_id=logbook_id,
     )
     rebuilt = fold(events)
 
@@ -129,7 +129,7 @@ def test_decider_and_evolver_round_trip() -> None:
         name=ConduitName("Detector-to-Storage"),
         source_zone_id=source,
         target_zone_id=target,
-        logbooks={"traversals": logbook_id},
+        logbooks={"verdict": logbook_id},
     )
 
 
@@ -156,12 +156,12 @@ def test_evolve_channel_opened_adds_kind_id_pair_to_channels() -> None:
         ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
             logbook_id=logbook_id,
-            kind="traversals",
+            kind="verdict",
             schema=_sample_schema(),
             occurred_at=_NOW,
         ),
     )
-    assert after_open.logbooks == {"traversals": logbook_id}
+    assert after_open.logbooks == {"verdict": logbook_id}
 
 
 @pytest.mark.unit
@@ -174,7 +174,7 @@ def test_evolve_channel_closed_removes_kind_entry() -> None:
         ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
             logbook_id=logbook_id,
-            kind="traversals",
+            kind="verdict",
             schema=_sample_schema(),
             occurred_at=_NOW,
         ),
@@ -200,7 +200,7 @@ def test_evolve_channel_opened_on_none_state_raises() -> None:
             ConduitLogbookOpened(
                 conduit_id=uuid4(),
                 logbook_id=uuid4(),
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
@@ -229,7 +229,7 @@ def test_evolve_channel_opened_raises_when_kind_already_open() -> None:
         ConduitLogbookOpened(
             conduit_id=genesis.conduit_id,
             logbook_id=first_id,
-            kind="traversals",
+            kind="verdict",
             schema=_sample_schema(),
             occurred_at=_NOW,
         ),
@@ -240,12 +240,12 @@ def test_evolve_channel_opened_raises_when_kind_already_open() -> None:
             ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
                 logbook_id=second_id,  # different id, same kind
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
         )
-    assert exc_info.value.kind == "traversals"
+    assert exc_info.value.kind == "verdict"
     assert exc_info.value.existing_logbook_id == first_id
 
 
@@ -279,7 +279,7 @@ def test_fold_full_open_close_cycle_yields_empty_channels() -> None:
             ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
                 logbook_id=logbook_id,
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
@@ -308,7 +308,7 @@ def test_fold_supports_multiple_kinds_open_simultaneously() -> None:
             ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
                 logbook_id=ch_a,
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
@@ -322,7 +322,7 @@ def test_fold_supports_multiple_kinds_open_simultaneously() -> None:
         ]
     )
     assert state is not None
-    assert state.logbooks == {"traversals": ch_a, "other_kind": ch_b}
+    assert state.logbooks == {"verdict": ch_a, "other_kind": ch_b}
 
 
 @pytest.mark.unit
@@ -338,7 +338,7 @@ def test_fold_supports_reopening_a_kind_after_close() -> None:
             ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
                 logbook_id=first_id,
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
@@ -350,11 +350,11 @@ def test_fold_supports_reopening_a_kind_after_close() -> None:
             ConduitLogbookOpened(
                 conduit_id=genesis.conduit_id,
                 logbook_id=second_id,
-                kind="traversals",
+                kind="verdict",
                 schema=_sample_schema(),
                 occurred_at=_NOW,
             ),
         ]
     )
     assert state is not None
-    assert state.logbooks == {"traversals": second_id}
+    assert state.logbooks == {"verdict": second_id}

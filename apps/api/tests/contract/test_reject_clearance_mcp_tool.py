@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
@@ -32,11 +33,12 @@ def _seed_under_review_clearance(
         assert body["result"]["isError"] is False, body
         return body["result"]
 
+    template_id = clearance_template_stream_id("cora", "ESAF")
     register = _call(
         "register_clearance",
         {
-            "kind": "ESAF",
-            "facility_asset_id": str(uuid4()),
+            "template_id": str(template_id),
+            "facility_code": "cora",
             "title": "Pilot",
             "bindings": [{"kind": "Run", "id": str(uuid4())}],
         },
@@ -122,6 +124,7 @@ def test_mcp_reject_clearance_tool_returns_iserror_when_not_under_review() -> No
     """Reject from Defined (no submit/start_review) -> ClearanceCannotRejectError."""
     with TestClient(create_app()) as client:
         session_headers = open_session(client)
+        template_id = clearance_template_stream_id("cora", "ESAF")
         register = client.post(
             "/mcp",
             json={
@@ -131,8 +134,8 @@ def test_mcp_reject_clearance_tool_returns_iserror_when_not_under_review() -> No
                 "params": {
                     "name": "register_clearance",
                     "arguments": {
-                        "kind": "ESAF",
-                        "facility_asset_id": str(uuid4()),
+                        "template_id": str(template_id),
+                        "facility_code": "cora",
                         "title": "Pilot",
                         "bindings": [{"kind": "Run", "id": str(uuid4())}],
                     },

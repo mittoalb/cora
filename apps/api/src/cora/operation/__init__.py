@@ -21,9 +21,39 @@ rationale.
 
 Slices: `register_procedure` (genesis -> Defined), `start_procedure`
 / `complete_procedure` / `abort_procedure` / `truncate_procedure`
-(FSM transitions), `append_procedure_steps` (per-step logbook with
-Setpoint/Action/Check rows mirroring Run BC's RunReading channel),
+(FSM transitions), `append_activities` (per-step logbook with
+Setpoint/Action/Check rows mirroring Run BC's Observation channel),
 `get_procedure` (fold-on-read), `list_procedures` (projection-backed).
+
+## Step vs Activity altitude split
+
+Two `Step`-shaped concepts live in this BC at different altitudes,
+deliberately:
+
+  - **Runtime `Step` union** (`conductor.py`): the discriminated
+    union `SetpointStep | ActionStep | CheckStep` — the IN-FLIGHT
+    spec the Conductor walks during a Procedure execution. Each
+    variant is what the conductor IS TOLD TO DO at one step.
+  - **Persisted `Activity` entry** (`aggregates/procedure/entries.py`):
+    one row per executed step, capturing WHAT HAPPENED (the step
+    that ran, with its result). Path C polymorphic table with
+    `step_kind` discriminator carrying the runtime variant's name
+    (`setpoint` / `action` / `check`).
+
+The relationship: each runtime `Step` execution writes one
+`Activity` entry through the `ActivityStore` port. Conductor's
+`SetpointStep | ActionStep | CheckStep` are the SPEC; the
+`entries_operation_procedure_activities` rows are the LOG.
+
+The 2026-06-09 logbook-entry rename (project_logbook_entry_storage
+"Convention shift") split the names to make this altitude
+separation legible: pre-rename, `ProcedureStep` (the entry class)
+shared the noun with the runtime variants and read as if it was
+just another `Step`. Post-rename, `Activity` carries its own
+semantic anchor (PROV-O `prov:Activity` = "thing that occurred and
+acted upon entities") so operators reading "the activity log for
+procedure X" and reviewers reading "show me the steps that ran"
+both have unambiguous vocabulary at their altitude.
 """
 
 from cora.operation._projections import register_operation_projections

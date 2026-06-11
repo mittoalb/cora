@@ -58,7 +58,7 @@ This scenario exercises 6 of the 8 Supply slices in order:
   3. ~12 hours into a 24-hour acquisition session, the dewar
      level drops below the 20% safety margin (operator-readable
      LED indicator on the dewar). Operator marks it Degraded
-     with the level reading; the detector continues operating
+     with the level observation; the detector continues operating
      but the operator schedules an early refill.
   4. Before the refill arrives, the dewar runs dry. Operator
      marks it Unavailable with the timestamp. The detector

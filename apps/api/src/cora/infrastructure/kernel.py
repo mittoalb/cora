@@ -22,7 +22,7 @@ construction module breaks the cycle at the namespace level:
 ## BC-specific stores stay BC-internal
 
 `Kernel` carries cross-BC primitives only. BC-specific entry
-stores (Trust BC's `TraversalStore`, Decision BC's `ReasoningStore`,
+stores (Trust BC's `VerdictStore`, Decision BC's `InferenceStore`,
 etc.) are constructed inside each BC's own `wire_<bc>(deps)` from
 `deps.pool` and live BC-internal. This keeps the kernel clean as
 more BCs adopt the logbook-and-entries pattern.
@@ -45,6 +45,7 @@ from cora.infrastructure.ports import (
     CapabilityLookup,
     CautionLookup,
     ClearanceLookup,
+    ClearanceTemplateLookup,
     Clock,
     CredentialLookup,
     EnclosureLookup,
@@ -85,6 +86,17 @@ class Kernel:
     real clearances; gate-specific tests override with the real
     adapter explicitly. Mirrors the `Authorize` / `AllowAllAuthorize`
     test-default pattern.
+
+    `clearance_template_lookup`: cross-aggregate port consumed by
+    Safety BC's own `version_clearance_template` handler to validate
+    the supersedes_template_id parent chain stays within one
+    facility (per the cross-facility identity lock). 9E extends the
+    consumer set with `register_clearance` / `amend_clearance`.
+    Safety BC ships `PostgresClearanceTemplateLookup` as the
+    production adapter (reads `proj_safety_clearance_template_summary`).
+    Test environments default to `InMemoryClearanceTemplateLookup`;
+    chain-validation tests seed parent templates via the adapter's
+    `register(...)` helper.
 
     `caution_lookup`: cross-BC port consumed by Run
     BC's `start_run` handler to snapshot operator-authored cautions
@@ -222,6 +234,7 @@ class Kernel:
     event_store: EventStore
     idempotency_store: IdempotencyStore
     clearance_lookup: ClearanceLookup
+    clearance_template_lookup: ClearanceTemplateLookup
     caution_lookup: CautionLookup
     capability_lookup: CapabilityLookup
     supply_lookup: SupplyLookup

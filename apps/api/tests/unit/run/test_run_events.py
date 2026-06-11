@@ -716,25 +716,25 @@ def test_run_stopped_round_trips() -> None:
     assert from_stored(stored) == original
 
 
-# ---------- RunReadingLogbookOpened ----------
+# ---------- RunObservationLogbookOpened ----------
 
 from cora.run.aggregates.run import (  # noqa: E402
-    LOGBOOK_KIND_READING,
-    READING_LOGBOOK_SCHEMA,
+    LOGBOOK_KIND_OBSERVATION,
+    OBSERVATION_LOGBOOK_SCHEMA,
 )
-from cora.run.aggregates.run.events import RunReadingLogbookOpened  # noqa: E402
+from cora.run.aggregates.run.events import RunObservationLogbookOpened  # noqa: E402
 
 
 @pytest.mark.unit
 def test_event_type_name_for_run_reading_logbook_opened() -> None:
-    event = RunReadingLogbookOpened(
+    event = RunObservationLogbookOpened(
         run_id=uuid4(),
         logbook_id=uuid4(),
-        kind=LOGBOOK_KIND_READING,
-        schema=READING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_OBSERVATION,
+        schema=OBSERVATION_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
-    assert event_type_name(event) == "RunReadingLogbookOpened"
+    assert event_type_name(event) == "RunObservationLogbookOpened"
 
 
 @pytest.mark.unit
@@ -742,17 +742,17 @@ def test_to_payload_serializes_run_reading_logbook_opened_to_primitives() -> Non
     """Schema flattens via LogbookSchema.to_dict for jsonb storage."""
     run_id = uuid4()
     logbook_id = uuid4()
-    event = RunReadingLogbookOpened(
+    event = RunObservationLogbookOpened(
         run_id=run_id,
         logbook_id=logbook_id,
-        kind=LOGBOOK_KIND_READING,
-        schema=READING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_OBSERVATION,
+        schema=OBSERVATION_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
     payload = to_payload(event)
     assert payload["run_id"] == str(run_id)
     assert payload["logbook_id"] == str(logbook_id)
-    assert payload["kind"] == LOGBOOK_KIND_READING
+    assert payload["kind"] == LOGBOOK_KIND_OBSERVATION
     assert payload["occurred_at"] == _NOW.isoformat()
     # Schema is a nested dict, not the LogbookSchema dataclass.
     assert isinstance(payload["schema"], dict)
@@ -765,33 +765,33 @@ def test_from_stored_rebuilds_run_reading_logbook_opened() -> None:
     run_id = uuid4()
     logbook_id = uuid4()
     stored = _stored(
-        "RunReadingLogbookOpened",
+        "RunObservationLogbookOpened",
         {
             "run_id": str(run_id),
             "logbook_id": str(logbook_id),
-            "kind": LOGBOOK_KIND_READING,
-            "schema": READING_LOGBOOK_SCHEMA.to_dict(),
+            "kind": LOGBOOK_KIND_OBSERVATION,
+            "schema": OBSERVATION_LOGBOOK_SCHEMA.to_dict(),
             "occurred_at": _NOW.isoformat(),
         },
     )
     rebuilt = from_stored(stored)
-    assert isinstance(rebuilt, RunReadingLogbookOpened)
+    assert isinstance(rebuilt, RunObservationLogbookOpened)
     assert rebuilt.run_id == run_id
     assert rebuilt.logbook_id == logbook_id
-    assert rebuilt.kind == LOGBOOK_KIND_READING
-    assert rebuilt.schema.fields == READING_LOGBOOK_SCHEMA.fields
+    assert rebuilt.kind == LOGBOOK_KIND_OBSERVATION
+    assert rebuilt.schema.fields == OBSERVATION_LOGBOOK_SCHEMA.fields
 
 
 @pytest.mark.unit
-def test_run_reading_logbook_opened_round_trips() -> None:
-    original = RunReadingLogbookOpened(
+def test_run_observation_logbook_opened_round_trips() -> None:
+    original = RunObservationLogbookOpened(
         run_id=uuid4(),
         logbook_id=uuid4(),
-        kind=LOGBOOK_KIND_READING,
-        schema=READING_LOGBOOK_SCHEMA,
+        kind=LOGBOOK_KIND_OBSERVATION,
+        schema=OBSERVATION_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
-    stored = _stored("RunReadingLogbookOpened", to_payload(original))
+    stored = _stored("RunObservationLogbookOpened", to_payload(original))
     assert from_stored(stored) == original
 
 
@@ -1153,7 +1153,7 @@ def test_decision_debrief_requested_round_trips_through_payload() -> None:
         "RunStopped",
         "RunTruncated",
         "RunAdjusted",
-        "RunReadingLogbookOpened",
+        "RunObservationLogbookOpened",
         "RunAddedToCampaign",
         "RunRemovedFromCampaign",
         "DecisionDebriefRequested",

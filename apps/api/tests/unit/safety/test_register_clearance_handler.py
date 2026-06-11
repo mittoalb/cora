@@ -1,16 +1,19 @@
 """Application-handler tests for `register_clearance` slice."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
 from cora.infrastructure.adapters.in_memory_event_store import InMemoryEventStore
 from cora.infrastructure.kernel import Kernel
 from cora.safety.aggregates.clearance import (
-    ClearanceKind,
     RunBinding,
     SubjectBinding,
+)
+from cora.safety.aggregates.clearance_template import (
+    ClearanceTemplateId,
+    clearance_template_stream_id,
 )
 from cora.safety.errors import UnauthorizedError
 from cora.safety.features import register_clearance
@@ -22,6 +25,11 @@ _NEW_ID = UUID("01900000-0000-7000-8000-000000011011")
 _EVENT_ID = UUID("01900000-0000-7000-8000-000000011012")
 _PRINCIPAL_ID = UUID("01900000-0000-7000-8000-000000000099")
 _CORRELATION_ID = UUID("01900000-0000-7000-8000-0000000000aa")
+_FACILITY_CODE = "cora"
+_TEMPLATE_CODE = "ESAF"
+_TEMPLATE_ID: ClearanceTemplateId = ClearanceTemplateId(
+    clearance_template_stream_id(_FACILITY_CODE, _TEMPLATE_CODE)
+)
 
 
 def _build_deps(
@@ -29,12 +37,23 @@ def _build_deps(
     event_store: InMemoryEventStore | None = None,
     deny: bool = False,
 ) -> Kernel:
-    return _build_deps_shared(
+    deps = _build_deps_shared(
         ids=[_NEW_ID, _EVENT_ID],
         now=_NOW,
         event_store=event_store,
         deny=deny,
     )
+    # Seed the in-memory ClearanceTemplateLookup with an Active "ESAF"
+    # template in the "cora" facility so the handler's cross-aggregate
+    # template lookup resolves before the decider runs.
+    deps.clearance_template_lookup.register(  # type: ignore[attr-defined]
+        template_id=_TEMPLATE_ID,
+        facility_code=_FACILITY_CODE,
+        code=_TEMPLATE_CODE,
+        status="Active",
+        version=1,
+    )
+    return deps
 
 
 @pytest.mark.unit
@@ -43,8 +62,8 @@ async def test_handler_returns_generated_clearance_id() -> None:
     handler = register_clearance.bind(deps)
     result = await handler(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=UUID(int=42))}),
         ),
@@ -62,8 +81,8 @@ async def test_handler_appends_clearance_registered_event() -> None:
     rid = UUID(int=42)
     await handler(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="Pilot ESAF",
             bindings=frozenset({RunBinding(run_id=rid)}),
         ),
@@ -76,7 +95,8 @@ async def test_handler_appends_clearance_registered_event() -> None:
     stored = events[0]
     assert stored.event_type == "ClearanceRegistered"
     assert stored.payload["clearance_id"] == str(_NEW_ID)
-    assert stored.payload["kind"] == "ESAF"
+    assert stored.payload["template_id"] == str(_TEMPLATE_ID)
+    assert stored.payload["template_code"] == _TEMPLATE_CODE
     assert stored.payload["title"] == "Pilot ESAF"
     assert stored.payload["bindings"] == [{"kind": "Run", "id": str(rid)}]
     assert stored.correlation_id == _CORRELATION_ID
@@ -92,8 +112,8 @@ async def test_handler_serializes_multi_binding_set() -> None:
     sid, rid = UUID(int=1), UUID(int=2)
     await handler(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="Multi-bind",
             bindings=frozenset({SubjectBinding(subject_id=sid), RunBinding(run_id=rid)}),
         ),
@@ -112,8 +132,8 @@ async def test_handler_raises_unauthorized_on_deny() -> None:
     with pytest.raises(UnauthorizedError) as exc_info:
         await handler(
             RegisterClearance(
-                kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                template_id=_TEMPLATE_ID,
+                facility_code=_FACILITY_CODE,
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -131,8 +151,8 @@ async def test_handler_does_not_append_when_denied() -> None:
     with pytest.raises(UnauthorizedError):
         await handler(
             RegisterClearance(
-                kind=ClearanceKind.ESAF,
-                facility_asset_id=uuid4(),
+                template_id=_TEMPLATE_ID,
+                facility_code=_FACILITY_CODE,
                 title="t",
                 bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
             ),
@@ -152,8 +172,8 @@ async def test_handler_records_causation_id_when_provided() -> None:
     causation = UUID("01900000-0000-7000-8000-0000000000bb")
     await handler(
         RegisterClearance(
-            kind=ClearanceKind.ESAF,
-            facility_asset_id=uuid4(),
+            template_id=_TEMPLATE_ID,
+            facility_code=_FACILITY_CODE,
             title="t",
             bindings=frozenset({RunBinding(run_id=UUID(int=1))}),
         ),

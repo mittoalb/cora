@@ -3,7 +3,7 @@
 Thin orchestrator that delegates to `Conductor.conduct()`. The
 handler's job is the application-layer concerns the Conductor
 itself does not own: command-level authorization (the per-step
-`append_procedure_steps` calls already authz internally, but the
+`append_activities` calls already authz internally, but the
 ConductProcedure entry point gates the entire invocation), envelope
 threading, recipe-replay re-expansion when the Procedure was created
 via `register_procedure_from_recipe`, and result conversion from
@@ -13,7 +13,7 @@ via `register_procedure_from_recipe`, and result conversion from
 
 Unlike CQRS slices that compute events from state, `conduct_procedure`
 records no new events on the Procedure stream directly: the wrapped
-`start_procedure` / `append_procedure_steps` / `complete_procedure` /
+`start_procedure` / `append_activities` / `complete_procedure` /
 `abort_procedure` handlers are the things that write. The slice is
 an orchestration entry point, NOT an aggregate-state-mutating
 decider. Therefore no `decider.py`, no `context.py`.

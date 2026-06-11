@@ -152,7 +152,7 @@ class RunStarted:
     id, prior-run id, automation id). Optional (None when omitted).
     Forward-compat via `payload.get("trigger_source")`. Future
     Decision-BC integration may populate this from
-    `DecisionReasoning.entries` references.
+    `Inference.entries` references.
     """
 
     run_id: UUID
@@ -386,12 +386,12 @@ class RunStopped:
 
 
 @dataclass(frozen=True)
-class RunReadingLogbookOpened:
-    """A reading logbook was attached to this Run.
+class RunObservationLogbookOpened:
+    """A observation logbook was attached to this Run.
 
     Naming note: this event carries the entry-noun (`Reading`) in its
     name, vs. Conduit/Decision's bare `<Aggregate>LogbookOpened`. Why:
-    Run is planned to host MULTIPLE logbook kinds (reading now;
+    Run is planned to host MULTIPLE logbook kinds (observation now;
     hazard events and operator-action audit are likely future
     additions), so the event name needs the entry-noun discriminator
     upfront. Conduit and Decision currently host one kind each and
@@ -399,19 +399,19 @@ class RunReadingLogbookOpened:
     follow the `<Aggregate><EntryNoun>LogbookOpened` skeleton then.
     Per [[project_logbook_entry_storage]] cross-BC family table.
 
-    Lazy open-on-first-write: emitted by the `append_run_readings`
-    handler the first time a reading is appended for this Run, NOT
+    Lazy open-on-first-write: emitted by the `append_observations`
+    handler the first time a observation is appended for this Run, NOT
     by `start_run` (mirrors Decision BC's 8c-b precedent for
     `DecisionLogbookOpened`). Subsequent appends find the logbook
     already attached and skip the open-event emission.
 
     `kind` discriminates the logbook category. Today only
-    `LOGBOOK_KIND_READING` from state.py; future per-Run logbook
+    `LOGBOOK_KIND_OBSERVATION` from state.py; future per-Run logbook
     kinds (hazard events, operator-action audit) would use distinct
     constants and distinct state fields, not additional values for
     `kind` here.
 
-    `schema` declares the row shape of `entries_run_readings`,
+    `schema` declares the row shape of `entries_run_observations`,
     documenting the polymorphic `(channel_name, value, units?,
     sampling_procedure, sampled_at, occurred_at, recorded_at)` shape
     for downstream projections. Per
@@ -421,10 +421,10 @@ class RunReadingLogbookOpened:
     at run boundary) + `monitor` (6f-5c, sub-Hz time-series during
     the run); future-additive without schema migration.
 
-    No `RunReadingLogbookClosed` event today: Run.status terminals
+    No `RunObservationLogbookClosed` event today: Run.status terminals
     (Completed | Aborted | Stopped | Truncated) are the implicit
-    close signal; `append_run_readings` rejects writes when status is
-    terminal via `RunReadingLogbookClosedError`. Audit fidelity is
+    close signal; `append_observations` rejects writes when status is
+    terminal via `RunObservationLogbookClosedError`. Audit fidelity is
     preserved: the open event timestamps the logbook lifecycle start;
     the terminal RunCompleted / RunAborted / etc. event timestamps
     the lifecycle end.
@@ -534,7 +534,7 @@ RunEvent = (
     | RunStopped
     | RunTruncated
     | RunAdjusted
-    | RunReadingLogbookOpened
+    | RunObservationLogbookOpened
     | RunAddedToCampaign
     | RunRemovedFromCampaign
     | DecisionDebriefRequested
@@ -670,7 +670,7 @@ def to_payload(event: RunEvent) -> dict[str, Any]:
                 ),
                 "occurred_at": occurred_at.isoformat(),
             }
-        case RunReadingLogbookOpened(
+        case RunObservationLogbookOpened(
             run_id=run_id,
             logbook_id=logbook_id,
             kind=kind,
@@ -870,10 +870,10 @@ def from_stored(stored: StoredEvent) -> RunEvent:
                 )
 
             return deserialize_or_raise("RunAdjusted", _build_run_adjusted)
-        case "RunReadingLogbookOpened":
+        case "RunObservationLogbookOpened":
             return deserialize_or_raise(
-                "RunReadingLogbookOpened",
-                lambda: RunReadingLogbookOpened(
+                "RunObservationLogbookOpened",
+                lambda: RunObservationLogbookOpened(
                     run_id=UUID(payload["run_id"]),
                     logbook_id=UUID(payload["logbook_id"]),
                     kind=payload["kind"],
@@ -924,7 +924,7 @@ __all__ = [
     "RunCompleted",
     "RunEvent",
     "RunHeld",
-    "RunReadingLogbookOpened",
+    "RunObservationLogbookOpened",
     "RunRemovedFromCampaign",
     "RunResumed",
     "RunStarted",

@@ -55,7 +55,7 @@ async def verify_bootstrap_seed_present(deps: Kernel) -> None:
     1. `trust_policy_id == SYSTEM_BOOTSTRAP_POLICY_V2_ID`: verify the
        V2 policy stream + the 3 seeded Surface streams exist. V2
        references HTTP Surface; without Surface streams, evaluate
-       would Allow on a phantom surface_id and the traversal audit
+       would Allow on a phantom surface_id and the verdict audit
        log silently skips entries. Partial-fail mitigation.
 
     2. `trust_policy_id == SYSTEM_BOOTSTRAP_POLICY_ID` (V1): verify

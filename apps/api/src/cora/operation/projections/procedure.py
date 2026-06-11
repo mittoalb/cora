@@ -4,7 +4,7 @@ into the `proj_operation_procedure_summary` read model that backs
 
 Subscribed events:
   - ProcedureRegistered          -> INSERT (status='Defined', last_status_*=NULL,
-                                            interrupted_at=NULL, steps_logbook_id=NULL)
+                                            interrupted_at=NULL, activity_logbook_id=NULL)
   - ProcedureStarted             -> UPDATE status='Running'   + status-change ts
   - ProcedureCompleted           -> UPDATE status='Completed' + status-change ts
   - ProcedureAborted             -> UPDATE status='Aborted'   + status-change ts
@@ -12,7 +12,7 @@ Subscribed events:
   - ProcedureTruncated           -> UPDATE status='Truncated' + status-change ts
                                                               + last_status_reason
                                                               + interrupted_at
-  - ProcedureStepsLogbookOpened  -> UPDATE steps_logbook_id (status NOT touched;
+  - ProcedureActivitiesLogbookOpened  -> UPDATE activity_logbook_id (status NOT touched;
                                                              logbook is orthogonal
                                                              to lifecycle)
 
@@ -39,7 +39,7 @@ from cora.infrastructure.projection.handler import ConnectionLike
 _INSERT_PROCEDURE_SQL = """
 INSERT INTO proj_operation_procedure_summary
     (procedure_id, name, kind, target_asset_ids, parent_run_id, status,
-     steps_logbook_id, registered_at,
+     activity_logbook_id, registered_at,
      last_status_changed_at, last_status_reason, interrupted_at,
      recipe_id)
 VALUES ($1, $2, $3, $4::uuid[], $5, 'Defined', NULL, $6, NULL, NULL, NULL, $7)
@@ -83,7 +83,7 @@ WHERE procedure_id = $1
 
 _UPDATE_STEPS_LOGBOOK_OPENED_SQL = """
 UPDATE proj_operation_procedure_summary
-SET steps_logbook_id = $2,
+SET activity_logbook_id = $2,
     updated_at = now()
 WHERE procedure_id = $1
 """
@@ -100,7 +100,7 @@ class ProcedureSummaryProjection:
             "ProcedureCompleted",
             "ProcedureAborted",
             "ProcedureTruncated",
-            "ProcedureStepsLogbookOpened",
+            "ProcedureActivitiesLogbookOpened",
         }
     )
 
@@ -173,7 +173,7 @@ class ProcedureSummaryProjection:
             )
             return
 
-        if event.event_type == "ProcedureStepsLogbookOpened":
+        if event.event_type == "ProcedureActivitiesLogbookOpened":
             await conn.execute(
                 _UPDATE_STEPS_LOGBOOK_OPENED_SQL,
                 UUID(event.payload["procedure_id"]),

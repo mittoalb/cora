@@ -44,6 +44,7 @@ from cora.data.features import (
     list_datasets,
     promote_dataset,
     publish_edition,
+    record_attestation,
     register_dataset,
     register_distribution,
     register_edition,
@@ -79,6 +80,7 @@ class DataHandlers:
     seal_edition: seal_edition.Handler
     publish_edition: publish_edition.Handler
     withdraw_edition: withdraw_edition.Handler
+    record_attestation: record_attestation.IdempotentHandler
 
 
 def _build_distribution_lookup(deps: Kernel) -> DistributionLookup:
@@ -203,6 +205,18 @@ def wire_data(deps: Kernel) -> DataHandlers:
         withdraw_edition=with_tracing(
             withdraw_edition.bind(deps),
             command_name="WithdrawEdition",
+            bc=_BC,
+        ),
+        record_attestation=with_tracing(
+            with_idempotency(
+                record_attestation.bind(deps),
+                deps.idempotency_store,
+                command_name="RecordAttestation",
+                serialize_result=str,
+                deserialize_result=UUID,
+                lock_stale_seconds=deps.settings.idempotency_lock_stale_seconds,
+            ),
+            command_name="RecordAttestation",
             bc=_BC,
         ),
     )

@@ -20,14 +20,14 @@ the composition root wires BCs into the kernel.
     `cora/trust/authorize.py` for the bootstrap workflow when
     first enabling real auth in a deployment.
 
-## TraversalStore wiring
+## VerdictStore wiring
 
 When `TrustAuthorize` is constructed, it receives the Trust BC's
-`TraversalStore` so it can emit one `ConduitTraversal` row per
-Allow / Deny decision. The store is built inline (Postgres if
-the pool is set, in-memory otherwise) and passed in alongside
-clock + id_generator. `AllowAllAuthorize` stays bare (no entries
-from the permissive default).
+`VerdictStore` so it can emit one `Verdict` row per Allow / Deny
+decision. The store is built inline (Postgres if the pool is
+set, in-memory otherwise) and passed in alongside clock +
+id_generator. `AllowAllAuthorize` stays bare (no entries from
+the permissive default).
 """
 
 import asyncpg
@@ -41,9 +41,9 @@ from cora.infrastructure.ports import (
     IdGenerator,
 )
 from cora.trust.aggregates.conduit.entries import (
-    InMemoryTraversalStore,
-    PostgresTraversalStore,
-    TraversalStore,
+    InMemoryVerdictStore,
+    PostgresVerdictStore,
+    VerdictStore,
 )
 from cora.trust.authorize import TrustAuthorize
 
@@ -60,13 +60,13 @@ def build_authorize(
     if settings.trust_policy_id is None:
         return AllowAllAuthorize()
 
-    traversals_store: TraversalStore = (
-        PostgresTraversalStore(pool) if pool is not None else InMemoryTraversalStore()
+    verdict_store: VerdictStore = (
+        PostgresVerdictStore(pool) if pool is not None else InMemoryVerdictStore()
     )
     return TrustAuthorize(
         event_store,
         policy_id=settings.trust_policy_id,
-        traversals_store=traversals_store,
+        verdict_store=verdict_store,
         clock=clock,
         id_generator=id_generator,
     )

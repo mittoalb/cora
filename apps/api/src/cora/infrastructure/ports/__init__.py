@@ -32,6 +32,10 @@ from cora.infrastructure.ports.clearance_lookup import (
     ClearanceLookup,
     ClearanceReference,
 )
+from cora.infrastructure.ports.clearance_template_lookup import (
+    ClearanceTemplateLookup,
+    ClearanceTemplateLookupResult,
+)
 from cora.infrastructure.ports.clock import Clock, FakeClock, SystemClock
 from cora.infrastructure.ports.credential_lookup import (
     CredentialLookup,
@@ -141,6 +145,8 @@ __all__ = [
     "Claimed",
     "ClearanceLookup",
     "ClearanceReference",
+    "ClearanceTemplateLookup",
+    "ClearanceTemplateLookupResult",
     "Clock",
     "ConcurrencyError",
     "CredentialLookup",

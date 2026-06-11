@@ -7,11 +7,11 @@ Subscribed events:
 
 ConduitLogbookOpened/Closed events are intentionally NOT subscribed:
 they are internal logbook bookkeeping (the entries store carries
-traversal rows; the aggregate-level logbook events are for the
+verdict rows; the aggregate-level logbook events are for the
 audit trail, not the summary projection). Same precedent as the
 Decision summary projection skipping its DecisionLogbookOpened/Closed
 events. A future `proj_trust_conduit_logbooks` join projection
-covers "list conduits with N+ traversals in window" if that use
+covers "list conduits with N+ verdicts in window" if that use
 case crystallizes.
 
 Conduit is immutable-once-defined today (lifecycle additions

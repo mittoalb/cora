@@ -71,6 +71,10 @@ if TYPE_CHECKING:
 # aggregate directory; nested VOs use their own class name.
 _INTRINSIC_ALLOWLIST: dict[str, str] = {
     "caution.Caution.expires_at": "operator-supplied calendar deadline; not a fact-act",
+    "caution.Caution.authored_by": (
+        "genesis author identity-ref inherited through supersede / retire; "
+        "the act-of-authoring is the genesis fold-NEITHER posture"
+    ),
     "federation.Credential.expires_at": "contractual upper bound; not a fact-act",
     "federation.Permit.expires_at": "contractual upper bound; not a fact-act",
     "safety.Clearance.valid_from": "calendar window start; not a fact-act",
@@ -78,24 +82,10 @@ _INTRINSIC_ALLOWLIST: dict[str, str] = {
     "safety.Clearance.next_review_due_at": "scheduled review date; not a fact-act",
     "trust.Visit.planned_start_at": "operator-supplied planned window; not a fact-act",
     "trust.Visit.planned_end_at": "operator-supplied planned window; not a fact-act",
-    "operation.Procedure.ProcedureTruncated.interrupted_at": (
-        "operator best-guess phenomenonTime on event payload only; never folded"
-    ),
-    "campaign.Campaign.lead_actor_id": "long-haul PI ownership; not a fact-act fold",
-    "caution.Caution.authored_by": (
-        "genesis author identity-ref inherited through supersede / retire; "
-        "the act-of-authoring is the genesis fold-NEITHER posture"
-    ),
-    "decision.Decision.parent_id": "PROV-O wasInformedBy (Decision-to-Decision); not actor",
-    "recipe.Capability.replaced_by_capability_id": (
-        "forward successor pointer (LOINC MAP_TO); not actor"
-    ),
-    "recipe.Recipe.replaced_by_recipe_id": ("forward successor pointer (LOINC MAP_TO); not actor"),
-    "subject.Subject.mounted_on_asset_id": "physical apparatus binding; not actor",
-    "trust.Policy.permitted_principal_ids": "authz payload allow-list; not attribution",
-    "trust.Visit.PresenceEntry.actor_id": (
-        "subject-of-presence (today coincident with envelope authority); "
-        "revisit if delegated check-in lands"
+    "campaign.Campaign.lead_actor_id": (
+        "long-haul PI ownership; not a fact-act fold. The name ends in "
+        "`_actor_id` which Pass 1 otherwise bans post-rename, so the "
+        "allowlist entry is the only escape hatch"
     ),
     "trust.Visit.PresenceEntry.check_in_at": (
         "implicit attribution via bare `actor_id` on the same VO "
@@ -113,49 +103,6 @@ _INTRINSIC_ALLOWLIST: dict[str, str] = {
         "publication-author identity-ref (credited creator on the citable Edition); "
         "ordered tuple semantics, NOT a fact-act fold"
     ),
-}
-
-# Fold-NEITHER allowlist: BCs / aggregates that fold neither half of a
-# fact-act onto state. Pass 1 accepts the absence of folded TIME or
-# ATTRIBUTION fields on these aggregates. Each entry carries a one-line
-# justification matching the format `<bc>.<aggregate> -- <reason>`.
-#
-# Entries marked "(events MUST carry by)" trip Pass 2: state stays
-# fold-NEITHER but every event class with `occurred_at` MUST carry the
-# matching attribution payload field.
-_FOLD_NEITHER_ALLOWLIST: dict[str, str] = {
-    "access.Actor": "PII vault keeps state minimal; zero folds across all events",
-    "agent.Agent": (
-        "AgentDefined / AgentVersioned / AgentDeprecated stay envelope-only "
-        "(Path C); the Suspended / Resumed pair gets the symmetric folds"
-    ),
-    "campaign.Campaign": "fold-NEITHER across all 8 events by design",
-    "caution.Caution": (
-        "transition events (Superseded, Retired) stay envelope-only; "
-        "genesis carries identity-ref authored_by"
-    ),
-    "data.Dataset": "state stays fold-NEITHER (events MUST carry by per Pass 2)",
-    "equipment.Model": "fold-NEITHER posture across all events",
-    "equipment.Assembly": "fold-NEITHER posture across all events",
-    "equipment.Family": "fold-NEITHER posture across all events",
-    "equipment.Frame": "fold-NEITHER posture across all events",
-    "equipment.Mount": "fold-NEITHER posture across all events",
-    "operation.Procedure": (
-        "fold-NEITHER per slim-aggregate stance; per-step entries are out of scope"
-    ),
-    "recipe.Capability": "fold-NEITHER across all events; future fold = 17-event widening",
-    "recipe.Method": "fold-NEITHER across all events; future fold = 17-event widening",
-    "recipe.Plan": "fold-NEITHER across all events; future fold = 17-event widening",
-    "recipe.Practice": "fold-NEITHER across all events; future fold = 17-event widening",
-    "recipe.Recipe": "fold-NEITHER across all events; future fold = 17-event widening",
-    "run.Run": "11 events fold-NEITHER on state; RunAdjusted gets the symmetric pair",
-    "safety.Clearance": "root state fold-NEITHER; ReviewStep VO carries the symmetric pair",
-    "subject.Subject": "state stays fold-NEITHER (events MUST carry by per Pass 2)",
-    "supply.Supply": ("state stays fold-NEITHER (events MUST carry triggered_by per Pass 2)"),
-    "trust.Conduit": "fold-NEITHER across all events",
-    "trust.Policy": "fold-NEITHER across all events",
-    "trust.Surface": "fold-NEITHER across all events",
-    "trust.Zone": "fold-NEITHER across all events",
 }
 
 # Aggregates whose events MUST carry the attribution half even though
@@ -588,7 +535,8 @@ def test_event_payload_attribution_required_for_fold_neither_aggregates(
         + f"\n\n{key} stays fold-NEITHER on aggregate state but every "
         "event class with `occurred_at` MUST carry the matching "
         "attribution payload field. See `project_fold_symmetry_design.md` "
-        "fold-NEITHER allowlist (entries marked 'events MUST carry by')."
+        "and the `_EVENTS_MUST_CARRY_ATTRIBUTION` table at the top of "
+        "this file for the load-bearing fold-NEITHER aggregates."
     )
 
 
@@ -599,10 +547,6 @@ def test_event_payload_attribution_required_for_fold_neither_aggregates(
 
 def _intrinsic_entries() -> Iterable[tuple[str, str]]:
     return sorted(_INTRINSIC_ALLOWLIST.items())
-
-
-def _fold_neither_entries() -> Iterable[tuple[str, str]]:
-    return sorted(_FOLD_NEITHER_ALLOWLIST.items())
 
 
 @pytest.mark.architecture
@@ -620,15 +564,70 @@ def test_intrinsic_allowlist_entry_carries_justification(entry: str, reason: str
     )
 
 
+def _locate_intrinsic_field(key: str) -> tuple[Path, ast.AnnAssign] | None:
+    """Locate the AnnAssign node for a `<bc>.<class>[.<vo>].<field>` key.
+
+    Walks `cora/<bc>/aggregates/**/state.py` and returns the first
+    matching `(path, AnnAssign)` if found. Returns None if no
+    aggregate state.py defines the named class with the named field.
+    events.py files are intentionally not searched; Pass 1 only walks
+    state.py, so an intrinsic allowlist entry pointing at an event
+    payload field exempts nothing and should be removed.
+    """
+    parts = key.split(".")
+    bc = parts[0]
+    field = parts[-1]
+    target_class = parts[-2]
+    agg_dir = CORA_ROOT / bc / "aggregates"
+    if not agg_dir.is_dir():
+        return None
+    for state in agg_dir.rglob("state.py"):
+        tree = ast.parse(state.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef) or node.name != target_class:
+                continue
+            for stmt in node.body:
+                if (
+                    isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and stmt.target.id == field
+                ):
+                    return (state, stmt)
+    return None
+
+
 @pytest.mark.architecture
-@pytest.mark.parametrize(
-    ("entry", "reason"),
-    list(_fold_neither_entries()),
-    ids=[e for e, _ in _fold_neither_entries()],
-)
-def test_fold_neither_allowlist_entry_carries_justification(entry: str, reason: str) -> None:
-    """Every fold-NEITHER allowlist entry carries a non-empty
-    justification (catches accidental empty-string entries)."""
-    assert reason.strip(), (
-        f"fold-NEITHER allowlist entry {entry!r} has an empty justification; add a one-line reason"
+@pytest.mark.parametrize("entry", sorted(_INTRINSIC_ALLOWLIST.keys()))
+def test_intrinsic_allowlist_entry_actually_triggers_predicate(entry: str) -> None:
+    """Every intrinsic-data allowlist entry MUST trip at least one Pass 1 check.
+
+    The three Pass 1 checks an entry can trip:
+
+    - the TIME predicate (annotation contains `datetime`),
+    - the ATTRIBUTION predicate (annotation contains `ActorId`), or
+    - the hard `_actor_id` rename-ban (field name ends in `_actor_id`).
+
+    Catches defensive entries for fields that match none of the above
+    (e.g. a `UUID`-typed field whose name doesn't end in `_actor_id`)
+    which the allowlist exempts from nothing.
+    """
+    located = _locate_intrinsic_field(entry)
+    assert located is not None, (
+        f"intrinsic-data allowlist entry {entry!r} does not match any "
+        "field on an aggregate state.py; remove the stale entry "
+        "(event-payload fields belong to Pass 2, not the intrinsic allowlist)"
+    )
+    _, ann_node = located
+    field_name = entry.rsplit(".", 1)[-1]
+    triggers = (
+        _is_time_annotation(ann_node.annotation)
+        or _is_attribution_annotation(ann_node.annotation)
+        or field_name.endswith("_actor_id")
+    )
+    assert triggers, (
+        f"intrinsic-data allowlist entry {entry!r} has annotation "
+        f"{ast.unparse(ann_node.annotation)!r} and field-name "
+        f"{field_name!r}, which trip none of Pass 1's checks (TIME / "
+        "ATTRIBUTION / `_actor_id` rename ban). The allowlist exempts "
+        "nothing for this field; remove the entry."
     )

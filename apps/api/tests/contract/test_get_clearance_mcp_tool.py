@@ -6,11 +6,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from cora.api.main import create_app
+from cora.safety.aggregates.clearance_template import clearance_template_stream_id
 from tests.contract._mcp_helpers import open_session, parse_sse_data
 
 
 def _seed_clearance(client: TestClient, session_headers: dict[str, str]) -> str:
     """Create a clearance via the MCP register tool, return its id."""
+    template_id = clearance_template_stream_id("cora", "ESAF")
     response = client.post(
         "/mcp",
         json={
@@ -20,8 +22,8 @@ def _seed_clearance(client: TestClient, session_headers: dict[str, str]) -> str:
             "params": {
                 "name": "register_clearance",
                 "arguments": {
-                    "kind": "ESAF",
-                    "facility_asset_id": str(uuid4()),
+                    "template_id": str(template_id),
+                    "facility_code": "cora",
                     "title": "Pilot",
                     "bindings": [{"kind": "Run", "id": str(uuid4())}],
                     "risk_band": "Yellow",
@@ -74,7 +76,7 @@ def test_mcp_get_clearance_tool_returns_structured_state_on_hit() -> None:
     assert result["isError"] is False
     structured = result["structuredContent"]
     assert structured["id"] == cid
-    assert structured["kind"] == "ESAF"
+    assert structured["template_id"] == str(clearance_template_stream_id("cora", "ESAF"))
     assert structured["status"] == "Defined"
     assert structured["risk_band"] == "Yellow"
 

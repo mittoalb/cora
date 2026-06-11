@@ -48,11 +48,12 @@ from cora.safety.aggregates.clearance.events import (
 from cora.safety.aggregates.clearance.hazard_classification import RiskBand
 from cora.safety.aggregates.clearance.state import (
     Clearance,
-    ClearanceKind,
     ClearanceStatus,
     ClearanceTitle,
     ReviewStep,
 )
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
+from cora.shared.facility_code import FacilityCode
 
 
 def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
@@ -60,8 +61,8 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
     match event:
         case ClearanceRegistered(
             clearance_id=clearance_id,
-            kind=kind,
-            facility_asset_id=facility_asset_id,
+            template_id=template_id,
+            facility_code=facility_code,
             title=title,
             bindings=bindings,
             declarations=declarations,
@@ -74,8 +75,8 @@ def evolve(state: Clearance | None, event: ClearanceEvent) -> Clearance:
             _ = state  # ClearanceRegistered is the genesis event; prior state ignored
             return Clearance(
                 id=clearance_id,
-                kind=ClearanceKind(kind),
-                facility_asset_id=facility_asset_id,
+                template_id=ClearanceTemplateId(template_id),
+                facility_code=FacilityCode(facility_code),
                 title=ClearanceTitle(title),
                 bindings=frozenset(deserialize_binding(b) for b in bindings),
                 declarations=frozenset(deserialize_declaration(d) for d in declarations),
@@ -142,8 +143,8 @@ def _replace_status(prior: Clearance, new_status: ClearanceStatus) -> Clearance:
     """Return a new Clearance with `status` updated; identity + most fields preserved."""
     return Clearance(
         id=prior.id,
-        kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        template_id=prior.template_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,
@@ -162,8 +163,8 @@ def _replace_review_steps(prior: Clearance, new_review_steps: tuple[ReviewStep, 
     """Return a new Clearance with `review_steps` updated; status preserved."""
     return Clearance(
         id=prior.id,
-        kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        template_id=prior.template_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,
@@ -188,8 +189,8 @@ def _replace_approved(
     valid_from / valid_until overwritten if explicit values provided."""
     return Clearance(
         id=prior.id,
-        kind=prior.kind,
-        facility_asset_id=prior.facility_asset_id,
+        template_id=prior.template_id,
+        facility_code=prior.facility_code,
         title=prior.title,
         bindings=prior.bindings,
         declarations=prior.declarations,

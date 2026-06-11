@@ -19,7 +19,7 @@ SUBJECT noun. The known set is:
   - a small allowlist of bona-fide domain nouns that name a
     persisted value type rather than an aggregate (reasoning,
     entries, permission, permissions) used by Decision's
-    `append_reasoning_entries` and Trust's `list_permissions`.
+    `append_inferences` and Trust's `list_permissions`.
 
 A future slice whose verb genuinely doesn't take a SUBJECT noun is
 almost certainly a smell (a bare `arrive`, `ping`, `health_check`
@@ -42,6 +42,7 @@ _AGGREGATE_NAMES: frozenset[str] = frozenset(
         "agent",
         "assembly",
         "asset",
+        "attestation",
         "calibration",
         "campaign",
         "capability",
@@ -83,8 +84,10 @@ _AGGREGATE_NAMES: frozenset[str] = frozenset(
 # subject.
 _DOMAIN_NOUN_ALLOWLIST: frozenset[str] = frozenset(
     {
-        "reasoning",  # Decision: append_reasoning_entries
-        "entry",  # Decision: append_reasoning_entries (plural-stripped)
+        "inference",  # Decision: append_inferences (logbook-entry rename)
+        "observation",  # Run: append_observations (logbook-entry rename, slice 3)
+        "activity",  # Operation: append_activities (logbook-entry rename, slice 4)
+        "entry",  # generic logbook-entry vocabulary
         "permission",  # Trust: list_permissions
         "event",  # Agent: dismiss_event_in_reaction
         "reaction",  # Agent: dismiss_event_in_reaction (Reaction = subscriber class)

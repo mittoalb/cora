@@ -3,12 +3,12 @@
 Pins the genesis -> transition fold + projection writes:
 
   - ProcedureRegistered          -> INSERT (status='Defined', last_status_*=NULL,
-                                            interrupted_at=NULL, steps_logbook_id=NULL)
+                                            interrupted_at=NULL, activity_logbook_id=NULL)
   - ProcedureStarted             -> UPDATE status='Running' + last_status_changed_at
   - ProcedureCompleted           -> UPDATE status='Completed' + last_status_changed_at
   - ProcedureAborted             -> UPDATE status='Aborted' + audit triple
   - ProcedureTruncated           -> UPDATE status='Truncated' + reason + interrupted_at
-  - ProcedureStepsLogbookOpened  -> UPDATE steps_logbook_id (lazy-open envelope)
+  - ProcedureActivitiesLogbookOpened  -> UPDATE activity_logbook_id (lazy-open envelope)
   - status / kind / parent_run_id / target_asset_id (UUID[] GIN) filters
   - cursor pagination
 """
@@ -69,7 +69,7 @@ async def test_register_inserts_defined_status_with_null_audit_columns(
     async with db_pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT name, kind, status, target_asset_ids, parent_run_id, "
-            "steps_logbook_id, last_status_changed_at, last_status_reason, "
+            "activity_logbook_id, last_status_changed_at, last_status_reason, "
             "interrupted_at "
             "FROM proj_operation_procedure_summary WHERE procedure_id = $1",
             proc_id,
@@ -80,7 +80,7 @@ async def test_register_inserts_defined_status_with_null_audit_columns(
     assert row["status"] == "Defined"
     assert list(row["target_asset_ids"]) == []
     assert row["parent_run_id"] is None
-    assert row["steps_logbook_id"] is None
+    assert row["activity_logbook_id"] is None
     assert row["last_status_changed_at"] is None
     assert row["last_status_reason"] is None
     assert row["interrupted_at"] is None

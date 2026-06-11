@@ -24,7 +24,6 @@ from cora.safety.aggregates.clearance import (
     CLEARANCE_EXTERNAL_ID_MAX_LENGTH,
     CLEARANCE_TITLE_MAX_LENGTH,
     Clearance,
-    ClearanceKind,
     ClearanceStatus,
     ReviewStep,
 )
@@ -50,8 +49,8 @@ class ClearanceOutput(BaseModel):
     """Structured output of the `get_clearance` MCP tool (on hit)."""
 
     id: UUID
-    kind: ClearanceKind
-    facility_asset_id: UUID
+    template_id: UUID
+    facility_code: str
     title: str = Field(..., max_length=CLEARANCE_TITLE_MAX_LENGTH)
     bindings: list[dict[str, Any]]
     declarations: list[dict[str, Any]]
@@ -79,8 +78,8 @@ def _review_step_to_output(step: ReviewStep) -> ReviewStepOutput:
 def _clearance_to_output(clearance: Clearance) -> ClearanceOutput:
     return ClearanceOutput(
         id=clearance.id,
-        kind=clearance.kind,
-        facility_asset_id=clearance.facility_asset_id,
+        template_id=clearance.template_id,
+        facility_code=clearance.facility_code.value,
         title=clearance.title.value,
         bindings=[serialize_binding(b) for b in clearance.bindings],
         declarations=[serialize_declaration(d) for d in clearance.declarations],

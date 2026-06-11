@@ -8,14 +8,22 @@ Workflow Run Crate profiles.
 `DistributionLookup` adapters reading `proj_data_distribution_summary`
 or an in-process dict for the canonical Distribution row per Dataset.
 
+`HttpRangeChecksumAdapter`: implements `ChecksumVerifierPort` over
+HTTP / HTTPS via range-read in 1 MiB chunks.
+
 Test-only stub adapters live alongside the production adapters for
 reuse across unit + contract + integration tests:
 
   - `StubEditionSerializer`: returns a pre-configured `SerializedEdition`
   - `FailingEditionSerializer`: raises a pre-configured exception
   - `PerKindEditionSerializer`: dispatches to per-kind serializers
+
+Per [[project_adapter_naming_design]]: class name ``<Tech><Port>``;
+module placement at ``cora.<bc>.adapters/`` for single-BC adapters,
+or ``cora.<bc>.infrastructure.adapters/`` for cross-BC adapters.
 """
 
+from cora.data.adapters.http_range_checksum import HttpRangeChecksumAdapter
 from cora.data.adapters.in_memory_distribution_lookup import (
     InMemoryDistributionLookup,
 )
@@ -31,6 +39,7 @@ from cora.data.adapters.stub_edition_serializer import (
 
 __all__ = [
     "FailingEditionSerializer",
+    "HttpRangeChecksumAdapter",
     "InMemoryDistributionLookup",
     "PerKindEditionSerializer",
     "PostgresDistributionLookup",

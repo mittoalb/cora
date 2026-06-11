@@ -61,7 +61,8 @@ async def test_dataset_registered_inserts_with_genesis_refs() -> None:
             "subject_id": str(_SUBJECT_ID),
             "derived_from": [],
             "occurred_at": _NOW.isoformat(),
-            # compat is exercised by test_dataset_registered_pre_12c_payload_falls_back.
+            # compat exercised by
+            # test_dataset_registered_without_used_calibration_ids_key_falls_back_to_empty_list.
             "used_calibration_ids": [],
         },
     )
@@ -113,10 +114,10 @@ async def test_dataset_registered_with_null_run_and_subject() -> None:
 
 
 @pytest.mark.unit
-async def test_dataset_registered_pre_12c_payload_falls_back_to_empty_used_calibration_ids() -> (
+async def test_dataset_registered_without_used_calibration_ids_key_falls_back_to_empty_list() -> (
     None
 ):
-    """Pre-12c DatasetRegistered events lack the `used_calibration_ids`
+    """Legacy DatasetRegistered events lack the `used_calibration_ids`
     key in the payload entirely. The projection's `payload.get(
     "used_calibration_ids", [])` fallback MUST land an empty UUID list
     on the column so legacy rows backfill cleanly (matches the

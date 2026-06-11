@@ -9,10 +9,10 @@ from cora.infrastructure.ports.event_store import StoredEvent
 from cora.operation.aggregates.procedure import (
     STEPS_LOGBOOK_SCHEMA,
     ProcedureAborted,
+    ProcedureActivitiesLogbookOpened,
     ProcedureCompleted,
     ProcedureRegistered,
     ProcedureStarted,
-    ProcedureStepsLogbookOpened,
     ProcedureTruncated,
     RecipeExpansionRecorded,
     event_type_name,
@@ -150,7 +150,7 @@ def test_from_stored_rebuilds_standalone_procedure_with_null_parent() -> None:
 
 
 @pytest.mark.unit
-def test_from_stored_rebuilds_pre_10d_procedure_registered_without_capability_id_key() -> None:
+def test_from_stored_rebuilds_legacy_procedure_registered_without_capability_id_key() -> None:
     """Additive backwards-compat pin: legacy streams omit
     the `capability_id` key from `ProcedureRegistered` payloads
     entirely. `from_stored` MUST use `payload.get("capability_id")`
@@ -346,19 +346,19 @@ def test_procedure_aborted_round_trips() -> None:
     assert rebuilt == original
 
 
-# --- ProcedureStepsLogbookOpened (lazy-open envelope) ---
+# --- ProcedureActivitiesLogbookOpened (lazy-open envelope) ---
 
 
 @pytest.mark.unit
 def test_event_type_name_for_procedure_steps_logbook_opened() -> None:
-    event = ProcedureStepsLogbookOpened(
+    event = ProcedureActivitiesLogbookOpened(
         procedure_id=uuid4(),
         logbook_id=uuid4(),
         kind="steps",
         schema=STEPS_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
-    assert event_type_name(event) == "ProcedureStepsLogbookOpened"
+    assert event_type_name(event) == "ProcedureActivitiesLogbookOpened"
 
 
 @pytest.mark.unit
@@ -369,7 +369,7 @@ def test_to_payload_serializes_procedure_steps_logbook_opened() -> None:
         fields={"step_kind": LogbookFieldSpec(type="string")},
         description="test",
     )
-    event = ProcedureStepsLogbookOpened(
+    event = ProcedureActivitiesLogbookOpened(
         procedure_id=procedure_id,
         logbook_id=logbook_id,
         kind="steps",
@@ -390,7 +390,7 @@ def test_from_stored_rebuilds_procedure_steps_logbook_opened() -> None:
     logbook_id = uuid4()
     schema = STEPS_LOGBOOK_SCHEMA
     stored = _stored(
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         {
             "procedure_id": str(procedure_id),
             "logbook_id": str(logbook_id),
@@ -400,7 +400,7 @@ def test_from_stored_rebuilds_procedure_steps_logbook_opened() -> None:
         },
     )
     rebuilt = from_stored(stored)
-    assert isinstance(rebuilt, ProcedureStepsLogbookOpened)
+    assert isinstance(rebuilt, ProcedureActivitiesLogbookOpened)
     assert rebuilt.procedure_id == procedure_id
     assert rebuilt.logbook_id == logbook_id
     assert rebuilt.kind == "steps"
@@ -409,14 +409,14 @@ def test_from_stored_rebuilds_procedure_steps_logbook_opened() -> None:
 
 @pytest.mark.unit
 def test_procedure_steps_logbook_opened_round_trips() -> None:
-    original = ProcedureStepsLogbookOpened(
+    original = ProcedureActivitiesLogbookOpened(
         procedure_id=uuid4(),
         logbook_id=uuid4(),
         kind="steps",
         schema=STEPS_LOGBOOK_SCHEMA,
         occurred_at=_NOW,
     )
-    stored = _stored("ProcedureStepsLogbookOpened", to_payload(original))
+    stored = _stored("ProcedureActivitiesLogbookOpened", to_payload(original))
     rebuilt = from_stored(stored)
     assert rebuilt == original
 
@@ -555,7 +555,7 @@ def test_to_payload_bindings_field_is_dict_after_canonical_json_hoist() -> None:
         "ProcedureCompleted",
         "ProcedureAborted",
         "ProcedureTruncated",
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
     ],
 )
 def test_from_stored_raises_on_malformed_payload(event_type: str) -> None:

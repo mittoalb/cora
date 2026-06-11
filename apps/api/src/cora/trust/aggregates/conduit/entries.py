@@ -1,13 +1,13 @@
-"""ConduitTraversal entry: per-decision authz audit row.
+"""Verdict entry: per-decision authz audit (verdict) row.
 
 The first concrete entry type. Every call to the `Authorize` port
-that this Conduit governs produces one `ConduitTraversal` entry
-row, persisted to the `entries_conduit_traversals` table.
+that this Conduit governs produces one `Verdict` entry row,
+persisted to the `entries_conduit_verdicts` table.
 
 This is the first instance of the **per-category writer pattern**
 locked at gate-review L8: each entry kind has its own typed
 dataclass + per-category Postgres adapter living alongside the
-owning aggregate, with a category-local `TraversalStore` Protocol
+owning aggregate, with a category-local `VerdictStore` Protocol
 (NOT a shared cross-BC port). Future kinds follow the same shape
 (`<owning_bc>/aggregates/<agg>/entries.py`).
 
@@ -23,11 +23,11 @@ aggregate modules made (each owns its `to_payload` / `from_stored`).
 
 ## Why writes batch from day one
 
-`append(rows: list[ConduitTraversal])` always takes a list, even for
+`append(rows: list[Verdict])` always takes a list, even for
 the realistic "one decision at a time" case (single-element list).
-When higher-cardinality entry categories ship (FrameTrigger,
-MotorPosition), the shape is unchanged. Locked at gate-review G4.
-Empty lists are a no-op.
+When higher-cardinality entry categories ship (Observation in Run BC,
+Activity in Operation BC), the shape is unchanged. Locked at
+gate-review G4. Empty lists are a no-op.
 
 ## Why no read shape today
 
@@ -48,12 +48,12 @@ from uuid import UUID
 
 import asyncpg
 
-TraversalDecision = Literal["Allow", "Deny"]
+VerdictDecision = Literal["Allow", "Deny"]
 
 
 @dataclass(frozen=True)
-class ConduitTraversal:
-    """One row in the per-Conduit authz traversal audit logbook.
+class Verdict:
+    """One row in the per-Conduit authz verdict logbook.
 
     `event_id` is the producer-assigned UUIDv7 identity (matches the
     existing event-sourcing convention). Used as the dedup key under
@@ -68,32 +68,32 @@ class ConduitTraversal:
     logbook_id: UUID
     actor_id: UUID
     command_name: str
-    decision: TraversalDecision
+    decision: VerdictDecision
     reason: str | None
     correlation_id: UUID
     causation_id: UUID | None
     occurred_at: datetime
 
 
-class TraversalStore(Protocol):
-    """Per-category port for ConduitTraversal entry writes.
+class VerdictStore(Protocol):
+    """Per-category port for Verdict entry writes.
 
-    Every Authorize port adapter that wants to emit traversal entries
+    Every Authorize port adapter that wants to emit verdict entries
     (TrustAuthorize today; future authz adapters similarly) takes a
-    `TraversalStore` and calls `append(...)` per decision.
+    `VerdictStore` and calls `append(...)` per decision.
 
-    Two implementations: `PostgresTraversalStore` (production) and
-    `InMemoryTraversalStore` (tests / `app_env=test`). Both honor
+    Two implementations: `PostgresVerdictStore` (production) and
+    `InMemoryVerdictStore` (tests / `app_env=test`). Both honor
     the same at-least-once contract: callers may retry the same
     `event_id`, the store dedups via the table's PK constraint
     (Postgres) or the in-memory dict (InMemory).
     """
 
-    async def append(self, rows: list[ConduitTraversal]) -> None: ...
+    async def append(self, rows: list[Verdict]) -> None: ...
 
 
 _APPEND_SQL = """
-INSERT INTO entries_conduit_traversals (
+INSERT INTO entries_conduit_verdicts (
     event_id, conduit_id, logbook_id, actor_id, command_name,
     decision, reason, correlation_id, causation_id, occurred_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -101,8 +101,8 @@ ON CONFLICT (event_id) DO NOTHING
 """
 
 
-class PostgresTraversalStore:
-    """asyncpg-backed `TraversalStore` implementation.
+class PostgresVerdictStore:
+    """asyncpg-backed `VerdictStore` implementation.
 
     Uses `ON CONFLICT (event_id) DO NOTHING` for idempotent retries:
     a producer that re-issues the same `event_id` (after a transient
@@ -114,7 +114,7 @@ class PostgresTraversalStore:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
-    async def append(self, rows: list[ConduitTraversal]) -> None:
+    async def append(self, rows: list[Verdict]) -> None:
         if not rows:
             return
         async with self._pool.acquire() as conn:
@@ -138,8 +138,8 @@ class PostgresTraversalStore:
             )
 
 
-class InMemoryTraversalStore:
-    """Test / `app_env=test` adapter for `TraversalStore`.
+class InMemoryVerdictStore:
+    """Test / `app_env=test` adapter for `VerdictStore`.
 
     Dict keyed by `event_id` for trivial dedup. Exposes `all()` so
     contract / unit tests can assert what was emitted without going
@@ -147,22 +147,22 @@ class InMemoryTraversalStore:
     """
 
     def __init__(self) -> None:
-        self._rows: dict[UUID, ConduitTraversal] = {}
+        self._rows: dict[UUID, Verdict] = {}
 
-    async def append(self, rows: list[ConduitTraversal]) -> None:
+    async def append(self, rows: list[Verdict]) -> None:
         for row in rows:
             # ON CONFLICT DO NOTHING semantics: existing wins (matches
             # the Postgres adapter's behavior under retry).
             self._rows.setdefault(row.event_id, row)
 
-    def all(self) -> list[ConduitTraversal]:
+    def all(self) -> list[Verdict]:
         return list(self._rows.values())
 
 
 __all__ = [
-    "ConduitTraversal",
-    "InMemoryTraversalStore",
-    "PostgresTraversalStore",
-    "TraversalDecision",
-    "TraversalStore",
+    "InMemoryVerdictStore",
+    "PostgresVerdictStore",
+    "Verdict",
+    "VerdictDecision",
+    "VerdictStore",
 ]

@@ -25,7 +25,6 @@ from cora.safety.aggregates.clearance import (
     CLEARANCE_TITLE_MAX_LENGTH,
     AssetBinding,
     ClearanceBinding,
-    ClearanceKind,
     ExternalRefBinding,
     HazardDeclaration,
     ProcedureBinding,
@@ -45,6 +44,7 @@ from cora.safety.aggregates.clearance.hazard_classification import (
     RiskBand,
     SchemeCode,
 )
+from cora.safety.aggregates.clearance_template import ClearanceTemplateId
 from cora.safety.features.register_clearance.command import RegisterClearance
 from cora.safety.features.register_clearance.handler import IdempotentHandler
 from cora.shared.identifier import (
@@ -193,16 +193,25 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
     )
     async def register_clearance_tool(  # pyright: ignore[reportUnusedFunction]
         ctx: Context[Any, Any, Any],
-        kind: Annotated[
-            ClearanceKind,
-            Field(description="Form-type (10 facility-independent form-types)."),
-        ],
-        facility_asset_id: Annotated[
+        template_id: Annotated[
             UUID,
             Field(
                 description=(
-                    "Reference to the Asset.Level.Site for the facility that issued "
-                    "(or will issue) this clearance."
+                    "ClearanceTemplate id (auto-seeded per facility). Only Active "
+                    "templates accept new bindings; unknown id -> 404, non-Active "
+                    "-> 409."
+                ),
+            ),
+        ],
+        facility_code: Annotated[
+            str,
+            Field(
+                min_length=1,
+                max_length=32,
+                pattern=r"^[a-z0-9-]{1,32}$",
+                description=(
+                    "Cross-deployment convergent slug for the Federation Facility "
+                    "that issued (or will issue) this clearance."
                 ),
             ),
         ],
@@ -261,8 +270,8 @@ def register(mcp: FastMCP, *, get_handler: Callable[[], IdempotentHandler]) -> N
         handler = get_handler()
         clearance_id = await handler(
             RegisterClearance(
-                kind=kind,
-                facility_asset_id=facility_asset_id,
+                template_id=ClearanceTemplateId(template_id),
+                facility_code=facility_code,
                 title=title,
                 bindings=frozenset(_binding_from_arg(b) for b in bindings),
                 declarations=frozenset(_declaration_from_arg(d) for d in (declarations or [])),

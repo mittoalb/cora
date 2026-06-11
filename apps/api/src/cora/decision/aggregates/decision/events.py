@@ -89,7 +89,7 @@ class DecisionLogbookOpened:
     """An observation logbook was attached to a Decision.
 
     `kind` discriminates the logbook category (today only
-    `LOGBOOK_KIND_REASONING` from state.py); `schema` declares the
+    `LOGBOOK_KIND_INFERENCE` from state.py); `schema` declares the
     entry-row shape per Bluesky's EventDescriptor pattern. The
     schema lives on the event so projections can read entry shape
     uniformly without per-BC adapters.

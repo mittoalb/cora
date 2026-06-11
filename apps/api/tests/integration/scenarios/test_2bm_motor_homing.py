@@ -78,11 +78,11 @@ from cora.equipment.features.restore_asset import RestoreAsset
 from cora.equipment.features.restore_asset import bind as bind_restore_asset
 from cora.infrastructure.projection import ProjectionRegistry, drain_projections
 from cora.operation._projections import register_operation_projections
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps import bind as bind_append_step
+from cora.operation.features.append_activities import bind as bind_append_step
 from cora.operation.features.complete_procedure import CompleteProcedure
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.register_procedure import RegisterProcedure
@@ -253,7 +253,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_steps (lazy open on first call): logbook_id, open_event_id
+        # append_activities (lazy open on first call): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # degrade_asset (Aerotech): event_id
@@ -276,7 +276,7 @@ def _setpoint(
     role: str | None = None,
     note: str | None = None,
     sampled_at: datetime,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     payload: dict[str, Any] = {
         "channel": channel,
         "target_value": target_value,
@@ -286,7 +286,7 @@ def _setpoint(
         payload["role"] = role
     if note is not None:
         payload["note"] = note
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="setpoint",
         payload=payload,
@@ -299,8 +299,8 @@ def _action(
     action_name: str,
     sampled_at: datetime,
     **params: Any,
-) -> ProcedureStepInput:
-    return ProcedureStepInput(
+) -> ActivityInput:
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="action",
         payload={"action_name": action_name, "params": params},
@@ -317,7 +317,7 @@ def _check(
     actual: float | str | None = None,
     expected: float | str | None = None,
     note: str | None = None,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     payload: dict[str, Any] = {"channel": channel, "passed": passed, "source": source}
     if actual is not None:
         payload["actual"] = actual
@@ -325,7 +325,7 @@ def _check(
         payload["expected"] = expected
     if note is not None:
         payload["note"] = note
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="check",
         payload=payload,
@@ -340,10 +340,10 @@ async def _drain(db_pool: asyncpg.Pool) -> None:
 
 
 def _postgres_step_store(db_pool: asyncpg.Pool):
-    """Build a PostgresStepStore for the BC-internal step writer."""
-    from cora.operation.aggregates.procedure import PostgresStepStore
+    """Build a PostgresActivityStore for the BC-internal step writer."""
+    from cora.operation.aggregates.procedure import PostgresActivityStore
 
-    return PostgresStepStore(db_pool)
+    return PostgresActivityStore(db_pool)
 
 
 @pytest.mark.integration
@@ -436,7 +436,7 @@ async def test_motor_homing_plays_out_end_to_end(
 
     t = _NOW
     await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(
                 _setpoint(
@@ -481,7 +481,7 @@ async def test_motor_homing_plays_out_end_to_end(
     # ----- Procedure step entries: Aerotech retry (succeeds) -----
 
     await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(
                 _setpoint(
@@ -525,7 +525,7 @@ async def test_motor_homing_plays_out_end_to_end(
     # ----- Procedure step entries: Sample_top_X (succeeds first try) -----
 
     await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(
                 _setpoint(
@@ -681,7 +681,7 @@ async def test_motor_homing_plays_out_end_to_end(
     assert [e.event_type for e in procedure_events] == [
         "ProcedureRegistered",
         "ProcedureStarted",
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         "ProcedureCompleted",
     ]
 
@@ -690,7 +690,7 @@ async def test_motor_homing_plays_out_end_to_end(
     await _drain(db_pool)
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT step_kind FROM entries_operation_procedure_steps "
+            "SELECT step_kind FROM entries_operation_procedure_activities "
             "WHERE procedure_id = $1 ORDER BY sampled_at",
             _PROCEDURE_ID,
         )

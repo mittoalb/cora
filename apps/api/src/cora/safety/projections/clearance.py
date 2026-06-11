@@ -49,18 +49,18 @@ from cora.infrastructure.projection.handler import ConnectionLike
 
 _INSERT_CLEARANCE_SQL = """
 INSERT INTO proj_safety_clearance_summary
-    (clearance_id, kind, facility_asset_id, title, external_id, status,
+    (clearance_id, template_id, template_code, facility_code, title, external_id, status,
      risk_band,
      subject_binding_ids, asset_binding_ids, run_binding_ids, procedure_binding_ids,
      parent_id, registered_at,
      last_status_changed_at, last_status_reason, last_reviewed_by,
      valid_from, valid_until, next_review_due_at)
-VALUES ($1, $2, $3, $4, $5, 'Defined',
-        $6,
-        $7::uuid[], $8::uuid[], $9::uuid[], $10::uuid[],
-        $11, $12,
+VALUES ($1, $2, $3, $4, $5, $6, 'Defined',
+        $7,
+        $8::uuid[], $9::uuid[], $10::uuid[], $11::uuid[],
+        $12, $13,
         NULL, NULL, NULL,
-        $13, $14, NULL)
+        $14, $15, NULL)
 ON CONFLICT (clearance_id) DO NOTHING
 """
 
@@ -188,8 +188,9 @@ class ClearanceSummaryProjection:
             await conn.execute(
                 _INSERT_CLEARANCE_SQL,
                 UUID(payload["clearance_id"]),
-                payload["kind"],
-                UUID(payload["facility_asset_id"]),
+                UUID(payload["template_id"]),
+                payload["template_code"],
+                payload["facility_code"],
                 payload["title"],
                 payload.get("external_id"),
                 payload.get("risk_band"),

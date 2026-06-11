@@ -1,6 +1,7 @@
 """Data BC's projection-registration entry point."""
 
 from cora.data.projections import (
+    AttestationSummaryProjection,
     DatasetSummaryProjection,
     DistributionSummaryProjection,
     EditionSummaryProjection,
@@ -18,6 +19,7 @@ def register_data_projections(
     registry.register(DatasetSummaryProjection())
     registry.register(DistributionSummaryProjection())
     registry.register(EditionSummaryProjection())
+    registry.register(AttestationSummaryProjection())
 
 
 __all__ = ["register_data_projections"]

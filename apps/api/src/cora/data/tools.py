@@ -18,6 +18,7 @@ from cora.data.features.get_dataset import tool as get_dataset_tool
 from cora.data.features.list_datasets import tool as list_datasets_tool
 from cora.data.features.promote_dataset import tool as promote_dataset_tool
 from cora.data.features.publish_edition import tool as publish_edition_tool
+from cora.data.features.record_attestation import tool as record_attestation_tool
 from cora.data.features.register_dataset import tool as register_dataset_tool
 from cora.data.features.register_distribution import tool as register_distribution_tool
 from cora.data.features.register_edition import tool as register_edition_tool
@@ -86,4 +87,8 @@ def register_data_tools(
     withdraw_edition_tool.register(
         mcp,
         get_handler=lambda: get_handlers().withdraw_edition,
+    )
+    record_attestation_tool.register(
+        mcp,
+        get_handler=lambda: get_handlers().record_attestation,
     )

@@ -105,11 +105,11 @@ from cora.equipment.features.update_asset_partition_rule import UpdateAssetParti
 from cora.equipment.features.update_asset_partition_rule import (
     bind as bind_update_asset_partition_rule,
 )
-from cora.operation.features.append_procedure_steps import (
-    AppendProcedureSteps,
-    ProcedureStepInput,
+from cora.operation.features.append_activities import (
+    ActivityInput,
+    AppendProcedureActivities,
 )
-from cora.operation.features.append_procedure_steps import bind as bind_append_step
+from cora.operation.features.append_activities import bind as bind_append_step
 from cora.operation.features.complete_procedure import CompleteProcedure
 from cora.operation.features.complete_procedure import bind as bind_complete
 from cora.operation.features.register_procedure import RegisterProcedure
@@ -214,7 +214,7 @@ def _id_queue() -> list[UUID]:
         e(),
         # start_procedure: event_id
         e(),
-        # append_procedure_steps (lazy open): logbook_id, open_event_id
+        # append_activities (lazy open): logbook_id, open_event_id
         _STEPS_LOGBOOK_ID,
         _STEPS_OPEN_EVENT_ID,
         # complete_procedure: event_id
@@ -230,7 +230,7 @@ def _setpoint(
     role: str | None = None,
     note: str | None = None,
     sampled_at: datetime,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     payload: dict[str, Any] = {
         "channel": channel,
         "target_value": target_value,
@@ -240,13 +240,13 @@ def _setpoint(
         payload["role"] = role
     if note is not None:
         payload["note"] = note
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(), step_kind="setpoint", payload=payload, sampled_at=sampled_at
     )
 
 
-def _action(*, action_name: str, sampled_at: datetime, **params: Any) -> ProcedureStepInput:
-    return ProcedureStepInput(
+def _action(*, action_name: str, sampled_at: datetime, **params: Any) -> ActivityInput:
+    return ActivityInput(
         event_id=uuid4(),
         step_kind="action",
         payload={"action_name": action_name, "params": params},
@@ -264,7 +264,7 @@ def _check(
     expected: float | str | None = None,
     note: str | None = None,
     **evidence: Any,
-) -> ProcedureStepInput:
+) -> ActivityInput:
     payload: dict[str, Any] = {"channel": channel, "passed": passed, "source": source}
     if actual is not None:
         payload["actual"] = actual
@@ -274,15 +274,15 @@ def _check(
         payload["note"] = note
     if evidence:
         payload["evidence"] = evidence
-    return ProcedureStepInput(
+    return ActivityInput(
         event_id=uuid4(), step_kind="check", payload=payload, sampled_at=sampled_at
     )
 
 
 def _postgres_step_store(db_pool: asyncpg.Pool):
-    from cora.operation.aggregates.procedure import PostgresStepStore
+    from cora.operation.aggregates.procedure import PostgresActivityStore
 
-    return PostgresStepStore(db_pool)
+    return PostgresActivityStore(db_pool)
 
 
 @pytest.mark.integration
@@ -426,7 +426,7 @@ async def test_alignment_calibration_plays_out_end_to_end(
     K_roll = (bumped_shift_x_px - baseline_shift_x_px) / delta_roll_deg  # noqa: N806
 
     await bind_append_step(deps, step_store=_postgres_step_store(db_pool))(
-        AppendProcedureSteps(
+        AppendProcedureActivities(
             procedure_id=_PROCEDURE_ID,
             entries=(
                 # K_roll calibration triplet
@@ -519,7 +519,7 @@ async def test_alignment_calibration_plays_out_end_to_end(
     assert [e.event_type for e in procedure_events] == [
         "ProcedureRegistered",
         "ProcedureStarted",
-        "ProcedureStepsLogbookOpened",
+        "ProcedureActivitiesLogbookOpened",
         "ProcedureCompleted",
     ]
 
@@ -527,7 +527,7 @@ async def test_alignment_calibration_plays_out_end_to_end(
 
     async with db_pool.acquire() as conn:
         rows = await conn.fetch(
-            "SELECT step_kind, payload FROM entries_operation_procedure_steps "
+            "SELECT step_kind, payload FROM entries_operation_procedure_activities "
             "WHERE procedure_id = $1 ORDER BY sampled_at, event_id",
             _PROCEDURE_ID,
         )

@@ -55,6 +55,7 @@ Federation BC callers cast to `CredentialId` at the boundary.
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
 import json
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -81,6 +82,13 @@ WHERE code = $1
 LIMIT 1
 """
 
+_LIST_ACTIVE_SQL = """
+SELECT facility_id, code, kind, status, trust_anchor_credential_ids
+FROM proj_federation_facility_summary
+WHERE status = 'Active'
+ORDER BY code
+"""
+
 
 class PostgresFacilityLookup:
     """asyncpg-backed `FacilityLookup` implementation."""
@@ -101,6 +109,11 @@ class PostgresFacilityLookup:
         if row is None:
             return None
         return _row_to_result(row)
+
+    async def list_active(self) -> Sequence[FacilityLookupResult]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(_LIST_ACTIVE_SQL)
+        return tuple(_row_to_result(row) for row in rows)
 
 
 def _decode_trust_anchor_ids(raw: Any) -> frozenset[UUID]:

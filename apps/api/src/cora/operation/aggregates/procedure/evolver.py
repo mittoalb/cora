@@ -10,9 +10,9 @@ Status mapping per event type:
   - `ProcedureCompleted`          -> COMPLETED (happy-path terminal)
   - `ProcedureAborted`            -> ABORTED   (emergency-exit terminal)
   - `ProcedureTruncated`          -> TRUNCATED (partial-data terminal; mirrors RunTruncated)
-  - `ProcedureStepsLogbookOpened` -> STATUS UNCHANGED (sets steps_logbook_id;
+  - `ProcedureActivitiesLogbookOpened` -> STATUS UNCHANGED (sets activity_logbook_id;
                                      lazy-open envelope event from
-                                     append_procedure_steps, orthogonal to lifecycle)
+                                     append_activities, orthogonal to lifecycle)
 
 The mapping is hardcoded per match arm -- the event type IS the
 state-change indicator (no status field in event payloads). Same
@@ -25,17 +25,17 @@ layer (set semantics for ProcedureStartContext lookup); the payload
 already sorted in `to_payload` for persistence determinism.
 
 **Critical invariant**: every transition arm MUST carry `id`, `name`,
-`kind`, `target_asset_ids`, `parent_run_id`, `steps_logbook_id`,
+`kind`, `target_asset_ids`, `parent_run_id`, `activity_logbook_id`,
 AND `capability_id` through from prior state.
 Constructing `Procedure(id=..., name=..., status=...)` without
 explicitly passing the additive fields would silently WIPE them to
 defaults (empty frozenset / None). Pinned by the per-transition
 preserve-fields tests. Same lesson as Run BC's evolver docstring.
 
-`steps_logbook_id` is set by the `ProcedureStepsLogbookOpened` arm
-(lazy open-on-first-write triggered by `append_procedure_steps`);
+`activity_logbook_id` is set by the `ProcedureActivitiesLogbookOpened` arm
+(lazy open-on-first-write triggered by `append_activities`);
 all other arms preserve whatever prior state held. Legacy streams
-without the logbook event fold with `steps_logbook_id=None`.
+without the logbook event fold with `activity_logbook_id=None`.
 
 The shared `require_state` helper at `cora.infrastructure.evolver`
 keeps per-arm bodies short. Hoisted at the rule-of-three trigger
@@ -49,11 +49,11 @@ from typing import assert_never
 from cora.infrastructure.evolver import require_state
 from cora.operation.aggregates.procedure.events import (
     ProcedureAborted,
+    ProcedureActivitiesLogbookOpened,
     ProcedureCompleted,
     ProcedureEvent,
     ProcedureRegistered,
     ProcedureStarted,
-    ProcedureStepsLogbookOpened,
     ProcedureTruncated,
     RecipeExpansionRecorded,
 )
@@ -84,7 +84,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=frozenset(target_asset_ids),
                 status=ProcedureStatus.DEFINED,
                 parent_run_id=parent_run_id,
-                steps_logbook_id=None,
+                activity_logbook_id=None,
                 capability_id=capability_id,
                 recipe_id=recipe_id,
             )
@@ -97,7 +97,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.RUNNING,
                 parent_run_id=prior.parent_run_id,
-                steps_logbook_id=prior.steps_logbook_id,
+                activity_logbook_id=prior.activity_logbook_id,
                 capability_id=prior.capability_id,
                 recipe_id=prior.recipe_id,
             )
@@ -110,7 +110,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.COMPLETED,
                 parent_run_id=prior.parent_run_id,
-                steps_logbook_id=prior.steps_logbook_id,
+                activity_logbook_id=prior.activity_logbook_id,
                 capability_id=prior.capability_id,
                 recipe_id=prior.recipe_id,
             )
@@ -123,7 +123,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.ABORTED,
                 parent_run_id=prior.parent_run_id,
-                steps_logbook_id=prior.steps_logbook_id,
+                activity_logbook_id=prior.activity_logbook_id,
                 capability_id=prior.capability_id,
                 recipe_id=prior.recipe_id,
             )
@@ -136,16 +136,16 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.TRUNCATED,
                 parent_run_id=prior.parent_run_id,
-                steps_logbook_id=prior.steps_logbook_id,
+                activity_logbook_id=prior.activity_logbook_id,
                 capability_id=prior.capability_id,
                 recipe_id=prior.recipe_id,
             )
-        case ProcedureStepsLogbookOpened(logbook_id=logbook_id):
+        case ProcedureActivitiesLogbookOpened(logbook_id=logbook_id):
             # Lazy open-on-first-write: preserve all
-            # prior state, set steps_logbook_id. Status NOT touched -- the
+            # prior state, set activity_logbook_id. Status NOT touched -- the
             # logbook is orthogonal to lifecycle. Mirrors Run BC's
-            # RunReadingLogbookOpened arm exactly.
-            prior = require_state(state, "ProcedureStepsLogbookOpened")
+            # RunObservationLogbookOpened arm exactly.
+            prior = require_state(state, "ProcedureActivitiesLogbookOpened")
             return Procedure(
                 id=prior.id,
                 name=prior.name,
@@ -153,7 +153,7 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 target_asset_ids=prior.target_asset_ids,
                 status=prior.status,
                 parent_run_id=prior.parent_run_id,
-                steps_logbook_id=logbook_id,
+                activity_logbook_id=logbook_id,
                 capability_id=prior.capability_id,
                 recipe_id=prior.recipe_id,
             )
