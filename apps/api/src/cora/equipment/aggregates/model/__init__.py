@@ -26,7 +26,6 @@ from cora.equipment.aggregates.model.read import list_model_ids, load_model
 from cora.equipment.aggregates.model.state import (
     MANUFACTURER_IDENTIFIER_MAX_LENGTH,
     MANUFACTURER_NAME_MAX_LENGTH,
-    MODEL_DEPRECATION_REASON_MAX_LENGTH,
     MODEL_NAME_MAX_LENGTH,
     MODEL_PART_NUMBER_MAX_LENGTH,
     MODEL_VERSION_TAG_MAX_LENGTH,
@@ -61,7 +60,6 @@ from cora.equipment.aggregates.model.state import (
 __all__ = [
     "MANUFACTURER_IDENTIFIER_MAX_LENGTH",
     "MANUFACTURER_NAME_MAX_LENGTH",
-    "MODEL_DEPRECATION_REASON_MAX_LENGTH",
     "MODEL_NAME_MAX_LENGTH",
     "MODEL_PART_NUMBER_MAX_LENGTH",
     "MODEL_VERSION_TAG_MAX_LENGTH",
