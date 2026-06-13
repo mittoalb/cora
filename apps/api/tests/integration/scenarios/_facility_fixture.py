@@ -114,6 +114,7 @@ from cora.equipment.features.define_family import bind as bind_define_family
 from cora.equipment.features.register_asset import RegisterAsset
 from cora.equipment.features.register_asset import bind as bind_register_asset
 from cora.infrastructure.kernel import Kernel
+from cora.infrastructure.routing import SYSTEM_HTTP_SURFACE_ID
 from cora.trust.features.define_conduit import DefineConduit
 from cora.trust.features.define_conduit import bind as bind_define_conduit
 from cora.trust.features.define_policy import DefinePolicy
@@ -459,6 +460,7 @@ async def install_aps_unit(
             conduit_id=BM2_LOCAL_CONDUIT_ID,
             permitted_principal_ids=frozenset(OPERATOR_POOL_IDS),
             permitted_commands=_OPERATIONS_COMMANDS,
+            surface_id=SYSTEM_HTTP_SURFACE_ID,
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,
@@ -469,6 +471,7 @@ async def install_aps_unit(
             conduit_id=BM2_LOCAL_CONDUIT_ID,
             permitted_principal_ids=frozenset({RUN_DEBRIEF_ACTOR_ID}),
             permitted_commands=_AGENT_COMMANDS,
+            surface_id=SYSTEM_HTTP_SURFACE_ID,
         ),
         principal_id=principal_id,
         correlation_id=correlation_id,
