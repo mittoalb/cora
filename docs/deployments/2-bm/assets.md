@@ -6,34 +6,36 @@ The Devices that hang off 2-BM. The 2-BM Asset itself is a root Asset with `tier
 
 The MCTOptics detector is modelled as an Assembly + Fixture pair (not an Asset row in its own right). The constituent Assets appear in the inventory below; the composition and wiring story lives on the dedicated [MCTOptics deployment](equipment/mctoptics.md) page.
 
+Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A` or the experiment hutch `2-BM-B`, declared per Device via `located_in_enclosure_id`. The Located-in column below records where each Device sits; the two hutches and the pre-flight gate they drive are on the [Enclosures](enclosures.md) page. The hutches are Enclosures, not Assets, so they do not appear as inventory rows.
+
 ## Inventory
 
-| Asset | Tier | Family | Parent |
-| --- | --- | --- | --- |
-| `Shutter` | `Device` | `Shutter` | `2-BM` |
-| `RotaryDrive` | `Device` | `MotionController` | `2-BM` |
-| `Rotary` | `Device` | `RotaryStage` | `2-BM` (driven by `RotaryDrive`) |
-| `SampleStageDrive` | `Device` | `MotionController` | `2-BM` |
-| `FrontEndDrive` | `Device` | `MotionController` | `2-BM` (front-end / beam-conditioning band; no modelled driven stages at v1) |
-| `Sample_top_X` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) |
-| `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) |
-| `HexapodDrive` | `Device` | `MotionController` | `2-BM` |
-| `Hexapod` | `Device` | `Hexapod` | `2-BM` (driven by `HexapodDrive`) |
-| `Hexapod_X` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along X) |
-| `Hexapod_Y` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Y) |
-| `Hexapod_Z` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Z) |
-| `Hexapod_Roll` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation A about X) |
-| `Hexapod_Pitch` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation B about Y) |
-| `Hexapod_Yaw` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation C about Z) |
-| `FocusDrive` | `Device` | `MotionController` | `2-BM` |
-| `Focus` | `Device` | `LinearStage` | `2-BM` (bound into MCTOptics Fixture; driven by `FocusDrive`) |
-| `MCTOptics_lens_turret` | `Device` | `RotaryStage` (pending) | `2-BM` (bound into MCTOptics Fixture) |
-| `MCTOptics_objective_0` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
-| `MCTOptics_objective_1` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
-| `MCTOptics_objective_2` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) |
-| `Camera` | `Device` | `Camera` | `2-BM` (bound into MCTOptics Fixture) |
-| `Scintillator` | `Device` | `Scintillator` | `2-BM` (bound into MCTOptics Fixture) |
-| `MCTOptics_lens_select` | `Device` | `PseudoAxis` | `2-BM` (bound into MCTOptics Fixture; partition rule decomposes lens index to turret rotation) |
+| Asset | Tier | Family | Parent | Located in |
+| --- | --- | --- | --- | --- |
+| `Shutter` | `Device` | `Shutter` | `2-BM` | `2-BM-B` |
+| `RotaryDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
+| `Rotary` | `Device` | `RotaryStage` | `2-BM` (driven by `RotaryDrive`) | `2-BM-B` |
+| `SampleStageDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
+| `FrontEndDrive` | `Device` | `MotionController` | `2-BM` (front-end / beam-conditioning band; no modelled driven stages at v1) | `2-BM-A` |
+| `Sample_top_X` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) | `2-BM-B` |
+| `Sample_top_Z` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) | `2-BM-B` |
+| `HexapodDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
+| `Hexapod` | `Device` | `Hexapod` | `2-BM` (driven by `HexapodDrive`) | `2-BM-B` |
+| `Hexapod_X` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along X) | `2-BM-B` |
+| `Hexapod_Y` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Y) | `2-BM-B` |
+| `Hexapod_Z` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Z) | `2-BM-B` |
+| `Hexapod_Roll` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation A about X) | `2-BM-B` |
+| `Hexapod_Pitch` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation B about Y) | `2-BM-B` |
+| `Hexapod_Yaw` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation C about Z) | `2-BM-B` |
+| `FocusDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
+| `Focus` | `Device` | `LinearStage` | `2-BM` (bound into MCTOptics Fixture; driven by `FocusDrive`) | `2-BM-B` |
+| `MCTOptics_lens_turret` | `Device` | `RotaryStage` (pending) | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `MCTOptics_objective_0` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `MCTOptics_objective_1` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `MCTOptics_objective_2` | `Device` | `Objective` | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `Camera` | `Device` | `Camera` | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `Scintillator` | `Device` | `Scintillator` | `2-BM` (bound into MCTOptics Fixture) | `2-BM-B` |
+| `MCTOptics_lens_select` | `Device` | `PseudoAxis` | `2-BM` (bound into MCTOptics Fixture; partition rule decomposes lens index to turret rotation) | `2-BM-B` |
 
 ## Family affordances
 
