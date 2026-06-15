@@ -6,6 +6,8 @@ The Devices that hang off 2-BM. The 2-BM Asset itself is a root Asset with `tier
 
 The Microscope detector is modelled as an Assembly + Fixture pair over a reusable Optics sub-assembly, with the constituents contained in one `Housing` Asset. The constituent Assets appear in the inventory below; the composition, containment, and wiring story lives on the dedicated [Microscope deployment](equipment/microscope.md) page.
 
+The sample positioning stack is modelled as a `SampleTower` Assembly + Fixture presenting as the `Positioner` Role, with the stages held in a literal-deep containment chain (each stage parents the one above). The composition, the containment chain, and the experiment-vs-loadout boundary (tomography, laminography, and mosaic are all Recipe Methods/Plans over one Fixture) live on the dedicated [Sample tower deployment](equipment/sample_tower.md) page.
+
 Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A` or the experiment hutch `2-BM-B`, declared per Device via `located_in_enclosure_id`. The Located-in column below records where each Device sits; the two hutches and the pre-flight gate they drive are on the [Enclosures](enclosures.md) page. The hutches are Enclosures, not Assets, so they do not appear as inventory rows.
 
 ## Inventory
@@ -50,6 +52,7 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 | `RotaryStage` | `Rotatable`, `Homeable`, `Limitable`, `Following`, `Marking` |
 | `LinearStage` | `Translatable`, `Homeable`, `Limitable`, `Following` |
 | `Hexapod` | `Posable`, `Homeable`, `Limitable` |
+| `TiltStage` | `Rotatable`, `Homeable`, `Limitable` |
 | `Scintillator` | `Consumable` |
 | `Camera` | `Imageable`, `Binnable`, `Triggerable`, `Streamable`, `Recording` |
 | `Housing` | (empty; the containment chassis Family carried by the `Housing` Asset that parents the Microscope constituents; no command surface) |
@@ -57,7 +60,7 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 | `PseudoAxis` | (empty; partition rules live on `Asset.partition_rule`, not as affordances) |
 | `Table` | `Translatable`, `Rotatable` (provisional superset for the hutch support tables: the sample table is translation-only, the detector table adds tilt axes; the per-table axis set is a settings difference, not a Family split, see [Family settings schemas](#table)). Carries-other-equipment is `parent_id` placement, not an affordance; there is no Supporting affordance. Assets are [Pending](#pending) until seeded. |
 
-`Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface). `PseudoAxis` is a facet Family: it carries no affordances, but Methods bind against it via `needed_family_ids`, and the Family membership is the gate that lets an Asset carry a `partition_rule`. Detector Assemblies, including the Microscope, advertise the `Detector` Role through the Assembly's `presents_as` set rather than through a presenter Family.
+`Scintillator` is the lone Pattern-C consumer at v1 (passive optical screen; tracked via `Consumable` lifecycle, no command surface). `PseudoAxis` is a facet Family: it carries no affordances, but Methods bind against it via `needed_family_ids`, and the Family membership is the gate that lets an Asset carry a `partition_rule`. Detector Assemblies, including the Microscope, advertise the `Detector` Role through the Assembly's `presents_as` set rather than through a presenter Family; the `SampleTower` Assembly likewise advertises the `Positioner` Role. `TiltStage` is the Kohzu laminography goniometer (a rotational, limited-range stage, so not `LinearStage`, and not `RotaryStage` whose `Following`/`Marking` PSO affordances a tilt does not carry).
 
 `MotionController` is the first separately-modelled drive-electronics Family. v1 ships empty affordances by design: the meaningful state on a controller is configuration (firmware version, IP address, axis count, protocol) and identity (serial number), captured in `settings` and `alternate_identifiers`. Command-tier affordances (firmware-update, reboot, sync-output toggling) are deferred until an operator-side Procedure demands them, at which point they grow on the existing add-only affordance amendment path.
 
