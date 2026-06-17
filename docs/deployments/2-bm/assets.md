@@ -20,7 +20,7 @@ Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A
 | `Rotary` | `Device` | `RotaryStage` | `LaminographyPitch` (driven by `RotaryDrive`) | `2-BM-B` |
 | `SampleStageDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
 | `FrontEndDrive` | `Device` | `MotionController` | `2-BM` (a-station OMS VME58; drives the front-end optics band) | `2-BM-A` |
-| `Mirror` | `Device` | `Mirror` | `2-BM` (driven by `FrontEndDrive`) | `2-BM-A` |
+| `Mirror` | `Device` | `Mirror` | `MirrorTable` (sits on the mirror table; driven by `FrontEndDrive`) | `2-BM-A` |
 | `MirrorTable` | `Device` | `Table` | `2-BM` (front-end support table `2bma:table1`; carries the `Mirror`; X axes driven by the energy-change IOC for stripe selection, bind X-surface only pending 2bm-docs#171) | `2-BM-A` |
 | `Monochromator` | `Device` | `Monochromator` | `2-BM` (driven by `FrontEndDrive`) | `2-BM-A` |
 | `Monochromator_BraggArmUpstream` | `Device` | `PseudoAxis` | `Monochromator` (energy-driven; LookupTable converts energy in keV to the upstream Bragg-arm angle in deg) | `2-BM-A` |
@@ -52,7 +52,7 @@ Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A
 | `DetectorTable_Roll` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AZ`; `2bmb:table3.AZ`) | `2-BM-B` |
 | `DetectorTable_Pitch` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AX`; `2bmb:table3.AX`) | `2-BM-B` |
 | `DetectorTable_Yaw` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AY`; `2bmb:table3.AY`) | `2-BM-B` |
-| `Housing` | `Component` | `Housing` | `2-BM` (installed into a Mount; parents the Microscope constituents) | `2-BM-B` |
+| `Housing` | `Component` | `Housing` | `DetectorTable` (sits on the detector table; installed into a Mount; parents the Microscope constituents) | `2-BM-B` |
 | `Turret` | `Device` | `LinearStage` | `Housing` (bound into Microscope Fixture; sliding ball-screw objective selector, moved by MCTOptics under `LensSelect`) | `2-BM-B` |
 | `Objective_10x` | `Device` | `Objective` | `Housing` (bound into Microscope Fixture) | `2-BM-B` |
 | `Objective_2x` | `Device` | `Objective` | `Housing` (bound into Microscope Fixture) | `2-BM-B` |
