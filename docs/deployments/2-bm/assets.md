@@ -15,11 +15,13 @@ Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A
 | Asset | Tier | Family | Parent | Located in |
 | --- | --- | --- | --- | --- |
 | `StationShutter` | `Device` | `Shutter` | `2-BM` | `2-BM-B` |
+| `SampleTable` | `Device` | `Table` | `2-BM` (four-motor translation base on the Vibraplane; carries the sample stack; driven by `SampleStageDrive`) | `2-BM-B` |
 | `RotaryDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
-| `Rotary` | `Device` | `RotaryStage` | `2-BM` (driven by `RotaryDrive`) | `2-BM-B` |
+| `Rotary` | `Device` | `RotaryStage` | `LaminographyPitch` (driven by `RotaryDrive`) | `2-BM-B` |
 | `SampleStageDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
 | `FrontEndDrive` | `Device` | `MotionController` | `2-BM` (a-station OMS VME58; drives the front-end optics band) | `2-BM-A` |
 | `Mirror` | `Device` | `Mirror` | `2-BM` (driven by `FrontEndDrive`) | `2-BM-A` |
+| `MirrorTable` | `Device` | `Table` | `2-BM` (front-end support table `2bma:table1`; carries the `Mirror`; X axes driven by the energy-change IOC for stripe selection, bind X-surface only pending 2bm-docs#171) | `2-BM-A` |
 | `Monochromator` | `Device` | `Monochromator` | `2-BM` (driven by `FrontEndDrive`) | `2-BM-A` |
 | `Monochromator_BraggArmUpstream` | `Device` | `PseudoAxis` | `Monochromator` (energy-driven; LookupTable converts energy in keV to the upstream Bragg-arm angle in deg) | `2-BM-A` |
 | `Monochromator_BraggArmDownstream` | `Device` | `PseudoAxis` | `Monochromator` (energy-driven; downstream Bragg-arm angle in deg) | `2-BM-A` |
@@ -30,18 +32,26 @@ Devices are located in one of the two hutch Enclosures, the optics hutch `2-BM-A
 | `SampleSlit` | `Device` | `Slit` | `2-BM` (B-station slits; driven by `FrontEndDrive`) | `2-BM-B` |
 | `SampleSlit_VerticalTop` | `Device` | `PseudoAxis` | `SampleSlit` (energy-driven; top blade tracks the per-energy beam position in mm) | `2-BM-B` |
 | `SampleSlit_VerticalBottom` | `Device` | `PseudoAxis` | `SampleSlit` (energy-driven; bottom blade tracks the per-energy beam position in mm) | `2-BM-B` |
-| `SampleTop_X` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) | `2-BM-B` |
-| `SampleTop_Z` | `Device` | `LinearStage` | `2-BM` (driven by `SampleStageDrive`) | `2-BM-B` |
+| `SampleTop_X` | `Device` | `LinearStage` | `Rotary` (driven by `SampleStageDrive`) | `2-BM-B` |
+| `SampleTop_Z` | `Device` | `LinearStage` | `SampleTop_X` (driven by `SampleStageDrive`) | `2-BM-B` |
 | `HexapodDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
-| `Hexapod` | `Device` | `Hexapod` | `2-BM` (driven by `HexapodDrive`) | `2-BM-B` |
+| `Hexapod` | `Device` | `Hexapod` | `SampleTable` (driven by `HexapodDrive`) | `2-BM-B` |
 | `Hexapod_X` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along X) | `2-BM-B` |
 | `Hexapod_Y` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Y) | `2-BM-B` |
 | `Hexapod_Z` | `Device` | `PseudoAxis` | `Hexapod` (DoF; translation along Z) | `2-BM-B` |
 | `Hexapod_Roll` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation A about X) | `2-BM-B` |
 | `Hexapod_Pitch` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation B about Y) | `2-BM-B` |
 | `Hexapod_Yaw` | `Device` | `PseudoAxis` | `Hexapod` (DoF; rotation C about Z) | `2-BM-B` |
+| `LaminographyPitch` | `Device` | `TiltStage` | `Hexapod` (Kohzu SA16A goniometer `2bmb:m49`; tomography vs laminography is a tilt setpoint; driven by `SampleStageDrive`) | `2-BM-B` |
 | `PropagationDistanceDrive` | `Device` | `MotionController` | `2-BM` | `2-BM-B` |
 | `Timing` | `Device` | `TimingController` | `2-BM` (softGlueZynq trigger box; generates the camera trigger train via PSO, no `controller_id`) | `2-BM-B` |
+| `DetectorTable` | `Device` | `Table` | `2-BM` (detector support table `2bmb:table3`; carries the propagation-distance stage and the microscope `Housing`; `detector_z_rail_alignment` targets `.AX` / `.AY`) | `2-BM-B` |
+| `DetectorTable_X` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; translation along X; `2bmb:table3.X`) | `2-BM-B` |
+| `DetectorTable_Y` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; translation along Y; `2bmb:table3.Y`) | `2-BM-B` |
+| `DetectorTable_Z` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; translation along Z; `2bmb:table3.Z`) | `2-BM-B` |
+| `DetectorTable_Roll` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AZ`; `2bmb:table3.AZ`) | `2-BM-B` |
+| `DetectorTable_Pitch` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AX`; `2bmb:table3.AX`) | `2-BM-B` |
+| `DetectorTable_Yaw` | `Device` | `PseudoAxis` | `DetectorTable` (IOC-computed virtual axis; rotation; raw label `AY`; `2bmb:table3.AY`) | `2-BM-B` |
 | `Housing` | `Component` | `Housing` | `2-BM` (installed into a Mount; parents the Microscope constituents) | `2-BM-B` |
 | `Turret` | `Device` | `LinearStage` | `Housing` (bound into Microscope Fixture; sliding ball-screw objective selector, moved by MCTOptics under `LensSelect`) | `2-BM-B` |
 | `Objective_10x` | `Device` | `Objective` | `Housing` (bound into Microscope Fixture) | `2-BM-B` |
@@ -70,7 +80,7 @@ Each Family declares a closed-enum set of operational primitives ([Affordances](
 | `Housing` | (empty; the containment chassis Family carried by the `Housing` Asset that parents the Microscope constituents; no command surface) |
 | `Objective` | (pending: empty at initial registration) |
 | `PseudoAxis` | (empty; partition rules live on `Asset.partition_rule`, not as affordances) |
-| `Table` | `Translatable`, `Rotatable` (provisional superset for the hutch support tables: the sample table is translation-only, the detector table adds tilt axes; the per-table axis set is a settings difference, not a Family split, see [Family settings schemas](#table)). Carries-other-equipment is `parent_id` placement, not an affordance; there is no Supporting affordance. Assets are [Pending](#pending) until seeded. |
+| `Table` | `Translatable`, `Rotatable` (the hutch support tables: `SampleTable` is translation-only, the detector and mirror tables add tilt axes. One `Table` Family across all three, confirmed by 2-BM staff (STAGE-8): the per-table axis set is a settings difference, not a Family split, see [Family settings schemas](#table)). Carries-other-equipment is `parent_id` placement, not an affordance; there is no Supporting affordance. All three (`SampleTable`, `DetectorTable`, `MirrorTable`) are seeded ([Inventory](#inventory)). |
 | `Slit` | `Translatable`, `Homeable`, `Limitable` (four independently-driven blades; the ConditioningSlit and SampleSlit instances share this Family) |
 | `Mirror` | `Translatable`, `Homeable`, `Limitable` (vertical jacks set the deflection geometry; the coating stripe selector tracks energy and beam mode, see [Filter foil selection](#filter-foil-selection)) |
 | `Monochromator` | `Translatable`, `Homeable`, `Limitable` (the Bragg arms and the M2 vertical offset set the energy via an IOC coordinated move; insertable, bypassed in pink beam) |
@@ -111,6 +121,21 @@ Each DoF reads its feedback from the physical `Hexapod` and exposes one operator
 Six wires, one per DoF (`Hexapod.<axis>_feedback_out -> Hexapod_<Axis>.constituent_in`), carry the feedback each PseudoAxis needs to reconstruct its readback. `validate_pseudoaxis_fanout` accepts each: exactly one OUTPUT port on the facet, one incoming wire, homogeneous `signal_type`, and `SolverReference` is exempt from the arity check.
 
 These ports and wires are modelled and validate at Plan-bind time. Decomposition of a virtual pose setpoint into physical hexapod motion is owned by the firmware solver named in each facet's `SolverReference` (`2bmHXP`), not by CORA.
+
+## Detector table axes
+
+The detector optical table presents six virtual axes on the `2bmb:table3` record, modelled as six `PseudoAxis` sub-Assets parented to `DetectorTable` (Device-in-Device, like the hexapod DoFs). They use the hexapod-aligned axis vocabulary so CORA has one consistent positioner-axis naming:
+
+| Axis Asset | Kind | `table3` field | Raw label |
+| --- | --- | --- | --- |
+| `DetectorTable_X` | translation | `.X` | n/a |
+| `DetectorTable_Y` | translation | `.Y` | n/a |
+| `DetectorTable_Z` | translation | `.Z` | n/a |
+| `DetectorTable_Pitch` | rotation | `.AX` | `AX` |
+| `DetectorTable_Yaw` | rotation | `.AY` | `AY` |
+| `DetectorTable_Roll` | rotation | `.AZ` | `AZ` |
+
+Unlike the hexapod, these axes carry NO partition rule and no constituent wiring. The `table3` IOC record (the `table_full` IOC) computes the pose from the six support motors (`M0X` / `M0Y` / `M1Y` / `M2X` / `M2Y` / `M2Z`) in its SRI geometry, so the kinematics are owned by the edge, not by CORA. Addressing an axis is a direct ControlPort write to its `table3.*` PV, and the IOC moves the supports. This is the spine/edge seam: coordinated actuation lives at the edge; CORA names the axis and records the move rather than re-implementing the geometry (which would create a second, drift-prone source of truth). Each axis's `table3.*` PV, plus the raw `AX` / `AY` / `AZ` label for the rotations, live in its `alternate_identifiers`. The angular-axis mapping (`AX` = pitch, `AY` = yaw, `AZ` = roll) is staff-confirmed (STAGE-9). The model lives in `apps/api/tests/integration/scenarios/test_2bm_optical_tables_setup.py`.
 
 ## Energy-tracking optic axes
 
@@ -167,7 +192,7 @@ The two OMS VME58 boards bind the same `oms_vme58` Model row (one product line, 
 
 The Microscope objective selector (`2bmb:m1`) and camera selector (`2bmb:m5`) are stepper motors, identified on the source page as a Nanotec `ST4118M1404-B` and a Schunk `LPTM 30`, driven through the `SampleStageDrive` OMS VME58 crate rather than through dedicated controller boxes. Whether to register those steppers as distinct controller Assets, or carry them as the selector stages' motors, is a deferred follow-on.
 
-The six `Hexapod_*` DoF facets are PseudoAxis Assets (virtual DoFs over the `2bmHXP` hexapod-kinematics solver) and do not bind to a vendor Model: the Model-binding flow (PIDINST) targets physical commissioned hardware, so the physical `Hexapod` carries the Model binding (`aerotech_hex300`) and the facets inherit vendor identity through the constituent wiring. The full six-DoF surface and its constituent-port wiring are described under [Hexapod DoF model](#hexapod-dof-model). The Kohzu SA16A-RM goniometer (`LaminographyPitch`, `2bmb:m49`) is a SEPARATE, permanently-installed stage (staff source page `item_020`), not the hexapod's `Hexapod_Pitch` axis; tomography vs laminography is a tilt setpoint on it, not an insert/remove. Its Model `kohzu_sa16a` is now in the [vendor catalog](../../catalog/index.md), bound when `LaminographyPitch` is registered (currently in [Pending](#pending)). The exact model is the operator working value pending confirmation (STAGE-6: the source swivel kit also lists `SA16A-RS` / `SA07A-R2L`).
+The six `Hexapod_*` DoF facets are PseudoAxis Assets (virtual DoFs over the `2bmHXP` hexapod-kinematics solver) and do not bind to a vendor Model: the Model-binding flow (PIDINST) targets physical commissioned hardware, so the physical `Hexapod` carries the Model binding (`aerotech_hex300`) and the facets inherit vendor identity through the constituent wiring. The full six-DoF surface and its constituent-port wiring are described under [Hexapod DoF model](#hexapod-dof-model). The Kohzu SA16A-RM goniometer (`LaminographyPitch`, `2bmb:m49`) is a SEPARATE, permanently-installed stage (staff source page `item_020`), not the hexapod's `Hexapod_Pitch` axis; tomography vs laminography is a tilt setpoint on it, not an insert/remove. `LaminographyPitch` is now registered as an Asset in the [Inventory](#inventory) (the `tilt` constituent of the [Sample tower](equipment/sample_tower.md)). Its Model `kohzu_sa16a` is in the [vendor catalog](../../catalog/index.md) and binds when the stack settings/model slice fills it in. The exact model is the operator working value pending confirmation (STAGE-6: the source swivel kit also lists `SA16A-RS` / `SA07A-R2L`).
 
 ## Family settings schemas
 
@@ -252,15 +277,45 @@ Intrinsic detector properties, made explicit at 2-BM because a second detector c
 
 ### `Table`
 
-The support/positioning table Family (the hutch optical tables; staff name it in the [2-BM components page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html)). One Family spans three 2-BM tables that differ only along a settings axis (the motor/axis layout), not a Family axis, so it is one `Table` Family rather than a split: `SampleTable` (four direct translation motors, no combined record), `DetectorTable` (six virtual axes on record `2bmb:table3`, computed from six support motors in an SRI 3-Y / 2-X / 1-Z geometry), and the unused `MirrorTable` (`Dma:table1`). The Family carries motion affordances for the axes a given table drives; the carries-other-equipment relationship is `Asset.parent_id` placement, not an affordance. Draft schema pending registration; the EPICS handles (the virtual record and per-axis or support-motor PVs) live in each Asset's `alternate_identifiers`, not in the schema.
+The support/positioning table Family (the hutch optical tables; staff name it in the [2-BM components page](https://docs2bm.readthedocs.io/en/latest/source/manual/item_020.html)). One Family spans three 2-BM tables that differ only along a settings axis (the motor/axis layout), not a Family axis, so it is one `Table` Family rather than a split (confirmed by 2-BM staff, STAGE-8): `SampleTable` (four direct translation motors, no combined record), `DetectorTable` (six virtual axes on record `2bmb:table3`, computed from six support motors in an SRI 3-Y / 2-X / 1-Z geometry), and `MirrorTable` (`2bma:table1`, also a six-axis SRI table), whose X axes (`M0X` / `M2X`) are driven by the energy-change IOC for stripe selection (staff confirmed it is in operational use, not unused, STAGE-7). The Family carries motion affordances for the axes a given table drives; the carries-other-equipment relationship is `Asset.parent_id` placement, not an affordance. All three are in the [Inventory](#inventory) with schema-validated settings (each carries an enforced `axis_layout`; see the per-Asset [Settings](#settings) blocks). `DetectorTable`'s six virtual axes are modelled as PseudoAxis sub-Assets (see [Detector table axes](#detector-table-axes)); `MirrorTable`'s axes remain a deferred follow-up (X-surface-only pending 2bm-docs#171). The EPICS handles (the virtual record and per-axis or support-motor PVs) live in each Asset's `alternate_identifiers`, not in the schema.
 
 | Setting | Type | Notes |
 | --- | --- | --- |
 | `axis_layout` | closed enum: `translation_xyz \| virtual_pose` | The families-settings-over-subtypes discriminator: which motor/axis layout this table presents. `translation_xyz` = the sample table's direct motors; `virtual_pose` = a composite record exposing translation + tilt virtual axes (the detector and mirror tables; the specific record goes in `virtual_record`). Add-only enum. |
-| `virtual_record` | string, optional | The composite EPICS record when the table exposes one (`2bmb:table3`, `Dma:table1`); absent for the sample table, which addresses its four motors directly. |
+| `virtual_record` | string, optional | The composite EPICS record when the table exposes one (`2bmb:table3`, `2bma:table1`); absent for the sample table, which addresses its four motors directly. |
 | `geometry` | string, optional | Support-point layout when the axes are computed from support motors (for example, SRI 3 Y-supports / 2 X-supports / 1 Z-support). |
 
+The composite tables expose three virtual tilt axes (`.AX` / `.AY` / `.AZ`). 2-BM staff confirmed the mapping (STAGE-9): `.AX` = pitch (rotation about lab-X), `.AY` = yaw (about lab-Y), `.AZ` = roll (about beam Z); the `detector_z_rail_alignment` Procedure drives `2bmb:table3.AX` / `.AY` by these names, and the same convention applies to `2bma:table1`. One caveat constrains `MirrorTable`: its `M1Y` macro is a known IOC substitution error (mapped to the in-vacuum stripe-selector motor `2bma:m3`, not a table Y support; tracked in 2bm-docs#171), so only the table-X surface (`M0X` / `M2X`) is safe to drive until that is fixed, and the composite Y / `.AX` / `.AY` axes are not.
+
 ## Settings
+
+### `SampleTable`
+
+The sample-tower base table (four direct translation motors on the Vibraplane: `2bmb:m24` Y, `2bmb:m20` Z, `2bmb:m21` upstream-X, `2bmb:m22` downstream-X). `axis_layout = translation_xyz` (direct motors, no combined virtual record) is the discriminator that distinguishes it from the detector/mirror virtual-record tables. Schema-validated against the [`Table` Family schema](#table).
+
+| Setting | Value |
+| --- | --- |
+| `axis_layout` | `translation_xyz` |
+
+### `DetectorTable`
+
+The detector optical table (six virtual axes on record `2bmb:table3`, computed from six support motors). `axis_layout = virtual_pose`, with the composite record in `virtual_record`. The `detector_z_rail_alignment` Procedure drives its angular axes (`.AX` / `.AY`).
+
+| Setting | Value |
+| --- | --- |
+| `axis_layout` | `virtual_pose` |
+| `virtual_record` | `2bmb:table3` |
+| `geometry` | `SRI: 3 Y-supports, 2 X-supports, 1 Z-support` |
+
+### `MirrorTable`
+
+The front-end mirror optical table (record `2bma:table1`). `axis_layout = virtual_pose`; its X axes (`M0X` / `M2X`) are driven by the energy-change IOC for stripe selection. Bind the table-X surface only until the `M1Y = 2bma:m3` IOC substitution error (2bm-docs#171) is fixed.
+
+| Setting | Value |
+| --- | --- |
+| `axis_layout` | `virtual_pose` |
+| `virtual_record` | `2bma:table1` |
+| `geometry` | `SRI support table` |
 
 ### `RotaryDrive`
 
@@ -517,16 +572,13 @@ v1 attaches the housing manual as the canonical reference; the Mitutoyo MPLAPO L
 
 Devices that physically exist at 2-BM but are not yet registered as CORA Assets; each carries `new: true` in the 2-BM descriptor (`deployments/2-bm/beamline.yaml`). The five front-end / beam-conditioning optics driven by `FrontEndDrive` are now registered (see the [Inventory](#inventory)); `BeamPositionMonitor` remains an unmodelled front-end device, but a diagnostic, not a motor: the descriptor records no PV or controller for it.
 
-Three `Table`-Family support tables also sit here pending registration: `SampleTable` (the four-motor translation table on the Vibraplane base that carries the hexapod stack), `DetectorTable` (the six-virtual-axis `2bmb:table3` table under the Optique Peter stage and microscope), and `MirrorTable` (`Dma:table1`, present but not used operationally). They differ by axis layout, not Family, so they share one `Table` Family ([Family settings schemas](#table)). Whether to describe all three, and whether the axis layout is a settings difference or a Family split, is tracked as `STAGE-7` and `STAGE-8` in [Open questions](questions.md).
+All three `Table`-Family support tables are registered ([Inventory](#inventory)): `SampleTable` (the sample-tower base), `DetectorTable`, and `MirrorTable`. Their `Table` settings schema is enforced (each carries a validated `axis_layout`; see [Settings](#settings)). `DetectorTable`'s six virtual axes are modelled as PseudoAxis sub-Assets ([Detector table axes](#detector-table-axes)); `MirrorTable`'s axes remain deferred (X-surface-only pending 2bm-docs#171).
 
 | Asset | Family |
 | --- | --- |
 | `BeamPositionMonitor` | `Diagnostic` |
 | `Camera_HighRes` | `Camera` (second FLIR Oryx, 31 MP, `2bmSP2:`) |
 | `Camera_Selector` | `LinearStage` (Schunk LPTM 30, `2bmb:m5`) |
-| `SampleTable` | `Table` |
-| `DetectorTable` | `Table` |
-| `MirrorTable` | `Table` |
 | Broader sample-stage motors | `LinearStage` + tilt motors |
 | IOC-hosted EPICS Devices | |
 
