@@ -12,7 +12,7 @@ An operation can also be authored as a [Recipe](recipes.md): a reusable, paramet
 | --- | --- |
 | `motor_homing` | `Rotary`, `SampleTop_X` |
 | `first_light` | `StationShutter` + image chain |
-| `resolution_alignment` | `Focus` + image chain |
+| `resolution_alignment` | `PropagationDistance` + image chain |
 | `focus_alignment` | `SampleTop_Z` + image chain |
 | `center_alignment` | `Rotary`, `SampleTop_X` + image chain |
 | `roll_alignment` | `Rotary`, `Hexapod_Roll` + image chain |
@@ -26,6 +26,10 @@ Image chain = `Camera`, `Scintillator`.
 When `center_alignment` converges, the operator records the result as a `rotation_center` [Calibration](../../architecture/modules/calibration/index.md) on the rotary stage, appended with a `MeasuredSource` citing the Procedure. The alignment is the act; the Calibration stores the value.
 
 `set_energy` is the coordinating energy-change operation (the Procedure kind names the specific operation, distinct from the `cora.capability.energy_change` Capability code it realizes, as `motor_homing` sits under `maintenance`): given a target energy (a free keV value), it drives the energy-tracking optic axes together to their per-energy positions, reading each axis's [energy curve](assets.md#energy-tracking-optic-axes). A Method declares the free-keV parameter; the Procedure expresses the coordinated move. It satisfies the `energy_configured` precondition stub listed under [From the 2-BM procedures source](#from-the-2-bm-procedures-source). Because the curves interpolate, an operator can request an energy between the configured saved points, not just the menu. The operator's `EnergyChange` Decision (modeled in the energy-change scenario) is the forward-looking justification; this Procedure is the motion record. The per-axis curve evaluation is now wired: the runtime interpolates a position for any requested energy (including a value between the saved points), and refuses an energy outside the calibrated range rather than clamping. Executing the coordinated move at the beamline still needs three things, so today the Procedure records the move rather than driving it: the real saved positions (the seeded curves are provisional pending staff), the per-facet constituent wiring that names each physical motor, and live EPICS dispatch.
+
+## Shutter state at run start (BEAM-1)
+
+Both 2-BM safety shutters are open before a tomography run begins, opened by the operator at session start. The front-end `FrontEndShutter` (FES) is then kept open continuously for the thermal stability of the beamline optics and is not toggled per scan. The B-station `StationShutter` (the P6-50 SBS) is what 2-BM operators and TomoScan call the "fast shutter": there is no separate fast actuator at 2-BM-B today, so TomoScan cycles this same shutter closed for dark-field and white (flat) field acquisition and open for projections, many times per scan. CORA's run-start gate therefore expects both shutters open, and should treat `StationShutter` close events during a run as normal dark / flat sequencing rather than anomalies. No separate `FastShutter` Asset is modelled. Confirmed by 2-BM staff (BEAM-1).
 
 ## From the 2-BM procedures source
 

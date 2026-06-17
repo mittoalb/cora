@@ -41,18 +41,16 @@ enclosures:
   # permit gates beam-on work. Each sits within the APS Site (facility_code: aps),
   # a space inside a larger space, not an equipment pointer. Each device group
   # below names the Enclosure its devices are located in via `enclosure:`.
-  # The per-hutch search-and-secure permit signal is an operator-confirm item:
-  # only the shutter PVs (FES, SBS) are known today, not the permit PV.
+  # Each hutch's permit_signal is the post-migration PSS search-and-secure PV
+  # (S02BM-PSS:Sta{A,B}:SecureM, confirmed PSS-1); see enclosures.md for the full PV set.
   - name: 2-BM-A
     role: optics-hutch
     facility_code: aps
-    permit_signal:
-      confirm: "per-hutch PSS search-and-secure permit PV; ask 2-BM staff"
+    permit_signal: "S02BM-PSS:StaA:SecureM"   # 1 = searched/secured (PSS-1, post-migration)
   - name: 2-BM-B
     role: experiment-hutch
     facility_code: aps
-    permit_signal:
-      confirm: "per-hutch PSS search-and-secure permit PV; ask 2-BM staff"
+    permit_signal: "S02BM-PSS:StaB:SecureM"   # 1 = searched/secured (PSS-1, post-migration)
 
 # ===========================================================================
 # The beam path: source -> detector
@@ -84,7 +82,7 @@ front-end:
       pv: "S02BM-PSS:FES"
       new: true
       confirm: true
-      note: front-end safety shutter, gated by the personnel safety system
+      note: front-end safety shutter, gated by the personnel safety system; opened at session start and kept open throughout for optics thermal stability, not toggled per scan (BEAM-1)
     - name: vacuum_isolation
       family: Vacuum             # Supply(kind=Vacuum) observation, not a separate asset
       pv: { BIV: "2bm:BIV", gate_valves: [GV1, GV2, GV3] }
@@ -99,12 +97,18 @@ conditioning-optics:
     - name: ConditioningSlit
       family: Slit
       pv: { x_in: "2bma:m14", x_out: "2bma:m13", y_top: "2bma:m15", y_bot: "2bma:m16" }
+      virtual_pv: { h_size: "2bma:Slit1Hsize", h_center: "2bma:Slit1Hcenter", v_size: "2bma:Slit1Vsize", v_center: "2bma:Slit1Vcenter" }
       controller: FrontEndDrive
-      z_mm: 25225
+      z_mm: 25225                  # from APS reference table APS_1404611 (BEAM-5)
+      position_tolerance: "dx=dy=250 um, dz=5 mm"
       white_beam: true
       water_cooled: true
-      confirm: true
-      note: L3-20 four-blade slit; virtual aperture records 2bma:Slit1Hsize/Hcenter/Vsize/Vcenter
+      note: >
+        APS L3-20 four-blade slit (X+ outboard 2bma:m13, X- inboard 2bma:m14,
+        Y+ up 2bma:m15, Y- down 2bma:m16); the Size/Centre calc records drive both
+        blades of a pair together (calc records hosted on ioc2bmb1 despite the 2bma:
+        prefix). Reference drawing L3200000-03. Names, structure, z, and tolerances
+        confirmed BEAM-5 (#141).
     - name: Filter
       family: Filter
       pv: { upstream_paddle: "2bma:m17", downstream_paddle: "2bma:m18" }
@@ -180,6 +184,12 @@ beam-defining-and-safety:
           aperture_mm: [60.0, 44.5]
           replaceable: true
           confirm: true
+          note: >
+            This SBS is the operator-side "fast shutter" at 2-BM-B (no separate
+            fast actuator exists today). TomoScan cycles it closed for dark and
+            white (flat) fields and open for projections, many times per scan;
+            open before a run starts (operator-opened at session start). No
+            separate FastShutter Asset is modelled (BEAM-1).
         - name: BeamStop
           family: BeamStop
           passive: true
@@ -196,10 +206,19 @@ beam-defining-and-safety:
     - name: SampleSlit
       family: Slit
       pv: { y_top: "2bma:m9", y_bot: "2bma:m10", x: ["2bma:m11", "2bma:m12"] }
+      virtual_pv: { h_size: "2bma:Slit2Hsize", h_center: "2bma:Slit2Hcenter", v_size: "2bma:Slit2Vsize", v_center: "2bma:Slit2Vcenter" }
       controller: FrontEndDrive
-      z_mm: 50500
-      confirm: true
-      note: vertical pair tracks the per-energy beam position, reuses the A-side class
+      z_mm: 50500                  # from layout drawing A342-RT1000-02 (BEAM-5)
+      position_tolerance: "dx=dy=250 um, dz=5 mm"
+      note: >
+        APS L3-20 four-blade slit at the sample-hutch entrance; reuses the A-side
+        class. The vertical pair also tracks the per-energy beam position (see the
+        SampleSlit_Vertical* PseudoAxes). Names, structure, z, and tolerances
+        confirmed BEAM-5 (#141). CAVEAT: on the 2slit.adl screen the horizontal
+        "Inb"/"outboard" labels are FLIPPED vs the physical direction (the detector
+        image is mirrored left/right), so bind 2bma:m11/m12 to the X+/X- blades by
+        PHYSICAL convention (positive X outboard), NOT the on-screen label.
+        Reference drawing L3200000-03.
     - name: BeamPositionMonitor
       family: Diagnostic
       new: true
@@ -226,6 +245,7 @@ sample-environment:
       axis_channels: { X: "2bmHXP:m1", Y: "2bmHXP:m2", Pitch: "2bmHXP:m4", Roll: "2bmHXP:m5" }
       controller: HexapodDrive
       replaceable: true
+      serial_number: "486060-01"   # operator-confirmed (#156)
       travel: "x 55 mm, y 60 mm, z 25 mm, a 15 deg, b 15 deg, c 30 deg"
       drawing: { system: EDMS, number: Hex300-Data-Sheet, revision: D20250203 }
     # Kohzu goniometer/swivel. Staff item_020 confirms it is a SEPARATE stage (not the hexapod pitch),
@@ -245,15 +265,17 @@ sample-environment:
       new: true
     - name: Rotary
       family: RotaryStage         # the rotation axis (theta)
-      model: aerotech_abs250mp   # Aerotech ABS250MP-M-AS, air-bearing
+      model: aerotech_abrs250mp   # Aerotech ABRS-250MP-M-AS, air-bearing (part number corrected from ABS250MP-M-AS typo, #156)
       pv: "2bmb:m102"
       controller: RotaryDrive
       trigger_source: PSO         # position-synchronized output drives the camera
       replaceable: true
+      serial_number: "146853-A-1-1-X"           # operator-confirmed (#156)
+      drawing: { system: EDMS, number: 630C2125, revision: "(-)" }   # Aerotech vendor drawing (#156)
       range: -360..360 deg
       max_speed: 720 deg/s
       encoder_resolution: 0.0001 deg
-      # Rotary kit per 2-BM staff source (pre-APSU ops/item_100 "Rotary Stages"). ABS250MP-M-AS is the
+      # Rotary kit per 2-BM staff source (pre-APSU ops/item_100 "Rotary Stages"). ABRS-250MP-M-AS is the
       # currently-installed 2-BM-B rotary (manual/item_020). Mode/station labels ("fast tomo"/"mona tomo"/
       # "spindle") and whether the swap is a live loadout variant conflict pre vs post APSU; confirm (questions STAGE-5).
       interchangeable_with: ["ABRS-150MP-M-AS", "ABS2000-1000AS-RU"]
@@ -282,7 +304,7 @@ sample-environment:
 detector:
   enclosure: 2-BM-B
   intro: Convert the transmitted beam to light and record it (the Microscope detector, a scintillator-relay-camera assembly).
-  cora: Assembly(Microscope) composed of the reusable Optics sub-assembly (turret, objectives, objective selector, focus) plus camera and scintillator leaf slots, anchored to a Housing. Fixture(microscope_at_2bm) presents as a Detector
+  cora: Assembly(Microscope) composed of the reusable Optics sub-assembly (turret, objectives, objective selector, propagation distance) plus camera and scintillator leaf slots, anchored to a Housing. Fixture(microscope_at_2bm) presents as a Detector
   placement: Mount + Frame (2BM_hutch_frame)
   note: >
     Two cameras are installed (item_020): the FLIR Oryx 5 MP (Camera, pv 2bmSP1:)
@@ -308,7 +330,7 @@ detector:
     - name: Turret
       family: LinearStage         # sliding ball-screw objective selector (item_020), not a rotating turret
       model: nanotec_st4118m1404_b  # motor is a Nanotec stepper (item_020), not Optique Peter; ball-screw 2 mm/rev
-      pv: "2bmb:m1"               # on the ioc2bmb OMS VME58 crate (SampleStageDrive)
+      pv: "2bmb:m1"               # on the ioc2bmb OMS VME58 crate (SampleStageDrive); MCTOptics commands it via LensSelect, not driven directly (DET-2)
       controller: SampleStageDrive
       range: -60.030..58.64 mm     # selector positions in mm
       drawing: { system: EDMS, number: MAN-11863, revision: 0521-0465-A }
@@ -355,16 +377,17 @@ detector:
           source: AssertedSource
           status: Provisional
     - name: Objective_Selector
-      family: PseudoAxis          # virtual, decomposes a lens index to a turret position (mm) on the sliding selector
+      family: PseudoAxis          # virtual; writes the MCTOptics LensSelect composite, which sequences turret move + per-lens focus (2bmb:m2/m3/m4) + rotation offsets (DET-2); partition rule records lens positions, MCTOptics actuates
       pv: "2bm:MCTOptics:LensSelect"
-    - name: Focus
-      family: LinearStage         # shared focus Z-rail; per-lens fine focus is on 2bmb:m2/m3/m4 (LENS0/1/2_FOCUS, item_020), offsets in software
+    - name: PropagationDistance
+      family: LinearStage         # sample-to-detector distance (propagation) rail, not a focus stage; per-lens fine focus is on 2bmb:m2/m3/m4 (LENS0/1/2_FOCUS, item_020, MCTOptics), offsets in software
       model: aerotech_pro225sl
       pv: "2bmbAERO:m1"
-      controller: FocusDrive
+      controller: PropagationDistanceDrive
       travel: 1000 mm
-      confirm: true
-      note: the 2bm-docs components page calls 2bmbAERO:m1 the detector Z stage (PropagationDistance, the sample-to-detector throw); CORA models it as the microscope focus stage pending confirmation (DET-10)
+      motor: { part: "Aerotech BM250_UF", type: "AC servo, 240 VAC", serial_number: "234848-07" }   # motor inside the stage, distinct from the PropagationDistanceDrive electronics (#156)
+      confirm: false
+      note: 2bmbAERO:m1 sets the sample-to-detector distance (propagation distance) for inline phase contrast; confirmed not a focus motor (DET-10, staff issue + 2bm-docs 5eb45b3). Per-lens fine focus is separate (2bmb:m2/m3/m4, MCTOptics; DET-2)
       drawing: { system: EDMS, number: MAN-11863, revision: 0521-0465-A }
     - name: Scintillator
       family: Scintillator
@@ -386,16 +409,23 @@ detector:
       family: Camera              # camera 0 (the modeled camera)
       model: flir_oryx
       pv: "2bmSP1:"
-      sensor: 2448 x 2048 pixel
+      sensor: Sony IMX250 CMOS global shutter, 2448 x 2048 pixel   # DET-8 (#142)
       pixel_size: 3.45 um
       bit_depth: 12 bit
+      max_framerate_hz: 162
+      readout_mode: GlobalShutter
+      serial_number: "19173710"
+      firmware_version: "1710.0.0.0"
+      part_number_reported: "Oryx ORX-10G-51S5M"   # IOC-reported; catalog SKU ORX-10G-51S5M-C is the same class (10G vs 10GS = form factor only)
       replaceable: true
-      confirm: "max frame rate, sensor kind, readout mode (rolling vs global) still blank (DET-8)"
     - name: Camera_HighRes
       family: Camera             # camera 1 (item_020): FLIR Oryx 31 MP; role-name provisional; CORA Asset build deferred
+      model_reported: "Oryx ORX-10G-310S9M"        # DET-8 (#142): per-unit identity known, recorded for when it graduates from Pending
       pv: "2bmSP2:"
+      serial_number: "22150530"
+      firmware_version: "1904.0.72.0"
       new: true
-      confirm: "FLIR Oryx 31 MP; sensor/pixel/bit-depth/frame-rate not yet recorded"
+      confirm: "FLIR Oryx 31 MP; per-unit identity confirmed (DET-8); sensor size/pixel/bit-depth/frame-rate still to record when modeled"
     - name: Camera_Selector
       family: LinearStage        # Schunk LPTM 30 translation stage + folding mirrors, selects camera 0/1 (item_020)
       model: schunk_lptm_30
@@ -428,9 +458,11 @@ controls:
       axis_count: 1
     - name: HexapodDrive
       family: MotionController
+      model: aerotech_automation1_ixr3   # Aerotech Automation1-iXR3, separate rack (#156)
       protocol: Aerotech_Native
       axis_count: 6
-    - name: FocusDrive
+      serial_number: "486125-01"         # operator-confirmed (#156); firmware still pending (DRIVE-2)
+    - name: PropagationDistanceDrive
       family: MotionController
       protocol: Aerotech_Native
       axis_count: 1
