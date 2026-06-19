@@ -255,20 +255,23 @@ def _render_resources(resources: Any) -> str:
 
 def _render_page(descriptor: BeamlineDescriptor) -> str:
     beamline = descriptor.beamline
-    blocks: list[str] = [f"# {beamline.name} layout"]
+    blocks: list[str] = ["# Source"]
 
     blocks.append(
-        "A walk along the beam, source to detector. Each device pairs its human "
+        "The incident beam, produced, conditioned, and defined before the sample. "
+        "A walk along the source-stage devices; the sample and detection stages are "
+        "documented as their own composed-fixture pages. Each device pairs its human "
         "name with the EPICS handle, its key specs, and whether it is field "
         "replaceable. `new` marks a device not yet modeled in CORA; `confirm` "
-        "marks a value taken from the docs that 2-BM staff have not yet verified."
+        "marks a value taken from the docs that staff have not yet verified."
     )
     blocks.append(
         _admonition(
             f"This page is generated from the descriptor at "
             f"[`deployments/2-bm/beamline.yaml`]({DESCRIPTOR_BLOB_URL}). "
             "Edit the descriptor, not this page. For the CORA Asset model, "
-            "affordances, and vendor catalog, see [Assets](assets.md).",
+            "settings, vendor catalog, drawings, and wiring, see "
+            "[Inventory](inventory.md).",
             kind="info",
             title="Generated from the descriptor",
         )
@@ -309,7 +312,12 @@ def _render_page(descriptor: BeamlineDescriptor) -> str:
         blocks.append("## Enclosures")
         blocks.append(_table(["Enclosure", "Role", "Facility", "Permit signal"], rows))
 
+    # Only the source stage renders as the generated walk; the sample and
+    # detection stages are the composed-fixture pages (equipment/sample_tower,
+    # equipment/microscope).
     for name, group in descriptor.groups:
+        if group.stage != "source":
+            continue
         blocks.append(_render_group(name, group))
 
     if descriptor.controls is not None:
