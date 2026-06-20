@@ -761,6 +761,7 @@ class Conductor:
         except _CONTROL_ERRORS as exc:
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_SETPOINT,
                 body=payload_body,
                 result=_RESULT_FAILED,
@@ -781,6 +782,7 @@ class Conductor:
             }
         await self._record(
             envelope=envelope,
+            index=index,
             step_kind=_STEP_KIND_SETPOINT,
             body=payload_body,
             result=_RESULT_OK,
@@ -820,6 +822,7 @@ class Conductor:
             exc = UnknownActionError(step.name)
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_ACTION,
                 body=payload_body,
                 result=_RESULT_FAILED,
@@ -844,6 +847,7 @@ class Conductor:
         except _CONTROL_ERRORS as exc:
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_ACTION,
                 body=payload_body,
                 result=_RESULT_FAILED,
@@ -859,6 +863,7 @@ class Conductor:
             )
         await self._record(
             envelope=envelope,
+            index=index,
             step_kind=_STEP_KIND_ACTION,
             body={**payload_body, "result_data": dict(result_data)},
             result=_RESULT_OK,
@@ -882,6 +887,7 @@ class Conductor:
         except _CONTROL_ERRORS as exc:
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_CHECK,
                 body=payload_body,
                 result=_RESULT_FAILED,
@@ -900,6 +906,7 @@ class Conductor:
             exc = CheckFailedError(step.address, f"quality={reading.quality}")
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_CHECK,
                 body=body_with_reading,
                 result=_RESULT_FAILED,
@@ -918,6 +925,7 @@ class Conductor:
             exc = CheckFailedError(step.address, reason)
             await self._record(
                 envelope=envelope,
+                index=index,
                 step_kind=_STEP_KIND_CHECK,
                 body=body_with_reading,
                 result=_RESULT_FAILED,
@@ -933,6 +941,7 @@ class Conductor:
             )
         await self._record(
             envelope=envelope,
+            index=index,
             step_kind=_STEP_KIND_CHECK,
             body=body_with_reading,
             result=_RESULT_OK,
@@ -943,6 +952,7 @@ class Conductor:
         self,
         *,
         envelope: "_Envelope",
+        index: int,
         step_kind: str,
         body: dict[str, Any],
         result: str,
@@ -955,8 +965,13 @@ class Conductor:
         Conductor-local `result` discriminator (plus `error_class` +
         `message` on failure). Future iterations may extend the body
         shape (pre/post readings, retry counts, etc.) additively.
+
+        `index` is the step's zero-based position in the conducted step
+        list; it rides the payload as `step_index` so a future resume
+        can map a recorded outcome back to its position in the pinned
+        conduct manifest.
         """
-        payload: dict[str, Any] = {**body, "result": result}
+        payload: dict[str, Any] = {**body, "step_index": index, "result": result}
         if error_class is not None:
             payload["error_class"] = error_class
         if message is not None:
@@ -1001,6 +1016,32 @@ def _criterion_to_dict(criterion: CheckCriterion) -> dict[str, Any]:
         "kind": "within_tolerance",
         "expected": criterion.expected,
         "tolerance": criterion.tolerance,
+    }
+
+
+def step_to_payload(step: Step) -> dict[str, Any]:
+    """Serialize a `Step` to a JSON-clean dict (inverse of `step_from_wire`).
+
+    Mirrors the conduct route's wire shape (the `kind` discriminator +
+    field names) so the resolved step list pinned on `ResolvedStepsRecorded`
+    round-trips back to `Step` objects via `step_from_wire` at resume. A
+    tuple `value` serializes as a list (JSON has no tuple); the criterion
+    reuses `_criterion_to_dict` so the wire shape stays single-sourced.
+    """
+    if isinstance(step, SetpointStep):
+        value: Any = list(step.value) if isinstance(step.value, tuple) else step.value
+        return {
+            "kind": "setpoint",
+            "address": step.address,
+            "value": value,
+            "verify": step.verify,
+        }
+    if isinstance(step, ActionStep):
+        return {"kind": "action", "name": step.name, "params": dict(step.params)}
+    return {
+        "kind": "check",
+        "address": step.address,
+        "criterion": _criterion_to_dict(step.criterion),
     }
 
 
@@ -1075,4 +1116,5 @@ __all__ = [
     "SetpointStep",
     "Step",
     "WithinToleranceCriterion",
+    "step_to_payload",
 ]
