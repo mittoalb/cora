@@ -96,6 +96,7 @@ from cora.equipment.aggregates.asset import (
     PortDirection,
 )
 from cora.recipe.aggregates.method.execution_pattern import ExecutionPattern
+from cora.recipe.aggregates.method.launch_spec import LaunchSpec, launch_spec_to_dict
 from cora.shared.bounded_text import bounded_name
 from cora.shared.scope_markers import Annotated, DeferredVocabulary
 
@@ -698,6 +699,14 @@ class Method:
     # self-checkpointing BATCH may also be resumable; do NOT couple to
     # ITERATIVE). Default False (a Gridrec one-shot cannot resume).
     resumable_from_checkpoint: bool = False
+    # launch_spec: the vetted compute launch recipe (argv template) the
+    # conduct runtime builds the command from, so a caller selects a
+    # registered recipe instead of POSTing raw argv. Set by the dedicated
+    # update_method_launch_spec slice (NOT define_method, mirroring
+    # parameters_schema); None until set. Participates in content_subset
+    # (ORDER-PRESERVING: args are argv order). See
+    # [[project-method-launch-spec-stage0-design]].
+    launch_spec: LaunchSpec | None = None
 
     def content_subset(self) -> dict[str, object]:
         """Canonical content subset hashed into MethodVersioned.content_hash.
@@ -733,6 +742,15 @@ class Method:
             ),
             "monotone_quality": self.monotone_quality,
             "resumable_from_checkpoint": self.resumable_from_checkpoint,
+            # launch_spec participates in content identity: two Methods that
+            # differ only in their argv recipe are different recipes. Rendered
+            # ORDER-PRESERVING (launch_spec_to_dict does NOT sort args; their
+            # order is argv order). This is the ONE non-sorted member of this
+            # subset; do NOT "fix" it into a sort. None when unset. Per
+            # [[project-method-launch-spec-stage0-design]] L4.
+            "launch_spec": (
+                launch_spec_to_dict(self.launch_spec) if self.launch_spec is not None else None
+            ),
             # required_roles participates in the content hash so a
             # MethodVersioned event attests to the declared role slots
             # alongside parameters_schema / needed_family_ids / etc.
@@ -881,3 +899,57 @@ class InvalidMethodIterativeStoppingFieldError(ValueError):
         )
         self.method_id = method_id
         self.accepted_keys = accepted_keys
+
+
+class MethodLaunchArgUnknownParameterError(ValueError):
+    """A launch_spec LaunchArg names a key absent from parameters_schema.
+
+    A launch arg binds a parameters_schema property to an argv slot, so
+    every `LaunchArg.name` must be a top-level property of the Method's
+    current `parameters_schema`. Set the schema first (or fix the name).
+    Validation family -> HTTP 400. Per
+    [[project-method-launch-spec-stage0-design]].
+    """
+
+    def __init__(self, method_id: UUID, arg_name: str) -> None:
+        super().__init__(
+            f"Method {method_id} launch_spec binds parameter {arg_name!r} which is not a "
+            "property of its parameters_schema; declare the schema key first"
+        )
+        self.method_id = method_id
+        self.arg_name = arg_name
+
+
+class MethodLaunchArgNotBooleanError(ValueError):
+    """A flag_only LaunchArg names a non-boolean parameters_schema key.
+
+    `style=flag_only` emits a bare switch iff the value is truthy, so the
+    bound schema property must be `type: boolean`. Validation family ->
+    HTTP 400.
+    """
+
+    def __init__(self, method_id: UUID, arg_name: str) -> None:
+        super().__init__(
+            f"Method {method_id} launch_spec binds {arg_name!r} as a flag_only switch but "
+            "its parameters_schema type is not boolean"
+        )
+        self.method_id = method_id
+        self.arg_name = arg_name
+
+
+class MethodParametersSchemaDropsLaunchArgError(ValueError):
+    """A parameters_schema update would drop a key the launch_spec binds.
+
+    The reciprocal of `MethodLaunchArgUnknownParameterError`: you cannot
+    remove a schema property that a stored launch_spec still binds. Names
+    the offending binding so the operator removes it from the launch_spec
+    first. Validation family -> HTTP 400.
+    """
+
+    def __init__(self, method_id: UUID, arg_name: str) -> None:
+        super().__init__(
+            f"Method {method_id} parameters_schema update drops parameter {arg_name!r} "
+            "still bound by its launch_spec; update the launch_spec first"
+        )
+        self.method_id = method_id
+        self.arg_name = arg_name
