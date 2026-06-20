@@ -56,9 +56,11 @@ from cora.agent import (
     register_agent_tools,
     seed_caution_drafter_agent,
     seed_run_debriefer_agent,
+    seed_run_supervisor_agent,
     wire_agent,
 )
 from cora.api._enclosure_permit_observer import ControlPortEnclosureObserver
+from cora.api._run_supervisor import run_supervisor_lifespan
 from cora.api.middleware import BodySizeLimitMiddleware
 from cora.api.protected_resource_metadata import register_protected_resource_metadata_route
 from cora.calibration import (
@@ -581,6 +583,8 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
             await seed_run_debriefer_agent(deps)
             # same shape for CautionDrafter.
             await seed_caution_drafter_agent(deps)
+            # same shape for RunSupervisor (deterministic in-loop agent).
+            await seed_run_supervisor_agent(deps)
 
             # Drain Federation-owned projections so the Postgres-backed
             # FacilityLookup.list_active() resolves the self-Facility row
@@ -636,6 +640,11 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
                         observer=enclosure_permit_observer,
                         kernel=deps,
                         name_to_id=enclosure_permit_ids,
+                    ),
+                    run_supervisor_lifespan(
+                        deps,
+                        list_runs=app.state.run.list_runs,
+                        hold_run=app.state.run.hold_run,
                     ),
                 ):
                     yield
