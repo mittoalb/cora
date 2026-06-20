@@ -215,10 +215,17 @@ def test_create_app_boots_in_prod_with_real_policy_and_require_auth(
     Production env with a real TRUST_POLICY_ID + require=True boots. With
     no TRUST_POLICY_ID the AllowAll-in-prod gate would refuse; that path
     is covered by the two tests below.
+
+    Prod boot also runs `_enforce_production_signing_posture`, an
+    orthogonal gate that refuses the default in-memory signing stubs
+    under prod; the `ALLOW_INSECURE_INMEMORY_SIGNING` escape hatch keeps
+    that gate out of scope here (its own coverage lives in
+    tests/unit/api/test_production_signing_posture.py).
     """
     monkeypatch.setenv("APP_ENV", "prod")
     monkeypatch.setenv("TRUST_POLICY_ID", "00000000-0000-0000-0000-000000000002")
     monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
+    monkeypatch.setenv("ALLOW_INSECURE_INMEMORY_SIGNING", "true")
     # Just constructing the app is enough; no need to enter lifespan
     # (which would try to open a real DB pool against production URL).
     app = create_app()
@@ -249,11 +256,17 @@ def test_create_app_boots_prod_with_explicit_permissive_optin(
     """Escape hatch: prod + no policy boots when the operator
     consciously sets ALLOW_PERMISSIVE_AUTHZ=true (an airgapped /
     single-operator pilot that genuinely wants no command gating). The
-    insecure choice is allowed, but only as a deliberate one."""
+    insecure choice is allowed, but only as a deliberate one.
+
+    ALLOW_INSECURE_INMEMORY_SIGNING=true keeps the orthogonal signing
+    guard out of scope: prod boot also refuses the default in-memory
+    signing stubs (its own coverage lives in
+    tests/unit/api/test_production_signing_posture.py)."""
     monkeypatch.setenv("APP_ENV", "prod")
     monkeypatch.setenv("REQUIRE_AUTHENTICATED_PRINCIPAL", "true")
     monkeypatch.delenv("TRUST_POLICY_ID", raising=False)
     monkeypatch.setenv("ALLOW_PERMISSIVE_AUTHZ", "true")
+    monkeypatch.setenv("ALLOW_INSECURE_INMEMORY_SIGNING", "true")
     app = create_app()
     assert app is not None
 

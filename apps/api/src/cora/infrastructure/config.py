@@ -115,6 +115,27 @@ class Settings(BaseSettings):
     # allowed, but only as a conscious one.
     allow_permissive_authz: bool = False
 
+    # Federation / event-signing posture.
+    # The signing seam ships with in-memory adapters by default: the
+    # crypto-free `InMemorySignaturePort` (federation envelope sign /
+    # verify), the dict-backed `InMemoryPublishPort`, and the real-but-
+    # ephemeral-key `InMemorySigner` (event provenance). These are the
+    # documented test-tier stubs per memory:
+    # project_federation_port_design.md, kept until the rule-of-two
+    # adapter trigger fires; the wire-tier DSSE / COSE / SCITT verifiers
+    # are deliberately deferred.
+    #
+    # The startup check in `create_app()` refuses to boot when
+    # `app_env` is production-tier ({"prod", "production", "staging"},
+    # the same set the authz guards key on) and any signing factory
+    # still resolves to one of those stubs, so a production-tier
+    # deployment cannot silently ship crypto-free signing (the
+    # federation SignaturePort) or non-durable signatures (the
+    # ephemeral-key event Signer). Set this true only for an environment
+    # intentionally exercising the prod posture before the wire-tier
+    # adapters land (e.g. a staging deployment).
+    allow_insecure_inmemory_signing: bool = False
+
     # Projection worker
     # `projection_use_listen_notify=True` (default) wires the worker's
     # wake-up signal to LISTEN on the `events` channel emitted by the
