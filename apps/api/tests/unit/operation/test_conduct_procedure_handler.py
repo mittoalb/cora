@@ -29,6 +29,7 @@ from cora.infrastructure.ports import Allow, Deny
 from cora.infrastructure.ports.clock import FakeClock
 from cora.infrastructure.ports.id_generator import UUIDv7Generator
 from cora.infrastructure.routing import NIL_SENTINEL_ID
+from cora.operation._conduct_wire import criterion_from_wire, step_from_wire
 from cora.operation.adapters.in_memory_recipe_expander import (
     InMemoryRecipeExpander,
 )
@@ -58,9 +59,7 @@ from cora.operation.features.conduct_procedure.command import (
 from cora.operation.features.conduct_procedure.handler import bind
 from cora.operation.features.conduct_procedure.route import (
     ConductProcedureRequest,
-    criterion_from_wire,
     result_to_wire,
-    step_from_wire,
 )
 
 _NOW = datetime(2026, 6, 2, 12, 0, 0, tzinfo=UTC)
@@ -225,7 +224,7 @@ async def test_conduct_procedure_handler_dispatches_to_conductor_with_envelope()
 
 @pytest.mark.unit
 async def test_conduct_procedure_pins_resolved_steps_before_conducting() -> None:
-    """The handler appends a ResolvedStepsRecorded manifest (the resolved
+    """The handler appends a ResolvedStepsRecorded event (the resolved
     step list) to the Procedure stream before dispatching to the Conductor."""
     procedure_id = uuid4()
     store = InMemoryEventStore()
@@ -248,14 +247,14 @@ async def test_conduct_procedure_pins_resolved_steps_before_conducting() -> None
     )
 
     stored, _ = await store.load(stream_type="Procedure", stream_id=procedure_id)
-    manifests = [
+    recorded = [
         event
         for event in (from_stored(s) for s in stored)
         if isinstance(event, ResolvedStepsRecorded)
     ]
-    assert len(manifests) == 1
-    assert manifests[0].step_count == 2
-    assert manifests[0].resolved_steps == tuple(step_to_payload(step) for step in steps)
+    assert len(recorded) == 1
+    assert recorded[0].step_count == 2
+    assert recorded[0].resolved_steps == tuple(step_to_payload(step) for step in steps)
 
 
 @pytest.mark.unit

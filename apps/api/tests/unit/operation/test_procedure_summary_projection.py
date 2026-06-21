@@ -49,6 +49,8 @@ def test_projection_metadata() -> None:
             "ProcedureCompleted",
             "ProcedureAborted",
             "ProcedureTruncated",
+            "ProcedureHeld",
+            "ProcedureResumed",
             "ProcedureActivitiesLogbookOpened",
             "ProcedureIterationStarted",
         }
@@ -68,6 +70,17 @@ def test_projection_does_not_subscribe_to_iteration_ended() -> None:
     # projection from ProcedureIterationEnded is a deferred watch item.
     proj = ProcedureSummaryProjection()
     assert "ProcedureIterationEnded" not in proj.subscribed_event_types
+
+
+@pytest.mark.unit
+def test_projection_subscribes_to_hold_resume() -> None:
+    """Resumable conduct now surfaces Held in the read model: migration
+    20260621060000 widened the `status` CHECK to admit 'Held', so the
+    projection folds ProcedureHeld -> status='Held' and ProcedureResumed ->
+    status='Running'. See [[project_resumable_conduct_design]]."""
+    proj = ProcedureSummaryProjection()
+    assert "ProcedureHeld" in proj.subscribed_event_types
+    assert "ProcedureResumed" in proj.subscribed_event_types
 
 
 @pytest.mark.unit
@@ -122,11 +135,12 @@ async def test_procedure_registered_handles_null_parent_run() -> None:
     assert args[5] is None
 
 
-# NOTE: the 4 status-change UPDATE arms (Started/Completed/Aborted/Truncated)
-# use literal status strings in SQL today (per-event SQL constants in the
-# projection). When `_UPDATE_STATUS_SQL` parameterized hoist lands (trigger:
-# 5th status-change arm), flip these substring assertions to `"SET status = $5"`
-# in lockstep with the projection refactor.
+# NOTE: the 6 status-change UPDATE arms (Started/Completed/Aborted/Truncated/
+# Held/Resumed) use literal status strings in SQL via per-event SQL constants.
+# The old "hoist to a parameterized `_UPDATE_STATUS_SQL` at the 5th arm" plan
+# was re-evaluated when Held/Resumed landed and dropped: the arms are NOT
+# uniform (Truncated also sets interrupted_at, Resumed CLEARS the reason), so a
+# single parameterized SQL reads worse. These substring assertions stay.
 
 
 @pytest.mark.unit
@@ -211,6 +225,46 @@ async def test_procedure_truncated_handles_null_interrupted_at() -> None:
     )
     await proj.apply(event, conn)
     assert conn.execute.call_args.args[4] is None
+
+
+@pytest.mark.unit
+async def test_procedure_held_updates_status_and_reason() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureHeld",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "reason": "beam dropped",
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Held'" in sql
+    assert conn.execute.call_args.args[1] == _PROCEDURE_ID
+    assert conn.execute.call_args.args[2] == _NOW
+    assert conn.execute.call_args.args[3] == "beam dropped"
+
+
+@pytest.mark.unit
+async def test_procedure_resumed_updates_status_to_running_and_clears_reason() -> None:
+    proj = ProcedureSummaryProjection()
+    conn = AsyncMock()
+    event = _stored(
+        "ProcedureResumed",
+        {
+            "procedure_id": str(_PROCEDURE_ID),
+            "re_establishment_boundary": 0,
+            "occurred_at": _NOW.isoformat(),
+        },
+    )
+    await proj.apply(event, conn)
+    sql = conn.execute.call_args.args[0]
+    assert "SET status = 'Running'" in sql
+    assert "last_status_reason = NULL" in sql
+    assert conn.execute.call_args.args[1] == _PROCEDURE_ID
+    assert conn.execute.call_args.args[2] == _NOW
 
 
 @pytest.mark.unit

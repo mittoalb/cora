@@ -22,9 +22,9 @@ parent_run_id (optional) + status. Initial slices:
 Full FSM (Running / Completed / Aborted / Truncated transitions) +
 per-step logbook follow. Projection + list_procedures follow.
 
-## ProcedureStatus FSM (locked initial)
+## ProcedureStatus FSM
 
-  Defined -> Running -> Completed | Aborted | Truncated
+  Defined -> Running <-> Held -> Completed | Aborted | Truncated
 
 REVISED from BC map's `Idle -> Starting -> Running -> Verifying ->
 Complete | Aborted` per the standards-corpus research at
@@ -32,7 +32,9 @@ Complete | Aborted` per the standards-corpus research at
 at FSM level (PackML uses `Completing` for closeout/check work; OPC
 UA Programs has no Verify state); per-step Check happens within
 Running; transient states deferred until real async window appears
-(Run BC precedent). Held/Resumed deferred to 10c-c per pilot need.
+(Run BC precedent). `Held` is the operator-pause state for resumable
+conduct (Tier 1 of [[project_resumable_conduct_design]]; mirrors
+`RunStatus.HELD`).
 
 ## Status as enum-in-state, derived-from-event-type-in-evolver
 
@@ -180,9 +182,9 @@ STEPS_LOGBOOK_SCHEMA = LogbookSchema(
 class ProcedureStatus(StrEnum):
     """The Procedure's lifecycle state.
 
-    Five values declared day one for forward-compat
-    (additive-state pattern; legacy events fold cleanly because
-    only DEFINED is reachable after register_procedure):
+    Six values declared for forward-compat (additive-state pattern;
+    legacy events fold cleanly because only DEFINED is reachable after
+    register_procedure):
 
       - `Defined`     -- registration-time genesis; pre-execution.
                           Operator can edit / inspect / submit for
@@ -190,25 +192,39 @@ class ProcedureStatus(StrEnum):
                           Cannot accept step events yet.
       - `Running`     -- post-start_procedure. Step events accepted
                           via append_activities.
+      - `Held`        -- operator-paused mid-conduct via hold_procedure
+                          (Running <-> Held, resumable via
+                          resume_procedure). The resumable-conduct
+                          pause state; mirrors `RunStatus.HELD`. No step
+                          events accepted while Held; the conduct is
+                          paused, not advancing.
       - `Completed`   -- happy path via complete_procedure.
                           Strict-not-idempotent.
       - `Aborted`     -- emergency exit via abort_procedure.
       - `Truncated`   -- retroactive cleanup via truncate_procedure.
                           Mirrors RunTruncated.
 
-    `Verifying` and `Held / Resumed` are deliberately NOT in this
-    enum. Per [[project_operation_design]] standards-corpus research:
-    `Verifying` is NOT standards-blessed at FSM level (PackML uses
-    `Completing` for closeout/check work; OPC UA Programs has no
-    Verify state). Per-step Check happens within Running synchronously
-    (via the Step logbook's check_passed field). Held / Resumed
-    deferred until pilot operator feedback surfaces a need.
+    `Verifying` is deliberately NOT in this enum. Per
+    [[project_operation_design]] standards-corpus research: `Verifying`
+    is NOT standards-blessed at FSM level (PackML uses `Completing` for
+    closeout/check work; OPC UA Programs has no Verify state). Per-step
+    Check happens within Running synchronously (via the Step logbook's
+    check_passed field).
+
+    `Held` lands in Tier 1 of [[project_resumable_conduct_design]]:
+    operator-pause of a halted conduct, additive to the Layer-1 FSM,
+    mirroring `RunStatus.HELD` (Procedure is an execution-FSM sibling of
+    Run). The PackML operator=`Held` / external-blocker=`Suspended`
+    split is honored: this is the operator-pause, so `Held`, not
+    `Suspended`. The `HOLDING` / `RESTARTING` transient states are
+    deliberately omitted (Run-precedent deferral).
 
     Naming convention (per Run BC gate review): gerund /
     adjective for active steady-states (matches PackML / Bluesky);
-    past-participle for terminals. `Defined` is past-participle (a
-    procedure WAS defined); `Running` is gerund-as-adjective; the
-    rest are past-participle terminals.
+    past-participle for the pause-state and terminals. `Defined` is
+    past-participle (a procedure WAS defined); `Running` is
+    gerund-as-adjective; `Held` is past-participle (mirrors
+    `RunStatus.HELD`); the rest are past-participle terminals.
 
     Enum values are PascalCase strings (matches BC-map status
     vocabulary; log lines and DTOs read naturally without mapping).
@@ -216,6 +232,7 @@ class ProcedureStatus(StrEnum):
 
     DEFINED = "Defined"
     RUNNING = "Running"
+    HELD = "Held"
     COMPLETED = "Completed"
     ABORTED = "Aborted"
     TRUNCATED = "Truncated"
@@ -453,6 +470,28 @@ class RecipeExpansionRecordNotFoundError(Exception):
             f"Procedure {procedure_id} has recipe_id set but the pinned "
             f"RecipeExpansionRecorded event or the pinned Recipe stream "
             f"could not be located; replay cannot proceed."
+        )
+        self.procedure_id = procedure_id
+
+
+class ResolvedStepsRecordNotFoundError(Exception):
+    """A Held Procedure cannot locate its pinned `ResolvedStepsRecorded` record.
+
+    Raised by the `reconduct_procedure` (resume-and-replay) handler when a
+    Held Procedure's stream carries no `ResolvedStepsRecorded` event. A
+    conduct pins exactly one at start (while `Defined`), so a conducted
+    Procedure always has it; its absence is corruption (stream truncation,
+    a manual event-store write, or a partial-write failure), not an
+    operational outcome. Kept OUT of the conduct/reconduct failures-in-body
+    contract (that is for step outcomes like an IOC rejecting a write).
+    Sibling of `RecipeExpansionRecordNotFoundError`. Mapped to HTTP 500.
+    """
+
+    def __init__(self, procedure_id: UUID) -> None:
+        super().__init__(
+            f"Procedure {procedure_id} is Held but its pinned "
+            f"ResolvedStepsRecorded record could not be located; resume "
+            f"replay cannot proceed."
         )
         self.procedure_id = procedure_id
 
@@ -744,30 +783,32 @@ class ProcedureCannotCompleteError(Exception):
 
 
 class ProcedureCannotAbortError(Exception):
-    """Attempted to abort a Procedure not in `Running`.
+    """Attempted to abort a Procedure not in `Running` or `Held`.
 
-    Single-source guard: `abort_procedure` accepts only `Running` (no
-    Held state in the Procedure FSM today; deferred to 10c-c per pilot
-    need). Aborting a `Defined` Procedure raises (use a different
-    workflow, for example: never start it, then leave it Defined or
-    extend the FSM with a cancel-defined slice if real); aborting any
+    Source guard: `abort_procedure` accepts `Running | Held` (a paused
+    conduct stays abortable; resumable conduct widened the set, mirroring
+    Run BC's `abort_run`). Aborting a `Defined` Procedure raises (use a
+    different workflow, for example: never start it, then leave it Defined
+    or extend the FSM with a cancel-defined slice if real); aborting any
     terminal raises (strict-not-idempotent). Mapped to HTTP 409.
     """
 
     def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
         super().__init__(
             f"Procedure {procedure_id} cannot be aborted: currently in status "
-            f"{current_status.value}, abort requires {ProcedureStatus.RUNNING.value}"
+            f"{current_status.value}, abort requires "
+            f"{ProcedureStatus.RUNNING.value} or {ProcedureStatus.HELD.value}"
         )
         self.procedure_id = procedure_id
         self.current_status = current_status
 
 
 class ProcedureCannotTruncateError(Exception):
-    """Attempted to truncate a Procedure not in `Running`.
+    """Attempted to truncate a Procedure not in `Running` or `Held`.
 
-    Single-source guard: `truncate_procedure` accepts only `Running`
-    today (Held/Resumed deferred to future iteration). Mirrors
+    Source guard: `truncate_procedure` accepts `Running | Held` (a paused
+    Procedure that became de-facto dead can be closed retroactively;
+    resumable conduct widened the set alongside abort). Mirrors
     `ProcedureCannotAbortError`'s source set: a Defined Procedure
     hasn't started so there's no execution to truncate; terminal
     Procedures are already closed (re-truncating a `Truncated`
@@ -783,10 +824,76 @@ class ProcedureCannotTruncateError(Exception):
     def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
         super().__init__(
             f"Procedure {procedure_id} cannot be truncated: currently in status "
-            f"{current_status.value}, truncate requires {ProcedureStatus.RUNNING.value}"
+            f"{current_status.value}, truncate requires "
+            f"{ProcedureStatus.RUNNING.value} or {ProcedureStatus.HELD.value}"
         )
         self.procedure_id = procedure_id
         self.current_status = current_status
+
+
+class ProcedureCannotHoldError(Exception):
+    """Attempted to hold a Procedure not in `Running`.
+
+    Single-source guard: `hold_procedure` accepts only `Running`.
+    Re-holding an already-`Held` Procedure raises (strict-not-
+    idempotent); holding a `Defined` or terminal Procedure raises.
+    Mirrors `RunCannotHoldError`. Hold <-> Resume is bidirectional and
+    unlimited-cycle: an operator can hold -> resume -> hold repeatedly
+    within one conduct, each hold requiring an intervening resume.
+    Mapped to HTTP 409.
+    """
+
+    def __init__(self, procedure_id: UUID, current_status: "ProcedureStatus") -> None:
+        super().__init__(
+            f"Procedure {procedure_id} cannot be held: currently in status "
+            f"{current_status.value}, hold requires {ProcedureStatus.RUNNING.value}"
+        )
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+
+
+class ProcedureCannotResumeError(Exception):
+    """Attempted to resume a Procedure that cannot be resumed.
+
+    Two refusal reasons, both HTTP 409:
+      - status guard: `resume_procedure` accepts only `Held` (the
+        inverse of hold, which requires `Running`). Resuming an
+        already-`Running` Procedure raises (strict-not-idempotent);
+        resuming a `Defined` or terminal Procedure raises. Mirrors
+        `RunCannotResumeError`.
+      - off-diagonal guard (`parent_run_held=True`): a Held Procedure
+        whose parent Run is itself `Held` cannot resume to `Running`
+        and walk real setpoints while the Run is paused. The
+        one-directional Operation -> Run read enforces this; there is
+        NO cascade from Run-resume into Procedure-resume (that is a
+        Layer-3 saga, deferred). See [[project_resumable_conduct_design]].
+
+    `parent_run_held` distinguishes the two for operator-facing
+    messaging; `current_status` is carried in both cases.
+    """
+
+    def __init__(
+        self,
+        procedure_id: UUID,
+        current_status: "ProcedureStatus",
+        *,
+        parent_run_held: bool = False,
+    ) -> None:
+        if parent_run_held:
+            message = (
+                f"Procedure {procedure_id} cannot be resumed: its parent Run is "
+                f"{ProcedureStatus.HELD.value}. Resume the Run first; CORA does not "
+                f"cascade a Run resume into its Procedures."
+            )
+        else:
+            message = (
+                f"Procedure {procedure_id} cannot be resumed: currently in status "
+                f"{current_status.value}, resume requires {ProcedureStatus.HELD.value}"
+            )
+        super().__init__(message)
+        self.procedure_id = procedure_id
+        self.current_status = current_status
+        self.parent_run_held = parent_run_held
 
 
 class ProcedureCannotStartIterationError(Exception):
@@ -835,7 +942,9 @@ class ProcedureCannotEndIterationError(Exception):
     """Attempted to end an iteration that fails an end-gate.
 
     Raised by the `end_iteration` decider when:
-      - The Procedure is not in `Running`.
+      - The Procedure is not in `Running` or `Held` (an open iteration can
+        be closed even while the conduct is paused; resumable conduct
+        widened the source set, but `start_iteration` stays Running-only).
       - No iteration is currently open (`current_iteration_index` is
         None); there is nothing to end.
       - The supplied `iteration_index` does not match the open
@@ -1043,6 +1152,50 @@ class InvalidProcedureAbortReasonError(ValueError):
         self.value = value
 
 
+class InvalidProcedureHoldReasonError(ValueError):
+    """The supplied hold reason is empty, whitespace-only, or too long.
+
+    Validated at the API boundary via Pydantic min_length / max_length,
+    AND defensively at the decider via the `ProcedureHoldReason` VO so
+    direct in-process callers (sagas, tests) get the same protection.
+    Sibling of `InvalidProcedureAbortReasonError`; distinct class for
+    BC-local HTTP-status registration. Mapped to HTTP 400.
+
+    Unlike `RunHeld` (slim, no reason: a routine Run pause), a Procedure
+    hold carries a required reason because pausing a halted conduct is a
+    deliberate, high-information operator act (matching
+    `AgentSuspended.reason` and [[project_resumable_conduct_design]]).
+    The state NAME mirrors Run (`Held`); the reason payload follows the
+    operator-pause-with-context precedent.
+    """
+
+    def __init__(self, value: str) -> None:
+        super().__init__(
+            f"Procedure hold reason must be 1-{REASON_MAX_LENGTH} chars "
+            f"after trimming (got: {value!r})"
+        )
+        self.value = value
+
+
+class InvalidProcedureReEstablishmentBoundaryError(ValueError):
+    """The supplied resume re-establishment boundary is negative.
+
+    `re_establishment_boundary` is the index in the pinned resolved
+    step list from which resume re-drives setpoints + re-runs checks. It
+    must be >= 0 (a step position; 0 means re-establish from the very
+    first step). Validated at the API boundary via Pydantic `ge=0` AND
+    defensively at the `resume_procedure` decider. The upper bound
+    (boundary vs step-list length) is enforced by the Conductor's
+    `execute_from` replay, not the decider (the step list is not folded
+    into Procedure state). Mapped to HTTP 400. See
+    [[project_resumable_conduct_design]].
+    """
+
+    def __init__(self, value: int) -> None:
+        super().__init__(f"re_establishment_boundary must be >= 0 (got: {value})")
+        self.value = value
+
+
 @bounded_name(
     max_length=PROCEDURE_NAME_MAX_LENGTH,
     error_class=InvalidProcedureNameError,
@@ -1095,6 +1248,29 @@ class ProcedureAbortReason:
             self.value,
             max_length=REASON_MAX_LENGTH,
             error_class=InvalidProcedureAbortReasonError,
+        )
+        object.__setattr__(self, "value", trimmed)
+
+
+@dataclass(frozen=True)
+class ProcedureHoldReason:
+    """Free-form hold reason. Trimmed; 1-500 chars.
+
+    Sibling of `ProcedureAbortReason`; same shape (trimmed + bounded),
+    distinct class for BC-local HTTP-status registration. The
+    on-the-wire representation in `ProcedureHeld.reason` is `str`
+    (post-trim); the VO exists at decider-input time only. A Procedure
+    hold REQUIRES a reason (unlike Run's slim `RunHeld`); see
+    `InvalidProcedureHoldReasonError`.
+    """
+
+    value: str
+
+    def __post_init__(self) -> None:
+        trimmed = validate_bounded_text(
+            self.value,
+            max_length=REASON_MAX_LENGTH,
+            error_class=InvalidProcedureHoldReasonError,
         )
         object.__setattr__(self, "value", trimmed)
 
@@ -1247,3 +1423,34 @@ class Procedure:
     enum; state stores the raw string (cross-BC string-snapshot seam,
     mirroring how the Data BC stores it). Additive-state default None:
     legacy + pre-activation streams fold cleanly."""
+
+
+def merge_actuation_kinds(first: str | None, second: str | None) -> str | None:
+    """Combine two observed actuation-kind values into the honest aggregate kind.
+
+    Mirrors the Conductor `_ActuationObserver`'s flag collapse, but over the
+    persisted raw string values (an `ActuationKind` value or None) so a resume
+    can fold the PRE-HOLD conduct's observed kind (carried on `ProcedureHeld`)
+    with the replay tail's kind before the terminal event. Without this, a
+    reconduct from a boundary past a simulated prefix would complete as
+    `Physical` and slip past the `promote_dataset` Simulated/Hybrid gate. None
+    contributes nothing; a `Physical` + `Simulated` mix (or either with
+    `Hybrid`) collapses to `Hybrid`. Pure + no `ActuationKind` import: the
+    aggregate stores the raw string by design (the cross-BC snapshot seam)."""
+    simulated_seen = False
+    physical_seen = False
+    for kind in (first, second):
+        if kind == "Simulated":
+            simulated_seen = True
+        elif kind == "Physical":
+            physical_seen = True
+        elif kind == "Hybrid":
+            simulated_seen = True
+            physical_seen = True
+    if simulated_seen and physical_seen:
+        return "Hybrid"
+    if simulated_seen:
+        return "Simulated"
+    if physical_seen:
+        return "Physical"
+    return None

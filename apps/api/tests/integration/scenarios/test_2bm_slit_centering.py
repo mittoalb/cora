@@ -22,7 +22,6 @@ constant. See `docs/deployments/2-bm/procedures.md`.
 
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 
-import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -184,7 +183,9 @@ async def _read_steps(db_pool: asyncpg.Pool, procedure_id: UUID) -> list[asyncpg
         return await conn.fetch(
             "SELECT step_kind, payload, sampled_at "
             "FROM entries_operation_procedure_activities "
-            "WHERE procedure_id = $1 ORDER BY sampled_at",
+            "WHERE procedure_id = $1 "
+            "AND payload->>'result' IS DISTINCT FROM 'in_flight' "
+            "ORDER BY sampled_at",
             procedure_id,
         )
 
@@ -368,7 +369,7 @@ async def test_slit_centering_plays_out_end_to_end(
         "action",
         "check",  # close
     ]
-    close_size = json.loads(step_rows[4]["payload"])
+    close_size = step_rows[4]["payload"]
     assert close_size["channel"] == "Hsize"
     assert close_size["target_value"] == 0.5
 

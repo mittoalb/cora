@@ -10,6 +10,8 @@ Status mapping per event type:
   - `ProcedureCompleted`          -> COMPLETED (happy-path terminal)
   - `ProcedureAborted`            -> ABORTED   (emergency-exit terminal)
   - `ProcedureTruncated`          -> TRUNCATED (partial-data terminal; mirrors RunTruncated)
+  - `ProcedureHeld`               -> HELD      (operator-pause; mirrors RunHeld)
+  - `ProcedureResumed`            -> RUNNING   (resume from Held; mirrors RunResumed)
   - `ProcedureActivitiesLogbookOpened` -> STATUS UNCHANGED (sets activity_logbook_id;
                                      lazy-open envelope event from
                                      append_activities, orthogonal to lifecycle)
@@ -67,9 +69,11 @@ from cora.operation.aggregates.procedure.events import (
     ProcedureActivitiesLogbookOpened,
     ProcedureCompleted,
     ProcedureEvent,
+    ProcedureHeld,
     ProcedureIterationEnded,
     ProcedureIterationStarted,
     ProcedureRegistered,
+    ProcedureResumed,
     ProcedureStarted,
     ProcedureTruncated,
     RecipeExpansionRecorded,
@@ -79,6 +83,7 @@ from cora.operation.aggregates.procedure.state import (
     Procedure,
     ProcedureName,
     ProcedureStatus,
+    merge_actuation_kinds,
 )
 
 
@@ -181,6 +186,59 @@ def evolve(state: Procedure | None, event: ProcedureEvent) -> Procedure:
                 kind=prior.kind,
                 target_asset_ids=prior.target_asset_ids,
                 status=ProcedureStatus.TRUNCATED,
+                parent_run_id=prior.parent_run_id,
+                activity_logbook_id=prior.activity_logbook_id,
+                capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
+                current_iteration_index=prior.current_iteration_index,
+                iteration_count=prior.iteration_count,
+                consecutive_unconverged_iterations=prior.consecutive_unconverged_iterations,
+                max_consecutive_unconverged_iterations=(
+                    prior.max_consecutive_unconverged_iterations
+                ),
+                actuation_kind=prior.actuation_kind,
+            )
+        case ProcedureHeld(actuation_kind=held_actuation_kind):
+            # Operator-pause transition (Running -> Held). Status-only change;
+            # every non-status field carries verbatim from prior (especially
+            # the iteration denorms). Mirrors RunHeld. EXCEPT actuation_kind:
+            # the conduct's observed-so-far kind rides ProcedureHeld and is
+            # MERGED into state so it survives the hold->resume boundary (a
+            # reconduct from a boundary past a simulated prefix would otherwise
+            # complete as Physical and bypass the promote_dataset gate). Merge,
+            # not set, so a manual operator hold (actuation_kind=None) cannot
+            # wipe a prior conduct's recorded kind.
+            prior = require_state(state, "ProcedureHeld")
+            return Procedure(
+                id=prior.id,
+                name=prior.name,
+                kind=prior.kind,
+                target_asset_ids=prior.target_asset_ids,
+                status=ProcedureStatus.HELD,
+                parent_run_id=prior.parent_run_id,
+                activity_logbook_id=prior.activity_logbook_id,
+                capability_id=prior.capability_id,
+                recipe_id=prior.recipe_id,
+                current_iteration_index=prior.current_iteration_index,
+                iteration_count=prior.iteration_count,
+                consecutive_unconverged_iterations=prior.consecutive_unconverged_iterations,
+                max_consecutive_unconverged_iterations=(
+                    prior.max_consecutive_unconverged_iterations
+                ),
+                actuation_kind=merge_actuation_kinds(prior.actuation_kind, held_actuation_kind),
+            )
+        case ProcedureResumed():
+            # Resume transition (Held -> Running). Status-only change; every
+            # non-status field carries verbatim from prior. The
+            # re_establishment_boundary rides the event for the Conductor's
+            # replay, not folded into state. Mirrors RunResumed.
+            prior = require_state(state, "ProcedureResumed")
+            return Procedure(
+                id=prior.id,
+                name=prior.name,
+                kind=prior.kind,
+                target_asset_ids=prior.target_asset_ids,
+                status=ProcedureStatus.RUNNING,
                 parent_run_id=prior.parent_run_id,
                 activity_logbook_id=prior.activity_logbook_id,
                 capability_id=prior.capability_id,

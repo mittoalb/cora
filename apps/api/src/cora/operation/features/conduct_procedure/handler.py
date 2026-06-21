@@ -42,53 +42,25 @@ authorization is what the policy engine actually evaluates at each
 call site.
 """
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from cora.infrastructure.event_envelope import to_new_event
 from cora.infrastructure.kernel import Kernel
 from cora.infrastructure.logging import get_logger
-from cora.infrastructure.ports import Deny, EventStore
-from cora.infrastructure.ports.event_store import StoredEvent
+from cora.infrastructure.ports import Deny
 from cora.infrastructure.routing import NIL_SENTINEL_ID
-from cora.operation._recipe_replay import (
-    find_recipe_expansion_record,
-    pins_from_payload,
-    verify_bindings_hash,
-    verify_steps_hash,
-)
+from cora.operation._conduct_preparation import resolve_and_pin_conduct_steps
 from cora.operation.aggregates.procedure import (
-    ProcedureBoundCapabilityDeprecatedError,
     ProcedureNotFoundError,
-    ProcedureStepsForbiddenForRecipeDrivenError,
-    RecipeExpanderVersionMismatchError,
-    RecipeExpansionRecordNotFoundError,
-    event_type_name,
     load_procedure_with_events,
-    to_payload,
 )
-from cora.operation.conductor import Conductor, Step, step_to_payload
+from cora.operation.conductor import Conductor
 from cora.operation.errors import UnauthorizedError
 from cora.operation.features.conduct_procedure.command import (
     ConductProcedure,
     ConductProcedureResult,
 )
-from cora.operation.features.conduct_procedure.manifest import (
-    decide_resolved_steps_recorded,
-)
 from cora.operation.ports.recipe_expander import RecipeExpander
-from cora.recipe.aggregates.capability import CapabilityStatus, load_capability
-from cora.recipe.aggregates.plan import (
-    PlanNotFoundError,
-    constituents_from_wires,
-    load_plan,
-)
-from cora.recipe.aggregates.recipe import load_recipe_at_version
-from cora.run.aggregates.run import RunNotFoundError, load_run
-
-if TYPE_CHECKING:
-    from cora.operation._pseudoaxis_expander import ConstituentResolver
 
 _COMMAND_NAME = "ConductProcedure"
 
@@ -167,96 +139,17 @@ def bind(
         if procedure is None:
             raise ProcedureNotFoundError(command.procedure_id)
 
-        if procedure.recipe_id is not None:
-            steps = await _re_expand_steps(
-                procedure_id=procedure.id,
-                recipe_id=procedure.recipe_id,
-                caller_steps=command.steps,
-                stored_events=stored_events,
-                event_store=deps.event_store,
-                expansion_port=expansion_port,
-            )
-        else:
-            steps = tuple(command.steps)
-
-        # A Phase-of-Run Procedure resolves a pseudoaxis's constituent
-        # motors from its Run's Plan wires: parent_run_id -> Run.plan_id
-        # -> Plan.wires (the same load chain start_procedure walks for
-        # its Supply gate). A missing Run / Plan in that chain is
-        # corruption, so raise rather than silently skip. Standalone /
-        # recipe-driven Procedures (no parent_run_id) pass no resolver, so
-        # any pseudoaxis SetpointStep hits the wiring-deferred default and
-        # is rejected with PartitionRuleNotFoundError.
-        #
-        # This composes with recipe-driven expansion rather than
-        # conflicting: the recipe block above produces the STEPS; the wires
-        # resolve each pseudoaxis step's CONSTITUENTS. A Procedure that is
-        # both recipe-driven and a Run phase gets recipe steps with
-        # wire-resolved constituents. (Watch item: this loads Run + Plan
-        # once per conduct; if a high-frequency re-conduct loop makes that
-        # latency matter, cache per command-lifetime.)
-        constituent_resolver: ConstituentResolver | None = None
-        if procedure.parent_run_id is not None:
-            parent_run = await load_run(deps.event_store, procedure.parent_run_id)
-            if parent_run is None:
-                raise RunNotFoundError(procedure.parent_run_id)
-            plan = await load_plan(deps.event_store, parent_run.plan_id)
-            if plan is None:
-                raise PlanNotFoundError(parent_run.plan_id)
-
-            def _resolve_constituents(asset_id: UUID) -> tuple[UUID, ...]:
-                return constituents_from_wires(plan, asset_id)
-
-            constituent_resolver = _resolve_constituents
-
-        # Pre-Conductor PseudoAxis expansion: rewrite any virtual-axis
-        # SetpointStep into N sequential constituent SetpointSteps so
-        # the Conductor's existing dispatch loop walks the constituents
-        # in declared order. ActionStep / CheckStep pass through
-        # unchanged. PseudoAxis evaluator errors propagate to the
-        # routes layer for HTTP status mapping
-        # ([[project-pseudoaxis-design]] v3).
-        steps = await expansion_port.expand_pseudoaxis(
-            steps,
-            event_store=deps.event_store,
+        steps = await resolve_and_pin_conduct_steps(
+            deps,
+            command_name=_COMMAND_NAME,
+            procedure=procedure,
+            stored_events=stored_events,
+            caller_steps=command.steps,
+            expansion_port=expansion_port,
+            principal_id=principal_id,
             correlation_id=correlation_id,
-            constituent_resolver=constituent_resolver,
+            causation_id=causation_id,
         )
-
-        # Pin the resolved step list (after recipe + pseudoaxis expansion)
-        # BEFORE conducting, so a future resume replays this exact list
-        # instead of re-deriving it from live Plan.wires / partition rules.
-        # Provenance-only ResolvedStepsRecorded; the helper emits it only
-        # while the Procedure is still Defined and returns [] otherwise,
-        # leaving the Conductor's start_procedure to surface a lifecycle
-        # failure (keeps the conduct route's failures-in-body contract).
-        manifest_events = decide_resolved_steps_recorded(
-            procedure,
-            tuple(step_to_payload(step) for step in steps),
-            now=deps.clock.now(),
-        )
-        if manifest_events:
-            _, current_version = await deps.event_store.load(
-                stream_type="Procedure", stream_id=command.procedure_id
-            )
-            await deps.event_store.append(
-                stream_type="Procedure",
-                stream_id=command.procedure_id,
-                expected_version=current_version,
-                events=[
-                    to_new_event(
-                        event_type=event_type_name(event),
-                        payload=to_payload(event),
-                        occurred_at=event.occurred_at,
-                        event_id=deps.id_generator.new_id(),
-                        command_name=_COMMAND_NAME,
-                        correlation_id=correlation_id,
-                        causation_id=causation_id,
-                        principal_id=principal_id,
-                    )
-                    for event in manifest_events
-                ],
-            )
 
         result = await conductor.conduct(
             procedure_id=command.procedure_id,
@@ -287,64 +180,3 @@ def bind(
         )
 
     return handler
-
-
-async def _re_expand_steps(
-    *,
-    procedure_id: UUID,
-    recipe_id: UUID,
-    caller_steps: Sequence[Step],
-    stored_events: list[StoredEvent],
-    event_store: EventStore,
-    expansion_port: RecipeExpander,
-) -> tuple[Step, ...]:
-    """Run the recipe-replay gate per [[project-run-procedure-replay-design]].
-
-    Six steps: reject non-empty caller steps -> find_recipe_expansion_record
-    (raise RecipeExpansionRecordNotFoundError on None) -> pins_from_payload
-    -> port-version strict-equals (raise RecipeExpanderVersionMismatchError
-    on drift) -> load_recipe_at_version (raise RecipeExpansionRecordNotFoundError
-    when None on a recipe-driven Procedure; RecipeVersionNotFoundError
-    propagates from helper) -> load_capability + reject Deprecated
-    (raise ProcedureBoundCapabilityDeprecatedError, symmetric to
-    start_run's RunBoundPlanDeprecatedError) -> verify_bindings_hash ->
-    expand -> verify_steps_hash -> return the re-expanded tuple.
-    """
-    if list(caller_steps):
-        raise ProcedureStepsForbiddenForRecipeDrivenError(procedure_id)
-
-    record = find_recipe_expansion_record(stored_events)
-    if record is None:
-        raise RecipeExpansionRecordNotFoundError(procedure_id)
-
-    pins = pins_from_payload(procedure_id, record.payload)
-
-    if pins.expansion_port_version != expansion_port.version:
-        raise RecipeExpanderVersionMismatchError(
-            procedure_id,
-            pins.expansion_port_version,
-            expansion_port.version,
-        )
-
-    recipe = await load_recipe_at_version(
-        event_store,
-        recipe_id,
-        pins.recipe_version,
-    )
-    if recipe is None:
-        raise RecipeExpansionRecordNotFoundError(procedure_id)
-
-    # Capability-deprecation gate: reject conduct against a tombstoned
-    # Capability before running the expansion port. Symmetric to
-    # start_run's RunBoundPlanDeprecatedError. Per the 2026-06-04 domain
-    # harmony audit: re-expanding a Recipe against a Deprecated
-    # Capability would silently execute against a contract operators
-    # have retired.
-    capability = await load_capability(event_store, recipe.capability_id)
-    if capability is not None and capability.status == CapabilityStatus.DEPRECATED:
-        raise ProcedureBoundCapabilityDeprecatedError(procedure_id, recipe.capability_id)
-
-    verify_bindings_hash(procedure_id, pins)
-    expanded = expansion_port.expand(recipe.steps, dict(pins.bindings))
-    verify_steps_hash(procedure_id, expanded, pins)
-    return expanded

@@ -1,4 +1,4 @@
-"""Tier-0 manifest recording: decide_resolved_steps_recorded + step_to_payload.
+"""Tier-0 resolved-steps recording: decide_resolved_steps_recorded + step_to_payload.
 
 Covers:
   - the helper emits one ResolvedStepsRecorded for a Defined Procedure,
@@ -8,7 +8,7 @@ Covers:
     the conduct route keeps its failures-in-body contract).
   - step_to_payload round-trips every step kind back to an equal Step via
     the public wire path (ConductProcedureRequest validation + step_from_wire),
-    proving a pinned manifest can be replayed.
+    proving a pinned step list can be replayed.
 """
 
 from datetime import UTC, datetime
@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from cora.operation._conduct_preparation import decide_resolved_steps_recorded
 from cora.operation.aggregates.procedure import (
     ProcedureRegistered,
     ProcedureStarted,
@@ -30,9 +31,6 @@ from cora.operation.conductor import (
     Step,
     WithinToleranceCriterion,
     step_to_payload,
-)
-from cora.operation.features.conduct_procedure.manifest import (
-    decide_resolved_steps_recorded,
 )
 from cora.operation.features.conduct_procedure.route import (
     ConductProcedureRequest,
@@ -55,7 +53,7 @@ def _registered() -> tuple[UUID, ProcedureRegistered]:
 
 
 @pytest.mark.unit
-def test_decide_records_manifest_for_defined_procedure() -> None:
+def test_decide_records_resolved_steps_for_defined_procedure() -> None:
     procedure_id, registered = _registered()
     state = fold([registered])
     steps = (

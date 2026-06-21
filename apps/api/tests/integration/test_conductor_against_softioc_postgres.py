@@ -104,9 +104,10 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
     logbook_id = UUID("01900000-0000-7000-8000-0000020c0101")
     open_event_id = UUID("01900000-0000-7000-8000-0000020c0102")
     started_event_id = UUID("01900000-0000-7000-8000-0000020c0103")
-    setpoint_step_id = UUID("01900000-0000-7000-8000-0000020c0104")
-    check_step_id = UUID("01900000-0000-7000-8000-0000020c0105")
-    completed_event_id = UUID("01900000-0000-7000-8000-0000020c0106")
+    setpoint_marker_id = UUID("01900000-0000-7000-8000-0000020c0104")
+    setpoint_outcome_id = UUID("01900000-0000-7000-8000-0000020c0105")
+    check_step_id = UUID("01900000-0000-7000-8000-0000020c0106")
+    completed_event_id = UUID("01900000-0000-7000-8000-0000020c0107")
 
     deps = build_postgres_deps(
         db_pool,
@@ -115,7 +116,8 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
             started_event_id,
             logbook_id,
             open_event_id,
-            setpoint_step_id,
+            setpoint_marker_id,
+            setpoint_outcome_id,
             check_step_id,
             completed_event_id,
         ],
@@ -167,17 +169,29 @@ async def test_conductor_runs_setpoint_check_against_real_softioc_and_postgres(
             """,
             procedure_id,
         )
-    assert [r["step_kind"] for r in rows] == ["setpoint", "check"]
-    import json
 
-    setpoint_payload = json.loads(rows[0]["payload"])
+    parsed = [(r["step_kind"], r["payload"]) for r in rows]
+    # The setpoint is side-effecting: it records a pre-effect in-flight
+    # marker then the `ok` outcome, both round-tripping into Postgres. The
+    # check (pure read) records only its outcome -- no marker.
+    assert [(k, p["result"]) for k, p in parsed] == [
+        ("setpoint", "in_flight"),
+        ("setpoint", "ok"),
+        ("check", "ok"),
+    ]
+    setpoint_marker = parsed[0][1]
+    assert setpoint_marker["address"] == f"{softioc}double_value"
+    assert setpoint_marker["value"] == 7.5
+    assert "post_reading" not in setpoint_marker  # marker precedes the write
+
+    setpoint_payload = parsed[1][1]
     assert setpoint_payload["address"] == f"{softioc}double_value"
     assert setpoint_payload["value"] == 7.5
     assert setpoint_payload["result"] == "ok"
     assert setpoint_payload["post_reading"]["value"] == 7.5
     assert setpoint_payload["post_reading"]["quality"] == "Good"
 
-    check_payload = json.loads(rows[1]["payload"])
+    check_payload = parsed[2][1]
     assert check_payload["address"] == f"{softioc}double_value"
     assert check_payload["criterion"] == {
         "kind": "within_tolerance",
@@ -204,8 +218,9 @@ async def test_conductor_aborts_procedure_when_setpoint_fails_against_softioc(
     started_event_id = UUID("01900000-0000-7000-8000-0000020c0201")
     logbook_id = UUID("01900000-0000-7000-8000-0000020c0202")
     open_event_id = UUID("01900000-0000-7000-8000-0000020c0203")
-    setpoint_step_id = UUID("01900000-0000-7000-8000-0000020c0204")
-    aborted_event_id = UUID("01900000-0000-7000-8000-0000020c0205")
+    setpoint_marker_id = UUID("01900000-0000-7000-8000-0000020c0204")
+    setpoint_outcome_id = UUID("01900000-0000-7000-8000-0000020c0205")
+    aborted_event_id = UUID("01900000-0000-7000-8000-0000020c0206")
 
     deps = build_postgres_deps(
         db_pool,
@@ -214,7 +229,8 @@ async def test_conductor_aborts_procedure_when_setpoint_fails_against_softioc(
             started_event_id,
             logbook_id,
             open_event_id,
-            setpoint_step_id,
+            setpoint_marker_id,
+            setpoint_outcome_id,
             aborted_event_id,
         ],
     )
@@ -271,9 +287,10 @@ async def test_conductor_completes_procedure_with_equals_check_against_softioc(
     started_event_id = UUID("01900000-0000-7000-8000-0000020c0301")
     logbook_id = UUID("01900000-0000-7000-8000-0000020c0302")
     open_event_id = UUID("01900000-0000-7000-8000-0000020c0303")
-    setpoint_step_id = UUID("01900000-0000-7000-8000-0000020c0304")
-    check_step_id = UUID("01900000-0000-7000-8000-0000020c0305")
-    completed_event_id = UUID("01900000-0000-7000-8000-0000020c0306")
+    setpoint_marker_id = UUID("01900000-0000-7000-8000-0000020c0304")
+    setpoint_outcome_id = UUID("01900000-0000-7000-8000-0000020c0305")
+    check_step_id = UUID("01900000-0000-7000-8000-0000020c0306")
+    completed_event_id = UUID("01900000-0000-7000-8000-0000020c0307")
 
     deps = build_postgres_deps(
         db_pool,
@@ -282,7 +299,8 @@ async def test_conductor_completes_procedure_with_equals_check_against_softioc(
             started_event_id,
             logbook_id,
             open_event_id,
-            setpoint_step_id,
+            setpoint_marker_id,
+            setpoint_outcome_id,
             check_step_id,
             completed_event_id,
         ],

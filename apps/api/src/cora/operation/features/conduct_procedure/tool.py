@@ -16,13 +16,13 @@ from pydantic import BaseModel, Field
 from cora.infrastructure.mcp_principal import get_mcp_principal_id
 from cora.infrastructure.observability import current_correlation_id
 from cora.infrastructure.routing import get_mcp_surface_id
+from cora.operation._conduct_wire import step_from_wire
 from cora.operation.features.conduct_procedure.command import ConductProcedure
 from cora.operation.features.conduct_procedure.handler import Handler
 from cora.operation.features.conduct_procedure.route import (
     ConductProcedureRequest,
     ConductProcedureResponse,
     result_to_wire,
-    step_from_wire,
 )
 
 

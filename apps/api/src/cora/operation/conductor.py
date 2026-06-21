@@ -37,6 +37,29 @@ can return a result dict carrying their own status (e.g. `{"ok":
 False, "reason": "out_of_range"}`); the Conductor treats any return
 from a body as success-shaped at this tier.
 
+## Resume (execute_from)
+
+`execute_from` replays the PINNED resolved step list from a re-establishment
+boundary rather than re-deriving the step list: re-drive setpoints, re-run
+checks as fresh gates, and halt-for-operator on an acquisition
+(`ActionStep`). It is the Tier-1 resumable-conduct primitive
+([[project_resumable_conduct_design]]); the step list comes from
+`ResolvedStepsRecorded` parsed via `steps_from_payload`. Like `execute`
+it drives no FSM transition.
+
+## Pre-effect in-flight marker (side-effecting steps)
+
+A setpoint and an action are side-effecting: each records a SEPARATE
+`result="in_flight"` step entry BEFORE the effect runs, then the
+`ok` / `failed` outcome entry after. This doubles the per-step append
+count for those two kinds. A check is a pure read (always safe to
+re-run), so it records no marker, only its single outcome entry. The
+marker is the resume substrate: an `in_flight` entry with no matching
+outcome for the same `step_index` is the one step that was mid-flight
+when a conduct halted, even if the halt was a crash or cancellation
+(the marker append completes before the effect). See
+[[project_resumable_conduct_design]] Tier 1.
+
 ## Check semantics
 
 A `CheckStep` carries an address + an acceptance criterion. The
@@ -90,8 +113,9 @@ a fake without standing up the full handler machinery.
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
-from typing import Any, Protocol
+from dataclasses import dataclass, field, replace
+from enum import StrEnum
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from cora.infrastructure.ports.clock import Clock
@@ -99,7 +123,7 @@ from cora.infrastructure.ports.event_store import ConcurrencyError
 from cora.infrastructure.ports.id_generator import IdGenerator
 from cora.infrastructure.routing import NIL_SENTINEL_ID
 from cora.operation._control_dispatch_context import with_dispatch_correlation_id
-from cora.operation.aggregates.procedure import ProcedureNotFoundError
+from cora.operation.aggregates.procedure import ProcedureNotFoundError, merge_actuation_kinds
 from cora.operation.errors import CheckFailedError, UnauthorizedError, UnknownActionError
 from cora.operation.features.abort_procedure.command import AbortProcedure
 from cora.operation.features.abort_procedure.handler import Handler as AbortProcedureHandler
@@ -114,6 +138,10 @@ from cora.operation.features.complete_procedure.command import CompleteProcedure
 from cora.operation.features.complete_procedure.handler import (
     Handler as CompleteProcedureHandler,
 )
+from cora.operation.features.hold_procedure.command import HoldProcedure
+from cora.operation.features.hold_procedure.handler import Handler as HoldProcedureHandler
+from cora.operation.features.resume_procedure.command import ResumeProcedure
+from cora.operation.features.resume_procedure.handler import Handler as ResumeProcedureHandler
 from cora.operation.features.start_procedure.command import StartProcedure
 from cora.operation.features.start_procedure.handler import Handler as StartProcedureHandler
 from cora.operation.ports.control_port import (
@@ -197,7 +225,49 @@ projections do not split on it, but the field is pinned so future
 read-side filters can separate successful vs failed steps without
 parsing the message string."""
 
+_RESULT_IN_FLIGHT = "in_flight"
+"""Pre-effect in-flight marker discriminator, written to a SEPARATE
+step entry BEFORE a side-effecting step (setpoint / action) actuates,
+then followed by the `ok` / `failed` outcome entry after. A check is a
+pure read (always safe to re-run), so it records NO marker -- only its
+single outcome entry.
+
+The marker is what lets a future resume identify the one step that was
+mid-flight when a conduct halted: an `in_flight` entry with no matching
+outcome entry for the same `step_index` is the interrupted step. The
+marker is recorded even when the effect then raises or is cancelled
+(the marker append completes before the effect runs); that is the
+point -- a crashed write leaves a marker-without-outcome behind so the
+step is recoverable. See [[project_resumable_conduct_design]] Tier 1."""
+
 _QUALITY_GOOD = "Good"
+
+_RESUME_HALT_ERROR_CLASS = "AcquisitionResumeRequiresOperator"
+"""`error_class` on the `ConductorFailure` that `execute_from` returns when
+a resume reaches an `ActionStep` (an acquisition). It is NOT an exception
+and NOT a step failure: re-running an interrupted acquisition is
+non-idempotent (fly-scan triggers are one-shot, a mid-arm collect reads
+identically for finished / aborted / never-armed), so resume HALTS and
+hands the decision (redo-fresh vs reseed) back to the operator rather than
+auto-skipping or auto-rerunning. See [[project_resumable_conduct_design]]."""
+
+
+class ResumePolicy(StrEnum):
+    """How `execute_from` re-establishes state while replaying a step-list tail.
+
+    `RE_ESTABLISH` (the only member today): re-drive setpoints (absolute
+    writes are idempotent; CORA has no relative-setpoint type), re-run
+    checks as fresh gates, and HALT on an acquisition (`ActionStep`) for an
+    operator decision. This is the locked default per
+    [[project_resumable_conduct_design]].
+
+    A future `COMPARE` member (read-and-compare instead of re-drive) is an
+    Anti-hook-until-lease: its single-writer guarantee is unsatisfiable on a
+    multi-writer floor until a Conduit/Surface write-ownership lease exists,
+    so it is deliberately absent rather than stubbed.
+    """
+
+    RE_ESTABLISH = "re_establish"
 
 
 @dataclass(frozen=True)
@@ -409,12 +479,21 @@ class ConductorResult:
     (any simulator touch is disqualifying), so the failure-path result
     still reports the kind. Do not "fix" the observe-before-dispatch
     ordering in `_ActuationObserver` without revisiting this contract.
+
+    `held` is True ONLY when `try_conduct` paused the Procedure to `Held`
+    on a recoverable step failure (and the hold transition itself
+    succeeded). Every other path (`execute` / `conduct` / `execute_from`
+    / `reconduct`, and a `try_conduct` whose hold itself failed) leaves it
+    False. It reflects the ACTUAL transition, not the mere recoverability
+    of the failure, so a caller can distinguish a resumable `Held` outcome
+    from a terminal `Aborted` one (both carry `succeeded=False` + `failure`).
     """
 
     procedure_id: UUID
     completed_count: int
     failure: ConductorFailure | None = None
     actuation_kind: ActuationKind | None = None
+    held: bool = False
 
     @property
     def succeeded(self) -> bool:
@@ -509,6 +588,8 @@ class Conductor:
         start_procedure: StartProcedureHandler | None = None,
         complete_procedure: CompleteProcedureHandler | None = None,
         abort_procedure: AbortProcedureHandler | None = None,
+        resume_procedure: ResumeProcedureHandler | None = None,
+        hold_procedure: HoldProcedureHandler | None = None,
     ) -> None:
         self._control_port = control_port
         self._append_step = append_step
@@ -518,6 +599,8 @@ class Conductor:
         self._start_procedure = start_procedure
         self._complete_procedure = complete_procedure
         self._abort_procedure = abort_procedure
+        self._resume_procedure = resume_procedure
+        self._hold_procedure = hold_procedure
 
     async def execute(
         self,
@@ -559,6 +642,104 @@ class Conductor:
             # and reset cleanly on exception.
             with with_dispatch_correlation_id(correlation_id):
                 failure = await self._dispatch(step, index=index, envelope=envelope, port=observer)
+            if failure is not None:
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=completed,
+                    failure=failure,
+                    actuation_kind=observer.actuation_kind,
+                )
+            completed += 1
+        return ConductorResult(
+            procedure_id=procedure_id,
+            completed_count=completed,
+            actuation_kind=observer.actuation_kind,
+        )
+
+    async def execute_from(
+        self,
+        *,
+        procedure_id: UUID,
+        principal_id: UUID,
+        correlation_id: UUID,
+        steps: Sequence[Step],
+        boundary: int,
+        policy: ResumePolicy = ResumePolicy.RE_ESTABLISH,
+        causation_id: UUID | None = None,
+        surface_id: UUID = NIL_SENTINEL_ID,
+    ) -> ConductorResult:
+        """Resume a halted conduct by REPLAYING the pinned resolved steps from `boundary`.
+
+        `steps` is the FINAL resolved step list pinned on
+        `ResolvedStepsRecorded` at first conduct (parse the event's
+        `resolved_steps` back via `steps_from_payload`). Resume NEVER
+        re-derives the step list -- a re-derived list could silently skip or
+        mis-target a step (the end-of-run "home to 0" aliasing the
+        start-of-run "home to 0" after an index shift). It replays
+        `steps[boundary:]` verbatim:
+
+          - `SetpointStep` -> RE-DRIVE (idempotent absolute write). The
+            recorded `step_index` is the ABSOLUTE position in the step list, so the
+            replayed journal lines up with the original conduct.
+          - `CheckStep` -> RE-RUN as a fresh gate (a passing check proves
+            "now", not "continuously", so it is re-evaluated).
+          - `ActionStep` -> HALT for an operator decision (an interrupted
+            acquisition is non-idempotent; see `_RESUME_HALT_ERROR_CLASS`).
+            The action is NOT executed and NOTHING is recorded for it; the
+            returned `ConductorResult.failure` carries the halt so the
+            caller (a resume orchestrator) routes the decision.
+
+        `boundary` is the re-establishment boundary from `ProcedureResumed`:
+        the index from which re-drive + re-run resumes. `boundary >=
+        len(steps)` replays an empty tail (a no-op resume). Like
+        `execute`, this drives no FSM transition; it walks + records.
+
+        See [[project_resumable_conduct_design]] Tier 1.
+        """
+        if boundary < 0:
+            msg = f"boundary must be >= 0 (got {boundary})"
+            raise ValueError(msg)
+        if policy is not ResumePolicy.RE_ESTABLISH:  # pragma: no cover - only member today
+            msg = f"unsupported resume policy: {policy}"
+            raise ValueError(msg)
+        envelope = _Envelope(
+            procedure_id=procedure_id,
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            surface_id=surface_id,
+        )
+        observer = _ActuationObserver(self._control_port)
+        completed = 0
+        for index in range(boundary, len(steps)):
+            step = steps[index]
+            if isinstance(step, ActionStep):
+                # Halt-for-operator: do not re-run an interrupted acquisition.
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=completed,
+                    failure=ConductorFailure(
+                        step_index=index,
+                        source_kind=_STEP_KIND_ACTION,
+                        target=step.name,
+                        error_class=_RESUME_HALT_ERROR_CLASS,
+                        message=(
+                            f"resume halted at step {index} (action {step.name!r}): an "
+                            "interrupted acquisition needs an operator decision "
+                            "(redo-fresh vs reseed); not auto-rerun, not auto-skipped"
+                        ),
+                    ),
+                    actuation_kind=observer.actuation_kind,
+                )
+            with with_dispatch_correlation_id(correlation_id):
+                if isinstance(step, SetpointStep):
+                    failure = await self._run_setpoint(
+                        step, index=index, envelope=envelope, port=observer
+                    )
+                else:
+                    failure = await self._run_check(
+                        step, index=index, envelope=envelope, port=observer
+                    )
             if failure is not None:
                 return ConductorResult(
                     procedure_id=procedure_id,
@@ -711,7 +892,7 @@ class Conductor:
         # that is what the caller needs to triage.
         failure = result.failure
         assert failure is not None  # not result.succeeded implies failure
-        reason = _derive_abort_reason(failure)
+        reason = _derive_failure_reason(failure)
         with contextlib.suppress(Exception):
             await self._abort_procedure(
                 AbortProcedure(
@@ -726,6 +907,306 @@ class Conductor:
                 **envelope_kwargs,
             )
         return result
+
+    async def try_conduct(
+        self,
+        *,
+        procedure_id: UUID,
+        principal_id: UUID,
+        correlation_id: UUID,
+        steps: Sequence[Step],
+        causation_id: UUID | None = None,
+        surface_id: UUID = NIL_SENTINEL_ID,
+    ) -> ConductorResult:
+        """Drive the lifecycle like `conduct()`, but PAUSE to Held on a recoverable failure.
+
+        The pause-capable twin of `conduct()`. Identical start -> execute ->
+        complete-on-success path; the only divergence is the failure branch:
+
+          - a RECOVERABLE step failure (setpoint / check: re-drivable /
+            re-runnable on resume) -> best-effort `hold_procedure` (Running ->
+            Held). On a successful hold the result carries `held=True` so the
+            caller can offer `reconduct`; if the hold itself fails the
+            Procedure is left Running (same posture as conduct's best-effort
+            abort that fails) and `held` stays False.
+          - a NON-recoverable step failure (an action: an interrupted
+            acquisition is not auto-resumable, Tier 2) -> best-effort
+            `abort_procedure`, exactly like `conduct()`. Holding here would
+            strand a Procedure whose replay tail starts with an acquisition
+            that `reconduct` can only halt-for-operator on.
+          - lifecycle failures (start / complete rejected) and a mid-execute
+            `CancelledError` keep `conduct()`'s behavior verbatim (no hold).
+
+        Requires `start_procedure` + `complete_procedure` + `abort_procedure`
+        + `hold_procedure` handlers at __init__; raises `RuntimeError` (a
+        wiring bug) otherwise.
+
+        This is the Tier-1 producer that makes a Held + pinned-resolved-steps
+        state reachable, so the `reconduct` resume path has something to
+        resume. See [[project_resumable_conduct_design]] Tier 1.
+        """
+        if (
+            self._start_procedure is None
+            or self._complete_procedure is None
+            or self._abort_procedure is None
+            or self._hold_procedure is None
+        ):
+            raise RuntimeError(
+                "Conductor.try_conduct() requires start_procedure + complete_procedure + "
+                "abort_procedure + hold_procedure handlers at __init__; only execute() is "
+                "available without them."
+            )
+        envelope_kwargs: dict[str, Any] = {
+            "principal_id": principal_id,
+            "correlation_id": correlation_id,
+            "causation_id": causation_id,
+            "surface_id": surface_id,
+        }
+        try:
+            await self._start_procedure(
+                StartProcedure(procedure_id=procedure_id), **envelope_kwargs
+            )
+        except _LIFECYCLE_RERAISE:
+            raise
+        except Exception as exc:
+            return ConductorResult(
+                procedure_id=procedure_id,
+                completed_count=0,
+                failure=ConductorFailure(
+                    step_index=None,
+                    source_kind=_SOURCE_KIND_LIFECYCLE,
+                    target=_LIFECYCLE_TARGET_START,
+                    error_class=type(exc).__name__,
+                    message=str(exc),
+                ),
+            )
+        try:
+            result = await self.execute(
+                procedure_id=procedure_id,
+                principal_id=principal_id,
+                correlation_id=correlation_id,
+                steps=steps,
+                causation_id=causation_id,
+                surface_id=surface_id,
+            )
+        except asyncio.CancelledError:
+            # Mirror conduct(): best-effort abort so the FSM is not orphaned in
+            # Running, then re-raise. A cancellation is not a recoverable step
+            # failure, so it aborts rather than pausing to Held.
+            with contextlib.suppress(Exception):
+                await self._abort_procedure(
+                    AbortProcedure(procedure_id=procedure_id, reason="cancelled mid-execute"),
+                    **envelope_kwargs,
+                )
+            raise
+        actuation_kind = result.actuation_kind.value if result.actuation_kind is not None else None
+        if result.succeeded:
+            try:
+                await self._complete_procedure(
+                    CompleteProcedure(procedure_id=procedure_id, actuation_kind=actuation_kind),
+                    **envelope_kwargs,
+                )
+            except _LIFECYCLE_RERAISE:
+                raise
+            except Exception as exc:
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=result.completed_count,
+                    failure=ConductorFailure(
+                        step_index=None,
+                        source_kind=_SOURCE_KIND_LIFECYCLE,
+                        target=_LIFECYCLE_TARGET_COMPLETE,
+                        error_class=type(exc).__name__,
+                        message=str(exc),
+                    ),
+                )
+            return result
+        failure = result.failure
+        assert failure is not None  # not result.succeeded implies failure
+        if _is_recoverable_failure(failure):
+            # Pause-to-Held instead of abort: a setpoint / check failure is
+            # re-drivable / re-runnable, so keep the conduct resumable. The
+            # hold is best-effort: if it fails, leave the Procedure Running
+            # (held stays False) and surface the original step failure, the
+            # same posture as conduct()'s best-effort abort that fails.
+            held_ok = False
+            with contextlib.suppress(Exception):
+                await self._hold_procedure(
+                    HoldProcedure(
+                        procedure_id=procedure_id,
+                        reason=_derive_failure_reason(failure),
+                        # Carry the observed-so-far kind so a later reconduct
+                        # folds the pre-hold provenance with the replay tail.
+                        actuation_kind=actuation_kind,
+                    ),
+                    **envelope_kwargs,
+                )
+                held_ok = True
+            if held_ok:
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=result.completed_count,
+                    failure=failure,
+                    actuation_kind=result.actuation_kind,
+                    held=True,
+                )
+            return result
+        # Non-recoverable step failure (action): best-effort abort, exactly
+        # like conduct(). Holding would strand a Procedure whose replay tail
+        # starts with an interrupted acquisition.
+        with contextlib.suppress(Exception):
+            await self._abort_procedure(
+                AbortProcedure(
+                    procedure_id=procedure_id,
+                    reason=_derive_failure_reason(failure),
+                    actuation_kind=actuation_kind,
+                ),
+                **envelope_kwargs,
+            )
+        return result
+
+    async def reconduct(
+        self,
+        *,
+        procedure_id: UUID,
+        principal_id: UUID,
+        correlation_id: UUID,
+        steps: Sequence[Step],
+        boundary: int,
+        prior_actuation_kind: str | None = None,
+        causation_id: UUID | None = None,
+        surface_id: UUID = NIL_SENTINEL_ID,
+    ) -> ConductorResult:
+        """Resume a Held Procedure and REPLAY its pinned resolved steps from `boundary`.
+
+        The resume twin of `conduct()`: where `conduct()` drives
+        start -> execute -> complete | abort, this drives
+        resume -> execute_from -> complete | (leave Running) | abort.
+
+          1. Issue `resume_procedure` (transitions Held -> Running). Its OWN
+             authz + off-diagonal parent-Run-Held guard fire here; a non-Held
+             Procedure or a held parent Run raises `ProcedureCannotResumeError`
+             which PROPAGATES (mapped to 409 at the route) rather than landing
+             in the result body. A refused resume is a guard outcome, not a
+             replay outcome, and no replay has happened yet.
+          2. Call `self.execute_from(steps, boundary)`: re-drive setpoints,
+             re-run checks, halt-for-operator on an acquisition.
+          3. Terminalize three-way:
+               - clean tail (incl. empty) -> `complete_procedure` (Completed).
+               - acquisition halt -> NO transition; the Procedure stays Running
+                 and the operator decides redo-fresh vs reseed from the result.
+               - genuine step failure -> best-effort `abort_procedure` (if the
+                 abort itself fails, the original step failure is what
+                 surfaces, mirroring `conduct()`).
+
+        `steps` is the parsed `ResolvedStepsRecorded.resolved_steps`: the
+        caller locates + parses the PINNED record (resume NEVER re-derives the
+        step list). `boundary` is single-sourced: it rides into both
+        `ProcedureResumed.re_establishment_boundary` (audit) and
+        `execute_from(boundary=...)` (replay).
+
+        Requires `resume_procedure` + `complete_procedure` + `abort_procedure`
+        handlers at __init__; raises `RuntimeError` (a wiring bug) otherwise.
+
+        Unlike `conduct()`, this does NOT best-effort-abort on a mid-replay
+        `CancelledError`: a cancellation after the resume leaves the Procedure
+        Running with partial replay history, the same posture as the
+        acquisition-halt branch (the operator reconciles). See
+        [[project_resumable_conduct_design]] Tier 1.
+        """
+        if (
+            self._resume_procedure is None
+            or self._complete_procedure is None
+            or self._abort_procedure is None
+        ):
+            raise RuntimeError(
+                "Conductor.reconduct() requires resume_procedure + complete_procedure + "
+                "abort_procedure handlers at __init__; only execute_from() is available "
+                "without them."
+            )
+        envelope_kwargs: dict[str, Any] = {
+            "principal_id": principal_id,
+            "correlation_id": correlation_id,
+            "causation_id": causation_id,
+            "surface_id": surface_id,
+        }
+        # Held -> Running. Refusals (not-Held / held parent Run / authz deny /
+        # not-found) propagate to the route as their mapped HTTP codes; no
+        # replay has happened, so they are NOT swallowed into the result body.
+        await self._resume_procedure(
+            ResumeProcedure(procedure_id=procedure_id, re_establishment_boundary=boundary),
+            **envelope_kwargs,
+        )
+        result = await self.execute_from(
+            procedure_id=procedure_id,
+            principal_id=principal_id,
+            correlation_id=correlation_id,
+            steps=steps,
+            boundary=boundary,
+            causation_id=causation_id,
+            surface_id=surface_id,
+        )
+        # Fold the pre-hold conduct's kind (carried on the Held procedure,
+        # passed in by the handler) with the replay tail's observed kind, so a
+        # boundary>0 resume past a simulated prefix does not complete as
+        # Physical and bypass the promote_dataset gate. boundary=0 re-observes
+        # everything, so the merge is a no-op there.
+        tail_actuation_kind = (
+            result.actuation_kind.value if result.actuation_kind is not None else None
+        )
+        actuation_kind = merge_actuation_kinds(prior_actuation_kind, tail_actuation_kind)
+        # Report the merged kind on the result too, so the response body matches
+        # the kind threaded onto the terminal event (not just the replay tail).
+        merged_result = replace(
+            result,
+            actuation_kind=(ActuationKind(actuation_kind) if actuation_kind is not None else None),
+        )
+        if result.succeeded:
+            # Clean tail (incl. empty tail): auto-complete, threading the
+            # merged observed kind onto ProcedureCompleted (Data BC gate carrier).
+            try:
+                await self._complete_procedure(
+                    CompleteProcedure(procedure_id=procedure_id, actuation_kind=actuation_kind),
+                    **envelope_kwargs,
+                )
+            except _LIFECYCLE_RERAISE:
+                raise
+            except Exception as exc:
+                return ConductorResult(
+                    procedure_id=procedure_id,
+                    completed_count=result.completed_count,
+                    failure=ConductorFailure(
+                        step_index=None,
+                        source_kind=_SOURCE_KIND_LIFECYCLE,
+                        target=_LIFECYCLE_TARGET_COMPLETE,
+                        error_class=type(exc).__name__,
+                        message=str(exc),
+                    ),
+                )
+            return merged_result
+        if is_acquisition_halt(result.failure):
+            # Halt-for-operator: leave the Procedure Running; no transition.
+            # RESIDUAL: the replay tail's observed kind is NOT persisted here
+            # (no terminal event), so a later manual complete/abort -- which
+            # SETs actuation_kind from the command, not merges -- could stamp
+            # over a tail simulator touch. Narrower than the hold->resume gap
+            # this method closes; the design-memo second-writer hazard, aligned
+            # with the Tier-2 acquisition-decomposition deferral.
+            return merged_result
+        # Genuine step failure: best-effort abort (if abort itself fails, the
+        # original step failure is what surfaces). Mirrors conduct().
+        failure = result.failure
+        assert failure is not None  # not succeeded + not halt -> failure
+        with contextlib.suppress(Exception):
+            await self._abort_procedure(
+                AbortProcedure(
+                    procedure_id=procedure_id,
+                    reason=_derive_failure_reason(failure),
+                    actuation_kind=actuation_kind,
+                ),
+                **envelope_kwargs,
+            )
+        return merged_result
 
     async def _dispatch(
         self,
@@ -756,6 +1237,16 @@ class Conductor:
         port: ControlPort,
     ) -> ConductorFailure | None:
         payload_body: dict[str, Any] = {"address": step.address, "value": step.value}
+        # Pre-effect in-flight marker (side-effecting step): record intent
+        # BEFORE the write so a halt mid-write leaves a marker-without-outcome
+        # the resume reader can identify. See `_RESULT_IN_FLIGHT`.
+        await self._record(
+            envelope=envelope,
+            index=index,
+            step_kind=_STEP_KIND_SETPOINT,
+            body=payload_body,
+            result=_RESULT_IN_FLIGHT,
+        )
         try:
             await port.write(step.address, step.value, wait=True)
         except _CONTROL_ERRORS as exc:
@@ -817,6 +1308,18 @@ class Conductor:
         port: ControlPort,
     ) -> ConductorFailure | None:
         payload_body: dict[str, Any] = {"name": step.name, "params": dict(step.params)}
+        # Pre-effect in-flight marker (side-effecting step): record intent
+        # BEFORE the action body runs so a halt mid-action leaves a
+        # marker-without-outcome the resume reader can identify. An unknown
+        # action still records the marker (the step kind is side-effecting)
+        # then its failure outcome. See `_RESULT_IN_FLIGHT`.
+        await self._record(
+            envelope=envelope,
+            index=index,
+            step_kind=_STEP_KIND_ACTION,
+            body=payload_body,
+            result=_RESULT_IN_FLIGHT,
+        )
         body = self._action_registry.lookup(step.name)
         if body is None:
             exc = UnknownActionError(step.name)
@@ -969,7 +1472,7 @@ class Conductor:
         `index` is the step's zero-based position in the conducted step
         list; it rides the payload as `step_index` so a future resume
         can map a recorded outcome back to its position in the pinned
-        conduct manifest.
+        resolved step list.
         """
         payload: dict[str, Any] = {**body, "step_index": index, "result": result}
         if error_class is not None:
@@ -1020,11 +1523,12 @@ def _criterion_to_dict(criterion: CheckCriterion) -> dict[str, Any]:
 
 
 def step_to_payload(step: Step) -> dict[str, Any]:
-    """Serialize a `Step` to a JSON-clean dict (inverse of `step_from_wire`).
+    """Serialize a `Step` to a JSON-clean dict (inverse of `steps_from_payload`).
 
     Mirrors the conduct route's wire shape (the `kind` discriminator +
     field names) so the resolved step list pinned on `ResolvedStepsRecorded`
-    round-trips back to `Step` objects via `step_from_wire` at resume. A
+    round-trips back to `Step` objects via `steps_from_payload` at resume
+    (and via the route's Pydantic `step_from_wire` on the live HTTP path). A
     tuple `value` serializes as a list (JSON has no tuple); the criterion
     reuses `_criterion_to_dict` so the wire shape stays single-sourced.
     """
@@ -1043,6 +1547,83 @@ def step_to_payload(step: Step) -> dict[str, Any]:
         "address": step.address,
         "criterion": _criterion_to_dict(step.criterion),
     }
+
+
+def _criterion_from_dict(criterion: Mapping[str, Any]) -> CheckCriterion:
+    """Rebuild a `CheckCriterion` from its `_criterion_to_dict` shape."""
+    kind = criterion["kind"]
+    if kind == "equals":
+        expected: Any = criterion["expected"]
+        if isinstance(expected, list):
+            expected = cast("tuple[Any, ...]", tuple(expected))  # pyright: ignore[reportUnknownArgumentType]
+        return EqualsCriterion(expected=expected)
+    if kind == "within_tolerance":
+        return WithinToleranceCriterion(
+            expected=criterion["expected"], tolerance=criterion["tolerance"]
+        )
+    msg = f"unknown criterion kind: {kind!r}"
+    raise ValueError(msg)
+
+
+def _step_from_payload(payload: Mapping[str, Any]) -> Step:
+    """Rebuild one `Step` from its `step_to_payload` wire shape."""
+    kind = payload["kind"]
+    if kind == "setpoint":
+        value: Any = payload["value"]
+        if isinstance(value, list):
+            value = cast("tuple[Any, ...]", tuple(value))  # pyright: ignore[reportUnknownArgumentType]
+        return SetpointStep(
+            address=payload["address"], value=value, verify=payload.get("verify", False)
+        )
+    if kind == "action":
+        return ActionStep(name=payload["name"], params=dict(payload.get("params", {})))
+    if kind == "check":
+        return CheckStep(
+            address=payload["address"], criterion=_criterion_from_dict(payload["criterion"])
+        )
+    msg = f"unknown step kind: {kind!r}"
+    raise ValueError(msg)
+
+
+def steps_from_payload(resolved_steps: Sequence[Mapping[str, Any]]) -> tuple[Step, ...]:
+    """Parse the pinned `ResolvedStepsRecorded.resolved_steps` back into `Step`s.
+
+    The exact inverse of `step_to_payload` (the serialization used to pin the
+    resolved step list). A resume reads the pinned event's `resolved_steps`,
+    parses them with this helper, and hands the result to
+    `Conductor.execute_from` -- it NEVER re-derives the step list from live
+    `Plan.wires` / partition rules. Pure; no Pydantic (that lives at the HTTP
+    boundary in `step_from_wire`). See [[project_resumable_conduct_design]].
+    """
+    return tuple(_step_from_payload(step) for step in resolved_steps)
+
+
+def is_acquisition_halt(failure: ConductorFailure | None) -> bool:
+    """True iff `failure` is `execute_from`'s halt-for-operator on an acquisition.
+
+    Distinguishes the resume halt (an `ActionStep` reached during replay,
+    which is a needs-operator-decision hand-off, NOT a failure) from a
+    genuine step failure (a setpoint/check that failed). A resume
+    orchestration completes on success, leaves the Procedure Running on an
+    acquisition halt, and aborts on a genuine failure -- this predicate is
+    the branch. See `_RESUME_HALT_ERROR_CLASS` and
+    [[project_resumable_conduct_design]]."""
+    return failure is not None and failure.error_class == _RESUME_HALT_ERROR_CLASS
+
+
+def _is_recoverable_failure(failure: ConductorFailure) -> bool:
+    """True iff a conduct step failure is safe to PAUSE-and-resume, not abort.
+
+    Recoverable = a setpoint or check failure: on `reconduct` a setpoint is
+    re-driven (idempotent absolute write) and a check is re-run as a fresh
+    gate, so the conduct can honestly continue from the boundary. An action
+    failure is NOT recoverable here: an interrupted acquisition is
+    non-idempotent (Tier 2 per-point decomposition is the real fix), and a
+    Held Procedure whose replay tail starts with that acquisition could only
+    halt-for-operator on `reconduct`. This is `try_conduct`'s hold-vs-abort
+    branch; lifecycle failures never reach it (handled before the step-failure
+    branch). See [[project_resumable_conduct_design]] Tier 1."""
+    return failure.source_kind in (_STEP_KIND_SETPOINT, _STEP_KIND_CHECK)
 
 
 def _criterion_matches(criterion: CheckCriterion, value: Any) -> bool:
@@ -1068,14 +1649,15 @@ def _mismatch_reason(criterion: CheckCriterion, value: Any) -> str:
     return f"value {value!r} not within {criterion.tolerance} of expected {criterion.expected}"
 
 
-def _derive_abort_reason(failure: ConductorFailure) -> str:
-    """Build a Procedure-aggregate-compliant abort reason from a step failure.
+def _derive_failure_reason(failure: ConductorFailure) -> str:
+    """Build a Procedure-aggregate-compliant reason string from a step failure.
 
-    Truncates to `REASON_MAX_LENGTH` so the AbortProcedure
-    handler does not reject the cleanup call. The format leads with
-    the step pointer (kind + index + target) so an operator scanning
-    the abort reason knows immediately which step in the conducted
-    sequence killed the Procedure.
+    Used for both the abort path (`conduct` / `reconduct`) and the
+    pause-to-Held path (`try_conduct`). Truncates to `REASON_MAX_LENGTH` so
+    the AbortProcedure / HoldProcedure handler does not reject the call. The
+    format leads with the step pointer (kind + index + target) so an operator
+    scanning the reason knows immediately which step in the conducted sequence
+    halted the Procedure.
     """
     if failure.step_index is None:
         prefix = f"{failure.source_kind} {failure.target}"
@@ -1113,8 +1695,11 @@ __all__ = [
     "ConductorResult",
     "EqualsCriterion",
     "InMemoryActionRegistry",
+    "ResumePolicy",
     "SetpointStep",
     "Step",
     "WithinToleranceCriterion",
+    "is_acquisition_halt",
     "step_to_payload",
+    "steps_from_payload",
 ]
