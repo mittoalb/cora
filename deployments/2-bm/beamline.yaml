@@ -83,7 +83,15 @@ front-end:
       passive: true
       replaceable: true
       new: true
-      confirm: "count and thickness"
+      window_count: 3
+      be_thickness_total: 0.63 mm   # BEAM-2 (#246): W4-20 0.25 + W4-60 0.13 + unlabelled 0.25 (staff-verified)
+      note: >
+        Three OFHC-housed Be windows on the 02-BM beam path; per-window child
+        Assets are deferred to the Window-Family slice. Source APS_2191941
+        (post-APS-U) rows 5/8/9: W4-20 (drawing 4105090804-200000, z 28718,
+        Be 0.25 mm), W4-60 (drawing 4105090804-600000, z 30804, Be 0.13 mm),
+        and an unlabelled Be window (drawing 4102020106-400000, z 32417,
+        Be 0.25 mm).
     - name: FrontEndShutter
       family: Shutter
       pv: "S02BM-PSS:FES"
@@ -121,9 +129,18 @@ conditioning-optics:
       family: Filter
       pv: { upstream_paddle: "2bma:m17", downstream_paddle: "2bma:m18" }
       controller: FrontEndDrive
-      foils: ["600 um Al", "150 um Al", "300 um C", "50 um C", "None"]   # operational downstream paddle (2bma:m18), in slot order; per-slot motor positions live in the index_position_table calibration (see test_2bm_filter_foil_setup.py)
+      foils: ["600 um Al", "150 um Al", "300 um C", "50 um C", "None"]   # downstream paddle (2bma:m18) bindings, in slot order, still valid in the IOC though m18 is currently Faulted; per-slot motor positions live in the index_position_table calibration (see test_2bm_filter_foil_setup.py)
       confirm: true
-      note: two paddles - downstream (2bma:m18) is operational and its foils are listed above; upstream (2bma:m17) is bound in software but not in service (selecting it has no beam effect). Foil materials/positions per the docs2bm components page (FOIL-1)
+      note: >
+        Two paddles. The upstream paddle (2bma:m17) is the operational filter
+        selector today (1 mm C, 150 um Al, 600 um Al, 1 mm Al, None);
+        downstream (2bma:m18) failed 2026-06-19 (parked 107.19 mm, motor cannot
+        actuate, condition Faulted), its bindings still valid in the IOC and
+        listed in foils above. m18 is not expected to be repaired soon, so m17
+        is the sole operational selector. Unit mm (caget 2bma:m18.EGU). Folding
+        the m18 Faulted condition and registering the m17 selector are the held
+        structural part (FOIL-1, #238); materials/positions per docs2bm +
+        2filter_setup.adl (FOIL-1/FOIL-2).
     - name: DiagnosticFlag
       family: LinearStage
       pv: "2bma:m44"
@@ -172,10 +189,11 @@ conditioning-optics:
         arms (bragg_arm_upstream/downstream) and the M2 vertical offset
         compensator (m2_offset_y); crystal2_z (M2 Z) is a setup translation the
         IOC does NOT drive. The m25-m29 tank/alignment motors ARE in the
-        coordinated move, but the components page names only the Bragg arms and
-        m2_offset_y as varying per energy, so CORA carries energy curves for
-        those alone (m25-m29 not modeled as per-energy curves pending staff
-        confirmation). CORA models each per-axis relationship as a continuous
+        coordinated move but are re-asserted at fixed values, not varied per
+        energy (staff-confirmed ENERGY-5: m25/m28 are constant alignment X in
+        both modes, m26/m27/m29 are two-state in-beam vs retracted by mode), so
+        CORA carries energy curves for the Bragg arms and m2_offset_y alone.
+        CORA models each per-axis relationship as a continuous
         curve interpolating the saved points. Two beam modes (MODE-1): in Mono
         the DMM is inserted (the per-energy axes above); in Pink the DMM Y motors
         drive out (about -10, beam passes straight through) and the Bragg arms
@@ -206,6 +224,7 @@ beam-defining-and-safety:
           pv: "S02BM-PSS:SBS"
           material: "W 21 mm"
           aperture_mm: [60.0, 44.5]
+          drawing: { system: ICMS, number: 41050401-410003, revision: "(-)" }   # BEAM-3 (#247): P6-50 safety-shutter element; assembly drawing 41050401-500000; RSS 02-BM-A-P-01; source APS_2191941 row 10
           replaceable: true
           confirm: true
           note: >
@@ -548,6 +567,7 @@ controls:
     - name: Timing
       family: TimingController
       pv: "2bmbMZ1:SG:"
+      firmware_version: "2.0"   # softGlueZynq gateware (bitstream) version, from the softGlueZynqMenu.adl header (#271)
       path: "{PSO, trigILF} -> MUX2-1 -> GateDly1 -> camera Line2; out2 -> JenaX (GateDly-3_DLY); out3 -> JenaY (GateDly-2_DLY)"
       # MUX2-1 is a 2:1 selector: input0 = raw PSO train, input1 = trigILF (a chosen subset of PSO pulses); routed per scan via MUX2-1_SEL_Signal (item_060)
       replaceable: true
@@ -568,8 +588,10 @@ resources:
     - kind: Power
     - kind: ComputePool
     - kind: LiquidNitrogen        # 2-BM detector LN2 dewar
-    - kind: ProcessGas            # pending: sample-environment gas mix
-    - kind: CompressedAir         # pending: compressed-air supply (kind newly coined; not yet attested in code)
+  # No standing 2-BM gas-mix or compressed-air Supply (SUP-1/SUP-2, #268): sample
+  # gas is per-experiment, ESAF-gated (bottles, typically He/N2/Ar), so it is a
+  # Run-level fact not a beamline Supply; compressed air is the APS facility shop-air
+  # line with no beamline-local spec. Facility-scope ProcessGas stays in aps/site.yaml.
   replaceable_parts:
     # One selector, since CORA has no single asset-revision concept:
     #   recoatable surface  -> Consumable affordance, no separate asset

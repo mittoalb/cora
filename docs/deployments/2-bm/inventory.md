@@ -79,7 +79,7 @@ Per-asset settings the source spells out in prose. Open-item tags (DRIVE-1, DRIV
 | `SampleStageDrive` | `serial_number=unknown-pending-confirmation` (DRIVE-1); `firmware_version=unknown-pending-confirmation` (DRIVE-2); `axis_count=91`; `protocol=OMS_VME`; crate `ioc2bmb`, no IP (VME-bus) |
 | `FrontEndDrive` | `serial_number=unknown-pending-confirmation` (DRIVE-1); `firmware_version=unknown-pending-confirmation` (DRIVE-2); `axis_count=91`; `protocol=OMS_VME`; crate `ioc2bma`, no IP (VME-bus) |
 | `HexapodDrive` | `serial_number=486125-01`; `firmware_version=unknown-pending-confirmation` (DRIVE-2); `axis_count=6`; `protocol=Aerotech_Native`; Automation1-iXR3 in separate rack |
-| `Timing` | `serial_number=unknown-pending-confirmation` (TIME-1); `firmware_version=unknown-pending-confirmation` (TIME-1); `output_channel_count=unknown-pending-confirmation` (TIME-1); `protocol=EPICS`; `2bmbMZ1:SG:` |
+| `Timing` | `firmware_version=2.0` (softGlueZynq gateware/bitstream); `serial_number=unknown` (IOC-admin only, not beamline-retrievable); `output_channel_count=unknown` (IOC-admin only, not beamline-retrievable); `protocol=EPICS`; `2bmbMZ1:SG:` |
 | `Rotary` | `min_position=-360 deg`; `max_position=360 deg`; `max_speed=720 deg/s` (operational soft limit); `max_speed_datasheet=3000 deg/s` (500 rpm); `encoder_resolution=0.000676 deg`; `homing_offset=0 deg`; `aperture=35 mm`; `accuracy_rotation=2 arcsec`; `repeatability_rotation=1 arcsec`; `load_capacity_axial=66 kg`; `load_capacity_radial=36 kg`; `load_capacity_tilt=28 Nm`; `stage_mass=15.6 kg`; altid serial `146853-A-1-1-X`; part `ABRS-250MP-M-AS`; [datasheet](#engineering-drawings) on file (#164) |
 | `SampleTop_X` | `min_position=-10 mm`; `max_position=10 mm`; `max_speed=1 mm/s`; `encoder_resolution=0.0005 mm`; channel `2bmb:m18` |
 | `SampleTop_Z` | same Model `kohzu_cyat070` + controller as `SampleTop_X`; channel `2bmb:m17` |
@@ -129,8 +129,9 @@ One canonical `(system, number, revision)` triple per Asset, except `Rotary`, wh
 | `Objective_2x` | `MAN-11863` rev `0521-0465-A` | `EDMS` |
 | `Objective_1.1x` | `MAN-11863` rev `0521-0465-A` | `EDMS` |
 | `Scintillator` | `MAN-11863` rev `0521-0465-A` | `EDMS` |
+| `StationShutter` | `41050401-410003` rev `(-)` (P6-50 shutter element; assembly `41050401-500000`) | `ICMS` |
 
-Not yet cited: Kohzu `CYAT-070` datasheet (`SampleTop_*`), an APS shutter drawing (`StationShutter`), a FLIR Oryx datasheet (`Camera`).
+Not yet cited: Kohzu `CYAT-070` datasheet (`SampleTop_*`), a FLIR Oryx datasheet (`Camera`).
 
 ## Signal wiring
 
@@ -221,7 +222,7 @@ Configured Mono energies (the curve x-points, real): 13.374, 13.574, 18.0, 20.0,
 
 ### Filter foil selection
 
-Discrete "pick one of N" move. `Filter_FoilSelector` PseudoAxis under `Filter`, carrying a `LookupTable` rule with `interpolation_kind=Nearest` backed by an `index_position_table` Calibration. `extrapolation_kind=Error` (cannot select an absent foil); `invertible=False` with `readback_aggregator_kind=Identity`. Foil changer has two paddles: downstream (`2bma:m18`) operational, upstream (`2bma:m17`) bound in software but not in service. Runtime proven end-to-end in `apps/api/tests/integration/test_pseudoaxis_roundtrip.py`; model: `test_2bm_filter_foil_setup.py`.
+Discrete "pick one of N" move. `Filter_FoilSelector` PseudoAxis under `Filter`, carrying a `LookupTable` rule with `interpolation_kind=Nearest` backed by an `index_position_table` Calibration. `extrapolation_kind=Error` (cannot select an absent foil); `invertible=False` with `readback_aggregator_kind=Identity`. Foil changer has two paddles: the upstream (`2bma:m17`) is the operational selector today; the downstream (`2bma:m18`) failed 2026-06-19 (parked 107.19 mm, condition Faulted), its bindings still valid in the IOC. Runtime proven end-to-end in `apps/api/tests/integration/test_pseudoaxis_roundtrip.py`; model: `test_2bm_filter_foil_setup.py`.
 
 Downstream-paddle slot positions (REAL, staff-published):
 
@@ -233,4 +234,4 @@ Downstream-paddle slot positions (REAL, staff-published):
 | 80 | `50 um C` | 80 |
 | 106 | `None` | 106 |
 
-The position unit is reported as the motor record EGU ("consistent with mm" but not definitively confirmed, `FOIL-1`). Foil ATTENUATION (`Attenuable`) and the energy-dependent mirror coating stripe (`2bma:m3`) are deliberately out of scope here (the stripe is modelled with the [beam-mode work](procedures.md#beam-modes)).
+The position unit is mm, staff-confirmed (`caget 2bma:m18.EGU`, `FOIL-1`). Foil ATTENUATION (`Attenuable`) and the energy-dependent mirror coating stripe (`2bma:m3`) are deliberately out of scope here (the stripe is modelled with the [beam-mode work](procedures.md#beam-modes)).

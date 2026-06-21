@@ -73,7 +73,7 @@ families:
   - name: Monochromator
     note: "Energy-selecting optic Family; at 2-BM the double-multilayer monochromator (DMM). The energy-change IOC drives its Bragg arms + M2 vertical offset per energy; inserting it picks the beam energy, pink-beam operation bypasses it."
   - name: Filter
-    note: "Discrete absorber-foil changer Family; at 2-BM the C / Al foil paddles that attenuate and condition the white beam (only the downstream paddle is currently operational)."
+    note: "Discrete absorber-foil changer Family; at 2-BM the C / Al foil paddles that attenuate and condition the white beam (the upstream paddle 2bma:m17 is the operational selector; the downstream 2bma:m18 is currently Faulted)."
   # Pending in code (documented, not yet defined): Goniometer;
   # future: OpticalRelay.
 
@@ -214,11 +214,11 @@ models:
     part_number: "VME58"
     declared_families: [MotionController]
   - name: piezosystem_jena_nv100d
-    manufacturer: { name: "Piezosystem Jena" }   # working value; confirm vendor + part number (PIEZO-3)
+    manufacturer: { name: "Piezosystem Jena" }
     part_number: "NV100D"
     declared_families: [MotionController]
   - name: piezosystem_jena_nv200d
-    manufacturer: { name: "Piezosystem Jena" }   # working value; item_028 title says "NV200D/NET" (PIEZO-3)
+    manufacturer: { name: "Piezosystem Jena" }
     part_number: "NV200D/NET"
     declared_families: [MotionController]
   - name: kohzu_cyat070
