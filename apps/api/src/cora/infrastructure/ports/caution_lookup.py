@@ -75,7 +75,7 @@ class CautionLookupResult:
 
     Carries the minimal columns the start_run handler embeds in the
     `RunStarted.acknowledged_cautions` payload tuple. Loaded by the
-    handler via `CautionLookup.find_active_for_run` and handed to
+    handler via `CautionLookup.find_active_in_scope` and handed to
     the decider in `RunStartContext.active_cautions`.
 
     `severity` is the StrEnum value as a plain string (matches the
@@ -100,16 +100,16 @@ class CautionLookupResult:
 class CautionLookup(Protocol):
     """Cross-BC port: query Caution's active-cautions projection from Run BC."""
 
-    async def find_active_for_run(
+    async def find_active_in_scope(
         self,
         *,
         asset_ids: frozenset[UUID],
         procedure_ids: frozenset[UUID],
         min_severity: MinSeverity = "Caution",
     ) -> list[CautionLookupResult]:
-        """Return every Active caution whose target references the Run's scope.
+        """Return every Active caution whose target is in the requested scope.
 
-        "References" means:
+        "In scope" means:
           - `target_kind == "Asset"` AND `target_id` is in `asset_ids`, OR
           - `target_kind == "Procedure"` AND `target_id` is in `procedure_ids`.
 
@@ -173,7 +173,7 @@ class AlwaysQuietCautionLookup:
     surfaces additional payload entries (never gates).
     """
 
-    async def find_active_for_run(
+    async def find_active_in_scope(
         self,
         *,
         asset_ids: frozenset[UUID],

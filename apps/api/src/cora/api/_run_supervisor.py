@@ -444,7 +444,7 @@ async def _assemble_and_check_envelope(
     scoped_asset_ids = scoped_asset_ids | {row.id for row in ancestor_rows}
 
     referencing_clearances = tuple(
-        await deps.clearance_lookup.find_referencing_run(
+        await deps.clearance_lookup.find_covering(
             run_id=item.run_id,
             subject_id=item.subject_id,
             asset_ids=scoped_asset_ids,
@@ -571,7 +571,7 @@ async def _supervise_tick(
     if not running and not resume_candidates:
         return
 
-    beam = await beam_lookup.read_beam_availability()
+    beam = await beam_lookup.read()
 
     # Hold pass (Running Runs).
     for item in running:
