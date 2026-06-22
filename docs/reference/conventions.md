@@ -191,7 +191,7 @@ The two conventions cover different audiences: code-side names live alongside si
 
 When an endpoint manipulates a sub-resource on its parent, the URL nests as `/{parent-id}/{sub-resource}/{verb}`. Examples: `POST /visits/{visit_id}/surface-control/take`, `POST /visits/{visit_id}/surface-control/release`, `POST /federation/seals/{facility_id}/pointer/sign`, `POST /federation/seals/{facility_id}/online-key/rotate`. The noun-resource segment groups related actions; the verb terminates the path.
 
-This nesting is reserved for sub-resources that have multiple actions or own a meaningful name independent of the parent. Single-action endpoints stay flat (`POST /visits/{visit_id}/arrive`).
+This nesting is reserved for sub-resources that have multiple actions or own a meaningful name independent of the parent. Single-action endpoints stay flat (`POST /visits/{visit_id}/record-arrival`).
 
 Multi-word verb-prep URL segments are banned. `take-control-of-surface` was the sole example before commit `bda0d49f1` flipped it to `surface-control/take`; the noun-then-verb shape is the standard.
 
@@ -216,6 +216,17 @@ Carve-out: when the aggregate has only ONE such verb (and no foreseeable second)
 ### Supply uses `Marked<Status>` for operator-driven transitions
 
 Event classes follow `<Aggregate><PastParticiple>` everywhere except Supply's operator-observation events: `SupplyMarkedAvailable`, `SupplyMarkedUnavailable`, `SupplyMarkedRecovering`. The `Marked` prefix encodes the audit distinction "operator observation, not monitor measurement" that motivates Supply's 5-state FSM. A future automated monitor would emit bare past-participle events (`SupplyObservedAvailable`, `SupplyObservedRecovering`); the prefix is the discriminator.
+
+### Reversible-pause verbs split by entity kind
+
+The reversible-pause verb is `suspend` on authorization and grant aggregates and `hold` on execution, process, and container aggregates. The split is intentional, not drift, and the two verbs share one recovery verb, `resume`, across all five aggregates.
+
+- **Grant-shaped aggregates use `suspend` with the state value `Suspended`.** Agent (a principal whose privileges are paused) and Permit (a federation grant) each pair `Suspended` with their terminal verb, `deprecate` and `revoke` respectively. This is the suspend-then-revoke shape the wider world uses for licenses, accounts, and credentials: a suspended license, a suspended account.
+- **Execution, process, and container aggregates use `hold` with the state value `Held`, or `OnHold` for Visit.** Run, Campaign, and Visit each pair the pause-state with execution terminals (`abort`, `stop`, `complete`, `close`, `abandon`, `cancel`). This is the hold-or-pause-then-abort shape process and job control use, and Run's docstrings already anchor it to PackML Execute/Held and Bluesky pause/resume.
+
+The discriminator is the entity kind and its terminal verb, not the PackML operator-versus-condition axis. All five aggregates resume only by manual operator or agent command, so the PackML reading (Held is operator-commanded with manual resume, Suspended is condition-driven with automatic resume) does not apply here and must not be cited as justification. If an aggregate ever gains genuine condition-driven auto-resume, revisit, because at that point `suspend` would be the standards-correct word for the auto case.
+
+A new aggregate picks its pause verb by this rule: grant-shaped gets `suspend` plus a terminal `revoke` or `deprecate`; execution-shaped or container-shaped gets `hold` plus a terminal `abort`, `stop`, or `close`. Visit keeps its `OnHold` state value alongside the `VisitHeld` event; that surface asymmetry is deliberate for the session-pause reading and is not a rename target.
 
 ### Run cross-aggregate edits use `*To*` / `*From*`
 
