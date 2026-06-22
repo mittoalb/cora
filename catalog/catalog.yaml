@@ -70,6 +70,8 @@ families:
     note: "Beam-defining four-blade slit Family (four independently-driven blades forming a variable horizontal/vertical opening). 2-BM: ConditioningSlit (A-station L3-20) and SampleSlit (B-station)."
   - name: Aperture
     note: "Patterned beam-shaping aperture Family: a fixed-pattern mask positioned in the beam as a unit. Distinct from Slit (a variable opening defined by four driven blades) and from a passive Mask (a fixed beam-defining opening that does not move); the discriminator is the element's nature (a fixed code pattern), not that it is driven. 2-BM: the coded aperture for compressive-sensing tomography, fine-positioned by ApertureFineDrive."
+  - name: Mask
+    note: "Passive beam-defining mask Family: a plain fixed-opening element that shapes or limits the beam, positioned as a unit. Distinct from Slit (a variable opening via four driven blades) and Aperture (a fixed code pattern); the discriminator is the element's nature (a plain fixed opening). One Family spans the permanently-fixed masks and the movable safety-mask variant (movability is a per-Asset setting, the Table / InsertionDevice precedent). 2-BM: the M3-24 front-end exit mask. TomoWISE: the FM1 / FM2 fixed masks and the MSM movable safety mask. Earned in once two deployments shared it; beam-effect modelling stays deferred (the passive beam-path tier)."
   - name: Mirror
     note: "Beam-steering grazing-incidence mirror optic Family. 2-BM: the Y3-30 mirror (distinct from its MirrorTable support, which is Family Table)."
   - name: Monochromator
@@ -277,21 +279,28 @@ models:
 assemblies:
   - name: Optics
     note: >-
-      Reusable optics core: turret, objectives, virtual objective selector, and
-      propagation-distance stage. Presents nothing on its own; composed by detector Assemblies.
+      Reusable optics core: turret, objectives, virtual objective selector, and an
+      optional propagation-distance stage. Presents nothing on its own; composed by
+      detector Assemblies. propagation_distance is ZeroOrOne because some deployments
+      drive propagation with a shared facility stage rather than a per-Optics rail
+      (2-BM binds a per-microscope PropagationDistance; TomoWISE shares one detector
+      gantry rail across both microscopes, so its microscopes leave the slot empty).
     presents_as: []
     required_slots:
       - { slot_name: turret, required_families: [LinearStage], cardinality: Exactly1 }
       - { slot_name: objectives, required_families: [Objective], cardinality: OneOrMore }
       - { slot_name: objective_selector, required_families: [PseudoAxis], cardinality: Exactly1 }
-      - { slot_name: propagation_distance, required_families: [LinearStage], cardinality: Exactly1 }
+      - { slot_name: propagation_distance, required_families: [LinearStage], cardinality: ZeroOrOne }
   - name: Microscope
     note: >-
-      Full scintillator-relay detector: the Optics sub-assembly plus camera and
-      scintillator leaf slots. Presents the Detector Role. Zero required_wires in v1.
+      Full scintillator-relay detector: the Optics sub-assembly plus an optional camera
+      and a scintillator leaf slot. Presents the Detector Role. Zero required_wires in v1.
+      camera is ZeroOrOne because a microscope can be camera-agnostic, drawing from a
+      shared camera pool (2-BM binds its camera per microscope; TomoWISE's two microscopes
+      share four interchangeable cameras on one gantry, so each leaves the slot empty).
     presents_as: [Detector]
     required_slots:
-      - { slot_name: camera, required_families: [Camera], cardinality: Exactly1 }
+      - { slot_name: camera, required_families: [Camera], cardinality: ZeroOrOne }
       - { slot_name: scintillator, required_families: [Scintillator], cardinality: Exactly1 }
     required_sub_assemblies:
       - { slot_name: optics, sub_assembly: Optics }
