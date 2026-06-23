@@ -4,7 +4,7 @@
 
 A Procedure is the record of one operational task. It acts on a set of target Assets and may realize a [Capability](../../catalog/capabilities.md); it runs either standalone or as a phase of a [Run](experiment.md). The Procedure aggregate does not itself bind a Method, Practice, or Plan: those name the technique and its wiring, while the Procedure is the task record and its per-step log. See [Model](../../architecture/model.md) for the aggregate shape.
 
-The split between a Run and a Procedure is the lens, not the data product: a Run is the measurement batch (ISA-88), normally against a [Subject](experiment.md) and composed by a Campaign; a Procedure is an operational task (ISA-106). Both can produce a [Dataset](experiment.md) (a Dataset cites either a producing Run or a producing Procedure), so whether data comes out does not decide it. The dark- and flat-field baselines are subject-less calibration captures, kept with the [Runs](experiment.md); the tasks here are the operational ones.
+What separates a Run from a Procedure is the produced output of record: an act that leaves a [Dataset](experiment.md)-of-record is a Run (a measurement batch, ISA-88, composed by a Campaign), while a Procedure is an operational task (ISA-106) whose output of record is a Calibration value or a state change, not a Dataset-of-record (see the [Run vs Procedure boundary](../../reference/modeling.md#run-vs-procedure-boundary) rule). The dark- and flat-field baselines leave a baseline Dataset, so they too are [Runs](experiment.md), authored as [recipes](recipes.md#acquisition-baselines) rather than listed here; when CORA conducts one, the capture steps are carried as a phase Procedure of that Run (via `parent_run_id`), while a record-path baseline (driven by TomoScan) is just the Run with no Procedure. The tasks on this page are the standalone operational ones.
 
 An operation can also be authored as a [Recipe](recipes.md): a reusable, parameterized step sequence (setpoint / check / action) that expands into a Procedure once an operator binds its tunable values.
 
@@ -17,7 +17,6 @@ The operational tasks CORA models now, grouped by kind: homing, alignment, chara
 | Kind | Procedure | Target Assets |
 | --- | --- | --- |
 | Homing | `motor_homing` | `Rotary`, `SampleTop_X` |
-| Alignment | `first_light` | `StationShutter` + image chain |
 | Alignment | `resolution_alignment` | `PropagationDistance` + image chain |
 | Alignment | `focus_alignment` | `SampleTop_Z` + image chain |
 | Alignment | `center_alignment` | `Rotary`, `SampleTop_X` + image chain |
