@@ -95,7 +95,7 @@ families:
   - name: InsertionDevice
     note: "Source-defining insertion-device Family (the storage-ring straight-section source). One Family spans the cryo-undulator and the wiggler; the device type and its gap / field parameters are a per-Asset settings difference, not a Family split (the Table precedent). TomoWISE: the CPMU14 cryogenic permanent-magnet undulator and the 3T3PW three-pole wiggler, switchable per operation mode. A bending-magnet source (2-BM) is not an insertion device; it stays modelled loosely as the beam source, not through this Family."
   - name: Goniometer
-    note: "Multi-axis sample-orientation goniometer Family: omega / chi / phi rotation plus the x / y / z sample-centring translations, with centre-of-rotation control. The MX micro-goniometer. Distinct from RotaryStage (a single tomographic rotation axis that carries PSO fly-scan Following / Marking, which the goniometer does not) and from TiltStage (a limited-range tilt with no primary rotation axis); the discriminator is the multi-axis crystal-orientation role. Graduated from pending on i03 (the Smargon), CORA's first canonical-goniometer deployment; chi-vs-kappa and axis-count are a per-Asset settings or bound-Model difference, not a Family split (the InsertionDevice / Table precedent)."
+    note: "Multi-axis sample-orientation goniometer Family: omega / chi / phi rotation plus the x / y / z sample-centring translations, with centre-of-rotation control. The MX micro-goniometer. Distinct from RotaryStage (a single tomographic rotation axis that carries PSO fly-scan Following / Marking, which the goniometer does not) and from TiltStage (a limited-range tilt with no primary rotation axis); the discriminator is the multi-axis crystal-orientation role. Graduated from pending on i03 (the Smargon), CORA's first canonical-goniometer deployment; chi-vs-kappa and axis-count are a per-Asset settings or bound-Model difference, not a Family split (the InsertionDevice / Table precedent). The composed multi-stage scattering diffractometer (4-ID / 8-ID, the Diffractometer Assembly) binds one Goniometer Asset for its sample-orientation circles."
   # Pending in code (documented, not yet defined): none.
   # future: OpticalRelay.
 
@@ -316,3 +316,21 @@ assemblies:
       - { slot_name: scintillator, required_families: [Scintillator], cardinality: Exactly1 }
     required_sub_assemblies:
       - { slot_name: optics, sub_assembly: Optics }
+  - name: Diffractometer
+    note: >-
+      Composed multi-circle scattering diffractometer, presenting the Positioner Role. It
+      COMPOSES a Goniometer (the sample-orientation circles plus x/y/z centring, one Asset),
+      zero or more RotaryStage detector-arm circles, and a reciprocal-space PseudoAxis whose
+      partition rule resolves the hklpy2 inverse kinematics. This is the distinction from the
+      Goniometer Family: the Goniometer is the integrated single-device sample orienter (the
+      I03 Smargon); the Diffractometer is the larger composed scattering instrument that USES
+      a Goniometer and adds the detector arm and reciprocal-space layer. detector_arm is
+      ZeroOrMore because the count is a per-deployment geometry: 8-ID's six-circle Huber binds
+      four sample circles as the Goniometer and nu / delta as the detector arm, while a
+      Eulerian cradle may have none. Flat (no sub-assembly), unlike Microscope. Earned in once
+      two independent beamlines (4-ID, 8-ID) shared it.
+    presents_as: [Positioner]
+    required_slots:
+      - { slot_name: goniometer, required_families: [Goniometer], cardinality: Exactly1 }
+      - { slot_name: detector_arm, required_families: [RotaryStage], cardinality: ZeroOrMore }
+      - { slot_name: reciprocal_space, required_families: [PseudoAxis], cardinality: Exactly1 }
