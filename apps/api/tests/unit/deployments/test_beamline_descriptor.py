@@ -386,6 +386,7 @@ _ALLOWED_LOOSE_FAMILIES = {
     "FlightPath": "staged: evacuated XPCS flight path (8-ID); rule-of-three open (XPCS-2)",
     "SpectrometerArm": "staged: energy-dispersive RIXS arm (SIX); no point-Sensor fit (RIXS-1)",
     "ElectronAnalyzer": "staged: electron energy analyzer (ESM); not a photon detector (ARPES-1)",
+    "EnergyAnalyzer": "staged: IXS diced crystal energy analyzer; n=1 (ANALYZER-1)",
 }
 
 # The subset of loose families that is conceptually a Supply observation (a
