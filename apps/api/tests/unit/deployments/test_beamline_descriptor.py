@@ -369,7 +369,6 @@ _ALLOWED_LOOSE_FAMILIES = {
     "Diagnostic": "staged: beam-position monitor, Sensor Role; fold-vs-promote open (DIAG-1)",
     "FluxMonitor": "staged: ion-chamber/XBPM flux Sensor; promote-vs-fold open (FLUX-1/DIAG-1)",
     "FlowController": "staged: settable flow/pump actuator; earn-vs-defer open (FLOW-1/ENV-1)",
-    "TemperatureController": "staged: settable thermal actuator; abstraction open (ENV-1)",
     "Backlight": "staged: new illumination affordance; rule-of-three open (ROBOT-1/DET-1)",
     "BetrandLens": "staged: novel TXM optic, FXI-only; rule-of-three open (OPTIC-3)",
     "MultilayerLaueLens": "staged: novel 1D crossed-pair nano-focus optic, HXN-only (OPTIC-3)",
@@ -401,7 +400,6 @@ _PROMOTION_REVIEWED = {
     "FluxMonitor": "hold: fold-vs-promote still open across i03/i15-1/i22 (FLUX-1)",
     "Diagnostic": "hold: Sensor fold-vs-promote still open (DIAG-1)",
     "FlowController": "hold: earn-vs-defer still open (FLOW-1)",
-    "TemperatureController": "hold: settable-actuator abstraction still open (ENV-1)",
     "Transfocator": "hold: CRL optic abstraction still open across i22 / 4-id / 8-id (CRL-1)",
     "BeamPositionMonitor": "hold: Sensor fold-vs-promote open across 4-id/8-id (DIAG-1/FLUX-1)",
 }
