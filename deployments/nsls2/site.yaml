@@ -25,7 +25,7 @@ facility:
   heading: "NSLS-II"
   kind: Site
   institution: Brookhaven National Laboratory
-  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX, HEX, AMX, XFP, ISR, CDI]
+  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX, HEX, AMX, XFP, ISR, CDI, PDF]
 
 # ISA-88 Site Recipes: the facility-adapted form of a catalog Method. All pending
 # because they are reverse-engineered from the FXI profile collection, not yet
@@ -167,6 +167,11 @@ practices:
   # bound via beamlines.
   # NAME GUARD: this is NSLS-II 9-ID, not APS 9-ID (CSSI); the coherent_surface_scattering /
   # grazing_incidence_scattering pending Methods belong to APS 9-ID and are untouched here.
+  # PDF (28-ID-1) is XPD's dedicated total-scattering / PDF twin on the shared 28-ID
+  # damping wiggler: high-energy powder diffraction and rapid-acquisition pair
+  # distribution function. Its techniques sit on the same deferred powder_diffraction /
+  # total_scattering Methods Diamond i11 and i15-1 left pending (TECH-1); following XPD,
+  # no PDF Practice is recorded until those land. PDF is bound via beamlines.
 
 # Access BC Actors conceptually facility-wide at NSLS-II. Pending until the NSLS-II
 # operator and review structure is confirmed; the profile collection only exposes
