@@ -2,7 +2,7 @@
 #
 # NSLS-II (National Synchrotron Light Source II, Brookhaven National Laboratory)
 # is a Site CORA models, the home of the reverse-engineered NSLS-II beamline
-# scaffolds listed in the facility.beamlines field below (FXI ... LIX). This file is
+# scaffolds listed in the facility.beamlines field below (FXI ... HEX). This file is
 # the single human-readable source for the facility's site-level instances: the
 # Facility itself, the Practices it would run, and the facility principals.
 #
@@ -25,7 +25,7 @@ facility:
   heading: "NSLS-II"
   kind: Site
   institution: Brookhaven National Laboratory
-  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX]
+  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX, HEX]
 
 # ISA-88 Site Recipes: the facility-adapted form of a catalog Method. All pending
 # because they are reverse-engineered from the FXI profile collection, not yet
@@ -125,6 +125,15 @@ practices:
   - {name: LIX_solution_scattering_practice, method: solution_scattering, pending: true, note: "biological solution small- / wide-angle scattering (bio-SAXS / WAXS) on protein solutions in a flow cell; the fleet's first solution-scattering Method, new to the catalog (TECH-1)"}
   - {name: LIX_sec_saxs_practice, method: solution_scattering, pending: true, note: "in-line size-exclusion-chromatography-coupled SAXS (SEC-SAXS): the HPLC delivery pump flows the eluting peak through the cell while the SAXS detector reads; the same solution_scattering Method with the elution as the acquisition axis, a Procedure over the fluidic seam (TECH-1, FLUID-1)"}
   - {name: LIX_microbeam_scanning_practice, method: scanning_fluorescence_microscopy, pending: true, note: "scanning-microbeam mapping of cells and tissue (raster x scattering / fluorescence) on the SmarAct goniometer; reuses the existing pending scanning_fluorescence_microscopy Method (TECH-1)"}
+  # HEX (27-ID) high-energy engineering Practices (first cut). All reuse Methods the fleet
+  # already holds: tomography is graduated (2-BM / FXI); radiography and
+  # energy_dispersive_diffraction are the pending APS 7-BM Methods (HEX the second consumer
+  # of each); powder_diffraction is the pending Diamond i11 Method (HEX the second consumer).
+  # Nothing new is coined; the diffraction Methods stay pending (TECH-1).
+  - {name: HEX_tomography_practice, method: tomography, pending: true, note: "high-energy white-beam and monochromatic X-ray tomography (tomo_flyscan / tomo_loop) for engineering-materials and operando imaging on the Kinetix sCMOS cameras; reuses the graduated tomography Method (2-BM / FXI)"}
+  - {name: HEX_radiography_practice, method: radiography, pending: true, note: "time-resolved high-speed radiography on the Phantom Veo; reuses the radiography Method APS 7-BM left pending, the second consumer (TECH-1)"}
+  - {name: HEX_energy_dispersive_diffraction_practice, method: energy_dispersive_diffraction, pending: true, note: "spatially-resolved energy-dispersive X-ray diffraction (EDXD) on the GeRM germanium strip detector; reuses the energy_dispersive_diffraction Method APS 7-BM left pending, the second consumer (TECH-1)"}
+  - {name: HEX_powder_diffraction_practice, method: powder_diffraction, pending: true, note: "monochromatic angle-dispersive / powder diffraction (ADXD) on the PerkinElmer flat panel; reuses the powder_diffraction Method Diamond i11 left pending, the second consumer (TECH-1)"}
 
 # Access BC Actors conceptually facility-wide at NSLS-II. Pending until the NSLS-II
 # operator and review structure is confirmed; the profile collection only exposes
