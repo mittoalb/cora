@@ -271,6 +271,7 @@ _PENDING_METHODS = {
     "mx_data_collection": "i03 + FMX + AMX MX rotation collection; 3 consumers (TECH-1)",
     "sample_exchange": "i03 + FMX + AMX robotic sample exchange; 3 consumers (ROBOT-1)",
     "solution_scattering": "lix bio-SAXS / SEC-SAXS; new Method not yet earned (TECH-1)",
+    "x_ray_footprinting": "xfp dose-delivery footprinting; offline MS readout; new Method (TECH-1)",
     "small_angle_scattering": "i22 + 8-ID SAXS; portable Method not yet earned",
     "wide_angle_scattering": "i22 + 9-ID WAXS; portable Method not yet earned",
     "ultra_small_angle_scattering": "12-ID-E Bonse-Hart USAXS; not yet earned (USAXS-1)",

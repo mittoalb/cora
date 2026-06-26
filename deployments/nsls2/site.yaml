@@ -2,7 +2,7 @@
 #
 # NSLS-II (National Synchrotron Light Source II, Brookhaven National Laboratory)
 # is a Site CORA models, the home of the reverse-engineered NSLS-II beamline
-# scaffolds listed in the facility.beamlines field below (FXI ... HEX). This file is
+# scaffolds listed in the facility.beamlines field below (FXI ... XFP). This file is
 # the single human-readable source for the facility's site-level instances: the
 # Facility itself, the Practices it would run, and the facility principals.
 #
@@ -25,7 +25,7 @@ facility:
   heading: "NSLS-II"
   kind: Site
   institution: Brookhaven National Laboratory
-  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX, HEX, AMX]
+  beamlines: [FXI, HXN, BMM, SRX, SIX, CHX, CSX, IOS, XPD, ESM, SMI, IXS, SST, ISS, FMX, CMS, XFM, LIX, HEX, AMX, XFP]
 
 # ISA-88 Site Recipes: the facility-adapted form of a catalog Method. All pending
 # because they are reverse-engineered from the FXI profile collection, not yet
@@ -143,6 +143,13 @@ practices:
   - {name: AMX_mx_data_collection_practice, method: mx_data_collection, pending: true, note: "rotation / oscillation MX data collection on the single-omega goniometer + Eiger via the mxtools vector / Zebra flyer; reuses the i03 / FMX mx_data_collection Method, the third consumer (TECH-1)"}
   - {name: AMX_grid_scan_practice, method: grid_scan, pending: true, note: "fast grid scan for sample location / centring via the Zebra-triggered goniometer raster; reuses the i03 / FMX grid_scan Method, the third consumer (TECH-1)"}
   - {name: AMX_sample_exchange_practice, method: sample_exchange, pending: true, note: "autonomous EMBL-robot load / centre / collect / unmount loop coordinated by the LSDC Governor; reuses the i03 / FMX sample_exchange Method, the third consumer; a Procedure over the spine + a Subject custody thread (ROBOT-1)"}
+  # XFP (17-BM) X-ray footprinting Practices (first cut). XFP is a DOSE-DELIVERY
+  # beamline, not a scattering / diffraction one: a white / pink beam irradiates a
+  # biological macromolecule in solution to footprint it via hydroxyl radicals, and the
+  # structural readout is OFFLINE mass spectrometry. The Method (radiolytic / X-ray
+  # footprinting) is new to the catalog; both modes share it, carried pending (TECH-1).
+  - {name: XFP_footprinting_practice, method: x_ray_footprinting, pending: true, note: "X-ray footprinting of a biological macromolecule in solution: gate a timed white-beam dose onto a flowing capillary / flow-cell sample, recording exposure time x flux x attenuation as the delivered dose; the fleet's first dose-delivery Method, new to the catalog; structural readout is offline mass spec (TECH-1, READOUT-1)"}
+  - {name: XFP_high_throughput_footprinting_practice, method: x_ray_footprinting, pending: true, note: "shutterless high-throughput footprinting: sweep a fly-cell row through the defining slit at a set stage velocity so the exposure (dose) is the slit gap over the velocity, across a 96-well plate; the same x_ray_footprinting Method with the HTFly stage as the dose-timing (TECH-1, HT-1)"}
 
 # Access BC Actors conceptually facility-wide at NSLS-II. Pending until the NSLS-II
 # operator and review structure is confirmed; the profile collection only exposes
