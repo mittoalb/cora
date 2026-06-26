@@ -69,6 +69,7 @@ The fourth Site CORA models. Like the Diamond exercise, its beamlines are revers
 | [AMX](amx/index.md) | Reverse-engineered | highly automated macromolecular crystallography (rotation MX on a single-omega goniometer + Eiger, EMBL robot sample exchange), 17-ID-1; FMX's sibling, CORA's 3rd MX; modelled from public beamline config |
 | [XFP](xfp/index.md) | Reverse-engineered | X-ray footprinting of biological macromolecules in solution (white/pink-beam radiolytic dose delivery, offline mass-spec readout), 17-BM; the fleet's first dose-delivery beamline (no scattering detector); modelled from public beamline config |
 | [ISR](isr/index.md) | Reverse-engineered (partial) | in-situ and resonant hard X-ray scattering / surface diffraction, 4-ID; a deliberately partial first cut, the multi-circle diffractometer + in-situ environment + resonant energy axis deferred (DIFF-1 / INSITU-1 / RESONANT-1); modelled from public beamline config |
+| [CDI](cdi/index.md) | Reverse-engineered | coherent diffractive imaging (forward CDI, ptychography, Bragg CDI) with a KB nanofocus and Eiger2 / Merlin photon-counting detectors, 9-ID; NSLS-II's coherent-imaging beamline after Diamond i13-1, distinct from APS 9-ID; modelled from public beamline config |
 
 ## [SLAC](slac/index.md)
 
